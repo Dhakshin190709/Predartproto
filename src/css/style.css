@@ -11,6 +11,7 @@
 @layer components {
 }
 
+
 @layer utilities {
   /* Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {
@@ -213,3 +214,4 @@ span.flatpickr-weekday,
 [x-cloak] {
   display: none !important;
 }
+

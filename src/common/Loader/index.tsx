@@ -1,3 +1,5 @@
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 const Loader = () => {
   return (
     <div className="flex h-screen items-center justify-center bg-white">

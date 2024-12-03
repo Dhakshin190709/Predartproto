@@ -1,253 +1,133 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 
-const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
+interface FormData {
+  name: string;
+  email: string;
+  phone: string;
+  specialty: string;
+  hospital: string;
+  doctor: string;
+  mrd: string;
+  message: string;
+  date: string;
+  time: string;
+  isExistingPatient: boolean;
+}
 
-  const [emailOrMobile, setEmailOrMobile] = useState('');
-  const [emailOrMobileError, setEmailOrMobileError] = useState('');
-  const [password, setPassword] = useState<string>('');
-  const [passwordError, setPasswordError] = useState('');
- 
-  const [otpError, setOtpError] = useState('');
+interface Errors {
+  name?: string;
+  email?: string;
+  phone?: string;
+  mrd?: string;
+  date?: string;
+  time?: string;
+}
 
-  const [cooldown, setCooldown] = useState(0);
-  const [isResendEnabled, setIsResendEnabled] = useState(true);
-  const [isOtp, setIsOtp] = useState(false);
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
-  const [resendMessage, setResendMessage] = useState<string>('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [loginSuccessMessage, setLoginSuccessMessage] = useState('');
+const QuickAppointment: React.FC = () => {
+  const [formData, setFormData] = useState<FormData>({
+    name: '',
+    email: '',
+    phone: '',
+    specialty: '',
+    hospital: '',
+    doctor: '',
+    mrd: '',
+    message: '',
+    date: '',
+    time: '',
+    isExistingPatient: false,
+  });
 
-  const [sendOtpMessage, setSendOtpMessage] = useState('');
+  const [errors, setErrors] = useState<Errors>({});
 
-  const handleEmailOrMobileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setEmailOrMobile(e.target.value);
-    setEmailOrMobileError('');
-  };
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const togglePasswordVisibility = () => {
-    setPasswordVisible(!passwordVisible);
-  };
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setPassword(e.target.value);
-
-  // const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const otpValue = e.target.value;
-  //   if (/^\d{0,6}$/.test(otpValue)) {
-  //     setOtp(otpValue);
-  //     setOtpError('');
-  //   }
-  // };
-
-
-   const handleOtpChange = (index: number, value: string) => {
-    if (/^\d?$/.test(value)) { // Only allow digits (or empty)
-      const newOtp = [...otp];
-      newOtp[index] = value; // Update the specific box
-      setOtp(newOtp);
-  
-      // Move to the next box
-      if (value !== "" && index < 5) {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    }
-  };
-  
-
-  const handleLogin = () => {
-    let isValid = true;
-
-    setEmailOrMobileError('');
-    setPasswordError('');
-    setOtpError('');
-
-    // OTP validation
-    if (otp.some((digit) => digit === "")) {
-      setOtpError("OTP must be exactly 6 digits.");
-      setLoginSuccessMessage("");
-    } else {
-      setOtpError("");
-      setLoginSuccessMessage("Login successful!");
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    // If both email and mobile fields are filled, show an error
-    if (emailOrMobile.includes('@') && emailOrMobile.includes('.')) {
-      if (isMobileValid) {
-        setEmailOrMobileError(
-          'Enter either a valid email or mobile number, not both.',
-        );
-        isValid = false;
-      } else {
-        if (!isEmailValid) {
-          setEmailOrMobileError('Enter a valid email (with @ and .).');
-          isValid = false;
+  const validateField = (name: string, value: string): string | undefined => {
+    let error: string | undefined;
+    switch (name) {
+      case 'name':
+        if (!value.trim()) {
+          error = 'Name is required.';
+        } else if (value.length > 20) {
+          error = 'Name cannot exceed 20 characters.';
+        } else if (/\d/.test(value)) {
+          error = 'Name cannot contain numbers.';
         }
-      }
-    } else if (emailOrMobile === '') {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
-    } else if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
+        break;
+      case 'email':
+        if (!value.trim()) error = 'Email is required.';
+        else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value))
+          error = 'Invalid email format.';
+        break;
+      case 'phone':
+        if (!value.trim()) error = 'Phone is required.';
+        else if (!/^\d{10}$/.test(value))
+          error = 'Phone must be 10 digits.';
+        break;
+      case 'mrd':
+        if (formData.isExistingPatient && !value.trim())
+          error = 'MRD Number is required for existing patients.';
+        break;
+      case 'date':
+        if (!value.trim()) error = 'Date is required.';
+        break;
+      case 'time':
+        if (!value.trim()) error = 'Time is required.';
+        break;
+      default:
+        break;
+    }
+    return error;
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value, type, checked } = e.target;
+    const fieldValue = type === 'checkbox' ? checked : value;
+
+    setFormData({
+      ...formData,
+      [name]: fieldValue,
+    });
+
+    // Validate on change
+    setErrors({
+      ...errors,
+      [name]: validateField(name, fieldValue),
+    });
+  };
+
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+
+    // Validate all fields
+    const newErrors: Errors = {};
+    Object.keys(formData).forEach((key) => {
+      const error = validateField(key, formData[key as keyof FormData]);
+      if (error) newErrors[key as keyof Errors] = error;
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
     } else {
-      if (isEmailValid) {
-        setEmailOrMobileError('');
-      } else if (!isMobileValid) {
-        setEmailOrMobileError('Mobile number should be exactly 10 digits.');
-        isValid = false;
-      } else {
-        setEmailOrMobileError('');
-      }
-    }
-
-    // Validate password
-    if (password.length !== 10) {
-      setPasswordError('Password must be exactly 10 characters.');
-      isValid = false;
-    }
-
-    // Validate OTP (if needed)
-    const validateOtp = () => {
-      if (otp.join("").length < 6) {
-        setOtpError("Please enter all 6 digits.");
-        return false;
-      }
-      setOtpError(""); // Clear the error if OTP is valid
-      setLoginSuccessMessage("Login successful with Otp..!");
-      setTimeout(() => setLoginSuccessMessage(""), 5000);
-    };
-    
-    
-
-    if (isValid) {
-      setLoginSuccessMessage(
-        isOtp
-          ? 'Logged in successfully with OTP'
-          : 'Logged in successfully with Email/Mobile',
-      );
-
-      setTimeout(() => setLoginSuccessMessage(''), 5000);
-      console.log('Login successful');
+      alert(`Appointment booked for ${formData.name} on ${formData.date} at ${formData.time}`);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        specialty: '',
+        hospital: '',
+        doctor: '',
+        mrd: '',
+        message: '',
+        date: '',
+        time: '',
+        isExistingPatient: false,
+      });
+      setErrors({});
     }
   };
-
-  const handleOtpCheckboxChange = () => {
-    setIsOtp(!isOtp);
-    setIsOtpSent(false);
-    setOtp(Array(6).fill(""));
-  };
-
- 
-
-const handleOtpKeyDown = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  index: number
-) => {
-  if (e.key === "Backspace") {
-    if (!otp[index] && index > 0) {
-      const previousInput = document.getElementById(`otp-${index - 1}`);
-      previousInput?.focus();
-    }
-  }
-};
-
-const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-  const pasteData = e.clipboardData.getData("text").slice(0, 6);
-  if (/^\d{6}$/.test(pasteData)) {
-    const newOtp = pasteData.split("");
-    setOtp(newOtp);
-
-    // Focus the last box after pasting
-    const lastInput = document.getElementById(`otp-5`);
-    lastInput?.focus();
-  }
-  e.preventDefault();
-};
-
-
-  const handleSendOtp = () => {
-    setEmailOrMobileError('');
-    setSendOtpMessage('');
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    if (emailOrMobile === '') {
-      setEmailOrMobileError('Please enter your email or mobile.');
-      return;
-    }
-
-    if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or a 10-digit mobile number.',
-      );
-      return;
-    }
-
-    setSendOtpMessage('OTP has been sent your email/mobile..!');
-    setTimeout(() => {
-      setSendOtpMessage('');
-      setIsOtpSent(true);
-      setCooldown(30);
-      setIsResendEnabled(false);
-    }, 3000);
-  };
-
-  // const handleResendOtp = () => {
-  //   setResendMessage('OTP has been resent your email/mobile..!');
-  //   setCooldown(30);
-  //   setTimeout(() => setResendMessage(''), 3000);
-  // };
-
-  const handleResendOtp = () => {
-    setOtp(Array(6).fill("")); // Clear OTP array
-    setOtpError("");           // Clear any existing error
-    setResendMessage("OTP has been resent successfully!");
-    setCooldown(30);
-    setLoginSuccessMessage("");
-    // Focus on the first box
-    const firstInput = document.getElementById("otp-0");
-    firstInput?.focus();
-  
-    setTimeout(() => setResendMessage(""), 3000); // Clear resend message after 3 seconds
-  };
-  
-
-  useEffect(() => {
-    if (cooldown > 0) {
-      const timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }
-    if (cooldown === 0) {
-      setResendMessage(''); // Clear the success message when the timer ends
-    }
-  }, [cooldown]);
 
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-      <div className="container max-w-screen-xl mx-auto p-5">
+      <div className="container">
         <div className="max-w-screen-xl mx-auto py-4">
           <div className="flex flex-wrap items-center">
             <div className="hidden w-full xl:block xl:w-1/2">
@@ -382,188 +262,172 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
             </div>
             <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
               <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
-                <span className="mb-1.5 block font-medium">Start for free</span>
                 <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
-                  Login to CarePoint Pro
+                  Make an Appointment
                 </h2>
-                <div className="form-group relative mb-6">
-                  <label
-                    htmlFor="emailOrMobile"
-                    className="block text-gray-700 font-medium mb-1"
-                  >
-                    Email/Mobile
-                  </label>
-                  <div className="relative">
-                    <FontAwesomeIcon
-                      icon={faEnvelope}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                      style={{ color: '#d1d5db' }}
-                    />
-                    <input
-                      type="text"
-                      id="emailOrMobile"
-                      value={emailOrMobile}
-                      onChange={handleEmailOrMobileChange}
-                      maxLength={20}
-                      placeholder="Enter your email or mobile"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
-                  </div>
-                  {emailOrMobileError && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {emailOrMobileError}
-                    </p>
-                  )}
-                </div>
-                {!isOtpSent ? (
-  <div className="form-group mb-6">
-    {isOtp ? (
+   <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4">
       <div>
-        {/* Send OTP Button */}
-        <button onClick={handleSendOtp} className="send-otp-btn text-primary font-bold : text-gray-400">
-          Send OTP
-        </button>
-
-        {/* Success Message */}
-        {sendOtpMessage && (
-          <p className="text-green-500 text-sm mt-2">{sendOtpMessage}</p>
-        )}
+        <input
+          type="text"
+          name="name"
+          placeholder="Your Name"
+          value={formData.name}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+        {errors.name && <p className="text-red-500">{errors.name}</p>}
       </div>
-    ) : (
-      <div className="form-group relative mt-4 mb-6">
-        <label htmlFor="password" className="block text-gray-700 font-medium mb-1">
-          Password
-        </label>
-        <div className="relative">
-          <FontAwesomeIcon
-            icon={passwordVisible ? faEye : faEyeSlash}
-            onClick={togglePasswordVisibility}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
-            style={{ color: '#d1d5db' }}
-          />
+
+      <div>
+        <input
+          type="email"
+          name="email"
+          placeholder="Email"
+          value={formData.email}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+        {errors.email && <p className="text-red-500">{errors.email}</p>}
+      </div>
+
+      <div>
+        <input
+          type="tel"
+          name="phone"
+          placeholder="Phone"
+          value={formData.phone}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+        {errors.phone && <p className="text-red-500">{errors.phone}</p>}
+      </div>
+
+      <div>
+        <select
+          name="specialty"
+          value={formData.specialty}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="">Select Specialty</option>
+          <option value="Cardiology">Cardiology</option>
+          <option value="Dermatology">Dermatology</option>
+          <option value="Neurology">Neurology</option>
+        </select>
+      </div>
+
+      <div>
+        <select
+          name="hospital"
+          value={formData.hospital}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="">Select Hospital</option>
+          <option value="City Hospital">City Hospital</option>
+          <option value="Green Valley Clinic">Green Valley Clinic</option>
+          <option value="Sunrise Medical Center">Sunrise Medical Center</option>
+        </select>
+      </div>
+
+      <div>
+        <select
+          name="doctor"
+          value={formData.doctor}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="">Select Doctor</option>
+          <option value="Dr. Smith">Dr. Smith</option>
+          <option value="Dr. Johnson">Dr. Johnson</option>
+          <option value="Dr. Brown">Dr. Brown</option>
+        </select>
+      </div>
+
+      <div>
+        <input
+          type="date"
+          name="date"
+          value={formData.date}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+        {errors.date && <p className="text-red-500">{errors.date}</p>}
+      </div>
+
+      <div>
+        <input
+          type="time"
+          name="time"
+          value={formData.time}
+          onChange={handleChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+           text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+        {errors.time && <p className="text-red-500">{errors.time}</p>}
+      </div>
+
+      <div className="col-span-2">
+        <label>
           <input
-            type={passwordVisible ? 'text' : 'password'}
-            id="password"
-            value={password}
-            onChange={handlePasswordChange}
-            maxLength={10}
-            placeholder="Enter your password"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+            type="checkbox"
+            name="isExistingPatient"
+            checked={formData.isExistingPatient}
+            onChange={handleChange}
+            className="mr-2"
           />
-        </div>
-        {passwordError && (
-          <p className="text-red-500 text-sm mt-1">{passwordError}</p>
-        )}
+          Existing Patient
+        </label>
       </div>
-    )}
-  </div>
-) : (
-  <div className="form-group mb-6">
-    {/* OTP Input */}
-    <label htmlFor="otp">OTP</label>
-    <div className="flex space-x-2" onPaste={handlePaste}>
-  {otp.map((digit, index) => (
-    <input
-      key={index}
-      id={`otp-${index}`}
-      type="text"
-      maxLength={1}
-      value={digit}
-      onChange={(e) => handleOtpChange(index, e.target.value)}
-      onKeyDown={(e) => handleOtpKeyDown(index, e)}
-      //className="w-12 h-12 text-center border border-gray-300 rounded-md bg-transparent outline-none focus:border-gray-100 focus:ring focus:ring-gray-200 focus:ring-opacity-50"
 
-      //  className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      //  text-black outline-none focus:border-primary dark:border-form-strokedark 
-      //  dark:bg-form-input dark:text-white dark:focus:border-primary"
-       className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-  ))}
-</div>
-  
-    {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
+      {formData.isExistingPatient && (
+        <div>
+          <input
+            type="text"
+            name="mrd"
+            placeholder="MRD Number"
+            value={formData.mrd}
+            onChange={handleChange}
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+          />
+          {errors.mrd && <p className="text-red-500">{errors.mrd}</p>}
+        </div>
+      )}
+      <div className="col-span-2">
+                    <textarea
+                      name="message"
+                      placeholder="Message (optional)"
+                      value={formData.message}
+                      onChange={handleChange}
+                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input
+            dark:text-white dark:focus:border-primary"
+                      rows="3"
+                    ></textarea>
+                  </div>
 
-    {/* Resend Button with Timer */}
-    <div className="flex justify-between mt-4">
-      <button
-        disabled={cooldown > 0}
-        onClick={handleResendOtp}
-        className={`text-sm ${
-          cooldown === 0 ? 'text-primary font-bold' : 'text-gray-400'
-        } ${cooldown === 0 ? 'font-bold' : ''}`}
-      >
-        Resend OTP{' '}
-        {cooldown > 0 && <span className="font-bold">({cooldown}s)</span>}
-      </button>
+      <div className="mt-4 col-span-2">
+        <button
+          type="submit"
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+          hover:from-[#007BFF] hover:to-[#004A99]
+          text-white transition duration-150 
+          ease-out hover:ease-in py-2 px-5 rounded-lg"
+                        
+          disabled={Object.values(errors).some((error) => error)}
+        >
+          Book Now
+        </button>
+      </div>
+    </form>
     </div>
-
-    {/* Resend Message */}
-    {resendMessage && (
-      <p className="text-green-500 mt-2">{resendMessage}</p>
-    )}
-  </div>
-)}
-
-
-
-
-                <div className="form-group mt-4 mb-6 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isOtp"
-                    checked={isOtp}
-                    onChange={handleOtpCheckboxChange}
-                    className="mr-2"
-                  />
-                  <label htmlFor="isOtp">Login with OTP</label>
-                </div>
-                <div className="flex items-center justify-between mb-4">
-                  <Link to="/remember-me" className="text-primary">
-                    Remember me
-                  </Link>
-                  <Link to="/forgot-password" className="text-primary">
-                    Forgot password?
-                  </Link>
-                </div>
-                {/* <div className="mt-9 flex justify-center"> */}
-                <div className="mt-9">
-                  <button
-                    onClick={handleLogin}
-                    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-                  >
-                    Login
-                  </button>
-                </div>
-
-                <div>
-                  {loginSuccessMessage && (
-                    <p className="text-green-500 mt-2">{loginSuccessMessage}</p>
-                  )}
-                </div>
-                <div className="mt-6 text-center">
-                  <p>
-                    Don’t have an account?{' '}
-                    <Link to="/signup" className="text-primary">
-                      Sign Up
-                    </Link>
-                  </p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
       </div>
-
-  
     </div>
   );
 };
 
-export default Login;
+export default QuickAppointment;

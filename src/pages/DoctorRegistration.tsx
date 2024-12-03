@@ -1,256 +1,71 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
+import React, { useState } from 'react';
 
-const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-
-  const [emailOrMobile, setEmailOrMobile] = useState('');
-  const [emailOrMobileError, setEmailOrMobileError] = useState('');
-  const [password, setPassword] = useState<string>('');
-  const [passwordError, setPasswordError] = useState('');
- 
-  const [otpError, setOtpError] = useState('');
-
-  const [cooldown, setCooldown] = useState(0);
-  const [isResendEnabled, setIsResendEnabled] = useState(true);
-  const [isOtp, setIsOtp] = useState(false);
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
-  const [resendMessage, setResendMessage] = useState<string>('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [loginSuccessMessage, setLoginSuccessMessage] = useState('');
-
-  const [sendOtpMessage, setSendOtpMessage] = useState('');
-
-  const handleEmailOrMobileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setEmailOrMobile(e.target.value);
-    setEmailOrMobileError('');
-  };
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const togglePasswordVisibility = () => {
-    setPasswordVisible(!passwordVisible);
-  };
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setPassword(e.target.value);
-
-  // const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const otpValue = e.target.value;
-  //   if (/^\d{0,6}$/.test(otpValue)) {
-  //     setOtp(otpValue);
-  //     setOtpError('');
-  //   }
-  // };
-
-
-   const handleOtpChange = (index: number, value: string) => {
-    if (/^\d?$/.test(value)) { // Only allow digits (or empty)
-      const newOtp = [...otp];
-      newOtp[index] = value; // Update the specific box
-      setOtp(newOtp);
+const DoctorRegistration: React.FC = () => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    qualification: '',
+    specialization: '',
+    gender: '',
+    tenant: '',
+    hospital: '',
+  });
   
-      // Move to the next box
-      if (value !== "" && index < 5) {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    }
-  };
-  
+  const [errors, setErrors] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    qualification: '',
+    specialization: '',
+  });
 
-  const handleLogin = () => {
-    let isValid = true;
+  const [successMessage, setSuccessMessage] = useState('');
 
-    setEmailOrMobileError('');
-    setPasswordError('');
-    setOtpError('');
-
-    // OTP validation
-    if (otp.some((digit) => digit === "")) {
-      setOtpError("OTP must be exactly 6 digits.");
-      setLoginSuccessMessage("");
-    } else {
-      setOtpError("");
-      setLoginSuccessMessage("Login successful!");
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    // If both email and mobile fields are filled, show an error
-    if (emailOrMobile.includes('@') && emailOrMobile.includes('.')) {
-      if (isMobileValid) {
-        setEmailOrMobileError(
-          'Enter either a valid email or mobile number, not both.',
-        );
-        isValid = false;
-      } else {
-        if (!isEmailValid) {
-          setEmailOrMobileError('Enter a valid email (with @ and .).');
-          isValid = false;
-        }
-      }
-    } else if (emailOrMobile === '') {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
-    } else if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
-    } else {
-      if (isEmailValid) {
-        setEmailOrMobileError('');
-      } else if (!isMobileValid) {
-        setEmailOrMobileError('Mobile number should be exactly 10 digits.');
-        isValid = false;
-      } else {
-        setEmailOrMobileError('');
-      }
-    }
-
-    // Validate password
-    if (password.length !== 10) {
-      setPasswordError('Password must be exactly 10 characters.');
-      isValid = false;
-    }
-
-    // Validate OTP (if needed)
-    const validateOtp = () => {
-      if (otp.join("").length < 6) {
-        setOtpError("Please enter all 6 digits.");
-        return false;
-      }
-      setOtpError(""); // Clear the error if OTP is valid
-      setLoginSuccessMessage("Login successful with Otp..!");
-      setTimeout(() => setLoginSuccessMessage(""), 5000);
+  const validateFields = () => {
+    const newErrors = {
+      name: formData.name ? '' : 'Name is required.',
+      email:
+        formData.email && /\S+@\S+\.\S+/.test(formData.email)
+          ? ''
+          : 'Valid email is required.',
+      phone:
+        formData.phone && /^\d{10}$/.test(formData.phone)
+          ? ''
+          : 'Phone number must be 10 digits.',
+      qualification: formData.qualification ? '' : 'Qualification is required.',
+      specialization: formData.specialization
+        ? ''
+        : 'Specialization is required.',
+      tenant: formData.tenant ? '' : 'Tenant is required.',
+      hospital: formData.hospital ? '' : 'Hospital is required.',
+      gender: formData.gender ? '' : 'Gender is required.',
     };
-    
-    
-
-    if (isValid) {
-      setLoginSuccessMessage(
-        isOtp
-          ? 'Logged in successfully with OTP'
-          : 'Logged in successfully with Email/Mobile',
-      );
-
-      setTimeout(() => setLoginSuccessMessage(''), 5000);
-      console.log('Login successful');
-    }
-  };
-
-  const handleOtpCheckboxChange = () => {
-    setIsOtp(!isOtp);
-    setIsOtpSent(false);
-    setOtp(Array(6).fill(""));
-  };
-
- 
-
-const handleOtpKeyDown = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  index: number
-) => {
-  if (e.key === "Backspace") {
-    if (!otp[index] && index > 0) {
-      const previousInput = document.getElementById(`otp-${index - 1}`);
-      previousInput?.focus();
-    }
-  }
-};
-
-const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-  const pasteData = e.clipboardData.getData("text").slice(0, 6);
-  if (/^\d{6}$/.test(pasteData)) {
-    const newOtp = pasteData.split("");
-    setOtp(newOtp);
-
-    // Focus the last box after pasting
-    const lastInput = document.getElementById(`otp-5`);
-    lastInput?.focus();
-  }
-  e.preventDefault();
-};
-
-
-  const handleSendOtp = () => {
-    setEmailOrMobileError('');
-    setSendOtpMessage('');
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    if (emailOrMobile === '') {
-      setEmailOrMobileError('Please enter your email or mobile.');
-      return;
-    }
-
-    if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or a 10-digit mobile number.',
-      );
-      return;
-    }
-
-    setSendOtpMessage('OTP has been sent your email/mobile..!');
-    setTimeout(() => {
-      setSendOtpMessage('');
-      setIsOtpSent(true);
-      setCooldown(30);
-      setIsResendEnabled(false);
-    }, 3000);
-  };
-
-  // const handleResendOtp = () => {
-  //   setResendMessage('OTP has been resent your email/mobile..!');
-  //   setCooldown(30);
-  //   setTimeout(() => setResendMessage(''), 3000);
-  // };
-
-  const handleResendOtp = () => {
-    setOtp(Array(6).fill("")); // Clear OTP array
-    setOtpError("");           // Clear any existing error
-    setResendMessage("OTP has been resent successfully!");
-    setCooldown(30);
-    setLoginSuccessMessage("");
-    // Focus on the first box
-    const firstInput = document.getElementById("otp-0");
-    firstInput?.focus();
   
-    setTimeout(() => setResendMessage(""), 3000); // Clear resend message after 3 seconds
+    setErrors(newErrors);
+    return Object.values(newErrors).every((error) => error === '');
   };
   
 
-  useEffect(() => {
-    if (cooldown > 0) {
-      const timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
+  const handleSingleInputChange = (key: string, value: string) => {
+    setFormData({ ...formData, [key]: value });
+    setErrors({ ...errors, [key]: '' }); // Clear the error for the field as the user types
+  };
 
-      return () => clearInterval(timer);
+  const handleRegister = () => {
+    if (validateFields()) {
+      setSuccessMessage('Registration successful!');
+    } else {
+      setSuccessMessage(''); // Clear success message if there are errors
     }
-    if (cooldown === 0) {
-      setResendMessage(''); // Clear the success message when the timer ends
-    }
-  }, [cooldown]);
+  };
 
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
       <div className="container max-w-screen-xl mx-auto p-5">
         <div className="max-w-screen-xl mx-auto py-4">
           <div className="flex flex-wrap items-center">
-            <div className="hidden w-full xl:block xl:w-1/2">
+          <div className="hidden w-full xl:block xl:w-1/2">
               <div className="py-17.5 px-26 text-center">
                 <p>
                   Lorem ipsum dolor sit amet, consectetur adipiscing elit
@@ -383,187 +198,211 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
             <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
               <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
                 <span className="mb-1.5 block font-medium">Start for free</span>
+               
+              
                 <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
-                  Login to CarePoint Pro
+                  Doctor Registration
                 </h2>
-                <div className="form-group relative mb-6">
-                  <label
-                    htmlFor="emailOrMobile"
-                    className="block text-gray-700 font-medium mb-1"
-                  >
-                    Email/Mobile
-                  </label>
-                  <div className="relative">
-                    <FontAwesomeIcon
-                      icon={faEnvelope}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
-                      style={{ color: '#d1d5db' }}
-                    />
+                <form className="space-y-4">
+                  {/* Tenant */}
+                  <div className="grid grid-cols-2 gap-4">
+<div>
+  <select
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={formData.tenant}
+    onChange={(e) => handleSingleInputChange('tenant', e.target.value)}
+  >
+    <option value="">Select Tenant</option>
+    <option value="Tenant1">Tenant1</option>
+    <option value="Tenant2">Tenant2</option>
+    <option value="Tenant3">Tenant3</option>
+  </select>
+  {errors.tenant && (
+    <p className="text-red-500 text-sm">{errors.tenant}</p>
+  )}
+</div>
+
+{/* Hospital */}
+<div>
+  <select
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={formData.hospital}
+    onChange={(e) => handleSingleInputChange('hospital', e.target.value)}
+  >
+    <option value="">Select Hospital</option>
+    <option value="Hospital1">Hospital1</option>
+    <option value="Hospital2">Hospital2</option>
+    <option value="Hospital3">Hospital3</option>
+  </select>
+  {errors.hospital && (
+    <p className="text-red-500 text-sm">{errors.hospital}</p>
+  )}
+</div>
+</div>
+                  {/* Name */}
+                  <div>
                     <input
                       type="text"
-                      id="emailOrMobile"
-                      value={emailOrMobile}
-                      onChange={handleEmailOrMobileChange}
-                      maxLength={20}
-                      placeholder="Enter your email or mobile"
                       className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        text-black outline-none focus:border-primary dark:border-form-strokedark 
+                        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      value={formData.name}
+                      maxLength={20}
+                      onChange={(e) =>
+                        handleSingleInputChange('name', e.target.value)
+                      }
+                      placeholder="Enter your name"
                     />
+                    {errors.name && (
+                      <p className="text-red-500 text-sm">{errors.name}</p>
+                    )}
                   </div>
-                  {emailOrMobileError && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {emailOrMobileError}
-                    </p>
-                  )}
-                </div>
-                {!isOtpSent ? (
-  <div className="form-group mb-6">
-    {isOtp ? (
-      <div>
-        {/* Send OTP Button */}
-        <button onClick={handleSendOtp} className="send-otp-btn text-primary font-bold : text-gray-400">
-          Send OTP
-        </button>
 
-        {/* Success Message */}
-        {sendOtpMessage && (
-          <p className="text-green-500 text-sm mt-2">{sendOtpMessage}</p>
-        )}
-      </div>
-    ) : (
-      <div className="form-group relative mt-4 mb-6">
-        <label htmlFor="password" className="block text-gray-700 font-medium mb-1">
-          Password
-        </label>
-        <div className="relative">
-          <FontAwesomeIcon
-            icon={passwordVisible ? faEye : faEyeSlash}
-            onClick={togglePasswordVisibility}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
-            style={{ color: '#d1d5db' }}
-          />
-          <input
-            type={passwordVisible ? 'text' : 'password'}
-            id="password"
-            value={password}
-            onChange={handlePasswordChange}
-            maxLength={10}
-            placeholder="Enter your password"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-        </div>
-        {passwordError && (
-          <p className="text-red-500 text-sm mt-1">{passwordError}</p>
-        )}
-      </div>
-    )}
-  </div>
-) : (
-  <div className="form-group mb-6">
-    {/* OTP Input */}
-    <label htmlFor="otp">OTP</label>
-    <div className="flex space-x-2" onPaste={handlePaste}>
-  {otp.map((digit, index) => (
-    <input
-      key={index}
-      id={`otp-${index}`}
-      type="text"
-      maxLength={1}
-      value={digit}
-      onChange={(e) => handleOtpChange(index, e.target.value)}
-      onKeyDown={(e) => handleOtpKeyDown(index, e)}
-      //className="w-12 h-12 text-center border border-gray-300 rounded-md bg-transparent outline-none focus:border-gray-100 focus:ring focus:ring-gray-200 focus:ring-opacity-50"
+                  {/* Email */}
+                  <div>
+                    <input
+                      type="email"
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                        text-black outline-none focus:border-primary dark:border-form-strokedark 
+                        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      value={formData.email}
+                      onChange={(e) =>
+                        handleSingleInputChange('email', e.target.value)
+                      }
+                      placeholder="Enter your email"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm">{errors.email}</p>
+                    )}
+                  </div>
 
-      //  className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      //  text-black outline-none focus:border-primary dark:border-form-strokedark 
-      //  dark:bg-form-input dark:text-white dark:focus:border-primary"
-       className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-  ))}
+                  {/* Phone */}
+                  <div>
+                    <input
+                      type="tel"
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                        text-black outline-none focus:border-primary dark:border-form-strokedark 
+                        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      value={formData.phone}
+                      onChange={(e) =>
+                        handleSingleInputChange('phone', e.target.value)
+                      }
+                      placeholder="Enter your number"
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm">{errors.phone}</p>
+                    )}
+                  </div>
+
+                  {/* Qualification */}
+                  
+                  <div>
+                    <select
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                        text-black outline-none focus:border-primary dark:border-form-strokedark 
+                        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      value={formData.qualification}
+                      onChange={(e) =>
+                        handleSingleInputChange('qualification', e.target.value)
+                      }
+                    >
+                      <option value="">Select Qualification</option>
+                      <option value="MBBS">MBBS</option>
+                      <option value="MD">MD</option>
+                      <option value="BDS">BDS</option>
+                      <option value="MDS">MDS</option>
+                      <option value="BAMS">BAMS</option>
+                      <option value="BHMS">BHMS</option>
+                    </select>
+                    {errors.qualification && (
+                      <p className="text-red-500 text-sm">
+                        {errors.qualification}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Specialization */}
+                  <div>
+                    <select
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                        text-black outline-none focus:border-primary dark:border-form-strokedark 
+                        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                      value={formData.specialization}
+                      onChange={(e) =>
+                        handleSingleInputChange(
+                          'specialization',
+                          e.target.value,
+                        )
+                      }
+                    >
+                      <option value="">Select Specialization</option>
+                      <option value="Cardiology">Cardiology</option>
+                      <option value="Neurology">Neurology</option>
+                      <option value="Orthopedics">Orthopedics</option>
+                      <option value="Pediatrics">Pediatrics</option>
+                      <option value="Dermatology">Dermatology</option>
+                      <option value="Gynecology">Gynecology</option>
+                    </select>
+                    {errors.specialization && (
+                      <p className="text-red-500 text-sm">
+                        {errors.specialization}
+                      </p>
+                    )}
+                  </div>
+
+                 {/* Gender */}
+                 <div className="grid grid-cols-2 gap-4">
+<div>
+  <select
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={formData.gender}
+    onChange={(e) => handleSingleInputChange('gender', e.target.value)}
+  >
+    <option value="">Select Gender</option>
+    <option value="Male">Male</option>
+    <option value="Female">Female</option>
+    <option value="Other">Other</option>
+  </select>
+  {errors.gender && (
+    <p className="text-red-500 text-sm">{errors.gender}</p>
+  )}
 </div>
-  
-    {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
+</div>
 
-    {/* Resend Button with Timer */}
-    <div className="flex justify-between mt-4">
-      <button
-        disabled={cooldown > 0}
-        onClick={handleResendOtp}
-        className={`text-sm ${
-          cooldown === 0 ? 'text-primary font-bold' : 'text-gray-400'
-        } ${cooldown === 0 ? 'font-bold' : ''}`}
-      >
-        Resend OTP{' '}
-        {cooldown > 0 && <span className="font-bold">({cooldown}s)</span>}
-      </button>
-    </div>
+                </form>
 
-    {/* Resend Message */}
-    {resendMessage && (
-      <p className="text-green-500 mt-2">{resendMessage}</p>
-    )}
-  </div>
-)}
-
-
-
-
-                <div className="form-group mt-4 mb-6 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isOtp"
-                    checked={isOtp}
-                    onChange={handleOtpCheckboxChange}
-                    className="mr-2"
-                  />
-                  <label htmlFor="isOtp">Login with OTP</label>
-                </div>
-                <div className="flex items-center justify-between mb-4">
-                  <Link to="/remember-me" className="text-primary">
-                    Remember me
-                  </Link>
-                  <Link to="/forgot-password" className="text-primary">
-                    Forgot password?
-                  </Link>
-                </div>
-                {/* <div className="mt-9 flex justify-center"> */}
                 <div className="mt-9">
                   <button
-                    onClick={handleLogin}
+                    onClick={handleRegister}
                     className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
+                      hover:from-[#007BFF] hover:to-[#004A99]
+                      text-white transition duration-150 
+                      ease-out hover:ease-in py-2 px-5 rounded-lg"
                   >
-                    Login
+                    Register Now
                   </button>
                 </div>
 
-                <div>
-                  {loginSuccessMessage && (
-                    <p className="text-green-500 mt-2">{loginSuccessMessage}</p>
-                  )}
-                </div>
-                <div className="mt-6 text-center">
-                  <p>
-                    Don’t have an account?{' '}
-                    <Link to="/signup" className="text-primary">
-                      Sign Up
-                    </Link>
+                {successMessage && (
+                  <p className="mt-4 text-green-500 text-lg">
+                    {successMessage}
                   </p>
-                </div>
-              </div>
-            </div>
+                )}
+             
+           
           </div>
         </div>
       </div>
-
-  
+    </div>
+    </div>
     </div>
   );
 };
 
-export default Login;
+export default DoctorRegistration;
