@@ -4,14 +4,12 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
     "module": "ESNext",
     "skipLibCheck": true,
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "react-jsx",
+    "jsx": "react-jsx", 
 
     /* Linting */
     "strict": true,
@@ -20,8 +18,19 @@
     "noFallthroughCasesInSwitch": true,
     /* Allow JS */
     "allowJs": true,
-    "checkJs": false
+    "checkJs": false,
+
+    /* React & AG Grid Specific */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "skipDefaultLibCheck": true
   },
-  "include": ["src", "src/lib.d.ts","src/**/*"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": [
+    "src", 
+    "src/lib.d.ts",
+    "src/**/*"
+  ],
+  "references": [
+    { "path": "./tsconfig.node.json" }
+  ]
 }

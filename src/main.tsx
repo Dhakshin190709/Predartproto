@@ -4,8 +4,13 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import App from './App';
 import './css/style.css';
 import './css/satoshi.css';
-import 'jsvectormap/dist/css/jsvectormap.css';
+import 'jsvectormap/dist/jsvectormap.css';
 import 'flatpickr/dist/flatpickr.min.css';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css'; 
+import 'react-big-calendar/lib/css/react-big-calendar.css';  // Required styles
+import 'react-datepicker/dist/react-datepicker.css';
+
 import { Provider } from 'react-redux';
 import store from './redux/store';
 

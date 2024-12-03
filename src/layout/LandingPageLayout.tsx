@@ -2,7 +2,6 @@ import React, { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import LogoIcon from '../images/carepointpro/main__logo.png';
 import '../scss/landingpage.scss';
-import Login from './components/Login'; // Adjust the path if needed
 import Auth from '../js/auth';
 import { Outlet } from 'react-router-dom';
 

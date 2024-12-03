@@ -28,6 +28,9 @@
   .inbox-height {
     @apply h-[calc(100vh_-_8.125rem)] lg:h-[calc(100vh_-_5.625rem)];
   }
+  .ag-center-text {
+    text-align: center !important;
+  }
 }
 
 /* third-party libraries CSS */

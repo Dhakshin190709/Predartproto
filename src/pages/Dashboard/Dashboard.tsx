@@ -1,11 +1,49 @@
-import React from 'react';
+import React, { useState } from 'react'; 
+
+ 
 
 const Dashboard: React.FC = () => {
+  const [isFormVisible, setFormVisible] = useState(false);
+  const [paymentType, setPaymentType] = useState('');  // Default payment type is empty
+    const [billAmount, setBillAmount] = useState('');  // Default bill amount is empty
+    const [paymentDate, setPaymentDate] = useState('');  // Default payment date is empty
+    const [transactionNumber, setTransactionNumber] = useState('');  // Default transaction number is empty
+    const [balance, setBalance] = useState('');  // Default balance is empty
+
+
+
+  // Function to show the form
+  const handleCollectClick = () => {
+    setFormVisible(true);
+  };
+
+      
+    const handlePaymentTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+      setPaymentType(event.target.value);
+    };
+  
+    const handleCancel = () => {
+      setFormVisible(false);
+    };
+  
+    const handleSave = () => {
+      // Handle save logic here
+      console.log({
+        billAmount,
+        paymentDate,
+        paymentType,
+        transactionNumber,
+        balance,
+      });
+      setFormVisible(false);
+    };
+  
+
   return (
     <>
       <div className="container">
         <div className="max-w-screen-xl mx-auto">
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {/* Card 1 - Patient 1 */}
             <div className="bg-white shadow-md rounded-lg p-6 flex flex-col justify-between">
               <div>
@@ -29,6 +67,12 @@ const Dashboard: React.FC = () => {
                 </button>
                 <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
                   Reject
+                </button>
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleCollectClick} // Show the form when clicked
+                >
+                  Collect
                 </button>
               </div>
             </div>
@@ -54,6 +98,12 @@ const Dashboard: React.FC = () => {
                 </button>
                 <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
                   Reject
+                </button>
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleCollectClick} // Show the form when clicked
+                >
+                  Collect
                 </button>
               </div>
             </div>
@@ -82,6 +132,12 @@ const Dashboard: React.FC = () => {
                 <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
                   Reject
                 </button>
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleCollectClick} // Show the form when clicked
+                >
+                  Collect
+                </button>
               </div>
             </div>
 
@@ -108,6 +164,12 @@ const Dashboard: React.FC = () => {
                 </button>
                 <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
                   Reject
+                </button>
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleCollectClick} // Show the form when clicked
+                >
+                  Collect
                 </button>
               </div>
             </div>
@@ -136,11 +198,110 @@ const Dashboard: React.FC = () => {
                 <button className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded">
                   Reject
                 </button>
+                <button
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+                  onClick={handleCollectClick} // Show the form when clicked
+                >
+                  Collect
+                </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+      {isFormVisible && (
+        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center">
+          <div className="w-full max-w-lg bg-white rounded-lg shadow-xl p-8">
+            <h3 className="text-xl font-bold mb-4 text-black">Payment Details</h3>
+            <form>
+              {/* Line 1: Bill Amount and Date */}
+              <div className="flex gap-4 mb-4">
+                <div className="w-full md:w-1/2">
+                  <input
+                    type="number"
+                    value={billAmount}
+                    onChange={(e) => setBillAmount(e.target.value)}
+                    placeholder="Bill Amount"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 text-black outline-none focus:border-primary focus-visible:shadow-none"
+                  />
+                </div>
+                <div className="w-full md:w-1/2">
+                  <input
+                    type="date"                   
+                    value={paymentDate}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    placeholder="Payment Date"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none"
+                  />
+                </div>
+              </div>
+
+              {/* Line 2: Payment Type and Transaction Number (conditionally rendered) */}
+              <div className="flex gap-4 mb-4">
+                <div className="w-full">
+                  <select
+                    id="paymentType"
+                    value={paymentType}
+                    onChange={handlePaymentTypeChange}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none"
+                  >
+                    <option value="">Payment Type</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Debit Card">Debit Card</option>
+                    <option value="GPay">GPay</option>
+                    <option value="PhonePay">PhonePay</option>
+                    <option value="UPI">UPI ID</option>
+                    <option value="Net Banking">Net Banking</option>
+                  </select>
+                </div>
+
+                {/* Conditionally render Transaction Number only when 'Cash' is NOT selected */}
+                {paymentType !== 'Cash' && (
+                  <div className="w-full">
+                    <input
+                      type="text"
+                      value={transactionNumber}
+                      onChange={(e) => setTransactionNumber(e.target.value)}
+                      placeholder="Transaction Number"
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Line 3: Balance */}
+              <div className="mb-4 w-full">
+                <input
+                  type="number"
+                   value={balance}
+                  onChange={(e) => setBalance(e.target.value)}
+                  placeholder="Balance"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none"
+                />
+              </div>
+
+              {/* Buttons */}
+              <div className="flex justify-between mt-6 gap-4">
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2 mt-2"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2 mt-2"
+                >
+                  Submit
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </>
   );
 };
