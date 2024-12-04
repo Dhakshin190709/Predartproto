@@ -1,0 +1,206 @@
+.tenant-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.tenant-form-container {
+    margin-bottom: 20px;
+}
+
+
+
+/* .tenant-table th, .tenant-table td {
+    padding: 10px;
+    border: none !important;  
+    text-align: center;
+} */
+
+/* Apply this to the entire table */
+.tenant-table {
+    width: 100%;
+    max-width: 800px;
+    border-collapse: collapse; /* Collapses borders */
+}
+
+/* Styling for both th and td */
+.tenant-table th, .tenant-table td {
+    padding: 10px;
+    text-align: center;
+    border-top: 1px solid #ddd; /* Keep horizontal border on top */
+    border-bottom: 1px solid #ddd; /* Keep horizontal border on bottom */
+}
+
+/* Remove vertical borders between columns */
+.tenant-table th, .tenant-table td {
+    border-left: none !important;  /* Hide left border */
+    border-right: none !important; /* Hide right border */
+}
+
+/* Optional: Remove first and last row borders (top & bottom of table) */
+.tenant-table tr:first-child th,
+.tenant-table tr:first-child td {
+    border-top: none;
+}
+
+.tenant-table tr:last-child th,
+.tenant-table tr:last-child td {
+    border-bottom: none;
+}
+
+
+
+.tenant-form {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+}
+
+.tenant-form input, .tenant-form select, .tenant-form button {
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.tenant-form label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.tenant-table {
+    width: 100%;
+    max-width: 800px;
+    border-collapse: collapse;
+}
+
+.tenant-table th, .tenant-table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+
+/* .status {
+    padding: 5px 10px;
+    border-radius: 4px;
+    color: white;
+}
+
+.status.active {
+    background-color: #28a745;
+}
+
+.status.inactive {
+    background-color: #dc3545;
+} */
+
+/* Status Pill Styling */
+.status-pill.active {
+    padding: 5px 8px;
+    border-radius: 6px;
+    background-color: #d6ecd7;
+     color: rgb(107, 172, 107); 
+    font-weight: bold;
+    display: inline-block;
+    text-align: center;
+    width: 80px; /* Adjust width as needed */
+}
+.status-pill.inactive {
+    padding: 5px 8px;
+    border-radius: 6px;
+    color: rgb(207, 143, 143); 
+    background-color: #e7d8d6;
+    font-weight: bold;
+    display: inline-block;
+    text-align: center;
+    width: 80px; /* Adjust width as needed */
+}
+
+/* .status-pill.active {
+    background-color: #add6ae; /* Green for Active */
+    /* color:"green"; */
+ 
+
+/* .status-pill.inactive {
+    background-color: #e2a5a1; /* Red for Inactive */
+/* } */ 
+
+button {
+    padding: 5px 10px;
+    font-size: 14px;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+/* button:hover {
+    background-color:rgb(180, 226, 241);
+} */
+
+button + button {
+    margin-left: 5px;
+}
+
+.rating {
+    font-size: 1.2em; 
+    color: #FFD700;  
+}
+
+.rating .empty-star {
+    color: #ddd; 
+}
+
+.location {
+    display: flex;
+    align-items: center; /* Vertically center icon and text */
+    justify-content: start; /* Align content to the start of the cell */
+    gap: 5px; /* Add some space between icon and text */
+    padding: 5px; /* Adjust padding as needed */
+    width: 100%; /* Ensure the cell takes full width */
+}
+
+.location-icon {
+    font-size: 1.2em; /* Icon size */
+     /* Icon color */
+    display: flex;
+    padding: 10px;
+    align-items: center; /* Ensure icon is centered in its container */
+}
+
+
+.contact-container {
+    display: flex;
+    align-items: center; /* Vertically center align the icon and name */
+    gap: 5px; /* Space between the icon and the name */
+}
+
+.contact-icon {
+    font-size: 1.2em; /* Icon size */
+    color: #b69691; /* Green color for the icon */
+}
+
+.trustworthiness-container {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Adjust the space between the icon and text as needed */
+  }
+  
+  .flag.green {
+    color: green;
+  }
+  
+  .flag.blue {
+    color: blue;
+  }
+  
+  .flag.red {
+    color: red;
+  }
+  

@@ -573,6 +573,138 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               </li>
               {/* <!-- Menu Item Tables --> */}
 
+              {/* <!-- Menu Item Membership --> */}
+<SidebarLinkGroup
+  activeCondition={
+    pathname === '/membership' || pathname.includes('membership')
+  }
+>
+  {(handleClick, open) => {
+    return (
+      <React.Fragment>
+        <NavLink
+          to="/membership"
+          className={`group relative flex items-center gap-2.5 rounded-sm py-2 px-4 font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
+            (pathname === '/membership' ||
+              pathname.includes('membership')) &&
+            'bg-graydark dark:bg-meta-4'
+          }`}
+          onClick={(e) => {
+            e.preventDefault();
+            sidebarExpanded
+              ? handleClick()
+              : setSidebarExpanded(true);
+          }}
+        >
+          {/* SVG Icon for Membership */}
+          <svg
+            className="fill-current"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M12 2C9.79086 2 8 3.79086 8 6C8 8.20914 9.79086 10 12 10C14.2091 10 16 8.20914 16 6C16 3.79086 14.2091 2 12 2ZM12 8C10.8954 8 10 7.10457 10 6C10 4.89543 10.8954 4 12 4C13.1046 4 14 4.89543 14 6C14 7.10457 13.1046 8 12 8Z"
+              fill=""
+            />
+            <path
+              d="M17 11H7C4.79086 11 3 12.7909 3 15V17C3 18.6569 4.34315 20 6 20H18C19.6569 20 21 18.6569 21 17V15C21 12.7909 19.2091 11 17 11ZM5 15C5 13.8954 5.89543 13 7 13H17C18.1046 13 19 13.8954 19 15V17C19 17.5523 18.5523 18 18 18H6C5.44772 18 5 17.5523 5 17V15Z"
+              fill=""
+            />
+          </svg>
+          Membership
+          <svg
+            className={`absolute right-4 top-1/2 -translate-y-1/2 fill-current ${
+              open && 'rotate-180'
+            }`}
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fillRule="evenodd"
+              clipRule="evenodd"
+              d="M4.41107 6.9107C4.73651 6.58527 5.26414 6.58527 5.58958 6.9107L10.0003 11.3214L14.4111 6.91071C14.7365 6.58527 15.2641 6.58527 15.5896 6.91071C15.915 7.23614 15.915 7.76378 15.5896 8.08922L10.5896 13.0892C10.2641 13.4147 9.73651 13.4147 9.41107 13.0892L4.41107 8.08922C4.08563 7.76378 4.08563 7.23614 4.41107 6.9107Z"
+              fill=""
+            />
+          </svg>
+        </NavLink>
+        {/* <!-- Dropdown Menu Start --> */}
+        <div
+          className={`translate transform overflow-hidden ${
+            !open && 'hidden'
+          }`}
+        >
+          <ul className="mt-4 mb-5.5 flex flex-col gap-2.5 pl-6">
+            <li>
+              <NavLink
+                to="/membership/free"
+                className={({ isActive }) =>
+                  'group relative flex items-center gap-2.5 rounded-md px-4 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                  (isActive && '!text-white')
+                }
+              >
+                Free
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/membership/silver"
+                className={({ isActive }) =>
+                  'group relative flex items-center gap-2.5 rounded-md px-4 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                  (isActive && '!text-white')
+                }
+              >
+                Silver
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/membership/gold"
+                className={({ isActive }) =>
+                  'group relative flex items-center gap-2.5 rounded-md px-4 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                  (isActive && '!text-white')
+                }
+              >
+                Gold
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/membership/premium"
+                className={({ isActive }) =>
+                  'group relative flex items-center gap-2.5 rounded-md px-4 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                  (isActive && '!text-white')
+                }
+              >
+                Premium
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
+                to="/membership/elite"
+                className={({ isActive }) =>
+                  'group relative flex items-center gap-2.5 rounded-md px-4 font-medium text-bodydark2 duration-300 ease-in-out hover:text-white ' +
+                  (isActive && '!text-white')
+                }
+              >
+                Elite
+              </NavLink>
+            </li>
+          </ul>
+        </div>
+        {/* <!-- Dropdown Menu End --> */}
+      </React.Fragment>
+    );
+  }}
+</SidebarLinkGroup>
+{/* <!-- Menu Item Membership --> */}
+
+
               {/* <!-- Menu Item Settings --> */}
               <li>
                 <NavLink
