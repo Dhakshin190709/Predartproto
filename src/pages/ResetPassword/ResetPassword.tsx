@@ -342,7 +342,10 @@ const ResetPassword: React.FC = () => {
             <div className="flex justify-left w-full">
               <button
                 onClick={handlePasswordReset}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
                 disabled={!isPasswordStrongEnough() || password !== confirmPassword}
                 style={{
                   cursor: isPasswordStrongEnough() && password === confirmPassword ? 'pointer' : 'not-allowed',

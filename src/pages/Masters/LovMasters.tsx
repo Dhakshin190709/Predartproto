@@ -11,7 +11,7 @@ interface RowData {
   status: string;
 }
 
-const Masters: React.FC = () => {
+const LovMasters: React.FC = () => {
   const [type, setType] = useState(''); // Type filter for UI
   const [Name, setName] = useState('');
   const [code, setCode] = useState(''); // Code filter for UI
@@ -70,7 +70,7 @@ const Masters: React.FC = () => {
       sortable: true, 
       filter: true, 
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+
     },
     { 
       headerName: 'Display Value', 
@@ -79,14 +79,14 @@ const Masters: React.FC = () => {
       sortable: true, 
       filter: true, 
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      
     },
     {
       headerName: 'Status',
       field: 'status',
       flex: 1,
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+
       cellRenderer: (params: any) => (
         <span
           onClick={() => toggleStatus(params)}
@@ -219,7 +219,7 @@ const Masters: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Masters</h2>
+      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Lov Masters</h2>
 
       {/* Filters Section (Type, Code, Active) */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
@@ -267,7 +267,10 @@ const Masters: React.FC = () => {
 
         {/* Search Button */}
         <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+       className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+       hover:from-[#007BFF] hover:to-[#004A99]
+       text-white transition duration-150 
+       ease-out hover:ease-in py-2 px-5 rounded-lg"
           onClick={handleFilterSearch}  
         >
           Search
@@ -317,14 +320,20 @@ const Masters: React.FC = () => {
             <div className="mt-4 flex gap-4">
               <button
                 type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
               >
                 {formData.id === 0 ? 'Add' : 'Update'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
               >
                 Cancel
               </button>
@@ -334,7 +343,7 @@ const Masters: React.FC = () => {
       )}
 
       {/* Global Search and Add Button in the Same Row */}
-      <div className="mb-4 flex flex-wrap gap-4 justify-between items-center">
+      <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
   <div className="relative">
     <input
       type="text"
@@ -354,7 +363,10 @@ const Masters: React.FC = () => {
   
     <div className="mb-4"> {/* Fixed div closing here */}
     <button
-      className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+       className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+       hover:from-[#007BFF] hover:to-[#004A99]
+       text-white transition duration-150 
+       ease-out hover:ease-in py-2 px-5 rounded-lg"
       onClick={() => setShowForm(true)}
     >
       + Add
@@ -406,4 +418,4 @@ const Masters: React.FC = () => {
   );
 };
 
-export default Masters;
+export default LovMasters;

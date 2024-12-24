@@ -1359,7 +1359,8 @@ const addNewRowBelow = (index, day) => {
   ))}
   <div className="flex items-center justify-end gap-1 mt-2 px-80">
     <div
-      className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+      className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer
+       bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
       onClick={addAward}
     >
       +

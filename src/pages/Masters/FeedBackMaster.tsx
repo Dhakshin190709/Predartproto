@@ -6,16 +6,12 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface RowData {
   Id: number;
-  tenantName: string;
-  userName: string;
-  mobileNo: string;
-  email: string;
-  role: string;
+  feedbackTitle: string;
   status: string;
 }
 
-const Users: React.FC = () => {
-  const [name, setName] = useState(''); // Name filter for UI
+const Role: React.FC = () => {
+  const [name, setName] = useState(''); // Role Name filter for UI
   const [isActive, setIsActive] = useState(false); // Active filter for UI
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
@@ -25,19 +21,17 @@ const Users: React.FC = () => {
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null); // ID of row to delete
   const [formData, setFormData] = useState<RowData>({
     Id: 0,
-    tenantName: '',
-    userName: '',
-    mobileNo: '',
-    email: '',
-    role: '',
+    feedbackTitle: '',
     status: 'Active',
   });
+  
 
   const initialData: RowData[] = [
-    { Id: 1, tenantName: 'Tenant A', userName: 'Alex', mobileNo: '1234567890', email: 'alex@example.com', role: 'Admin', status: 'Active' },
-    { Id: 2, tenantName: 'Tenant B', userName: 'John', mobileNo: '0987654321', email: 'john@example.com', role: 'User', status: 'Inactive' },
-    { Id: 3, tenantName: 'Tenant A', userName: 'Ram', mobileNo: '1112223333', email: 'ram@example.com', role: 'User', status: 'Active' },
+    { Id: 1, feedbackTitle: 'Feedback 1', status: 'Active' },
+    { Id: 2, feedbackTitle: 'Feedback 2', status: 'Inactive' },
+    { Id: 3, feedbackTitle: 'Feedback 3', status: 'Active' },
   ];
+  
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
@@ -48,18 +42,14 @@ const Users: React.FC = () => {
   }, []);
 
   const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id', sortable: true, filter: true, flex:1, headerClass: 'text-left', cellClass:'left' },
-    { headerName: 'Tenant Name', field: 'tenantName', sortable: true, filter: true, flex: 1.5, headerClass: 'text-left', cellClass:'left' },
-    { headerName: 'User Name', field: 'userName', sortable: true, filter: true, flex: 1.5, headerClass: 'text-left', cellStyle: { textAlign: 'left' } },
-    { headerName: 'Mobile No', field: 'mobileNo', sortable: true, filter: true,flex:1.5, headerClass: 'text-left', cellStyle: { textAlign: 'left' } },
-    { headerName: 'Email', field: 'email', sortable: true, filter: true, flex:2, headerClass: 'text-left', cellStyle: { textAlign: 'left' } },
-    { headerName: 'Role', field: 'role', sortable: true, filter: true, headerClass: 'text-left', cellStyle: { textAlign: 'left' } },
+    { headerName: 'ID', field: 'Id', sortable: true, filter: true, width: 100, headerClass: 'text-left' },
+    { headerName: 'Feedback Title', field: 'feedbackTitle', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
     {
       headerName: 'Status',
       field: 'status',
       flex: 1,
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+     
       cellRenderer: (params: any) => (
         <span
           onClick={() => toggleStatus(params)}
@@ -71,9 +61,9 @@ const Users: React.FC = () => {
     },
     {
       headerName: 'Edit',
-      flex: 1,
+      flex: 0.5,
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+     
       cellRenderer: (params: any) => (
         <span
           onClick={() => handleEdit(params.data.Id)}
@@ -85,9 +75,9 @@ const Users: React.FC = () => {
     },
     {
       headerName: 'Delete',
-      flex: 1,
+      flex: 0.5,
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+     
       cellRenderer: (params: any) => (
         <span
           onClick={() => handleDelete(params.data.Id)}
@@ -140,46 +130,44 @@ const Users: React.FC = () => {
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.Id === 0) {
-      const newData = { ...formData, Id: rowData.length + 1 };
+      // Adding new data
+      const newData = { ...formData, Id: rowData.length + 1 }; // Automatically generate new ID
       setRowData([...rowData, newData]);
       setFilteredData([...rowData, newData]);
     } else {
+      // Updating existing data
       const updatedData = rowData.map(item =>
-        item.Id === formData.Id ? { ...item, ...formData } : item
+        item.Id === formData.Id ? { ...item, feedbackTitle: formData.feedbackTitle, status: formData.status } : item
       );
       setRowData(updatedData);
       setFilteredData(updatedData);
     }
-
+  
     setShowForm(false);
     setFormData({
       Id: 0,
-      tenantName: '',
-      userName: '',
-      mobileNo: '',
-      email: '',
-      role: '',
-      status: 'Active',
+      feedbackTitle: '',
+      status: 'Active', // Default status when resetting the form
     });
   };
+  
 
+ 
   const handleFilterSearch = () => {
     const filtered = initialData.filter(item =>
-      (name ? item.userName.toLowerCase().includes(name.toLowerCase()) : true) &&
+      (name ? item.feedbackTitle.toLowerCase().includes(name.toLowerCase()) : true) &&
       (isActive ? item.status === 'Active' : true)
     );
     setRowData(filtered);
     setFilteredData(filtered);
   };
-
+  
   const applyGlobalSearch = (data: RowData[]) => {
     return data.filter((row) =>
-      row.userName.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.email.toLowerCase().includes(quickSearchText.toLowerCase())
+      row.feedbackTitle.toLowerCase().includes(quickSearchText.toLowerCase())
     );
   };
-
+  
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
     gridColumnApi.current = params.columnApi;
@@ -188,30 +176,24 @@ const Users: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Users</h2>
+      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">FeedBack Master</h2>
 
+      {/* Filter Section */}
       <div className="flex flex-wrap gap-4 mb-4 items-center">
         <input
           type="text"
-          placeholder="Name"
+          placeholder="Feeback Title"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
         />
-        <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-    className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-  />
-  <span>Active</span>
-        </label>
+        
         <button
            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
            hover:from-[#007BFF] hover:to-[#004A99]
            text-white transition duration-150 
            ease-out hover:ease-in py-2 px-5 rounded-lg"
+                       
           onClick={handleFilterSearch}
         >
           Search
@@ -222,43 +204,26 @@ const Users: React.FC = () => {
 
       {showForm && (
         <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
-          <h3 className="text-xl font-semibold mb-4">{formData.Id === 0 ? 'Add New Data' : 'Edit Data'}</h3>
+          <h3 className="text-xl font-semibold mb-4">{formData.Id === 0 ? 'Add New FeedBack' : 'Edit FeedBack'}</h3>
           <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex gap-4 mb-2">
+            <div className="flex gap-4">
               <input
                 type="text"
-                value={formData.userName}
-                onChange={(e) => setFormData({ ...formData, userName: e.target.value })}
-                placeholder="User Name"
-               
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <input
-                type="text"
-                value={formData.tenantName}
-                onChange={(e) => setFormData({ ...formData, tenantName: e.target.value })}
-                placeholder="Tenant Name"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
+                value={formData.feedbackTitle}
+                onChange={(e) => setFormData({ ...formData, feedbackTitle: e.target.value })}
+                placeholder="FeedBack Title"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
-              <input
-                type="text"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="Email"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
+             
+              
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -268,9 +233,10 @@ const Users: React.FC = () => {
               <button
                 type="submit"
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 {formData.Id === 0 ? 'Add' : 'Update'}
               </button>
@@ -281,6 +247,7 @@ const Users: React.FC = () => {
                 hover:from-[#007BFF] hover:to-[#004A99]
                 text-white transition duration-150 
                 ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 Cancel
               </button>
@@ -289,7 +256,7 @@ const Users: React.FC = () => {
         </div>
       )}
 
-<div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
+      <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
   <div className="relative">
     <input
       type="text"
@@ -307,29 +274,35 @@ const Users: React.FC = () => {
   </span>
   </div>
   
-        <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
+        <button
+           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+           hover:from-[#007BFF] hover:to-[#004A99]
+           text-white transition duration-150 
+           ease-out hover:ease-in py-2 px-5 rounded-lg"
+                       
           onClick={() => setShowForm(true)}
         >
           + Add
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+
+
+      {/* AgGrid Table */}
+      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
         <AgGridReact
+          gridOptions={{}}
+          domLayout="autoHeight"
           rowData={applyGlobalSearch(filteredData)}
           columnDefs={columnDefs}
+          onGridReady={onGridReady}
           pagination={true}
           paginationPageSize={10}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
         />
       </div>
 
+      
+      {/* Deletion Confirmation */}
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg">
@@ -338,18 +311,20 @@ const Users: React.FC = () => {
               <button
                 onClick={confirmDelete}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 Yes, Delete
               </button>
               <button
                 onClick={cancelDelete}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+                  
               >
                 Cancel
               </button>
@@ -361,4 +336,4 @@ const Users: React.FC = () => {
   );
 };
 
-export default Users;
+export default Role;

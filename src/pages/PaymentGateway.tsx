@@ -89,55 +89,60 @@ const PaymentGateway: React.FC = () => {
     setShowForm(false); // Close the form if canceled
   };
 
-  const columnDefs: ColDef<RowData, any>[] = [ 
+  
+  const columnDefs: ColDef<RowData, any>[] = [
     {
-      headerName: 'ID', 
-      field: 'Id', 
-      sortable: true, 
-      filter: true, 
-      flex: 0.5, 
-      headerClass: 'text-left',  // Align header to left
-      cellClass: 'text-center',    // Align cell data to left
+      headerName: 'ID',
+      field: 'Id',
+      sortable: true,
+      filter: true,
+      flex: 0.5,
+      headerClass: 'text-center', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
     },
     {
-      headerName: 'Date', 
-      field: 'date', 
-      sortable: true, 
-      filter: true, 
-      flex: 1, 
-      headerClass: 'text-left',  // Align header to left
-      cellClass: 'text-center',    // Align cell data to left
+      headerName: 'Date',
+      field: 'date',
+      sortable: true,
+      filter: true,
+      flex: 1,
+      headerClass: 'ag-header-cell-label', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
       valueFormatter: (params) => {
         const date = new Date(params.value);
-        // Format the date to DD/MM/YYYY
         return `${('0' + date.getDate()).slice(-2)}/${('0' + (date.getMonth() + 1)).slice(-2)}/${date.getFullYear()}`;
-      },},
-    {
-      headerName: 'Patient Name', 
-      field: 'patientName', 
-      sortable: true, 
-      filter: true, 
-      flex: 1.5, 
-      headerClass: 'text-left',  // Align header to left
-      cellClass: 'text-center',    // Align cell data to left
+      },
     },
     {
-      headerName: 'Mobile No', 
-      field: 'mobileNo', 
-      sortable: true, 
-      filter: true, 
-      flex: 1.5, 
-      headerClass: 'text-center',  // Align header to left
-      cellClass: 'text-center',    // Align cell data to left
-      valueFormatter: (params) => `${params.value}`, // Format the mobile number with country code
+      headerName: 'Patient Name',
+      field: 'patientName',
+      sortable: true,
+      filter: true,
+      flex: 1.5,
+      headerClass: 'text-center', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
     },
     {
-      headerName: 'Status', 
-      field: 'status', 
-      flex: 1, 
-      headerClass: 'text-center', // Align header to center
-      cellClass: 'text-center',   // Align cell data to center
-      cellStyle: { textAlign: 'center' }, 
+      headerName: 'Mobile No',
+      field: 'mobileNo',
+      sortable: true,
+      filter: true,
+      flex: 1.5,
+      headerClass: 'text-center', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
+      valueFormatter: (params) => `${params.value}`,
+    },
+    {
+      headerName: 'Status',
+      field: 'status',
+      flex: 1,
+      headerClass: 'text-center', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
       cellRenderer: (params: any) => (
         <span
           onClick={() => toggleStatus(params)}
@@ -148,11 +153,11 @@ const PaymentGateway: React.FC = () => {
       ),
     },
     {
-      headerName: 'Action', 
-      flex: 1, 
-      headerClass: 'text-center',  // Align header to center
-      cellClass: 'text-center',    // Align cell data to center
-      cellStyle: { textAlign: 'center' },
+      headerName: 'Action',
+      flex: 1,
+      headerClass: 'text-center', // Center header text
+      cellClass: 'text-center',   // Center cell data
+      cellStyle: { textAlign: 'center' }, // Center cell content
       cellRenderer: (params: any) => (
         <span
           onClick={() => handlePaymentEdit(params.data.Id)}
@@ -223,8 +228,10 @@ const PaymentGateway: React.FC = () => {
         />
          <button
           onClick={handleFilterSearch}
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2  w-fit text-center"
-        >
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg">
           Search
         </button>
       </div>
@@ -323,13 +330,19 @@ const PaymentGateway: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2 mt-2"
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2 mt-2"
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
                 >
                   Submit
                 </button>

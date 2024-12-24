@@ -297,7 +297,10 @@ const ForgotPassword: React.FC = () => {
               <div className="flex justify-left w-full">
                 <button
                   onClick={isOtpOptionChecked ? handleSendOtp : handleSendLink}
-                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
                 >
                   {isOtpOptionChecked ? 'Send OTP' : 'Send Link'}
                 </button>

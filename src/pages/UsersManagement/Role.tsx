@@ -44,16 +44,16 @@ const Role: React.FC = () => {
   }, []);
 
   const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id', sortable: true, filter: true,width:100, headerClass: 'text-left',  cellClass:'text-center' },
-    { headerName: 'Role Name', field: 'roleName', sortable: true, filter: true, flex: 1, headerClass: 'text-left', cellClass:'text-center' },
-    { headerName: 'Role Type', field: 'roleType', sortable: true, filter: true, flex: 1, headerClass: 'text-left', cellClass:'text-center'},
-    { headerName: 'Display Value', field: 'displayValue', sortable: true, filter: true, flex: 1.5, headerClass: 'text-center', cellClass:'text-center' },
+    { headerName: 'ID', field: 'Id', sortable: true, filter: true,width:100, headerClass: 'text-left'},
+    { headerName: 'Role Name', field: 'roleName', sortable: true, filter: true, flex: 1, headerClass: 'text-left'},
+    { headerName: 'Role Type', field: 'roleType', sortable: true, filter: true, flex: 1, headerClass: 'text-left'},
+    { headerName: 'Display Value', field: 'displayValue', sortable: true, filter: true, flex: 1.5, headerClass: 'text-center'},
     {
       headerName: 'Status',
       field: 'status',
       flex: 1,
       headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+     
       cellRenderer: (params: any) => (
         <span
           onClick={() => toggleStatus(params)}
@@ -201,7 +201,11 @@ const Role: React.FC = () => {
   <span>Active</span>
         </label>
         <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2 mt-2"
+           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+           hover:from-[#007BFF] hover:to-[#004A99]
+           text-white transition duration-150 
+           ease-out hover:ease-in py-2 px-5 rounded-lg"
+                       
           onClick={handleFilterSearch}
         >
           Search
@@ -220,26 +224,34 @@ const Role: React.FC = () => {
                 value={formData.roleName}
                 onChange={(e) => setFormData({ ...formData, roleName: e.target.value })}
                 placeholder="Role Name"
-                className="w-48 rounded-lg border py-4 pl-6 pr-10 text-black"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
               <input
                 type="text"
                 value={formData.roleType}
                 onChange={(e) => setFormData({ ...formData, roleType: e.target.value })}
                 placeholder="Role Type"
-                className="w-48 rounded-lg border py-4 pl-6 pr-10 text-black"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
               <input
                 type="text"
                 value={formData.displayValue}
                 onChange={(e) => setFormData({ ...formData, displayValue: e.target.value })}
                 placeholder="Display Value"
-                className="w-48 rounded-lg border py-4 pl-6 pr-10 text-black"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-48 rounded-lg border py-4 pl-6 pr-10 text-black"
+                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
               >
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
@@ -248,14 +260,22 @@ const Role: React.FC = () => {
             <div className="mt-4 flex gap-4">
               <button
                 type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 {formData.Id === 0 ? 'Add' : 'Update'}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 Cancel
               </button>
@@ -264,7 +284,7 @@ const Role: React.FC = () => {
         </div>
       )}
 
-      <div className="mb-4 flex flex-wrap gap-4 justify-between items-center">
+      <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
   <div className="relative">
     <input
       type="text"
@@ -283,7 +303,11 @@ const Role: React.FC = () => {
   </div>
   
         <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2"
+           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+           hover:from-[#007BFF] hover:to-[#004A99]
+           text-white transition duration-150 
+           ease-out hover:ease-in py-2 px-5 rounded-lg"
+                       
           onClick={() => setShowForm(true)}
         >
           + Add
@@ -314,13 +338,21 @@ const Role: React.FC = () => {
             <div className="flex gap-4 mt-4">
               <button
                 onClick={confirmDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white rounded px-5 py-2"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                hover:from-[#007BFF] hover:to-[#004A99]
+                text-white transition duration-150 
+                ease-out hover:ease-in py-2 px-5 rounded-lg"
+                            
               >
                 Yes, Delete
               </button>
               <button
                 onClick={cancelDelete}
-                className="bg-gradient hover:to-[#004A99] text-black rounded px-5 py-2"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+                  
               >
                 Cancel
               </button>

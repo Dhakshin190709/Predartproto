@@ -1,208 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import axiosInstance from '../../js/axiosInstance';
 import { useDispatch } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { loginSuccess } from '../../redux/actions/authActions';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+const BASE_URL = 'https://predart001-001-site1.qtempurl.com';
 
 const Login: React.FC = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-
   const [emailOrMobile, setEmailOrMobile] = useState('');
   const [emailOrMobileError, setEmailOrMobileError] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isOtp, setIsOtp] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [password, setPassword] = useState<string>('');
   const [passwordError, setPasswordError] = useState('');
- 
+  const [sendOtpMessage, setSendOtpMessage] = useState('');
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
+  const [isMobile, setIisMobile] =useState(false)
   const [otpError, setOtpError] = useState('');
-
   const [cooldown, setCooldown] = useState(0);
   const [isResendEnabled, setIsResendEnabled] = useState(true);
-  const [isOtp, setIsOtp] = useState(false);
-  const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [resendMessage, setResendMessage] = useState<string>('');
-  const [isOtpSent, setIsOtpSent] = useState(false);
-  const [loginSuccessMessage, setLoginSuccessMessage] = useState('');
-
-  const [sendOtpMessage, setSendOtpMessage] = useState('');
-
-  const handleEmailOrMobileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    setEmailOrMobile(e.target.value);
-    setEmailOrMobileError('');
+  const [loginMessage, setLoginMessage] = useState("");
+  const navigate = useNavigate();
+  const handleEmailOrMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    setEmailOrMobile(input);
+  
+    // Clear previous error messages
+    setEmailOrMobileError("");
+  
+    // Validation logic
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Basic email pattern
+    const mobilePattern = /^[0-9]{1,10}$/; // Allows up to 10 digits only
+  
+    if (!input) {
+      setEmailOrMobileError("Email or mobile cannot be empty.");
+    } else if (emailPattern.test(input)) {
+      setEmailOrMobileError(""); // Valid email
+    } else if (mobilePattern.test(input)) {
+      if (input.length === 10) {
+        setEmailOrMobileError(""); // Valid 10-digit mobile
+      } else {
+        setEmailOrMobileError("Mobile number must be exactly 10 digits.");
+      }
+    } else {
+      setEmailOrMobileError(
+        "Enter a valid email (with @ and .) or a 10-digit mobile number."
+      );
+    }
   };
-  const [passwordVisible, setPasswordVisible] = useState(false);
+  
   const togglePasswordVisibility = () => {
     setPasswordVisible(!passwordVisible);
   };
+
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setPassword(e.target.value);
-
-  // const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const otpValue = e.target.value;
-  //   if (/^\d{0,6}$/.test(otpValue)) {
-  //     setOtp(otpValue);
-  //     setOtpError('');
-  //   }
-  // };
-
-
-   const handleOtpChange = (index: number, value: string) => {
-    if (/^\d?$/.test(value)) { // Only allow digits (or empty)
-      const newOtp = [...otp];
-      newOtp[index] = value; // Update the specific box
-      setOtp(newOtp);
-  
-      // Move to the next box
-      if (value !== "" && index < 5) {
-        const nextInput = document.getElementById(`otp-${index + 1}`);
-        nextInput?.focus();
-      }
-    }
-  };
-  
-
-  const handleLogin = () => {
-    let isValid = true;
-
-    setEmailOrMobileError('');
-    setPasswordError('');
-    setOtpError('');
-
-    // OTP validation
-    if (otp.some((digit) => digit === "")) {
-      setOtpError("OTP must be exactly 6 digits.");
-      setLoginSuccessMessage("");
-    } else {
-      setOtpError("");
-      setLoginSuccessMessage("Login successful!");
-    }
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    // If both email and mobile fields are filled, show an error
-    if (emailOrMobile.includes('@') && emailOrMobile.includes('.')) {
-      if (isMobileValid) {
-        setEmailOrMobileError(
-          'Enter either a valid email or mobile number, not both.',
-        );
-        isValid = false;
-      } else {
-        if (!isEmailValid) {
-          setEmailOrMobileError('Enter a valid email (with @ and .).');
-          isValid = false;
-        }
-      }
-    } else if (emailOrMobile === '') {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
-    } else if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or 10-digit mobile number.',
-      );
-      isValid = false;
-    } else {
-      if (isEmailValid) {
-        setEmailOrMobileError('');
-      } else if (!isMobileValid) {
-        setEmailOrMobileError('Mobile number should be exactly 10 digits.');
-        isValid = false;
-      } else {
-        setEmailOrMobileError('');
-      }
-    }
-
-    // Validate password
-    if (password.length !== 10) {
-      setPasswordError('Password must be exactly 10 characters.');
-      isValid = false;
-    }
-
-    // Validate OTP (if needed)
-    const validateOtp = () => {
-      if (otp.join("").length < 6) {
-        setOtpError("Please enter all 6 digits.");
-        return false;
-      }
-      setOtpError(""); // Clear the error if OTP is valid
-      setLoginSuccessMessage("Login successful with Otp..!");
-      setTimeout(() => setLoginSuccessMessage(""), 5000);
-    };
-    
-    
-
-    if (isValid) {
-      setLoginSuccessMessage(
-        isOtp
-          ? 'Logged in successfully with OTP'
-          : 'Logged in successfully with Email/Mobile',
-      );
-
-      setTimeout(() => setLoginSuccessMessage(''), 5000);
-      console.log('Login successful');
-    }
-  };
 
   const handleOtpCheckboxChange = () => {
     setIsOtp(!isOtp);
     setIsOtpSent(false);
     setOtp(Array(6).fill(""));
   };
-
- 
-
-const handleOtpKeyDown = (
-  e: React.KeyboardEvent<HTMLInputElement>,
-  index: number
-) => {
-  if (e.key === "Backspace") {
-    if (!otp[index] && index > 0) {
-      const previousInput = document.getElementById(`otp-${index - 1}`);
-      previousInput?.focus();
-    }
-  }
-};
-
-const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
-  const pasteData = e.clipboardData.getData("text").slice(0, 6);
-  if (/^\d{6}$/.test(pasteData)) {
-    const newOtp = pasteData.split("");
-    setOtp(newOtp);
-
-    // Focus the last box after pasting
-    const lastInput = document.getElementById(`otp-5`);
-    lastInput?.focus();
-  }
-  e.preventDefault();
-};
-
-
-  const handleSendOtp = () => {
-    setEmailOrMobileError('');
-    setSendOtpMessage('');
-
-    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const isEmailValid = emailPattern.test(emailOrMobile);
-    const isMobileValid = /^[0-9]{10}$/.test(emailOrMobile);
-
-    if (emailOrMobile === '') {
-      setEmailOrMobileError('Please enter your email or mobile.');
+  
+  const handleSendOtp = async () => {
+    console.log("Send OTP initiated."); // Log the start of the OTP sending process
+  
+    if (!emailOrMobile) {
+      console.log("Validation Error: Email or mobile number is missing.");
+      setSendOtpMessage("Please enter your email or mobile number.");
       return;
     }
-
-    if (!isEmailValid && !isMobileValid) {
-      setEmailOrMobileError(
-        'Enter a valid email (with @ and .) or a 10-digit mobile number.',
-      );
+  
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Basic email pattern
+    const mobilePattern = /^[0-9]{10}$/; // Exact 10-digit mobile pattern
+  
+    let payload = {};
+    let method = "";
+    let contactValue = "";
+    console.log(mobilePattern)
+    console.log(mobilePattern.test(emailOrMobile))
+  
+    if (emailPattern.test(emailOrMobile)) {
+      // Sending OTP to Email
+      setIisMobile(false)
+      console.log("Identified as email. Preparing payload...");
+      method = "Email"; // Use "Email" method
+      contactValue = emailOrMobile;
+      payload = { method, email: contactValue };
+    } else if (mobilePattern.test(emailOrMobile)) {
+      // Sending OTP to Mobile
+      setIisMobile(true)
+      console.log("Identified as mobile number. Preparing payload...");
+      method = "Mobile"; // Use "Mobile" method
+      contactValue = emailOrMobile;
+      payload = { method, mobile: contactValue };
+    } else {
+      console.log("Validation Error: Invalid email or mobile number.");
+      setSendOtpMessage("Enter a valid email or 10-digit mobile number.");
       return;
     }
-
+  
+    // Log the prepared payload
+    console.log("Prepared Payload:", JSON.stringify(payload, null, 2));
+  
+    try {
+      console.log("Sending OTP request to:", `${BASE_URL}/api/login/SendOTP`);
+  
+      // Call API to send OTP
+      const response = await fetch(`${BASE_URL}/api/login/SendOTP`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      const result = await response.json();
+      console.log("API Response:", JSON.stringify(result, null, 2)); // Log API response
+  
+      if (response.ok) {
+        setSendOtpMessage(
+          `method: ${method},\n${method.toLowerCase()}: ${contactValue}`
+        );
+        console.log("OTP sent successfully.");
+      } else {
+        setSendOtpMessage(result.message || "Failed to send OTP. Please try again.");
+        console.log("OTP sending failed:", result.message || "Unknown error.");
+      }
+    } catch (error) {
+      console.error("Network or Unexpected Error:", error);
+      setSendOtpMessage("An error occurred while sending OTP. Please try again.");
+    }
     setSendOtpMessage('OTP has been sent your email/mobile..!');
     setTimeout(() => {
       setSendOtpMessage('');
@@ -211,52 +143,206 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
       setIsResendEnabled(false);
     }, 3000);
   };
-
-  // const handleResendOtp = () => {
-  //   setResendMessage('OTP has been resent your email/mobile..!');
-  //   setCooldown(30);
-  //   setTimeout(() => setResendMessage(''), 3000);
-  // };
-
-  const handleResendOtp = () => {
-    setOtp(Array(6).fill("")); // Clear OTP array
-    setOtpError("");           // Clear any existing error
-    setResendMessage("OTP has been resent successfully!");
-    setCooldown(30);
-    setLoginSuccessMessage("");
-    // Focus on the first box
-    const firstInput = document.getElementById("otp-0");
-    firstInput?.focus();
   
-    setTimeout(() => setResendMessage(""), 3000); // Clear resend message after 3 seconds
+  
+  
+  const handleLogin = async () => {
+    console.log("Login initiated.");
+  
+    // Validate input fields
+    if (!emailOrMobile) {
+      console.log("Validation Error: Email or mobile number is missing.");
+      setLoginMessage("Please enter your email or mobile number.");
+      return;
+    }
+  
+    if (isOtp) {
+      // OTP validation
+      if (!otp || otp.some((digit) => digit === "")) {
+        console.log("Validation Error: Incomplete OTP.");
+        setLoginMessage("Please enter the complete OTP.");
+        return;
+      }
+    } else {
+      // Password validation
+      if (!password) {
+        console.log("Validation Error: Password is missing.");
+        setLoginMessage("Please enter your password.");
+        return;
+      }
+    }
+  
+    // Determine endpoint and payload based on login type
+    let payload = {};
+    let endpoint = "";
+  
+    if (isOtp) {
+      payload = isMobile
+        ? {
+            method: "Mobile",
+            mobile: emailOrMobile,
+            otp: otp.join(""), // Join OTP array into string
+          }
+        : {
+            method: "Email",
+            email: emailOrMobile,
+            otp: otp.join(""),
+          };
+      endpoint = `${BASE_URL}/api/login/ValidateOTP`;
+    } else {
+      payload = {
+        username: emailOrMobile,
+        password,
+      };
+      endpoint = `${BASE_URL}/api/login`;
+    }
+  
+    console.log("Payload being sent:", JSON.stringify(payload));
+    console.log("Sending API request to:", endpoint);
+  
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      console.log("HTTP Status:", response.status);
+      console.log("Response Headers:", JSON.stringify(response.headers));
+  
+      const responseBody = await response.json();
+      console.log("API Response Body:", responseBody);
+  
+      if (response.ok) {
+        // Extract and store the complete menu information
+        const menuInfo = responseBody.data?.menuInfo;
+  
+        if (menuInfo && Array.isArray(menuInfo)) {
+          console.log("Extracted menuInfo:", menuInfo);
+  
+          // Store menu data in sessionStorage
+          sessionStorage.setItem("menuTitles", JSON.stringify(menuInfo));
+  
+          // Navigate to the response page
+          navigate("/dashboard");
+  
+        } else {
+          console.error("API 'menuInfo' is not an array or missing:", menuInfo);
+          setLoginMessage("Unexpected API response format.");
+        }
+      } else {
+        console.log("Login Failed:", responseBody.message || "Unknown error.");
+        setLoginMessage(responseBody.message || "Login failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Network or Unexpected Error:", error);
+      setLoginMessage("An error occurred during login. Please try again later.");
+    }
   };
   
+  
+  
 
-  useEffect(() => {
-    if (cooldown > 0) {
-      const timer = setInterval(() => {
-        setCooldown((prev) => prev - 1);
-      }, 1000);
+  
+  
 
-      return () => clearInterval(timer);
+
+
+
+
+
+
+
+
+
+const handleOtpChange = (index: number, value: string) => {
+  if (/^\d?$/.test(value)) { 
+    const newOtp = [...otp];
+    newOtp[index] = value; // Update the specific box
+    setOtp(newOtp);
+
+    // Move to the next box
+    if (value !== "" && index < 5) {
+      const nextInput = document.getElementById(`otp-${index + 1}`);
+      nextInput?.focus();
     }
-    if (cooldown === 0) {
-      setResendMessage(''); // Clear the success message when the timer ends
-    }
-  }, [cooldown]);
+  }
+};
 
+
+
+const handleOtpKeyDown = (
+e: React.KeyboardEvent<HTMLInputElement>,
+index: number
+) => {
+if (e.key === "Backspace") {
+  if (!otp[index] && index > 0) {
+    const previousInput = document.getElementById(`otp-${index - 1}`);
+    previousInput?.focus();
+  }
+}
+};
+
+const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+const pasteData = e.clipboardData.getData("text").slice(0, 6);
+if (/^\d{6}$/.test(pasteData)) {
+  const newOtp = pasteData.split("");
+  setOtp(newOtp);
+
+  // Focus the last box after pasting
+  const lastInput = document.getElementById(`otp-5`);
+  lastInput?.focus();
+}
+e.preventDefault();
+};
+
+
+
+
+
+
+const handleResendOtp = () => {
+  setOtp(Array(6).fill("")); 
+  setOtpError("");          
+  setResendMessage("OTP has been resent successfully!");
+  setCooldown(30);
+  setLoginSuccessMessage("");
+  // Focus on the first box
+  const firstInput = document.getElementById("otp-0");
+  firstInput?.focus();
+
+  setTimeout(() => setResendMessage(""), 3000); // Clear resend message after 3 seconds
+};
+
+
+useEffect(() => {
+  if (cooldown > 0) {
+    const timer = setInterval(() => {
+      setCooldown((prev) => prev - 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }
+  if (cooldown === 0) {
+    setResendMessage(''); // Clear the success message when the timer ends
+  }
+}, [cooldown]);
   return (
-    <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-      <div className="container max-w-screen-xl mx-auto p-5">
-        <div className="max-w-screen-xl mx-auto py-4">
-          <div className="flex flex-wrap items-center">
-            <div className="hidden w-full xl:block xl:w-1/2">
-              <div className="py-17.5 px-26 text-center">
-                <p>
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit
-                  suspendisse.
-                </p>
-                <span className="mt-15 inline-block">
+    <>
+      <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+        <div className="container">
+          <div className="max-w-screen-xl mx-auto py-4">
+            <div className="flex flex-wrap items-center">
+              <div className="hidden w-full xl:block xl:w-1/2">
+                <div className="py-17.5 px-26 text-center">
+                  <p>
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit
+                    suspendisse.
+                  </p>
+
+                  <span className="mt-15 inline-block">
                     <svg
                       width="350"
                       height="350"
@@ -378,15 +464,20 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
                       />
                     </svg>
                   </span>
+                </div>
               </div>
-            </div>
-            <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
-              <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
-                <span className="mb-1.5 block font-medium">Start for free</span>
-                <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
-                  Login to CarePoint Pro
-                </h2>
-                <div className="form-group relative mb-6">
+
+              <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
+                <div className="w-full p-4 sm:p-12.5 xl:p-17.5">
+                  <span className="mb-1.5 block font-medium">
+                    Start for free
+                  </span>
+                  <h2 className="mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
+                    Login to CarePoint Pro
+                  </h2>
+
+                 
+                  <div className="form-group relative mb-6">
                   <label
                     htmlFor="emailOrMobile"
                     className="block text-gray-700 font-medium mb-1"
@@ -400,23 +491,25 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
                       style={{ color: '#d1d5db' }}
                     />
                     <input
-                      type="text"
-                      id="emailOrMobile"
-                      value={emailOrMobile}
-                      onChange={handleEmailOrMobileChange}
-                      maxLength={20}
-                      placeholder="Enter your email or mobile"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
+  type="text"
+  id="emailOrMobile"
+  value={emailOrMobile}
+  onChange={handleEmailOrMobileChange}
+  maxLength={20}
+  placeholder="Enter your email or mobile"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
+
                   </div>
                   {emailOrMobileError && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {emailOrMobileError}
-                    </p>
-                  )}
+  <p className="text-red-500 text-sm mt-1">{emailOrMobileError}</p>
+)}
+
                 </div>
+
+                {/* password     */}
                 {!isOtpSent ? (
   <div className="form-group mb-6">
     {isOtp ? (
@@ -474,21 +567,16 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
       maxLength={1}
       value={digit}
       onChange={(e) => handleOtpChange(index, e.target.value)}
-      onKeyDown={(e) => handleOtpKeyDown(index, e)}
-      //className="w-12 h-12 text-center border border-gray-300 rounded-md bg-transparent outline-none focus:border-gray-100 focus:ring focus:ring-gray-200 focus:ring-opacity-50"
-
-      //  className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      //  text-black outline-none focus:border-primary dark:border-form-strokedark 
-      //  dark:bg-form-input dark:text-white dark:focus:border-primary"
+      onKeyDown={(e) => handleOtpKeyDown(e,index)}
+     
        className="w-12 h-12 text-center rounded-lg border border-stroke bg-transparent text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
     />
   ))}
 </div>
   
     {otpError && <p className="text-red-500 text-sm">{otpError}</p>}
-
-    {/* Resend Button with Timer */}
-    <div className="flex justify-between mt-4">
+     {/* Resend Button with Timer */}
+     <div className="flex justify-between mt-4">
       <button
         disabled={cooldown > 0}
         onClick={handleResendOtp}
@@ -507,11 +595,8 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     )}
   </div>
 )}
-
-
-
-
-                <div className="form-group mt-4 mb-6 flex items-center">
+               
+               <div className="form-group mt-4 mb-6 flex items-center">
                   <input
                     type="checkbox"
                     id="isOtp"
@@ -525,44 +610,45 @@ const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
                   <Link to="/remember-me" className="text-primary">
                     Remember me
                   </Link>
-                  <Link to="/forgot-password" className="text-primary">
+                  <Link to="/ForgotPassword" className="text-primary">
                     Forgot password?
                   </Link>
-                </div>
-                {/* <div className="mt-9 flex justify-center"> */}
-                <div className="mt-9">
-                  <button
-                    onClick={handleLogin}
-                    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-                  >
-                    Login
-                  </button>
-                </div>
-
-                <div>
-                  {loginSuccessMessage && (
-                    <p className="text-green-500 mt-2">{loginSuccessMessage}</p>
-                  )}
-                </div>
-                <div className="mt-6 text-center">
-                  <p>
-                    Don’t have an account?{' '}
-                    <Link to="/signup" className="text-primary">
-                      Sign Up
-                    </Link>
-                  </p>
+                </div> 
+                     {/* <div className="mt-9 flex justify-center"> */}
+                     <div className="mt-9">
+        <button
+          onClick={handleLogin}
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+            hover:from-[#007BFF] hover:to-[#004A99]
+            text-white transition duration-150 
+            ease-out hover:ease-in py-2 px-5 rounded-lg"
+        >
+          Login
+        </button>
+        {loginMessage && (
+          <p className={`text-sm mt-2 ${loginMessage.includes("failed") ? "text-red-500" : "text-green-500"}`}>
+            {loginMessage}
+          </p>
+        )}
+      </div>
+               <div>
+                
+               </div>
+               <div className="mt-6 text-center">
+                 <p>
+                   Don’t have an account?{' '}
+                   <Link to="/signup" className="text-primary">
+                     Sign Up
+                   </Link>
+                 </p>
+               </div> 
                 </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-
-  
-    </div>
+    </>
   );
 };
 
