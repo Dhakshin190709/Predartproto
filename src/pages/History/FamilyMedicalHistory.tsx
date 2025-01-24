@@ -75,6 +75,26 @@ const [filterToDate, setFilterToDate] = useState('');
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
+  const [relationships, setRelationships] = useState([]);
+
+
+  useEffect(() => {
+    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
+      .then(response => response.json())
+      .then(response => {
+        console.log(response); // Check the structure
+        if (Array.isArray(response.data)) {
+          const relationshipTypes = response.data.filter(item => item.type === 'Relationship');
+          setRelationships(relationshipTypes);
+        } else {
+          console.error('Data is not an array:', response.data);
+        }
+      })
+      .catch(error => console.error('Error fetching data:', error));
+  }, []);
+  
+  
+
 
   useEffect(() => {
     setRowData(initialData); // Setting initial data
@@ -229,19 +249,18 @@ const [filterToDate, setFilterToDate] = useState('');
       {/* Global Search and Add Button in the Same Row */}
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
       <div className="relative">
-  <select
-    value={filterPatientId}
-    onChange={(e) => setFilterPatientId(e.target.value)}
-    className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="" disabled>Select Relationship</option>
-    <option value="Father">Father</option>
-    <option value="Mother">Mother</option>
-    <option value="Brother">Brother</option>
-    <option value="Sister">Sister</option>
-    <option value="Spouse">Spouse</option>
-    <option value="Other">Other</option>
-  </select>
+      <select
+      value={filterPatientId}
+      onChange={(e) => setFilterPatientId(e.target.value)}
+      className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="" disabled>Select Relationship</option>
+      {relationships.map((relationship, index) => (
+        <option key={index} value={relationship.name}>
+          {relationship.name}
+        </option>
+      ))}
+    </select>
   
 </div>
 

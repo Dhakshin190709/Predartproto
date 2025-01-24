@@ -1,7 +1,45 @@
-import { useState } from 'react';
+import { useState,useEffect } from 'react';
 import { FaSearch } from "react-icons/fa";
+import axios from 'axios';
 
 const DocumentUpload = () => {
+
+  
+  const [documentTypes, setDocumentTypes] = useState([]);
+
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+  
+    useEffect(() => {
+      const fetchDocumentTypes = async () => {
+        try {
+          const response = await axios.get(
+            "https://predart003-001-site1.anytempurl.com/api/AppLOV",
+            { params: { fetchType: "DocumentType" } }
+          );
+    
+          if (response.data && Array.isArray(response.data.data)) {
+            // Filter items where `type` is "DocumentType"
+            const filteredDocumentTypes = response.data.data.filter(
+              (item) => item.type === "DocumentType"
+            );
+            setDocumentTypes(filteredDocumentTypes);
+          } else {
+            console.error("Unexpected API response structure:", response.data);
+            setError("Invalid data format received.");
+          }
+        } catch (err) {
+          console.error("Error fetching document types:", err);
+          setError("Failed to load document types.");
+        } finally {
+          setLoading(false);
+        }
+      };
+    
+      fetchDocumentTypes();
+    }, []);
+    
+    
   const [uploadBoxes, setUploadBoxes] = useState([
     { id: 1, selectedType: "", files: [], showPreview: false, preview: "", previewType: "" },
   ]);
@@ -89,16 +127,19 @@ const DocumentUpload = () => {
       <div className="flex flex-col gap-6">
         {uploadBoxes.map((box) => (
           <div key={box.id} className="w-full sm:w-80 md:w-96 rounded-lg border border-stroke bg-transparent py-4 px-6">
-            <select
-              value={box.selectedType}
-              onChange={(e) => handleDropdownChange(box.id, e.target.value)}
-              className="w-full mb-4 flex rounded-lg border border-stroke bg-transparent py-4 px-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
-              <option value="">-- Select File Type --</option>
-              <option value="PAN">PAN</option>
-              <option value="Aadhaar">Aadhaar</option>
-              <option value="Photo">Photo</option>
-            </select>
+           <select
+  value={box.selectedType}
+  onChange={(e) => handleDropdownChange(box.id, e.target.value)}
+  className="w-full mb-4 flex rounded-lg border border-stroke bg-transparent py-4 px-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+  <option value="">-- Select File Type --</option>
+  {documentTypes.map((type, index) => (
+    <option key={index} value={type.name}>
+      {type.name}
+    </option>
+  ))}
+</select>
+
 
             <div
               onDrop={(e) => {

@@ -3,13 +3,16 @@ import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../js/axiosInstance';
 import { useDispatch } from 'react-redux';
 import { loginSuccess } from '../../redux/actions/authActions';
+
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-const BASE_URL = 'https://predart001-001-site1.qtempurl.com';
+//const BASE_URL = 'https://predart001-001-site1.qtempurl.com';
+const BASE_URL = 'https://predart003-001-site1.anytempurl.com';
+
 
 const Login: React.FC = () => {
-  const [emailOrMobile, setEmailOrMobile] = useState('');
+  const [emailOrMobile, setEmailOrMobile] = useState(''); 
   const [emailOrMobileError, setEmailOrMobileError] = useState('');
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isOtp, setIsOtp] = useState(false);
@@ -19,11 +22,14 @@ const Login: React.FC = () => {
   const [sendOtpMessage, setSendOtpMessage] = useState('');
   const [otp, setOtp] = useState<string[]>(Array(6).fill(""));
   const [isMobile, setIisMobile] =useState(false)
+ 
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const isError = loginMessage?.toLowerCase().includes("failed");
   const [otpError, setOtpError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [isResendEnabled, setIsResendEnabled] = useState(true);
   const [resendMessage, setResendMessage] = useState<string>('');
-  const [loginMessage, setLoginMessage] = useState("");
+ 
   const navigate = useNavigate();
   const handleEmailOrMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
@@ -151,96 +157,127 @@ const Login: React.FC = () => {
   
     // Validate input fields
     if (!emailOrMobile) {
-      console.log("Validation Error: Email or mobile number is missing.");
       setLoginMessage("Please enter your email or mobile number.");
       return;
     }
   
     if (isOtp) {
-      // OTP validation
       if (!otp || otp.some((digit) => digit === "")) {
-        console.log("Validation Error: Incomplete OTP.");
         setLoginMessage("Please enter the complete OTP.");
         return;
       }
     } else {
-      // Password validation
       if (!password) {
-        console.log("Validation Error: Password is missing.");
         setLoginMessage("Please enter your password.");
         return;
       }
     }
   
-    // Determine endpoint and payload based on login type
     let payload = {};
     let endpoint = "";
   
     if (isOtp) {
       payload = isMobile
-        ? {
-            method: "Mobile",
-            mobile: emailOrMobile,
-            otp: otp.join(""), // Join OTP array into string
-          }
-        : {
-            method: "Email",
-            email: emailOrMobile,
-            otp: otp.join(""),
-          };
+        ? { method: "Mobile", mobile: emailOrMobile, otp: otp.join("") }
+        : { method: "Email", email: emailOrMobile, otp: otp.join("") };
       endpoint = `${BASE_URL}/api/login/ValidateOTP`;
     } else {
-      payload = {
-        username: emailOrMobile,
-        password,
-      };
+      payload = { username: emailOrMobile, password };
       endpoint = `${BASE_URL}/api/login`;
     }
-  
-    console.log("Payload being sent:", JSON.stringify(payload));
-    console.log("Sending API request to:", endpoint);
   
     try {
       const response = await fetch(endpoint, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
   
-      console.log("HTTP Status:", response.status);
-      console.log("Response Headers:", JSON.stringify(response.headers));
-  
       const responseBody = await response.json();
-      console.log("API Response Body:", responseBody);
   
       if (response.ok) {
-        // Extract and store the complete menu information
-        const menuInfo = responseBody.data?.menuInfo;
-  
-        if (menuInfo && Array.isArray(menuInfo)) {
-          console.log("Extracted menuInfo:", menuInfo);
-  
-          // Store menu data in sessionStorage
-          sessionStorage.setItem("menuTitles", JSON.stringify(menuInfo));
-  
-          // Navigate to the response page
-          navigate("/dashboard");
-  
+        if (isOtp) {
+          if (responseBody.status === "OTP Valid") {
+            await fetchUserMenuInfo();
+            navigate("/dashboard");
+          } else {
+            setLoginMessage("Invalid OTP. Please try again.");
+          }
         } else {
-          console.error("API 'menuInfo' is not an array or missing:", menuInfo);
-          setLoginMessage("Unexpected API response format.");
+          const menuInfo = responseBody.data?.menuInfo;
+  
+          if (menuInfo && Array.isArray(menuInfo)) {
+            console.log("Extracted menuInfo:", menuInfo);
+  
+            // Extract user-specific menuIDs
+            const userMenuIDs = menuInfo.map((menu) => menu.menuID);
+  
+            // Retrieve stored menuIDs from sessionStorage
+            const storedMenuIDs = sessionStorage.getItem("filteredMenuIDs");
+            let menuIDs = [];
+            if (storedMenuIDs) {
+              try {
+                menuIDs = JSON.parse(storedMenuIDs);
+              } catch (error) {
+                console.error("Error parsing stored menu IDs:", error);
+              }
+            }
+  
+            // Filter common menuIDs
+            const commonMenuIDs = userMenuIDs.filter((id) => menuIDs.includes(id));
+            console.log("Common Menu IDs:", commonMenuIDs);
+  
+            // Store only the common menu IDs in sessionStorage
+            sessionStorage.setItem("commonMenuIDs", JSON.stringify(commonMenuIDs));
+            console.log("Filtered common menu IDs stored in session:", commonMenuIDs);
+  
+            // Navigate to the dashboard
+            navigate("/dashboard");
+          } else {
+            console.error("API 'menuInfo' is not an array or missing:", menuInfo);
+            setLoginMessage("Unexpected API response format.");
+          }
         }
       } else {
-        console.log("Login Failed:", responseBody.message || "Unknown error.");
         setLoginMessage(responseBody.message || "Login failed. Please try again.");
       }
     } catch (error) {
       console.error("Network or Unexpected Error:", error);
-      setLoginMessage("An error occurred during login. Please try again later.");
+      setLoginMessage("An error occurred while processing your request.");
     }
   };
+  
+  // Fetch User-specific menu info
+  const fetchUserMenuInfo = async () => {
+    const userID = "8B904E63-B150-484B-0A66-08DD363B643E"; // Hardcoded UserID
+    const menuEndpoint = `https://predart003-001-site1.anytempurl.com/api/Login/${userID}`;
+  
+    try {
+      const response = await fetch(menuEndpoint);
+  
+      if (!response.ok) {
+        throw new Error("Failed to fetch menu data.");
+      }
+  
+      const menuData = await response.json();
+      console.log("Fetched User Menu Data:", menuData);
+  
+      const menuIDs = menuData.data.map((item) => item.menuID);
+      console.log("Filtered Menu IDs:", menuIDs);
+  
+      // Store menuIDs in sessionStorage
+      sessionStorage.setItem("filteredMenuIDs", JSON.stringify(menuIDs));
+    } catch (error) {
+      console.error("Error fetching menu data:", error);
+    }
+  };
+  
+  // Call the function to fetch and filter menu data
+  fetchUserMenuInfo();
+  
+  
+  
+
   
   
   
@@ -541,7 +578,7 @@ useEffect(() => {
             id="password"
             value={password}
             onChange={handlePasswordChange}
-            maxLength={10}
+            maxLength={20}
             placeholder="Enter your password"
             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
               text-black outline-none focus:border-primary dark:border-form-strokedark
@@ -626,10 +663,13 @@ useEffect(() => {
           Login
         </button>
         {loginMessage && (
-          <p className={`text-sm mt-2 ${loginMessage.includes("failed") ? "text-red-500" : "text-green-500"}`}>
-            {loginMessage}
-          </p>
-        )}
+  <p className={`text-sm mt-2 ${loginMessage.includes("failed") ? "text-green-500" : "text-red-500"}`}>
+    {loginMessage}
+  </p>
+)}
+
+
+
       </div>
                <div>
                 
@@ -653,3 +693,31 @@ useEffect(() => {
 };
 
 export default Login;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -6,6 +6,7 @@ import "react-datepicker/dist/react-datepicker.css";
 interface TimeSlot {
   day: string;
   hospital: string;
+  hospitalType:string;
   fromTime: Date | null;
   toTime: Date | null;
 }
@@ -15,6 +16,26 @@ interface FormProps {}
 
 const ManageAvailability: React.FC<FormProps> = () => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+const [hospitalTypes, setHospitalTypes] = useState([]);
+const [formData, setFormData] = useState<RowData>({
+ 
+  hospital: '',
+  hospitalType:'',
+  fromTime: null,
+  toTime: null,
+  });
+
+
+useEffect(() => {
+    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
+      .then((response) => response.json())
+      .then((data) => {
+        // Filter for "Hospital" type
+        const filteredTypes = data.data.filter((item) => item.type === "Hospital");
+        setHospitalTypes(filteredTypes); // Set filtered options
+      })
+      .catch((error) => console.error("Error fetching data:", error));
+  }, []);
 
   // Initialize time slots with 7 days on component mount
   useEffect(() => {
@@ -22,6 +43,7 @@ const ManageAvailability: React.FC<FormProps> = () => {
     const initialTimeSlots = days.map((day) => ({
       day,
       hospital: '',
+      hospitalType:'',
       fromTime: null,
       toTime: null,
     }));
@@ -54,16 +76,29 @@ const ManageAvailability: React.FC<FormProps> = () => {
 
             {/* Hospital Dropdown */}
             <div className="col-span-2">
-              <select
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={slot.hospital || ""}
-                onChange={(e) => handleTimeChange(index, "hospital", e.target.value)}
-              >
-                <option value="">Select Hospital</option>
-                <option value="Hospital A">Hospital A</option>
-                <option value="Hospital B">Hospital B</option>
-                <option value="Hospital C">Hospital C</option>
-              </select>
+               <select
+    id="hospitalType"
+    name="hospitalType"
+    value={formData.hospitalType}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    onChange={(e) =>
+      setFormData({ ...formData, hospitalType: e.target.value })
+    }
+    required
+  >
+    <option value="">Hospital Type</option>
+    {hospitalTypes.length > 0 ? (
+      hospitalTypes.map((type) => (
+        <option key={type.appLOVID} value={type.name}>
+          {type.name} {/* Displaying the name of the hospital */}
+        </option>
+      ))
+    ) : (
+      <option value="">No Hospital Types Available</option>
+    )}
+  </select>
             </div>
 
             {/* From Time */}

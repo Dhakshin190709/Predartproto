@@ -2,23 +2,18 @@ import React, { useEffect, useState } from 'react';
 import Logo from '../../images/logo/logo-icon.svg';
 import { NavLink } from 'react-router-dom';
 import {
-  FaTachometerAlt,
   FaCog,
   FaUsers,
   FaFileAlt,
   FaUserCircle,
-  FaSlidersH,
   FaHome,
   FaBell,
-  FaChartBar,
   FaUser,
-  FaComments,
   FaFolder,
   FaPills,
   FaSearch,
   FaUserCheck,
   FaCashRegister,
-  FaUserCog,
   FaExchangeAlt,
   FaShieldAlt,
   FaVideo,
@@ -49,8 +44,6 @@ import {
   FaFileExport,
   FaPoll,
   FaCalendarAlt,
-  FaAngleRight,
-  FaAngleDown
 } from 'react-icons/fa';
 import { MdDateRange, MdDashboard } from 'react-icons/md';
 
@@ -70,6 +63,9 @@ interface SidebarProps {
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [menuData, setMenuData] = useState<MenuItem[]>([]);
   const [expandedMenus, setExpandedMenus] = useState<number[]>([]);
+  const [menuTitles, setMenuTitles] = useState<string[]>([]);
+
+  const userID = '8B904E63-B150-484B-0A66-08DD363B643E';
 
   // Comprehensive icon and route mapping
   const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
@@ -88,63 +84,60 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     VisitorPass: { icon: <FaIdBadge />, route: '/visitorplan' },
     Reports: { icon: <FaFileAlt />, route: '#' },
     Subscriptions: { icon: <FaCreditCard />, route: '/subscription' },
-    Events: { icon: <FaCalendarAlt />, route: '#' },
     DocumentUpload: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
     UserManagement: { icon: <FaUsersCog />, route: '#' },
     Offers: { icon: <FaTag />, route: '/offers' },
     FeedBack: { icon: <FaCommentAlt />, route: '/feedback' },
     Settings: { icon: <FaCog />, route: '#' },
-
-    // Submenus
-    Booking: { icon: <FaClipboardList />, route: '/appointment/booking' },
-    'View Available Slot': { icon: <FaStethoscope />, route: '/appointment/view-available-slots' },
-    Patient: { icon: <FaUserInjured />, route: '/search/patient' },
-    Appointments: { icon: <FaAddressCard />, route: '/search/appointment' },
-    Hospital: { icon: <FaHospital />, route: '/search/hospital' },
-    Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
-    Lab: { icon: <FaFlask />, route: '/search/lab' },
-    Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
-    PatientHistory: { icon: <FaUser />, route: '/history/patienthistory' },
-    AppointmentHistory: { icon: <FaClipboardCheck />, route: '/history/appointmenthistory' },
-    PaymentHistory: { icon: <FaMoneyBillWave />, route: '/history/paymenthistory' },
-    FamilyMedicalHistory: { icon: <FaHeartbeat />, route: '/history/familymedicalhistory' },
-    DoctorsReport: { icon: <FaFileMedical />, route: '/reports/doctorreport' },
-    AppointmentsReport: { icon: <FaCalendarCheck />, route: '/reports/appointmentreport' },
-    PaymentReport: { icon: <FaMoneyCheckAlt />, route: '/reports/paymentreport' },
-    DischargeReport: { icon: <FaFileExport />, route: '/reports/chargereport' },
-    SurveyReport: { icon: <FaPoll />, route: '/reports/surveyreport' },
-    EventReport: { icon: <FaCalendarAlt />, route: '/reports/eventreport' },
-    Users: { icon: <FaUserCircle />, route: '/usersmanagement/users' },
-    Menus: { icon: <FaListUl />, route: '/usersmanagement/menus' }, // Menus icon and URL
-    Roles: { icon: <FaUserShield />, route: '/usersmanagement/roles' },
-    Rights: { icon: <FaKey />, route: '/usersmanagement/rights' },
-    AssignRole: { icon: <FaUsersCog />, route: '/usersmanagement/assignrole' },
-    Transfer: { icon: <FaExchangeAlt />, route: '/usersmanagement/transfer' },
-    Conference: { icon: <FaVideo />, route: '/events/conference' },
-    MedicalCamp: { icon: <FaHeartbeat />, route: '/events/medicalcamp' },
-    Survey: { icon: <FaPoll />, route: '/events/survey' },
-    Profile: { icon: <FaUserCircle />, route: '/settings/profile' },
-    
-    Communication: { icon: <FaCommentAlt />, route: '/settings/communication' },
-    Privacy: { icon: <FaShieldAlt />, route: '/settings/privacy' },
-    Family: { icon: <FaUsers />, route: '/settings/family' },
-    Notification: { icon: <FaBell />, route: '/settings/notification' },
-
-    default: { icon: <FaFolder />, route: '/default' }, // Default icon and URL
+    default: { icon: <FaFolder />, route: '/default' },
   };
 
   useEffect(() => {
-    // Simulated API call (replace with actual API response logic)
-    const storedData = sessionStorage.getItem('menuTitles');
-    if (storedData) {
+    const storedMenuIDs = sessionStorage.getItem('filteredMenuIDs');
+
+    if (storedMenuIDs) {
       try {
-        const parsedData: MenuItem[] = JSON.parse(storedData);
-        setMenuData(parsedData);
+        const parsedMenuIDs = JSON.parse(storedMenuIDs);
+        console.log('Parsed Filtered Menu IDs:', parsedMenuIDs);
+
+        const fetchUserMenu = async () => {
+          try {
+            const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Login/${userID}`);
+            if (!response.ok) {
+              throw new Error('Failed to fetch user menu data');
+            }
+
+            const menuData = await response.json();
+            console.log('API Menu Data:', menuData);
+
+            const apiMenuMapping = menuData.data.map((item: any) => ({
+              id: item.menuID,
+              title: item.title,
+            }));
+
+            const apiMenuIDs = apiMenuMapping.map((menu: any) => menu.id);
+
+            const commonMenuIDs = apiMenuIDs.filter((id: number) => parsedMenuIDs.includes(id));
+            console.log('Common Menu IDs:', commonMenuIDs);
+
+            const commonMenuTitles = commonMenuIDs.map((id: number) => {
+              const menu = apiMenuMapping.find((menuItem: any) => menuItem.id === id);
+              return menu ? menu.title : 'Unknown Menu';
+            });
+
+            console.log('Common Menu Titles:', commonMenuTitles);
+            setMenuTitles(commonMenuTitles);
+          } catch (error) {
+            console.error('Error fetching or processing user menu data:', error);
+          }
+        };
+
+        fetchUserMenu();
       } catch (error) {
-        console.error('Error parsing menu data:', error);
+        console.error('Error parsing stored menu IDs:', error);
       }
     }
-  }, []);
+  }, [userID]);
 
   const toggleMenu = (menuID: number) => {
     setExpandedMenus((prev) =>
@@ -152,97 +145,40 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     );
   };
 
-  const renderMenu = (parentID: number | null): JSX.Element[] => {
-    const childMenus = menuData.filter((menu) => menu.parentID === parentID);
-
-    return childMenus.map((menu) => {
-      // Get icon and route from iconMapping
-      const { icon, route } = iconMapping[menu.title] || iconMapping['default'];
-
-      const menuUrl = menu.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '');
-
-      return (
-        <div key={menu.menuID} className={`ml-${parentID ? 4 : 0}`}>
-          <div
-            className="flex justify-between items-center bg-gray-800 text-white p-2 rounded cursor-pointer hover:bg-gray-700"
-            onClick={() => toggleMenu(menu.menuID)}
-          >
-            <div className="flex items-center">
-              <div className="text-lg mr-2">{icon}</div>
-              <NavLink
-                to={route} 
-                // className={({ isActive }) =>
-                //   `group relative flex items-center rounded-sm font-medium text-bodydark1 duration-300 ease-in-out hover:bg-graydark dark:hover:bg-meta-4 ${
-                //     isActive ? 'bg-graydark dark:bg-meta-4' : ''
-                //   }`
-                // }
-              >
-                {menu.title}
-              </NavLink>
-            </div>
-            {menuData.some((child) => child.parentID === menu.menuID) && (
-              <span>{expandedMenus.includes(menu.menuID) ? <FaAngleDown /> : <FaAngleRight />}</span>
-            )}
-          </div>
-          {expandedMenus.includes(menu.menuID) && (
-            <div className="pl-4">{renderMenu(menu.menuID)}</div>
-          )}
-        </div>
-      );
-    });
-  };
-
   return (
     <aside
-  className={`absolute left-0 top-0 z-9999 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
-    sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-  }`}
->
-  {/* SIDEBAR HEADER */}
-  <div className="flex items-center px-4 py-4 lg:py-6">
-    <img src={Logo} alt="CarePoint Pro Logo" className="h-6 mr-2" />
-    <h1 className="font-semibold text-white text-sm">CarePoint Pro</h1>
-
-    <button
-      onClick={() => setSidebarOpen(!sidebarOpen)}
-      aria-controls="sidebar"
-      aria-expanded={sidebarOpen}
-      className="block lg:hidden ml-auto"
+      className={`absolute left-0 top-0 z-9999 flex h-screen w-72.5 flex-col overflow-y-hidden bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${
+        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}
     >
-      <svg
-        className="fill-current"
-        width="20"
-        height="18"
-        viewBox="0 0 20 18"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M19 8.175H2.98748L9.36248 1.6875C9.69998 1.35 9.69998 0.825 9.36248 0.4875C9.02498 0.15 8.49998 0.15 8.16248 0.4875L0.399976 8.3625C0.0624756 8.7 0.0624756 9.225 0.399976 9.5625L8.16248 17.4375C8.31248 17.5875 8.53748 17.7 8.76248 17.7C8.98748 17.7 9.17498 17.625 9.36248 17.475C9.69998 17.1375 9.69998 16.6125 9.36248 16.275L3.02498 9.8625H19C19.45 9.8625 19.825 9.4875 19.825 9.0375C19.825 8.55 19.45 8.175 19 8.175Z"
-          fill=""
-        />
-      </svg>
-    </button>
-  </div>
-
-  {/* Sidebar Menu */}
-  <div className="no-scrollbar flex flex-col overflow-y-auto duration-300 ease-linear">
-    <nav className="mt-4 py-2 px-4 lg:mt-6 lg:px-6">
-      {/* Menu Group */}
-      <div>
-        <h3 className="mb-3 ml-3 text-xs font-semibold text-bodydark2">MENU</h3>
-
-        {/* Render Menu Items */}
-        <nav>
-          {menuData.length > 0 ? renderMenu(null) : (
-            <p className="text-gray-400">No menu items available</p>
-          )}
-        </nav>
+      <div className="flex items-center px-4 py-4 lg:py-6">
+        <img src={Logo} alt="CarePoint Pro Logo" className="h-6 mr-2" />
+        <h1 className="font-semibold text-white text-sm">CarePoint Pro</h1>
       </div>
-    </nav>
-  </div>
-</aside>
+      <div className="overflow-y-auto">
+  <nav>
+    {menuTitles.map((title, index) => {
+      const { icon, route } = iconMapping[title] || iconMapping.default;
+      return (
+        <div
+        key={index}
+        className="p-4 hover:bg-gray-700 rounded-md transition duration-200"
+      >
+        <NavLink
+          to={route}
+          className="flex items-center text-white font-semibold text-lg"
+        >
+          <div className="text-2xl mr-5">{icon}</div>
+          <span className="text-x">{title}</span>
+        </NavLink>
+      </div>
+      
+      );
+    })}
+  </nav>
+</div>
 
+    </aside>
   );
 };
 

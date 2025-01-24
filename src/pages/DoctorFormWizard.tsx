@@ -1,22 +1,92 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import FormWizard from 'react-form-wizard-component';
 import 'react-form-wizard-component/dist/style.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-
+import axios from 'axios';
 const DoctorFormWizard: React.FC = () => {
+  const [hospitalTypes, setHospitalTypes] = useState([]);
+  const [addressTypes, setAddressTypes] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
     age: '',
-    gender: 'Male',
+    gender: '',
     phone: '',
     email: '',
     aadhaar: '',
     pan: '',
+    hospitalType:'',
     date: null as Date | null,
   });
 
+    const [workTypes, setWorkTypes] = useState([]);
+    const [experiences, setExperiences] = useState([
+      {
+        type: 'Part-time',
+        specialization: '',
+        hospitalName: '',
+        joinDate: null,
+        leaveDate: null,
+      },
+    ]);
+
+    useEffect(() => {
+      fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
+        .then((response) => response.json())
+        .then((data) => {
+          console.log("Raw API Data:", data);
+  
+          // Filter for 'Worktype'
+          const filteredWorkTypes = data.data.filter(
+            (item) => item.type === "Worktype"
+          );
+  
+          console.log("Filtered Work Types:", filteredWorkTypes);
+          setWorkTypes(filteredWorkTypes);
+        })
+        .catch((error) => console.error("Error fetching data:", error));
+    }, []);
+  
+    const updateExperience = (index, field, value) => {
+      const updatedExperiences = [...experiences];
+      updatedExperiences[index][field] = value;
+      setExperiences(updatedExperiences);
+    };
+
+  useEffect(() => {
+      fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
+        .then((response) => response.json())
+        .then((data) => {
+          // Filter for "Hospital" type
+          const filteredTypes = data.data.filter((item) => item.type === "Hospital");
+          setHospitalTypes(filteredTypes); // Set filtered options
+        })
+        .catch((error) => console.error("Error fetching data:", error));
+    }, []);
+
+   
+
+  useEffect(() => {
+    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
+      .then((response) => response.json())
+      .then((data) => {
+        const filteredAddressTypes = data.data.filter(
+          (item) => item.type === "Address"
+        );
+        setAddressTypes(filteredAddressTypes);
+      })
+      .catch((error) => console.error("Error fetching address types:", error));
+  }, []);
+
+  const updateAddress = (index, field, value) => {
+    const updatedAddresses = [...addresses];
+    updatedAddresses[index][field] = value;
+    setAddresses(updatedAddresses);
+  };
+  
+    
   const [forms, setForms] = useState([
     {
       id: Date.now(),
@@ -24,7 +94,7 @@ const DoctorFormWizard: React.FC = () => {
       abilities: { read: false, write: false, speak: false },
     },
   ]);
-
+  const [genderOptions, setGenderOptions] = useState<any[]>([]);
   interface Award {
     awardName: string;
     year: string;
@@ -84,7 +154,7 @@ const addNewRowBelow = (index, day) => {
 
   const [addresses, setAddresses] = useState([
     {
-      type: 'Residential',
+      type: '',
       address1: '',
       address2: '',
       city: '',
@@ -102,24 +172,9 @@ const addNewRowBelow = (index, day) => {
     },
   ]);
 
-  const [experiences, setExperiences] = useState([
-    {
-      type: 'Part-time',
-      specialization: '',
-      hospitalName: '',
-      joinDate: null,
-      leaveDate: null,
-    },
-  ]);
+  
 
-  const updateExperience = (index, field, value) => {
-    const updatedExperiences = [...experiences];
-    updatedExperiences[index] = {
-      ...updatedExperiences[index],
-      [field]: value, // Update only the specified field
-    };
-    setExperiences(updatedExperiences);
-  };
+ 
 
   const addExperience = () => {
     setExperiences([
@@ -168,6 +223,18 @@ const addNewRowBelow = (index, day) => {
       },
     ]);
   };
+ // Initialize time slots with 7 days on component mount
+  useEffect(() => {
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const initialTimeSlots = days.map((day) => ({
+      day,
+      hospital: '',
+      hospitalType:'',
+      fromTime: null,
+      toTime: null,
+    }));
+    setTimeSlots(initialTimeSlots);
+  }, []);
 
   // Remove a skill form
   const handleRemoveSkill = (index: number) => {
@@ -242,9 +309,7 @@ const addNewRowBelow = (index, day) => {
     setForms((prevForms) => prevForms.filter((form) => form.id !== id));
   };
 
-  const handleSingleInputChange = (key: string, value: string) => {
-    setFormData({ ...formData, [key]: value });
-  };
+  
 
   const handleMultipleFormsInputChange = (id, field, value) => {
     setForms((prevForms) =>
@@ -298,16 +363,16 @@ const addNewRowBelow = (index, day) => {
   };
   
   
-  const updateAddress = (
-    index: number,
-    key: string,
-    value: string | boolean,
-  ) => {
-    const updatedAddresses = addresses.map((address, i) =>
-      i === index ? { ...address, [key]: value } : address,
-    );
-    setAddresses(updatedAddresses);
-  };
+  // const updateAddress = (
+  //   index: number,
+  //   key: string,
+  //   value: string | boolean,
+  // ) => {
+  //   const updatedAddresses = addresses.map((address, i) =>
+  //     i === index ? { ...address, [key]: value } : address,
+  //   );
+  //   setAddresses(updatedAddresses);
+  // };
 
   const handleDateChange = (date: Date | null): void => {
     setSelectedDate(date);
@@ -371,7 +436,35 @@ const addNewRowBelow = (index, day) => {
     }
   };
 
-  
+   // Fetch the gender options on component mount
+   useEffect(() => {
+    const fetchGenderOptions = async () => {
+      try {
+        const response = await axios.get('https://predart003-001-site1.anytempurl.com/api/AppLOV', {
+          params: {
+            type: 'gender',
+          },
+        });
+
+        if (response.data && response.data.data) {
+          setGenderOptions(response.data.data); // Update the gender options
+        }
+      } catch (error) {
+        console.error('Error fetching gender options:', error);
+      }
+    };
+
+    fetchGenderOptions();
+  }, []);
+
+  // Handle input change for form data
+  const handleSingleInputChange = (field: string, value: string) => {
+    setFormData((prevState) => ({
+      ...prevState,
+      [field]: value,
+    }));
+  };
+
   
   const handlePreview = (boxId) => {
     setUploadBoxes((prev) =>
@@ -504,19 +597,19 @@ const addNewRowBelow = (index, day) => {
 
     {/* Gender */}
     <div>
-      {/* <label className="block text-sm font-medium text-gray-700">Gender</label> */}
       <select
         className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+          text-black outline-none focus:border-primary dark:border-form-strokedark 
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
         value={formData.gender}
-        onChange={(e) =>
-          handleSingleInputChange('gender', e.target.value)
-        }
+        onChange={(e) => handleSingleInputChange('gender', e.target.value)}
       >
-        <option value="Male">Male</option>
-        <option value="Female">Female</option>
-        <option value="Other">Other</option>
+        <option value="">Select Gender</option>
+        {genderOptions.map((gender, index) => (
+          <option key={index} value={gender.code}> {/* Use the 'code' or 'name' based on your API response */}
+            {gender.name} {/* Display the gender name */}
+          </option>
+        ))}
       </select>
     </div>
   </div>
@@ -567,21 +660,26 @@ const addNewRowBelow = (index, day) => {
                 text-black outline-none focus:border-primary dark:border-form-strokedark 
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
-                    <div className="flex justify-between items-center mb-4">
-                      <select
-                        className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
-                    text-black outline-none focus:border-primary dark:border-form-strokedark 
-                    dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.type}
-                        onChange={(e) =>
-                          updateAddress(index, 'type', e.target.value)
-                        }
-                      >
-                        <option value="Residential">Residential</option>
-                        <option value="Commercial">Commercial</option>
-                      </select>
-                    </div>
-
+                    
+       {/* Address Type Dropdown */}
+       <div className="flex justify-between items-center mb-4">
+            <select
+              className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
+                text-black outline-none focus:border-primary dark:border-form-strokedark 
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
+              value={address.type}
+              onChange={(e) =>
+                updateAddress(index, "type", e.target.value)
+              }
+            >
+              <option value="">Select Address Type</option>
+              {addressTypes.map((type) => (
+                <option key={type.appLOVID} value={type.name}>
+                  {type.name}
+                </option>
+              ))}
+            </select>
+          </div>
                     {/* Address Fields */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
@@ -638,44 +736,31 @@ const addNewRowBelow = (index, day) => {
                       </div>
 
                       <div>
-                        {/* <label className="block text-sm font-medium text-gray-700">
-      District
-    </label> */}
-                        <select
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-     text-black outline-none focus:border-primary dark:border-form-strokedark 
-     dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.district}
-                          onChange={(e) =>
-                            updateAddress(index, 'district', e.target.value)
-                          }
-                        >
-                          <option value="">Select District</option>
-                          <option value="District 1">District 1</option>
-                          <option value="District 2">District 2</option>
-                          {/* Add more options as required */}
-                        </select>
-                      </div>
-
-                      <div>
-                        {/* <label className="block text-sm font-medium text-gray-700">
-      State
-    </label> */}
-                        <select
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+  {/* District Input Field */}
+  <input
+    type="text"
+    placeholder="Enter District"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.state}
-                          onChange={(e) =>
-                            updateAddress(index, 'state', e.target.value)
-                          }
-                        >
-                          <option value="">Select State</option>
-                          <option value="State 1">State 1</option>
-                          <option value="State 2">State 2</option>
-                          {/* Add more options as required */}
-                        </select>
-                      </div>
+    value={address.district}
+    onChange={(e) => updateAddress(index, 'district', e.target.value)}
+  />
+</div>
+
+<div>
+  {/* State Input Field */}
+  <input
+    type="text"
+    placeholder="Enter State"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={address.state}
+    onChange={(e) => updateAddress(index, 'state', e.target.value)}
+  />
+</div>
+
 
                       <div>
                         {/* <label className="block text-sm font-medium text-gray-700">
@@ -1021,16 +1106,21 @@ const addNewRowBelow = (index, day) => {
       {experiences.map((exp, index) => (
         <div key={index} className="w-full border border-stroke rounded-lg p-4">
           {/* Dropdown for Part-time/Full-time */}
-          <div className="flex justify-between items-center mb-4">
+           {/* Work Type Dropdown */}
+           <div className="flex justify-between items-center mb-4">
             <select
               value={exp.type}
-              onChange={(e) => updateExperience(index, 'type', e.target.value)}
-              className="w-[120px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
+              onChange={(e) => updateExperience(index, "type", e.target.value)}
+              className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
                 text-black outline-none focus:border-primary dark:border-form-strokedark 
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
             >
-              <option value="Part-time">Part-time</option>
-              <option value="Full-time">Full-time</option>
+              <option value="">Select Work Type</option>
+              {workTypes.map((type) => (
+                <option key={type.appLOVID} value={type.name}>
+                  {type.name}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -1144,33 +1234,28 @@ const addNewRowBelow = (index, day) => {
               <option value="Orthopedics">Orthopedics</option>
             </select>
 
-            {/* Years of Experience Dropdown */}
-            <select
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
-              <option value="">-- Years of Experience --</option>
-              {[...Array(21)].map((_, i) => (
-                <option key={i} value={i}>
-                  {i}
-                </option>
-              ))}
-            </select>
+            {/* Years of Experience Input */}
+<input
+  type="number"
+  min="0"
+  max="20"
+  placeholder="-- Years of Experience --"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
 
-            {/* Months of Experience Dropdown */}
-            <select
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
-              <option value="">-- Months of Experience --</option>
-              {[...Array(12)].map((_, i) => (
-                <option key={i} value={i}>
-                  {i}
-                </option>
-              ))}
-            </select>
+{/* Months of Experience Input */}
+<input
+  type="number"
+  min="0"
+  max="11"
+  placeholder="-- Months of Experience --"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
+
           </div>
 
           {/* Description Textarea */}
@@ -1201,36 +1286,26 @@ const addNewRowBelow = (index, day) => {
               </select>
 
               {/* Years of Experience Dropdown */}
-              <select
-                value={skill.years}
-                onChange={(e) => handleSkillChange(index, 'years', e.target.value)}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                  text-black outline-none focus:border-primary dark:border-form-strokedark 
-                  dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="">-- Years of Experience --</option>
-                {[...Array(21)].map((_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
+              <input
+  type="number"
+  min="0"
+  max="20"
+  placeholder="-- Years of Experience --"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
 
-              {/* Months of Experience Dropdown */}
-              <select
-                value={skill.months}
-                onChange={(e) => handleSkillChange(index, 'months', e.target.value)}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                  text-black outline-none focus:border-primary dark:border-form-strokedark 
-                  dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="">-- Months of Experience --</option>
-                {[...Array(12)].map((_, i) => (
-                  <option key={i} value={i}>
-                    {i}
-                  </option>
-                ))}
-              </select>
+{/* Months of Experience Input */}
+<input
+  type="number"
+  min="0"
+  max="11"
+  placeholder="-- Months of Experience --"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
             </div>
 
             {/* Description Textarea */}
@@ -1391,20 +1466,32 @@ const addNewRowBelow = (index, day) => {
       </div>
 
       {/* Hospital Dropdown */}
-      <div className="col-span-2"> {/* Makes the dropdown wider */}
-        <select
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-          value={slot.hospital || ""}
-          onChange={(e) => handleTimeChange(index, "hospital", e.target.value)}
-        >
-          <option value="">Select Hospital</option>
-          <option value="Hospital A">Hospital A</option>
-          <option value="Hospital B">Hospital B</option>
-          <option value="Hospital C">Hospital C</option>
-        </select>
-      </div>
+      <div className="col-span-2">
+               <select
+    id="hospitalType"
+    name="hospitalType"
+    value={formData.hospitalType}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    onChange={(e) =>
+      setFormData({ ...formData, hospitalType: e.target.value })
+    }
+    required
+  >
+    <option value="">Hospital Type</option>
+    {hospitalTypes.length > 0 ? (
+      hospitalTypes.map((type) => (
+        <option key={type.appLOVID} value={type.name}>
+          {type.name} {/* Displaying the name of the hospital */}
+        </option>
+      ))
+    ) : (
+      <option value="">No Hospital Types Available</option>
+    )}
+  </select>
+            </div>
+
 
       {/* From Time */}
       <div>

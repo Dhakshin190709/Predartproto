@@ -5,15 +5,19 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface RowData {
-  Id: number;
+  sNo?: number; 
+  Id:0;
   menuName: string;
   code: string;
-  selectedParentMenu: string;
+  parentMenu: string;
   status: string;
+  displayOrder: number; 
 }
 
+const BASE_URL = 'https://predart003-001-site1.anytempurl.com';
 const Menus: React.FC = () => {
   const [selectedMenuName, setSelectedMenuName] = useState(""); // For filtering
+  
   const [code, setCode] = useState(""); // For filtering
   const [selectedParentMenu, setSelectedParentMenu] = useState(""); // For filtering
   const [isActive, setIsActive] = useState(false); // Active filter for UI
@@ -22,60 +26,186 @@ const Menus: React.FC = () => {
   const [quickSearchText, setQuickSearchText] = useState(""); // For global search
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
   const [showConfirmation, setShowConfirmation] = useState(false);
- 
- 
+  const [menus, setMenus] = useState([]);
+  const [menuName, setMenuName] = useState('');
+   const [formMode, setFormMode] = useState(""); 
+  const [displayOrder, setDisplayOrder] = useState(0); 
+  const [status, setStatus] = useState(''); // Assume status is either 'Active' or 'Inactive'
+  const [response, setResponse] = useState(null);
+  const [parentMenu, setParentMenu] = useState(''); // For selected parent menu
+  const [parentMenuList, setParentMenuList] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+  const [isFormVisible, setIsFormVisible] = useState(true);
+  const [menusFetched, setMenusFetched] = useState(false);
+const [parentMenusFetched, setParentMenusFetched] = useState(false);
   const [formData, setFormData] = useState<RowData>({
     Id: 0,
     menuName: '',
     code: '',
     parentMenu: '',
     status: 'Active',
+    displayOrder:0,
   });
 
-  const data: RowData[] = [
-    { Id: 1, menuName: "Dashboard", code: "001", parentMenu: "Home", status: "Active" },
-    { Id: 2, menuName: "Settings", code: "002", parentMenu: "Admin", status: "Inactive" },
-    { Id: 3, menuName: "Reports", code: "003", parentMenu: "Analysis", status: "Active" },
-  ];
+
+  
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
+  // Fetch all menus
+  
 
+  
+  const fetchMenusAndParentMenus = async () => {
+    if (menusFetched && parentMenusFetched) return; // Skip if already fetched
+    setLoading(true);
+    try {
+      const response = await fetch(`${BASE_URL}/api/menu`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch menus');
+      }
+  
+      const result = await response.json();
+      if (result.success && Array.isArray(result.data)) {
+        const menuTitleLookup = result.data.reduce((acc, item) => {
+          acc[item.menuID] = item.title; // Map menuID to title
+          return acc;
+        }, {});
+  
+        const processedData = result.data.map((item) => ({
+          ...item,
+          menuID: item.menuID,
+          menuName: item.title,
+          parentMenu: item.parentID === null ? 'null' : menuTitleLookup[item.parentID] || 'Unknown',
+          status: item.isActive ? 'Active' : 'Inactive',
+          displayOrder: item.order,
+        }));
+  
+        // Set state only if not already set
+        if (!menusFetched) {
+          setRowData(processedData);
+          setMenusFetched(true); // Mark menus as fetched
+        }
+  
+        if (!parentMenusFetched) {
+          setParentMenuList(result.data);
+          setParentMenusFetched(true); // Mark parent menus as fetched
+        }
+      } else {
+        console.error('Unexpected response format:', result);
+        setRowData([]);
+        setParentMenuList([]);
+      }
+    } catch (error) {
+      console.error('Error fetching menus and parent menus:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Fetch data once on mount
   useEffect(() => {
-    setRowData(data); // Initialize data
-    setFilteredData(data); // Initialize filtered data
-  }, []);
-
-  // Update filtered data whenever quickSearchText or rowData changes
+    fetchMenusAndParentMenus();
+  }, []); // Empty dependency array ensures this runs only once
+  
+  // Log state changes for debugging
   useEffect(() => {
-    setFilteredData(applyGlobalSearch(rowData));
-  }, [quickSearchText, rowData]);
-
+    console.log("Menus fetched:", menusFetched);
+    console.log("Parent menus fetched:", parentMenusFetched);
+  }, [menusFetched, parentMenusFetched]);
+  
+  // Apply global search to filter rows
   const applyGlobalSearch = (data: RowData[]) => {
     if (!quickSearchText.trim()) return data; // Return all data if search text is empty.
     const lowerCaseSearch = quickSearchText.toLowerCase();
     return data.filter((row) =>
-      [row.menuName, row.code, row.parentMenu].some(
-        (field) => field?.toLowerCase().includes(lowerCaseSearch)
-      )
+      [
+        row.menuName,
+        row.code,
+        row.parentMenu,
+        row.menuID?.toString(), // Include menuID in the search criteria
+      ].some((field) => field?.toLowerCase().includes(lowerCaseSearch))
     );
   };
-
+  
+  // Update filtered data whenever quickSearchText or rowData changes
+  useEffect(() => {
+    setFilteredData(applyGlobalSearch(rowData));
+  }, [quickSearchText, rowData]);
+  
+  // Column Definitions
   const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id', sortable: true, filter: true, width: 100, headerClass: 'text-left' },
-    { headerName: 'Menu', field: 'menuName', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Code', field: 'code', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Parent Menu', field: 'parentMenu', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
+    {
+      headerName: 'S.No',
+      valueGetter: 'node.rowIndex + 1',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      width: 80,
+    },
+    {
+      headerName: 'MenuID',
+      field: 'menuID',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      sortable: true,
+      filter: true,
+      flex: 2,
+      hide: true,
+      width: 300,
+    },
+    {
+      headerName: 'Menu',
+      field: 'menuName',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      sortable: true,
+      filter: true,
+      flex: 2,
+      width: 300,
+    },
+    {
+      headerName: 'Code',
+      field: 'code',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      sortable: true,
+      filter: true,
+      width: 100,
+    },
+    {
+      headerName: 'Parent Menu',
+      field: 'parentMenu',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      cellRenderer: (params) => {
+        return params.value === 'null' ? 'null' : params.value;
+      },
+      sortable: true,
+      filter: true,
+      flex: 2,
+      width: 250,
+    },
+    {
+      headerName: 'Display Order',
+      field: 'displayOrder',
+      sortable: true,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      width: 120,
+    },
     {
       headerName: 'Status',
       field: 'status',
-      flex: 1,
-      headerClass: 'text-center',
+      width: 90,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellRenderer: (params: any) => (
         <span
           onClick={() => toggleStatus(params)}
-          className={`cursor-pointer font-bold ${params.value === 'Active' ? 'text-green-500' : 'text-red-400'} hover:underline`}
+          className={`cursor-pointer font-bold ${
+            params.value === 'Active' ? 'text-green-500' : 'text-red-400'
+          } hover:underline`}
         >
           {params.value}
         </span>
@@ -83,12 +213,12 @@ const Menus: React.FC = () => {
     },
     {
       headerName: 'Edit',
-      flex: 0.5,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      width: 80,
+      cellClass: 'text-center',
+      headerClass: 'center-header',
       cellRenderer: (params: any) => (
         <span
-          onClick={() => handleEdit(params.data.Id)}
+          onClick={() => handleEdit(params.data.displayOrder)}
           className="cursor-pointer text-blue-500 font-bold"
         >
           Edit
@@ -97,81 +227,85 @@ const Menus: React.FC = () => {
     },
     {
       headerName: 'Delete',
-      flex: 0.5,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      width: 80,
+      cellClass: 'text-center',
+      headerClass: 'center-header',
       cellRenderer: (params: any) => (
         <span
-          onClick={() => handleDelete(params.data.Id)}
+          onClick={() => handleDelete(params.data.displayOrder)}
           className="cursor-pointer text-red-600 font-bold hover:text-red-800"
         >
           x
         </span>
       ),
-      suppressSizeToFit: true,
-      width: 150,
     },
   ];
-
-  const toggleStatus = (params: any) => {
-    const updatedData = rowData.map(item =>
-      item.Id === params.data.Id
-        ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
+  
+  // Form actions (unchanged)
+  const handleAdd = () => {
+    setShowForm(true);
+    setFormMode("Add");
+    resetForm(); 
+  };
+  
+ const handleSave = () => {
+  if (formMode === "Add") {
+    // Add new entry
+    const newEntry: RowData = {
+      Id: Date.now(),  // Generate a unique ID (or use a real ID if available)
+      menuName,
+      code,
+      parentMenu,
+      status: status || "Active",
+      displayOrder,
+    };
+    setRowData((prevData) => [...prevData, newEntry]);  // Add to the existing rowData
+  } else if (formMode === "Edit" && selectedRow) {
+    // Update existing entry
+    const updatedData = rowData.map((item) =>
+      item.displayOrder === selectedRow.displayOrder
+        ? { ...item, menuName, code, parentMenu, status, displayOrder }
         : item
     );
-    setRowData(updatedData);
-  };
+    setRowData(updatedData);  // Update rowData with modified data
+  }
+  resetForm();
+};
 
-  const handleDelete = (Id: number) => {
-    const updatedData = rowData.filter(item => item.Id !== Id);
-    setRowData(updatedData);
-  };
-  const handleDeleteClick = (row) => {
-    setSelectedRow(row); 
-    setShowConfirmation(true); 
-  };
+const handleEdit = (displayOrder: number) => {
+  const rowToEdit = rowData.find((row) => row.displayOrder === displayOrder);
+  if (rowToEdit) {
+    setFormData(rowToEdit); // Populate the form with selected row data
+    setSelectedRow(rowToEdit); // Store the selected row
+    setShowForm(true); // Show the form for editing
+    setFormMode("Edit"); // Set form mode to "Edit"
+  }
+};
 
-  const confirmDelete = () => {
-    if (selectedRow) {
-      // Remove the row from the data (you can implement your deletion logic here)
-      setRowData(rowData.filter((row) => row.id !== selectedRow.id));
-    }
-    setShowConfirmation(false); // Hide the modal after deletion
+  
+  const handleCancel = () => {
+    resetForm();
   };
-
-  const cancelDelete = () => {
-    setShowConfirmation(false); // Simply hide the modal without doing anything
-  };
-
-  const handleEdit = (Id: number) => {
-    const rowToEdit = rowData.find(row => row.Id === Id);
-    if (rowToEdit) {
-      setFormData(rowToEdit);
-      setShowForm(true);
-    }
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.Id === 0) {
-      const newData = { ...formData, Id: rowData.length + 1 };
-      setRowData([...rowData, newData]);
-    } else {
-      const updatedData = rowData.map(item =>
-        item.Id === formData.Id ? { ...item, ...formData } : item
-      );
-      setRowData(updatedData);
-    }
-    setShowForm(false);
+  
+  const resetForm = () => {
     setFormData({
       Id: 0,
-      menuName: '',
-      code: '',
-      parentMenu: '',
-      status: 'Active',
-    });
+      menuName: "",
+      code: "",
+      parentMenu: "",
+      status: "Active",
+      displayOrder: 0,
+    }); // Reset form data
+    setSelectedRow(null); // Clear selected row
   };
-
+  
+  
+  
+  const handleDelete = (displayOrder: number) => {
+    const updatedData = rowData.filter((item) => item.displayOrder !== displayOrder);
+    setRowData(updatedData);
+  };
+  
   const handleFilterSearch = () => {
     const filteredData = data.filter((menu) => {
       return (
@@ -182,20 +316,26 @@ const Menus: React.FC = () => {
     });
     setFilteredData(filteredData);
   };
-
+  
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
     gridColumnApi.current = params.columnApi;
     params.api.sizeColumnsToFit();
   };
+  const handleFormSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    // your logic here
+  };
+
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Menus</h2>
 
-      {/* Filter Section */}
+      {/* {!showForm && (
+      <div>
       <div className="flex flex-wrap gap-4 mb-4 items-center">
-        {/* Menu Name Input */}
+       
         <input
           type="text"
           placeholder="Menu Name"
@@ -204,7 +344,7 @@ const Menus: React.FC = () => {
           className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
         />
 
-        {/* Code Input */}
+        
         <input
           type="text"
           placeholder="Code"
@@ -213,7 +353,7 @@ const Menus: React.FC = () => {
           className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
         />
 
-        {/* Parent Menu Dropdown */}
+      
         <select
           value={selectedParentMenu}
           onChange={(e) => setSelectedParentMenu(e.target.value)}
@@ -225,7 +365,7 @@ const Menus: React.FC = () => {
           <option value="parent3">Parent Menu 3</option>
         </select>
 
-        {/* Active Checkbox */}
+       
         <label className="text-black flex items-center w-fit cursor-pointer">
           <input
             type="checkbox"
@@ -236,7 +376,6 @@ const Menus: React.FC = () => {
           <span>Active</span>
         </label>
 
-        {/* Search Button */}
         <button
           className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
           onClick={handleFilterSearch}
@@ -244,8 +383,10 @@ const Menus: React.FC = () => {
           Search
         </button>
       </div>
-
       <hr className="border-t-2 border-stroke bg-transparent my-6" />
+    </div>
+      )} */}
+      
 
       {/* Table and Other Components */}
      
@@ -253,70 +394,96 @@ const Menus: React.FC = () => {
       {showForm && (
         <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none mt-4">
           <h3 className="text-xl font-semibold mb-4">
-            {formData.Id === 0 ? 'Add New Data' : 'Edit Data'}
+             {formMode === "Add" ? 'Add New Data' : 'Edit Data'}
           </h3>
           <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex gap-4 mb-2">
-              {/* Menu Name Input */}
-              <input
-                type="text"
-                value={formData.menuName}
-                onChange={(e) => setFormData({ ...formData, menuName: e.target.value })}
-                placeholder="Menu Name"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
+          <div className="space-y-4">
+  {/* First Row: 3 Fields */}
+  <div className="flex flex-wrap gap-4 mb-2">
+    {/* Menu Name Input */}
+    <input
+      type="text"
+      value={menuName}
+      onChange={(e) => setMenuName(e.target.value)}
+      placeholder="Menu Name"
+      className="w-60 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    />
 
-              {/* Code Input */}
-              <input
-                type="text"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="Code"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
+    {/* Code Input */}
+    <input
+      type="text"
+      value={code}
+      onChange={(e) => setCode(e.target.value)}
+      placeholder="Code"
+      className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    />
 
-              {/* Parent Menu Dropdown */}
-              <select
-                value={formData.selectedParentMenu}
-                onChange={(e) => setFormData({ ...formData, selectedParentMenu: e.target.value })}
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="">Select Parent Menu</option>
-                <option value="parent1">Parent Menu 1</option>
-                <option value="parent2">Parent Menu 2</option>
-                <option value="parent3">Parent Menu 3</option>
-              </select>
+    {/* Display Order Input */}
+    <input
+      type="number"
+      value={displayOrder}
+      onChange={(e) => setDisplayOrder(Number(e.target.value))}
+      placeholder="Display Order"
+      className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    />
+  </div>
 
-              {/* Active Checkbox */}
-              <label className="text-black flex items-center w-fit cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                  className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-                />
-                <span>Active</span>
-              </label>
-            </div>
+  {/* Second Row: 2 Fields */}
+  <div className="flex flex-wrap gap-4 mb-2">
+  {/* Parent Menu Dropdown */}
+  <select
+    value={selectedParentMenu}
+    onChange={(e) => setSelectedParentMenu(e.target.value)}
+    className="w-60 rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+  >
+    <option value="">Select Parent Menu</option>
+    {menus.map((menu) => (
+      <option key={menu.menuID} value={menu.menuID}>
+        {menu.title}
+      </option>
+    ))}
+  </select>
 
-            <div className="mt-4 flex gap-4">
-              {/* Submit Button */}
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.Id === 0 ? 'Add' : 'Update'}
-              </button>
+  {/* Active Checkbox */}
+  <label className="text-black flex items-center w-fit cursor-pointer">
+    <input
+      type="checkbox"
+      checked={formData.isActive}
+      onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+      className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
+    />
+    <span>Active</span>
+  </label>
 
-              {/* Cancel Button */}
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
+  {/* Submit and Cancel Buttons */}
+  <div className="flex gap-4 mt-2 ml-auto">
+    <button
+      type="submit"
+       onClick={handleSave}
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+    hover:from-[#007BFF] hover:to-[#004A99]
+    text-white transition duration-150 
+    ease-out hover:ease-in py-2 px-5 rounded-lg"
+    >
+      {formMode === "Add" ? "Add" : "Update"}
+    </button>
+
+    <button
+      type="button"
+       //onClick={handleCancel}
+      onClick={() => setShowForm(false)}
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+    >
+      Cancel
+    </button>
+  </div>
+</div>
+
+</div>
+
           </form>
         </div>
       )}
@@ -350,16 +517,7 @@ const Menus: React.FC = () => {
            text-white transition duration-150 
            ease-out hover:ease-in py-2 px-5 rounded-lg"
                        
-           onClick={() => {
-            setShowForm(true);
-            setFormData({
-              Id: 0,  // Reset Id to 0 for Add action
-              menuName: '',
-              code: '',
-              selectedParentMenu: '',
-              isActive: false,
-            });
-          }}
+           onClick={handleAdd}
         >
           + Add
         </button>
@@ -389,13 +547,16 @@ const Menus: React.FC = () => {
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
               <button
-                onClick={confirmDelete}
+                // onClick={confirmDelete}
+                onClick={handleSave}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
               >
                 Yes, Delete
               </button>
               <button
-                onClick={cancelDelete}
+            
+                // onClick={handleCancel}
+                 onClick={resetForm}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
               >
                 Cancel
@@ -404,8 +565,16 @@ const Menus: React.FC = () => {
           </div>
         </div>
       )}
+        <style jsx>{`
+        .center-header .ag-header-cell-label  {
+          text-align: center;
+          display: flex;
+          justify-content: center;
+          font-weight: bold;
+        }
+      `}</style>
     </div>
   );
 };
 
-export default Menus;
+export default Menus;  

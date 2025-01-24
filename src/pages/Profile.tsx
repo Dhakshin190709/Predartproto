@@ -5,9 +5,9 @@ import { Link } from 'react-router-dom';
 const Profile = () => {
   return (
     <>
-      <div className="overflow-hidden rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        
-      </div>
+    <div>
+      <h1>Patient or Doctot Formwizard</h1>
+    </div>
     </>
   );
 };

@@ -1,222 +1,390 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
+import React, { useRef, useState, useEffect } from "react";
+import { AgGridReact } from "ag-grid-react";
+import { ColDef } from "ag-grid-community";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import axios from "axios";
 
 interface RowData {
-  Id: number;
+roleID: number;
   roleName: string;
-  roleType: string;
-  displayValue: string;
+  roleCode: string;
+  createdBy: string;
   status: string;
 }
 
 const Role: React.FC = () => {
+  
+  const gridColumnApi = useRef<any>(null);
+
+ 
+  const gridApi = useRef<any>(null);
   const [name, setName] = useState(''); // Role Name filter for UI
-  const [isActive, setIsActive] = useState(false); // Active filter for UI
+  const [formMode, setFormMode] = useState(""); 
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
   const [quickSearchText, setQuickSearchText] = useState(""); // For global search
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
   const [showConfirmation, setShowConfirmation] = useState(false); // Show confirmation for deletion
-  const [deleteRowId, setDeleteRowId] = useState<number | null>(null); // ID of row to delete
+ 
+  
+  const [isActive, setIsActive] = useState(false);
   const [formData, setFormData] = useState<RowData>({
-    Id: 0,
-    roleName: '',
-    roleType: '',
-    displayValue: '',
-    status: 'Active',
+  roleID: 0,
+    roleName: "",
+    roleCode: "",
+    createdBy: "",
+    status: "Active",
   });
-
-  const initialData: RowData[] = [
-    { Id: 1, roleName: 'Admin', roleType: 'System', displayValue: 'Administrator', status: 'Active' },
-    { Id: 2, roleName: 'User', roleType: 'Standard', displayValue: 'Standard User', status: 'Inactive' },
-    { Id: 3, roleName: 'Manager', roleType: 'System', displayValue: 'Manager Role', status: 'Active' },
-  ];
-
-  const gridApi = useRef<any>(null);
-  const gridColumnApi = useRef<any>(null);
+  const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
 
   useEffect(() => {
-    setRowData(initialData);
-    setFilteredData(initialData);
+    fetchRoles();
   }, []);
 
-  const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id', sortable: true, filter: true,width:100, headerClass: 'text-left'},
-    { headerName: 'Role Name', field: 'roleName', sortable: true, filter: true, flex: 1, headerClass: 'text-left'},
-    { headerName: 'Role Type', field: 'roleType', sortable: true, filter: true, flex: 1, headerClass: 'text-left'},
-    { headerName: 'Display Value', field: 'displayValue', sortable: true, filter: true, flex: 1.5, headerClass: 'text-center'},
+  const fetchRoles = async () => {
+    try {
+      const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/Role");
+      if (response.data && Array.isArray(response.data.data)) {
+        const roles = response.data.data.map((role: any) => ({
+          roleID: role.roleID,
+          roleName: role.roleName,
+          roleCode: role.roleCode,
+          createdBy: role.createdBy || "",
+          status: role.isActive ? "Active" : "Inactive",
+        }));
+        setRowData(roles);
+        setFilteredData(roles); // Update filtered data after fetching
+      } else {
+        console.error("Unexpected API response format:", response.data);
+      }
+    } catch (error) {
+      console.error("Error fetching roles:", error);
+    }
+  };
+  
+
+
+
+  const handleEdit = (roleID: number | string) => {
+    // Log the roleID to see what's passed into the function
+    console.log("Editing row with roleID:", roleID);
+  
+    const rowToEdit = rowData.find((row) => row.roleID === roleID);
+  
+    if (rowToEdit) {
+      console.log("Found row to edit:", rowToEdit);
+  
+      // Set the form data for editing
+      setFormData({ ...rowToEdit });
+      setShowForm(true);  // Show the form modal
+      setFormMode("Edit"); // Set form mode to "Edit"
+    } else {
+      console.error("Row not found for roleID:", roleID);
+    }
+  };
+
+
+  
+  
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    try {
+      const isActive = formData.status === 'Active';
+      const createdBy = "dd606a34-6e0a-4b0f-8cfd-8e9138267627"; // Fixed CreatedBy ID
+      let response;
+  
+      if (!formData.roleID) {
+          // POST request for adding a new role
+          response = await axios.post("https://predart003-001-site1.anytempurl.com/api/Role", {
+              roleName: formData.roleName,
+              roleCode: formData.roleCode,
+              createdBy: createdBy,
+              isActive: isActive,
+          });
+  
+          if (response.data && Array.isArray(response.data.data)) {
+              // Fetch latest data after adding a new role
+              fetchRoles();
+          } else {
+              console.error("Error: response.data.data is not an array", response.data);
+          }
+      } else {
+          // PUT request for updating an existing role (No roleID in URL)
+          response = await axios.put("https://predart003-001-site1.anytempurl.com/api/Role", {
+              roleID: formData.roleID,
+              roleName: formData.roleName,
+              roleCode: formData.roleCode,
+              createdBy: createdBy,
+              isActive: isActive,
+          });
+  
+          if (response.data.success) {
+              // Fetch latest data after updating the role
+              fetchRoles();
+          } else {
+              console.error("Error updating role:", response.data.message);
+          }
+      }
+  
+      // Reset form and hide it
+      setShowForm(false);
+      resetFormData();
+    } catch (error) {
+      console.error("Error saving role:", error);
+    }
+  };
+  
+
+
+  
+// Fetch updated list of roles to refresh the table
+const refreshTableData = async () => {
+  try {
+    const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/Role"); // Make a GET request to fetch the latest tenant data
+    if (response.data && Array.isArray(response.data.data)) {
+      setRowData([...response.data.data]);  // Refresh the row data with the updated list
+      setFilteredData([...response.data.data]); // Refresh filtered data
+    } else {
+      console.error('Error: response.data.data is not an array', response.data);
+    }
+  } catch (error) {
+    console.error('Error fetching table data:', error);
+  }
+};
+
+const resetFormData = () => {
+  setFormData({
+  roleID: 0,                // Reset roleID to 0 for a new role
+    roleName: '',
+    roleCode: '',
+    createdBy: '',        // Reset createdBy to an empty string
+    status: 'Active',     // Assuming status is a string, you can set default to 'Active'
+  });
+};
+
+  
+  
+  
+const handleAdd = () => {
+  setFormMode("Add"); // Set mode to 'Add'
+  setFormData({
+      roleID: 0,
+      roleName: "",
+      roleCode: "",
+      createdBy: "",
+      status: "Active",
+  }); // Reset form data
+  setFormMode('Add');
+  setShowForm(true); // Show the form
+
+  // Optionally fetch the latest data to ensure the table is updated
+  fetchRoles();
+};
+
+  
+ // Reset form data when switching to "Add" mode
+  useEffect(() => {
+    if (formMode === 'Add') {
+      setFormData({
+        roleID: 0,
+        roleName: "",
+        roleCode: "",
+        createdBy: "",
+        status: "Active",
+      });
+    }
+  }, [formMode]);
+
+
+const handleSave = () => {
+  // Perform save operation (Add or Update)
+  console.log(formMode === "Add" ? "Data Added" : "Data Updated");
+  resetForm();
+};
+
+const handleCancel = () => {
+  resetForm();
+};
+
+const resetForm = () => {
+  setShowForm(false); // Show the fields again
+  setFormMode("");
+  setName(""); // Reset input fields if necessary
+  setIsActive(false);
+};
+  
+
+
+const handleDelete = (roleID: number) => {
+  setDeleteRowId(roleID);
+  setShowConfirmation(true);
+};
+
+
+
+const confirmDelete = async () => {
+  try {
+    await axios.delete(`https://predart003-001-site1.anytempurl.com/api/Role/${deleteRowId}`);
+    const updatedData = rowData.filter((item) => item.roleID !== deleteRowId);
+    setRowData(updatedData);
+    setFilteredData(updatedData);
+    setShowConfirmation(false);
+    setDeleteRowId(null);
+  } catch (error) {
+    console.error("Error deleting row:", error);
+  }
+};
+
+
+// Cancel the delete action
+const cancelDelete = () => {
+  setShowConfirmation(false); // Hide the confirmation dialog
+  setDeleteRowId(null); // Clear the delete row id
+};
+
+  const columnDefs: ColDef<RowData>[] = [
+    
+    { headerName: "S.No", field: "S.No", sortable: true,cellClass: 'text-center',headerClass: 'center-header', valueGetter: "node.rowIndex + 1",filter: true,width:100},
+ 
+    { headerName: "Role ID", field: "roleID", sortable: true, filter: true,hide: true,width: 150 },
+    { headerName: "Role Name", field: "roleName",headerClass: 'center-header', 
+      cellClass: 'text-center', sortable: true, filter: true,width: 400 },
+    { headerName: "Role Code", field: "roleCode",cellClass: 'text-center', headerClass: 'center-header',sortable: true, filter: true,width: 150 },
     {
-      headerName: 'Status',
-      field: 'status',
-      flex: 1,
-      headerClass: 'text-center',
-     
+      headerName: "Status",
+      field: "status",
+      width:100,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellRenderer: (params: any) => (
         <span
-          onClick={() => toggleStatus(params)}
-          className={`cursor-pointer font-bold ${params.value === 'Active' ? 'text-green-500' : 'text-red-400'} hover:underline`}
+          className={`cursor-pointer font-bold ${
+            params.value === "Active" ? "text-green-500" : "text-red-400"
+          }`}
+          onClick={() => handleStatusToggle(params.data.roleID, params.value)} // Trigger status toggle on click
         >
           {params.value}
         </span>
       ),
     },
+    
+    
     {
-      headerName: 'Edit',
+      headerName: "Edit",
       flex: 0.5,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      width:50,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellRenderer: (params: any) => (
         <span
-          onClick={() => handleEdit(params.data.Id)}
           className="cursor-pointer text-blue-500 font-bold"
+          onClick={() => handleEdit(params.data.roleID)} // Ensure roleID is passed correctly
+          
         >
           Edit
         </span>
       ),
     },
     {
-      headerName: 'Delete',
+      headerName: "Delete",
       flex: 0.5,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      width:50,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellRenderer: (params: any) => (
         <span
-          onClick={() => handleDelete(params.data.Id)}
-          className="cursor-pointer text-red-600 font-bold hover:text-red-800"
+          className="cursor-pointer text-red-600 font-bold"
+          onClick={() => handleDelete(params.data.roleID)} // Call the handleDelete function
         >
           x
         </span>
       ),
-      suppressSizeToFit: true,
-      width: 150,
     },
   ];
-
-  const toggleStatus = (params: any) => {
-    const updatedData = rowData.map(item =>
-      item.Id === params.data.Id
-        ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
-        : item
-    );
-    setRowData(updatedData);
-    setFilteredData(updatedData);
-  };
-
-  const handleDelete = (Id: number) => {
-    setDeleteRowId(Id);
-    setShowConfirmation(true);
-  };
-
-  const confirmDelete = () => {
-    const updatedData = rowData.filter(item => item.Id !== deleteRowId);
-    setRowData(updatedData);
-    setFilteredData(updatedData);
-    setShowConfirmation(false);
-    setDeleteRowId(null);
-  };
-
-  const cancelDelete = () => {
-    setShowConfirmation(false);
-    setDeleteRowId(null);
-  };
-
-  const handleEdit = (Id: number) => {
-    const rowToEdit = rowData.find(row => row.Id === Id);
-    if (rowToEdit) {
-      setFormData(rowToEdit);
-      setShowForm(true);
-    }
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.Id === 0) {
-      const newData = { ...formData, Id: rowData.length + 1 };
-      setRowData([...rowData, newData]);
-      setFilteredData([...rowData, newData]);
-    } else {
-      const updatedData = rowData.map(item =>
-        item.Id === formData.Id ? { ...item, ...formData } : item
-      );
-      setRowData(updatedData);
-      setFilteredData(updatedData);
-    }
-
-    setShowForm(false);
-    setFormData({
-      Id: 0,
-      roleName: '',
-      roleType: '',
-      displayValue: '',
-      status: 'Active',
-    });
-  };
-
-  const handleFilterSearch = () => {
-    const filtered = initialData.filter(item =>
-      (name ? item.roleName.toLowerCase().includes(name.toLowerCase()) : true) &&
-      (isActive ? item.status === 'Active' : true)
-    );
-    setRowData(filtered);
-    setFilteredData(filtered);
-  };
-
-  const applyGlobalSearch = (data: RowData[]) => {
-    return data.filter((row) =>
-      row.roleName.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.roleType.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.displayValue.toLowerCase().includes(quickSearchText.toLowerCase())
-    );
-  };
-
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
     gridColumnApi.current = params.columnApi;
     params.api.sizeColumnsToFit();
   };
 
+  const handleStatusToggle = async (roleID: number, currentStatus: string) => {
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+    const updatedRole = rowData.find((role) => role.roleID === roleID);
+  
+    if (updatedRole) {
+      updatedRole.status = newStatus;
+      setRowData(prevData =>
+        prevData.map(item =>
+          item.roleID === roleID ? { ...item, status: newStatus } : item
+        )
+      );
+  
+      const payload = {
+        roleName: updatedRole.roleName,
+        roleCode: updatedRole.roleCode,
+        createdBy: updatedRole.createdBy,
+        isActive: newStatus === "Active",
+      };
+  
+      const url = `https://predart003-001-site1.anytempurl.com/api/Role/${updatedRole.roleID}`;
+      try {
+        const response = await axios.patch(url, payload);
+        if (response.status === 200) {
+          // Optionally refresh roles after success
+          setFilteredData([...rowData]);  // Ensure filtered data is updated
+        } else {
+          console.error('Failed to update status');
+        }
+      } catch (error) {
+        console.error("Error updating role status:", error);
+      }
+    }
+  };
+  
+  
+
+  
+const applyGlobalSearch = () => {
+  console.log("Search text:", quickSearchText); // Check the search text
+  if (quickSearchText.trim() === "") {
+    setFilteredData(rowData); // If search text is empty, reset filtered data to all data
+  } else {
+    const filteredData = rowData.filter((row) =>
+      row.roleName.toLowerCase().includes(quickSearchText.toLowerCase()) ||
+      row.roleCode.toLowerCase().includes(quickSearchText.toLowerCase()) ||
+      row.roleID.toString().includes(quickSearchText) // Change 'id' to 'roleID'
+    );
+    console.log("Filtered data:", filteredData); // Check the filtered data
+    setFilteredData(filteredData); // Apply the search filter
+  }
+};
+
+useEffect(() => {
+  console.log("Row data:", rowData); // Check the rowData structure
+  applyGlobalSearch(); // Re-run the search filter whenever the `quickSearchText` or `rowData` changes
+}, [quickSearchText, rowData]);
+
+  
+// Apply filters based on search fields
+const handleFilterSearch = () => {
+  const filtered = rowData.filter((item) =>
+    (name ? item.roleName.toLowerCase().includes(name.toLowerCase()) : true) &&
+    (isActive ? item.status === "Active" : true)
+  );
+  setFilteredData(filtered); // Update filtered data for rendering
+};
+
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Roles</h2>
-
-      {/* Filter Section */}
-      <div className="flex flex-wrap gap-4 mb-4 items-center">
-        <input
-          type="text"
-          placeholder="Role Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        />
-        <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-    className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-  />
-  <span>Active</span>
-        </label>
-        <button
-           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-           hover:from-[#007BFF] hover:to-[#004A99]
-           text-white transition duration-150 
-           ease-out hover:ease-in py-2 px-5 rounded-lg"
-                       
-          onClick={handleFilterSearch}
-        >
-          Search
-        </button>
-      </div>
-
-      <hr className="border-t-2 border-stroke bg-transparent my-6" />
+    
+    
 
       {showForm && (
         <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
-          <h3 className="text-xl font-semibold mb-4">{formData.Id === 0 ? 'Add New Role' : 'Edit Role'}</h3>
+          <h3 className="text-xl font-semibold mb-4">{formData.roleID === 0 ? 'Add New Role' : 'Edit Role'}</h3>
           <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex gap-4">
               <input
@@ -230,32 +398,34 @@ const Role: React.FC = () => {
               />
               <input
                 type="text"
-                value={formData.roleType}
-                onChange={(e) => setFormData({ ...formData, roleType: e.target.value })}
-                placeholder="Role Type"
+                value={formData.roleCode}
+                onChange={(e) => setFormData({ ...formData, roleCode: e.target.value })}
+                placeholder="Role Code"
                 className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
                 text-black outline-none focus:border-primary dark:border-form-strokedark
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
-              <input
-                type="text"
-                value={formData.displayValue}
-                onChange={(e) => setFormData({ ...formData, displayValue: e.target.value })}
-                placeholder="Display Value"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-                text-black outline-none focus:border-primary dark:border-form-strokedark
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-                text-black outline-none focus:border-primary dark:border-form-strokedark
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+             
+  <input
+  type="hidden"
+    id="createdBy"
+    name="createdBy"
+    placeholder="Created By"
+    value={formData.createdBy || ''} // Ensure it defaults to an empty string
+    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+     text-black outline-none focus:border-primary dark:border-form-strokedark
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })} // Directly update createdBy as string
+    required
+  />
+<select
+  value={formData.status}
+  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+>
+  <option value="Active">Active</option>
+  <option value="Inactive">Inactive</option>
+</select>
+              
             </div>
             <div className="mt-4 flex gap-4">
               <button
@@ -266,7 +436,8 @@ const Role: React.FC = () => {
                 ease-out hover:ease-in py-2 px-5 rounded-lg"
                             
               >
-                {formData.Id === 0 ? 'Add' : 'Update'}
+                {/* {formData.roleID === 0 ? 'Add' : 'Update'} */}
+                {formMode === "Add" ? "Add" : "Update"}
               </button>
               <button
                 type="button"
@@ -308,7 +479,7 @@ const Role: React.FC = () => {
            text-white transition duration-150 
            ease-out hover:ease-in py-2 px-5 rounded-lg"
                        
-          onClick={() => setShowForm(true)}
+           onClick={handleAdd}
         >
           + Add
         </button>
@@ -320,15 +491,16 @@ const Role: React.FC = () => {
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
         <AgGridReact
           gridOptions={{}}
+          ref={gridApi}
           domLayout="autoHeight"
-          rowData={applyGlobalSearch(filteredData)}
+          rowData={filteredData}
           columnDefs={columnDefs}
           onGridReady={onGridReady}
           pagination={true}
           paginationPageSize={10}
         />
       </div>
-
+     
       
       {/* Deletion Confirmation */}
       {showConfirmation && (
@@ -337,7 +509,8 @@ const Role: React.FC = () => {
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
               <button
-                onClick={confirmDelete}
+                 onClick={confirmDelete}
+                // onClick={handleSave}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
                 hover:from-[#007BFF] hover:to-[#004A99]
                 text-white transition duration-150 
@@ -348,6 +521,7 @@ const Role: React.FC = () => {
               </button>
               <button
                 onClick={cancelDelete}
+                // onClick={handleCancel}
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
@@ -360,6 +534,14 @@ const Role: React.FC = () => {
           </div>
         </div>
       )}
+       <style jsx>{`
+        .center-header .ag-header-cell-label {
+          text-align: center;
+          display: flex;
+          justify-content: center;
+          font-weight: bold;
+        }
+      `}</style>
     </div>
   );
 };

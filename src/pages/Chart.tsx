@@ -4,6 +4,7 @@ import ChartOne from '../components/Charts/ChartOne';
 import ChartThree from '../components/Charts/ChartThree';
 import ChartTwo from '../components/Charts/ChartTwo';
 
+
 const Chart: React.FC = () => {
   return (
     <>
@@ -13,6 +14,7 @@ const Chart: React.FC = () => {
         <ChartOne />
         <ChartTwo />
         <ChartThree />
+       
       </div>
     </>
   );

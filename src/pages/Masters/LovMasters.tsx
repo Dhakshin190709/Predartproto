@@ -2,17 +2,18 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 
-
 interface RowData {
-  id: number;
+  appLOVID: number;
   name: string;
   code: string;
-  displayValue: string;
-  status: string;
+  type: string;
+  isActive: string;
 }
 
+
 const LovMasters: React.FC = () => {
-  const [type, setType] = useState(''); // Type filter for UI
+  // Type filter for UI
+  const [type, setType] = useState<string>('');
   const [Name, setName] = useState('');
   const [code, setCode] = useState(''); // Code filter for UI
   const [isActive, setIsActive] = useState(false); // Active filter for UI
@@ -23,45 +24,194 @@ const LovMasters: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
   const [formData, setFormData] = useState<RowData>({
-    id: 0,
+    appLOVID: 0,
     name: '',
     code: '',
-    displayValue: '',
-    status: 'Active',
+    type: '', 
+    isActive: 'Active',
   });
 
   // Sample data
-  const initialData: RowData[] = [
-    { id: 1, name: 'Demo Name 1', code: 'ABC123', displayValue: 'Demo Value 1', status: 'Active' },
-    { id: 2, name: 'Demo Name 2', code: 'XYZ456', displayValue: 'Demo Value 2', status: 'Inactive' },
-    { id: 3, name: 'Demo Name 3', code: 'LMN789', displayValue: 'Demo Value 3', status: 'Active' },
-  ];
+  
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
+  // Function to send data to API
+  const postDataToApi = async () => {
+    console.log('POST request initiated');  // Log to see when the POST request is triggered
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+  
+    try {
+      const payload = {
+        type: formData.type,
+        name: formData.name,
+        code: formData.code,
+        isActive: true,
+      };
+  
+      const response = await fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+  
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Response:', data);  // Ensure this is only logged once
+        alert('Data added successfully!');
+        fetchData();
+      } else {
+        console.error('Failed to add data:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error occurred while adding data:', error);
+    } finally {
+      setIsSubmitting(false);  // Re-enable button after completion
+    }
+  };
+  
+  
 
   useEffect(() => {
-    setRowData(initialData); // Setting initial data
-    setFilteredData(initialData); // Set the same data as filtered initially
+    console.log('Component mounted');
+    fetchData(); // Only fetch once on mount
   }, []);
+
+  // Fetch data function
+  const fetchData = async () => {
+    try {
+        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV');
+        if (response.ok) {
+            const responseData = await response.json();
+            console.log("Fetched data:", responseData); // Inspect the data structure
+            
+            // Ensure 'data' exists and is an array
+            if (responseData.success && Array.isArray(responseData.data)) {
+                const formattedData = responseData.data.map((item: any) => ({
+                    ...item,
+                    isActive: item.isActive || 'Inactive', // Default value for isActive
+                }));
+                setRowData(formattedData);
+                setFilteredData(formattedData);
+            } else {
+                console.error("API response 'data' is not an array or missing:", responseData);
+            }
+        } else {
+            console.error('Failed to fetch data:', response.statusText);
+        }
+    } catch (error) {
+        console.error('Error occurred while fetching data:', error);
+    }
+};
+
+  
+  // Handles the form submission to update the row data
+ // Handles form submission for adding or editing data
+const handleFormSubmit = async (e: React.FormEvent) => {
+  e.preventDefault(); // Prevent page reload on form submission
+  console.log('Form submission triggered');
+
+  // If the form ID is 0, it's a new row (POST request)
+  if (formData.appLOVID === 0) {
+    await postDataToApi();
+  } else {
+    // If it's an existing row, make an UPDATE (PUT request)
+    const payload = {
+      appLOVID: formData.appLOVID,
+      type: formData.type,
+      name: formData.name,
+      code: formData.code,
+      isActive: formData.isActive === 'Active', // Boolean value for isActive
+    };
+
+    try {
+      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/AppLOV/${formData.appLOVID}`, {
+        method: 'PUT', // PUT for updating existing data
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const updatedData = await response.json();
+        console.log('Data updated successfully:', updatedData);
+
+        // Update the grid with the new data
+        const updatedRowData = rowData.map(item =>
+          item.appLOVID === formData.appLOVID ? { ...item, ...formData } : item
+        );
+        setRowData(updatedRowData);
+        setFilteredData(updatedRowData); // Ensure the filtered data is updated
+
+        // Reset form and close it after successful update
+        setFormData({
+          appLOVID: 0,
+          name: '',
+          code: '',
+          type: '',
+          isActive: 'Active',
+        });
+        setShowForm(false); // Hide the form after submission
+      } else {
+        console.error('Failed to update data:', response.statusText);
+        alert('Failed to update data. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error occurred while updating data:', error);
+      alert('Error occurred while updating data. Please check your connection and try again.');
+    }
+  }
+};
+
+  
+  
+  
 
   // Column Definitions for AG Grid
   const columnDefs: ColDef[] = [
     { 
-      headerName: 'S.No', 
-      field: 'id', 
-      flex: 0.5, 
+      headerName: "appLOVID", 
+      field: "appLOVID", 
+      sortable: true, 
+      filter: true,
+      width: 150, 
+      hide: true,
+    },
+    { 
+      headerName: "S.No", 
+      field: "S.No", 
+      headerClass: 'center-header',
+      cellClass: 'text-center', 
+      sortable: true, 
+      valueGetter: "node.rowIndex + 1",
+      filter: true,
+      flex: 1,
+      width: 80 // Reduced width
+    },
+    { 
+      headerName: 'Type', 
+      field: 'type', 
+      flex: 2,  // Increased flex to make it take more space
       sortable: true, 
       filter: true, 
-      headerClass: 'text-left',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      width: 250  // Increased width
     },
     { 
       headerName: 'Name', 
       field: 'name', 
-      flex: 1, 
+      flex: 2,  // Increased flex to make it take more space
       sortable: true, 
       filter: true, 
-      headerClass: 'text-left',
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      width: 300  // Increased width
     },
     { 
       headerName: 'Code', 
@@ -69,38 +219,38 @@ const LovMasters: React.FC = () => {
       flex: 1, 
       sortable: true, 
       filter: true, 
-      headerClass: 'text-center',
-
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      width: 100 // Reduced width
     },
-    { 
-      headerName: 'Display Value', 
-      field: 'displayValue', 
-      flex: 1.5, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-      
-    },
+   
     {
       headerName: 'Status',
-      field: 'status',
-      flex: 1,
-      headerClass: 'text-center',
+      field: 'isActive',
+      flex: 0.8,
+      width: 100,  // Reduced width
 
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => toggleStatus(params)}
-          className={`cursor-pointer font-bold ${params.value === 'Active' ? 'text-green-500' : 'text-red-400'} hover:underline`}
-        >
-          {params.value}
-        </span>
-      ),
+      headerClass: 'center-header',
+      cellClass: 'text-center',
+      cellRenderer: (params: any) => {
+        const status = params.value ? 'Active' : 'Inactive'; // Display 'Active' if true, 'Inactive' if false
+        return (
+          <span
+            onClick={() => toggleStatus(params)}
+            className={`cursor-pointer font-bold ${params.value ? 'text-green-500' : 'text-red-400'} hover:underline`}
+          >
+            {status}
+          </span>
+        );
+      }
     },
     {
       headerName: 'Edit',
       field: 'edit',
-      flex: 0.5,
-      headerClass: 'text-center',
+      flex: 0.8,
+      width: 80,
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
         <span
@@ -114,8 +264,10 @@ const LovMasters: React.FC = () => {
     {
       headerName: 'Delete',
       field: 'delete',
-      flex: 0.5,
-      headerClass: 'text-center ',
+      flex: 0.8,
+      width: 80,  // Reduced width
+      headerClass: 'center-header',
+      cellClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
         <span
@@ -127,38 +279,61 @@ const LovMasters: React.FC = () => {
       ),
     },
   ];
+  
 
-  // Toggles the status of a row between Active/Inactive
+  // Toggles the isActive of a row between Active/Inactive
   const toggleStatus = (params: any) => {
+    // Toggle isActive between true and false
     const updatedData = rowData.map(item =>
-      item.id === params.data.id
-        ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
+      item.appLOVID === params.data.appLOVID
+        ? { ...item, isActive: !item.isActive } // Toggle the boolean value
         : item
     );
     setRowData(updatedData);
-    setFilteredData(updatedData);
+    setFilteredData(updatedData); // Ensure filtered data is updated as well
   };
 
   // Handles the delete button click
-  const handleDelete = (params: any) => {
-    setDeleteRowId(params.data.id);
-    setShowConfirmation(true); // Show the confirmation message box
-  };
+  // Trigger deletion and show confirmation
+const handleDelete = (params: any) => {
+  setDeleteRowId(params.data.appLOVID);
 
-  // Confirm the deletion and update the data
-  const confirmDelete = () => {
-    const updatedData = rowData.filter(item => item.id !== deleteRowId);
-    setRowData(updatedData);
-    setFilteredData(updatedData);
-    setShowConfirmation(false); // Hide the confirmation box after deletion
-    setDeleteRowId(null); // Reset the delete row ID
-  };
+  setShowConfirmation(true); // Show the confirmation message box
+};
 
-  // Cancel the deletion
-  const cancelDelete = () => {
-    setShowConfirmation(false); // Hide the confirmation box
-    setDeleteRowId(null); // Reset the delete row ID
-  };
+// Confirm the deletion and update data
+const confirmDelete = async () => {
+  if (deleteRowId !== null) {
+    try {
+      // Send a DELETE request to the API
+      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/AppLOV/${deleteRowId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        console.log('Row deleted successfully');
+        
+        // After successful deletion, filter out the deleted row from rowData
+        const updatedData = rowData.filter((item: any) => item.appLOVID !== deleteRowId);
+        setRowData(updatedData);  // Update state with the new data without the deleted row
+        setFilteredData(updatedData); // Update filtered data as well if used
+      } else {
+        console.error('Failed to delete row:', response.statusText);
+      }
+    } catch (error) {
+      console.error('Error occurred while deleting row:', error);
+    } finally {
+      setShowConfirmation(false); // Hide confirmation dialog
+      setDeleteRowId(null); // Reset the delete row ID
+    }
+  }
+};
+
+// Cancel the deletion
+const cancelDelete = () => {
+  setShowConfirmation(false); // Hide the confirmation dialog
+  setDeleteRowId(null); // Reset the delete row ID
+};
 
 
   const handleEdit = (params: any) => {
@@ -166,49 +341,29 @@ const LovMasters: React.FC = () => {
     setShowForm(true); // Show the form for editing
   };
 
-  // Handles the form submission to update the row data
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent page reload
+   
 
-    if (formData.id === 0) {
-      // Add new data
-      const newData = { ...formData, id: rowData.length + 1 }; // Generate a new ID
-      setRowData([...rowData, newData]);
-      setFilteredData([...rowData, newData]);
-    } else {
-      // Update existing data
-      const updatedData = rowData.map(item =>
-        item.id === formData.id ? { ...item, ...formData } : item
-      );
-      setRowData(updatedData);
-      setFilteredData(updatedData);
-    }
-
-    setShowForm(false); // Hide the form after submitting
-    setFormData({ id: 0, name: '', code: '', displayValue: '', status: 'Active' }); // Reset form
-  };
-
-  // Filters the rows based on Type, Code, and Active status
+  // Filters the rows based on Type, Code, and Active isActive
   const handleFilterSearch = () => {
     if (isActive) {
       console.log('Active filter applied, but not updating table data');
-      return; 
+      return;
     }
-    const filtered = initialData.filter(item =>
+    const filtered = rowData.filter(item =>
       (type ? item.name.toLowerCase().includes(type.toLowerCase()) : true) &&
       (code ? item.code.toLowerCase().includes(code.toLowerCase()) : true) &&
-      (isActive ? item.status === 'Active' : true)
+      (isActive ? item.isActive === 'Active' : true)
     );
     setRowData(filtered);
-    setFilteredData(filtered); // Reset the filteredData to the new filtered rows
+    setFilteredData(filtered); // Reset filtered data
   };
-
+  
   // Apply the global search filter to the data
   const applyGlobalSearch = (data: RowData[]) => {
     return data.filter((row) =>
       row.name.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.code.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.displayValue.toLowerCase().includes(quickSearchText.toLowerCase())
+      row.code.toLowerCase().includes(quickSearchText.toLowerCase()) 
+     
     );
   };
   const onGridReady = (params: any) => {
@@ -225,14 +380,25 @@ const LovMasters: React.FC = () => {
       <div className="flex flex-wrap gap-4 mb-4 items-center">
         {/* Type Filter */}
         <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        >
-          <option value="">Select Type</option>
-          <option value="type1">Type 1</option>
-          <option value="type2">Type 2</option>
-        </select>
+  value={type}
+  onChange={(e) => setType(e.target.value)}
+  className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+  <option value="">Select Type</option>
+  <option value="Blood Group">Bloodgroup</option>
+ 
+  <option value="Gender">Gender</option>
+  <option value="Address Type">Address</option>
+ 
+  <option value="Specializations">Specifications</option>
+  <option value="Qualification">Qualification</option>
+  <option value="Hospital Type">Hospital</option>
+  <option value="Worktype">Worktype</option>
+  <option value="Relationship">Relationship</option> 
+  <option value="DocumentType">DocumentType</option> 
+ 
+</select>
+
 
         {/* Name Filter */}
         <input
@@ -275,72 +441,99 @@ const LovMasters: React.FC = () => {
         >
           Search
         </button>
+
+        
       </div>
 
       <hr className="border-t-2 border-stroke bg-transparent my-6" />
 
       {/* Conditional Form for Adding or Editing Rows */}
       {showForm && (
-        <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary">
-          <h3 className="text-xl font-semibold mb-4">{formData.id === 0 ? 'Add New Data' : 'Edit Data'}</h3> {/* Conditional Title */}
-          <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
-            <div className="flex gap-4">
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Name"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <input
-                type="text"
-                value={formData.code}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="Code"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <input
-                type="text"
-                value={formData.displayValue}
-                onChange={(e) => setFormData({ ...formData, displayValue: e.target.value })}
-                placeholder="Display Value"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
+  <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary">
+    <h3 className="text-xl font-semibold mb-4">{formData.appLOVID === 0 ? 'Add New Data' : 'Edit Data'}</h3> {/* Conditional Title */}
+    <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
+      <div className="flex gap-4">
 
-            {/* Submit and Cancel Buttons */}
-            <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.id === 0 ? 'Add' : 'Update'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+         {/* Type Dropdown */}
+        <select
+  value={formData.type}
+  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+  className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+  <option value="">Select Type</option>
+  <option value="Bloodgroup">Bloodgroup</option>
+ 
+  <option value="Gender">Gender</option>
+  <option value="Address">Address</option>
+ 
+  <option value="Specializations">Specifications</option>
+  <option value="Qualification">Qualification</option>
+  <option value="Hospital">Hospital</option>
+  <option value="Worktype">Worktype</option>
+  <option value="Relationship">Relationship</option>
+  <option value="DocumentType">DocumentType</option> 
+ 
+</select>
+
+
+        {/* Name Input */}
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          placeholder="Name"
+          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+
+        {/* Code Input */}
+        <input
+          type="text"
+          value={formData.code}
+          onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+          placeholder="Code"
+          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+
+        {/* Status Dropdown */}
+        <select
+          value={formData.isActive}
+          onChange={(e) => setFormData({ ...formData, isActive: e.target.value })}
+          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+
+       
+      </div>
+
+      {/* Submit and Cancel Buttons */}
+      <div className="mt-4 flex gap-4">
+        <button
+          type="submit"
+          onClick={postDataToApi} 
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+          hover:from-[#007BFF] hover:to-[#004A99]
+          text-white transition duration-150 
+          ease-out hover:ease-in py-2 px-5 rounded-lg"
+        >
+          {formData.appLOVID === 0 ? 'Add' : 'Update'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowForm(false)}
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+          hover:from-[#007BFF] hover:to-[#004A99]
+          text-white transition duration-150 
+          ease-out hover:ease-in py-2 px-5 rounded-lg"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+)}
+
 
       {/* Global Search and Add Button in the Same Row */}
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
@@ -380,7 +573,7 @@ const LovMasters: React.FC = () => {
         style={{ height: '400px', width: '100%' }}
       >
         <AgGridReact
-         rowData={applyGlobalSearch(filteredData)}
+     rowData={rowData} 
          columnDefs={columnDefs}
          pagination={true}
          paginationPageSize={10}
@@ -412,7 +605,14 @@ const LovMasters: React.FC = () => {
           </div>
         </div>
       )}
-
+  <style jsx>{`
+      .center-header .ag-header-cell-label {
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        font-weight: bold;
+      }
+    `}</style>
       
     </div>
   );

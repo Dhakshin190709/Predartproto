@@ -8,7 +8,6 @@ import SignUp from './pages/Authentication/SignUp';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/ResetPassword/ResetPassword';
 import Calendar from './pages/Calendar';
-import Chart from './pages/Chart';
 import ECommerce from './pages/Dashboard/Dashboard';
 import FormElements from './pages/Form/FormElements';
 import FormLayout from './pages/Form/FormLayout';
@@ -77,6 +76,19 @@ import SurveyReport from './pages/Reports/SurveyReport';
 import EventReport from './pages/Reports/EventReport';
 import FeedBack from './pages/FeedBack';
 import Offers from './pages/Offers';
+import Chart from './pages/Chart';
+import HomePage from './pages/HomePage';
+import VisitorPass from './pages/VisitorPass';
+import AdmissionPage from './pages/AdmissionPage';
+import AdmissionDetails from './pages/AdmissionDetails';
+import RoomBooking from './pages/RoomBooking';
+import OrderTracking from './pages/OrderTracking';
+import Barcode from './pages/Barcode';
+import QrCode from './pages/QrCode';
+import Tenant from './pages/Tenant';
+import Hospital from './pages/HospitalPage';
+import MenuRights from './pages/MenuRights';
+
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -118,6 +130,15 @@ function App() {
           }
         />
         <Route
+          path="/barcode"
+          element={
+            <>
+              <PageTitle title="Barcode | CarePoint Pro" />
+              <Barcode />
+            </>
+          }
+        />
+        <Route
           path="/signin"
           element={
             <>
@@ -126,6 +147,28 @@ function App() {
             </>
           }
         />
+        
+        <Route
+          path="/homepage"
+          element={
+            <>
+              <PageTitle title="HomePage | CarePoint Pro" />
+              <HomePage />
+            </>
+          }
+        />
+        
+         <Route
+          path="/chart"
+          element={
+            <>
+              <PageTitle title="Chart | CarePoint Pro" />
+              <Chart />
+            </>
+          }
+        />
+        
+         
         <Route
           path="/signup"
           element={
@@ -144,6 +187,26 @@ function App() {
               </>
           }
           />
+        <Route
+          path="/admissionpage" 
+          element={
+            <>
+              <PageTitle title="AdmissionPage | CarePoint Pro" />
+              <AdmissionPage />
+              </>
+          }
+          />
+        <Route
+          path="/admissionDetails" 
+          element={
+            <>
+              <PageTitle title="AdmissionDetails | CarePoint Pro" />
+              <AdmissionDetails />
+              </>
+          }
+          />
+        
+          
 
         <Route
           path="/LoginPage"
@@ -216,6 +279,16 @@ function App() {
             </>
           }
         />
+        
+        <Route
+          path="/qrCode"
+          element={
+            <>
+              <PageTitle title="QrCode | CarePoint Pro" />
+              <QrCode />
+            </>
+          }
+        />
 
         <Route
           path="/templateui"
@@ -227,7 +300,7 @@ function App() {
           }
         />
       </Route>
-
+     
       {/* Default Layout */}
       <Route element={<DefaultLayout />}>
         <Route
@@ -241,6 +314,33 @@ function App() {
             </>
           }
         />
+        <Route
+          path="/roombooking" 
+          element={
+            <>
+              <PageTitle title="RoomBooking | CarePoint Pro" />
+              <RoomBooking />
+              </>
+          }
+          />
+        <Route
+          path="/ordertracking" 
+          element={
+            <>
+              <PageTitle title="OrderTracking | CarePoint Pro" />
+              <OrderTracking />
+              </>
+          }
+          />
+        <Route
+          path="/tenant" 
+          element={
+            <>
+              <PageTitle title="Tenant | CarePoint Pro" />
+              <Tenant />
+              </>
+          }
+          />
         <Route
           path="/usersmanagement/users"
           element={
@@ -256,6 +356,33 @@ function App() {
             <>
               <PageTitle title="Role | CarePoint Pro" />
                 <Role />
+            </>
+          }
+        />
+        <Route
+          path="/Masters/LovMasters"
+          element={
+            <>
+              <PageTitle title="LovMasters | CarePoint Pro" />
+                <LovMasters />
+            </>
+          }
+        />
+        <Route
+          path="/menuRights"
+          element={
+            <>
+              <PageTitle title="MenuRights | CarePoint Pro" />
+                <MenuRights />
+            </>
+          }
+        />
+        <Route
+          path="/hospital"
+          element={
+            <>
+              <PageTitle title="Hospital| CarePoint Pro" />
+                <Hospital />
             </>
           }
         />
@@ -351,6 +478,17 @@ function App() {
             </>
           }
         />
+        <Route
+          path="/visitorplan"
+          element={
+            <>
+              <PageTitle title="VisitorPass | CarePoint Pro" />
+              <VisitorPass />
+            </>
+          }
+        />
+        
+        
         
         <Route
           path="/eventcreation"

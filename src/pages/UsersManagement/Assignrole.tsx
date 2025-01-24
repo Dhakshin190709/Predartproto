@@ -5,137 +5,330 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 interface RowData {
-  Id: number;
+  userID: number;
   tenantName: string;
-  userName: string;
-  mobileNo: string;
+  username: string;
+  mobile: string;
+  hospitalType:string,
   email: string;
   roles: string[]; // Now roles is an array of strings (multi-role support)
   status: string;
+  assignRole: string;
 }
 
-interface Role {
-  id: number;
-  name: string;
+// Define a type for the UserRole data
+interface UserRole {
+  userID: number;
+  tenantName: string;
+  username: string;
+  email: string;
+  mobile: string;
 }
 
+interface Tenant {
+  tenantID: number;
+  tenantName: string;
+}
+
+interface User {
+  userID: number;
+  tenantID: number;
+  username: string;
+  email: string;
+  mobile: string;
+}
 const Assignrole: React.FC = () => {
+  
+  const [showPopup, setShowPopup] = useState(false); // Popup visibility
+  const [roles, setRoles] = useState<string[]>([]); // Fetched role names
+  const [selectedUser, setSelectedUser] = useState<any>(null); // User details for whom roles are assigned
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // Store selected role IDs
+  const [currentUserID, setCurrentUserID] = useState<string | null>(null);
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [allRoles, setAllRoles] = useState<any[]>([]); 
+  
   const [name, setName] = useState('');
   const [tenant, setTenant] = useState('');
   const [hospitality, setHospitality] = useState('');
-  const [userName, setUserName] = useState('');
+  const [username, setUserName] = useState('');
   const [isActive, setIsActive] = useState(false);
-  const [rowData, setRowData] = useState<RowData[]>([]);
+  const [rowData, setRowData] = useState<UserRole[]>([]);
+
   const [filteredData, setFilteredData] = useState<RowData[]>([]);
   const [quickSearchText, setQuickSearchText] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState<RowData>({
-    Id: 0,
+    userID: 0,
     tenantName: '',
-    userName: '',
-    mobileNo: '',
+    username: '',
+    mobile: '',
     email: '',
+    hospitalType:'',
     roles: [], // Initially no roles selected
     status: 'Active',
+    assignRole: '',
   });
-
-  const [tenants, setTenants] = useState<string[]>([]);
+ const [tenants, setTenants] = useState([]); // State for tenant data
+  const [selectedTenant, setSelectedTenant] = useState("");
+  
   const [hospitalities, setHospitalities] = useState<string[]>([]);
   const [users, setUsers] = useState<string[]>([]);
   const [availableRoles, setAvailableRoles] = useState<Role[]>([]);
-
+ const [hospitalTypes, setHospitalTypes] = useState([]);
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
 
-
-  // Fetch data on component mount
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    // Mock API calls
-    const fetchTenants = async () => {
-      setTenants(['Tenant A', 'Tenant B']);
-    };
+    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
+      .then((response) => response.json())
+      .then((data) => {
+        // Filter for "Hospital" type
+        const filteredTypes = data.data.filter((item) => item.type === "Hospital");
+        setHospitalTypes(filteredTypes); // Set filtered options
+      })
+      .catch((error) => console.error("Error fetching data:", error));
+  }, []);
+  
 
-    const fetchHospitalities = async () => {
-      setHospitalities(['Hospitality A', 'Hospitality B']);
-    };
 
-    const fetchUsers = async () => {
-      setUsers(['Alex', 'John', 'Ram']);
-    };
-
-    const fetchRoles = async () => {
-      setAvailableRoles([
-        { id: 1, name: 'Admin' },
-        { id: 2, name: 'User' },
-        { id: 3, name: 'Manager' },
-        { id: 4, name: 'Doctor' },
-        { id: 5, name: 'Nurse' },
-        { id: 6, name: 'Cashier' },
-        { id: 7, name: 'Lab Technician' },
-        { id: 8, name: 'Paramedic' },
-        { id: 9, name: 'Lead' },
-        { id: 10, name: 'Nutritionist' },
-      ]);
-    };
-
-    fetchTenants();
-    fetchHospitalities();
-    fetchUsers();
-    fetchRoles();
-
-    // Set initial row data (from an API)
-    setRowData([
-      { Id: 1, tenantName: 'Tenant A', userName: 'Alex', mobileNo: '1234567890', email: 'alex@example.com', roles: ['Admin'], status: 'Active' },
-      { Id: 2, tenantName: 'Tenant B', userName: 'John', mobileNo: '0987654321', email: 'john@example.com', roles: ['User'], status: 'Inactive' },
-      { Id: 3, tenantName: 'Tenant A', userName: 'Ram', mobileNo: '1112223333', email: 'ram@example.com', roles: ['User'], status: 'Active' },
-    ]);
+   // Fetch tenant data
+   useEffect(() => {
+    fetch("https://predart003-001-site1.anytempurl.com/api/Tenant")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("Network response was not ok");
+        }
+        return response.json();
+      })
+      .then((data) => {
+        console.log("Tenant Data:", data);
+        setTenants(data.data || data); // Adjust based on the API structure
+      })
+      .catch((error) => {
+        console.error("Error fetching tenant data:", error);
+      });
   }, []);
 
+  
+  // Fetch user data and map tenantName
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch("https://predart003-001-site1.anytempurl.com/api/User");
+        const result = await response.json();
+  
+        if (result.success && Array.isArray(result.data)) {
+          const transformedData = result.data.map((user: User) => {
+            const tenant = tenants.find((t) => t.tenantID === user.tenantID);
+            return {
+              ...user,
+              tenantName: tenant ? tenant.tenantName : "Unknown Tenant",
+            };
+          });
+  
+          setRowData(transformedData); // Pass transformed data to the grid
+  
+          // Extract 'username' values for the dropdown
+          const userNames = transformedData.map((user) => user.username);
+          setUsers(userNames); // Update dropdown options
+        } else {
+          console.error("Fetched user data is not an array:", result);
+        }
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+      }
+    };
+  
+    if (tenants.length > 0) {
+      fetchUsers();
+    }
+  }, [tenants]);
+  
+
+  if (error) {
+    return <div>Error: {error}</div>;
+  }
+    // Handle tenant selection
+    const handleTenantChange = (e) => {
+      setSelectedTenant(e.target.value);
+      console.log(`Selected Tenant: ${e.target.value}`);
+    };
+
+    
+   const handleSaveRoles = async () => {
+  // Ensure at least one role is selected
+  if (selectedRoles.length === 0) {
+    alert("Please select at least one role.");
+    return;
+  }
+
+  const userID = selectedUser?.userID; // Get the userID from the selected user
+  if (!userID) {
+    alert("User not selected.");
+    return;
+  }
+
+  // Map selectedRoles to match the API's payload structure
+  const roleAssignments = selectedRoles.map((roleID) => ({
+    userID, // User ID of the selected user
+    roleID, // Role ID from selectedRoles
+    createdBy: "dd606a34-6e0a-4b0f-8cfd-8e9138267627", // Replace with the actual `createdBy` value if dynamic
+  }));
+
+  try {
+    // Send the role assignments to the API
+    const response = await fetch("https://predart003-001-site1.anytempurl.com/api/UserRoles/AssignRoles", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(roleAssignments), // Convert assignments to JSON
+    });
+
+    const result = await response.json();
+
+    // Handle errors if the API response indicates failure
+    if (!response.ok) {
+      console.error("Failed to assign roles:", result.errors || result.message);
+      alert(`Failed to assign roles: ${result.errors || result.message}`);
+      return;
+    }
+
+    // Handle success and update the UI accordingly
+    console.log("Roles assigned successfully:", result);
+    alert("Roles assigned successfully!");
+
+    // Update the row data in the UI for the selected user
+    const updatedRowData = rowData.map((row) =>
+      row.userID === userID ? { ...row, assignRoleStatus: "success" } : row
+    );
+    setRowData([...updatedRowData]);
+    setShowPopup(false); // Close the popup
+  } catch (error) {
+    // Handle any network or unexpected errors
+    console.error("Error during role assignment:", error);
+    alert("Error occurred while assigning roles. Please try again.");
+  }
+};
+
+    
+    
+    
+    
+
+    useEffect(() => {
+      const fetchRoles = async () => {
+        try {
+          const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Role"); // Replace with your API URL
+          const result = await response.json();
+    
+          // Check if the response has a 'data' field and if it's an array
+          if (Array.isArray(result.data)) {
+            setAllRoles(result.data); // Set the fetched roles into state
+            console.log("Fetched roles:", result.data); // Log to verify the structure
+          } else {
+            console.error("API response does not contain an array in 'data':", result);
+          }
+        } catch (error) {
+          console.error("Error fetching roles:", error);
+        }
+      };
+    
+      fetchRoles();
+    }, []);
+
+    
+    
+    
+    
+    
+    
+    
+   
+    
+        
+    
+    
+    const handleRoleSelection = (e: React.ChangeEvent<HTMLInputElement>, role: string) => {
+      if (e.target.checked) {
+        // Add role to selectedRoles if checked
+        setSelectedRoles((prev) => [...prev, role]);
+      } else {
+        // Remove role from selectedRoles if unchecked
+        setSelectedRoles((prev) => prev.filter((r) => r !== role));
+      }
+    };
+     
+    
   const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id',width:100, sortable: true, filter: true,headerClass: 'text-left', cellClass:'text-center'},
-    { headerName: 'Tenant Name', field: 'tenantName', sortable: true, filter: true, flex: 1.5, headerClass: 'text-left',cellClass: 'text-center', },
-    { headerName: 'User Name', field: 'userName', sortable: true, filter: true, flex: 1.5, headerClass: 'text-left',cellClass: 'text-center',},
-    { headerName: 'Mobile No', field: 'mobileNo', sortable: true, filter: true,headerClass: 'text-left',},
-    { headerName: 'Email', field: 'email', sortable: true, filter: true, flex: 1.5, headerClass: 'text-left', },
-    { headerName: 'Roles', field: 'roles', sortable: true, filter: true, headerClass: 'text-left',cellClass: 'text-center', 
-      cellRenderer: (params: any) => (
-        <span>{params.value.join(', ')}</span>  // Display multiple roles as a comma-separated list
-      ) 
-    },
-    {
-      headerName: 'Status',
-      field: 'status',
-      flex: 1,
-      headerClass: 'text-center',
+    { headerName: 'ID', field: 'userID',width:100, sortable: true, filter: true,headerClass: 'text-left', 
+      cellClass:'text-center',hide:'true'},
+      {
+        headerName: 'S.No',
+        valueGetter: (params: any) => params.node.rowIndex + 1,  // Automatically generate serial number
+        flex: 0.55,  // Reduced flex to make it smaller
+        headerClass: 'center-header',
+        cellClass: 'text-center',
+        sortable: false,  // Optional: you can disable sorting for the serial number column
+        filter: false,    // Optional: you can disable filtering for the serial number column
+      },
+    { headerName: 'Tenant Name', field: 'tenantName', sortable: true, filter: true, 
+      flex: 1, headerClass: 'center-header',
       cellClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => toggleStatus(params)}
-          className={`cursor-pointer font-bold ${params.value === 'Active' ? 'text-green-500' : 'text-red-400'} hover:underline`}
-        >
-          {params.value}
-        </span>
-      ),
-    },
-    {
-      headerName: 'Change',
-      flex: 1,
-      headerClass: 'text-center',
-      cellClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleChangeRole(params.data.Id)}
-          className="cursor-pointer text-blue-500 font-bold"
-        >
-          Change
-        </span>
-      ),
-    },
+      cellRenderer: (params) => params.value || "No Tenant Name"  },
+    
+      { 
+        headerName: "User Name", 
+        field: "username", 
+        sortable: true, filter: true, flex: 1.5, 
+        headerClass: 'center-header',
+        cellClass: 'text-center',
+        cellRenderer: (params) => params.value || "No User Name" // Handle empty values
+      },
+    { headerName: 'Mobile No', field: 'mobile', sortable: true,flex:0.9, filter: true,headerClass: 'center-header',
+      cellClass: 'text-center',},
+    { headerName: 'Email', field: 'email', sortable: true, filter: true, flex: 1.5, headerClass: 'center-header',
+      cellClass: 'text-center',},
+
+    
+      {
+        headerName: "Assign Role",
+        field: "assignRole",
+        flex: 1,
+        headerClass: "text-center",
+        cellClass: "text-center",
+        cellRenderer: (params: any) => (
+          <span
+            onClick={() => handleChangeRole(params.data)} // Pass the whole row data
+            className="cursor-pointer text-blue-500 font-bold"
+          >
+            AssignRole
+          </span>
+        ),
+        cellClassRules: {
+          // Apply green color if role assignment was successful
+          'text-green-500': (params: any) => params.data.assignRoleStatus === 'success',
+          'text-red-500': (params: any) => params.data.assignRoleStatus === 'failed',
+        },
+      },
+      
+      
+    
   ];
+
+  const handleRoleToggle = (roleID: string) => {
+    setSelectedRoles((prevSelected) =>
+      prevSelected.includes(roleID)
+        ? prevSelected.filter((id) => id !== roleID) // Remove if already selected
+        : [...prevSelected, roleID] // Add if not selected
+    );
+  };
+  
 
   const toggleStatus = (params: any) => {
     const updatedData = rowData.map(item =>
-      item.Id === params.data.Id
+      item.userID === params.data.userID
         ? { ...item, status: item.status === 'Active' ? 'Inactive' : 'Active' }
         : item
     );
@@ -143,39 +336,86 @@ const Assignrole: React.FC = () => {
     setFilteredData(updatedData);
   };
 
-  const handleChangeRole = (Id: number) => {
-    const userToEdit = rowData.find(user => user.Id === Id);
-    if (userToEdit) {
-      setFormData(userToEdit);
-      setShowForm(true);
+  const handleChangeRole = async (user: any) => {
+    setSelectedUser(user); // Store the selected user details
+    setShowPopup(true); // Open the popup
+  
+    try {
+      // Fetch all available roles
+      const rolesResponse = await fetch("https://predart003-001-site1.anytempurl.com/api/Role");
+      const rolesResult = await rolesResponse.json();
+      if (!rolesResult.success || !Array.isArray(rolesResult.data)) {
+        console.error("Failed to fetch all roles:", rolesResult);
+        return;
+      }
+  
+      setAllRoles(rolesResult.data); // Update state with all roles
+  
+      // Fetch roles assigned to the selected user
+      const userRolesResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/UserRoles/${user.userID}`
+      );
+      const userRolesResult = await userRolesResponse.json();
+      if (!userRolesResponse.ok) {
+        console.error("Failed to fetch user roles:", userRolesResult);
+        return;
+      }
+  
+      // Extract assigned role IDs
+      const assignedRoleIDs = userRolesResult.data.map((role: any) => role.roleID);
+  
+      // Update selectedRoles to match assigned roles
+      setSelectedRoles(assignedRoleIDs);
+    } catch (error) {
+      console.error("Error fetching roles or user roles:", error);
     }
   };
-
-  const handleRoleChange = (role: string) => {
-    const updatedRoles = formData.roles.includes(role)
-      ? formData.roles.filter((r) => r !== role) // Remove the role if already selected
-      : [...formData.roles, role]; // Add the role if not selected
-    setFormData({ ...formData, roles: updatedRoles });
+  
+  
+  
+  
+  
+  
+ 
+  
+  
+  
+  const handleRoleChange = (roleID: number) => {
+    setSelectedRoles((prevSelectedRoles) =>
+      prevSelectedRoles.includes(roleID)
+        ? prevSelectedRoles.filter((id) => id !== roleID) // Remove the role
+        : [...prevSelectedRoles, roleID] // Add the role
+    );
   };
+  
+  
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Update roles logic here
+  
+    if (!Array.isArray(rowData)) {
+      console.error("rowData is not an array:", rowData);
+      return;
+    }
+  
     const updatedData = rowData.map(item =>
-      item.Id === formData.Id ? { ...item, roles: formData.roles } : item
+      item.userID === formData.userID ? { ...item, roles: formData.roles } : item
     );
+  
     setRowData(updatedData);
-    setFilteredData(updatedData);
-    setShowForm(false);
+    setFilteredData(updatedData); // Ensure filteredData is also updated
+    setShowForm(false); // Close the form
   };
+  
+  
 
   const applyFilters = () => {
     const filtered = rowData.filter((row) => {
       return (
         (tenant ? row.tenantName.includes(tenant) : true) &&
-        (hospitality ? row.userName.includes(hospitality) : true) &&
-        (userName ? row.userName.includes(userName) : true) &&
-        (quickSearchText ? row.userName.toLowerCase().includes(quickSearchText.toLowerCase()) || row.email.toLowerCase().includes(quickSearchText.toLowerCase()) || row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase()) : true)
+        (hospitality ? row.username.includes(hospitality) : true) &&
+        (username ? row.username.includes(username) : true) &&
+        (quickSearchText ? row.username.toLowerCase().includes(quickSearchText.toLowerCase()) || row.email.toLowerCase().includes(quickSearchText.toLowerCase()) || row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase()) : true)
       );
     });
     setFilteredData(filtered);
@@ -183,6 +423,7 @@ const Assignrole: React.FC = () => {
 
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
+    console.log("Grid is ready", params);
     gridColumnApi.current = params.columnApi;
     params.api.sizeColumnsToFit();
   };
@@ -193,41 +434,59 @@ const Assignrole: React.FC = () => {
 
       {/* Dropdowns for Tenant, Hospitality, and Users */}
       <div className="flex gap-4 mb-4 items-center">
-        <select
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          onChange={(e) => setTenant(e.target.value)}
-        >
-          <option value="">Select Tenant</option>
-          {tenants.map((tenant, index) => (
-            <option key={index} value={tenant}>
-              {tenant}
-            </option>
-          ))}
-        </select>
+       {/* Tenant Dropdown */}
+  <select
+  value={selectedTenant || ''}
+  onChange={(e) => setSelectedTenant(e.target.value)}
+  className="w-35 rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+  text-black outline-none focus:border-primary dark:border-form-strokedark 
+  dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+  <option value="" disabled>Select Tenant</option>
+  {tenants.map((tenant) => (
+    <option key={tenant.tenantID} value={tenant.tenantID}>
+      {tenant.tenantName}
+    </option>
+  ))}
+</select>
 
-        <select
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          onChange={(e) => setHospitality(e.target.value)}
-        >
-          <option value="">Select Hospitality</option>
-          {hospitalities.map((hospitality, index) => (
-            <option key={index} value={hospitality}>
-              {hospitality}
-            </option>
-          ))}
-        </select>
+       
+  <select
+    id="hospitalType"
+    name="hospitalType"
+    value={formData.hospitalType}
+    className="w-38 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    onChange={(e) =>
+      setFormData({ ...formData, hospitalType: e.target.value })
+    }
+    required
+  >
+    <option value="">Hospital Type</option>
+    {hospitalTypes.length > 0 ? (
+      hospitalTypes.map((type) => (
+        <option key={type.appLOVID} value={type.name}>
+          {type.name} {/* Displaying the name of the hospital */}
+        </option>
+      ))
+    ) : (
+      <option value="">No Hospital Types Available</option>
+    )}
+  </select>
 
-        <select
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          onChange={(e) => setUserName(e.target.value)}
-        >
-          <option value="">Select User</option>
-          {users.map((user, index) => (
-            <option key={index} value={user}>
-              {user}
-            </option>
-          ))}
-        </select>
+  <select
+  className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  onChange={(e) => setUserName(e.target.value)}
+>
+  <option value="">Select User</option>
+  {users.map((username, index) => (
+    <option key={index} value={username}>
+      {username}
+    </option>
+  ))}
+</select>
+
 
         <button
           onClick={applyFilters}
@@ -242,70 +501,97 @@ const Assignrole: React.FC = () => {
       </div>
 
       {/* Grid Table */}
+      
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-        <AgGridReact
-          columnDefs={columnDefs}
-          rowData={filteredData}
-          onGridReady={onGridReady}
-          domLayout="autoHeight"
-        />
+  <AgGridReact
+    columnDefs={columnDefs}
+    rowData={rowData} // Ensure the updated rowData is passed here
+    onGridReady={onGridReady}
+    domLayout="autoHeight"
+  />
+
+
       </div>
 
     {/* Role Change Form Modal */}
-    {showForm && (
-    <div className="fixed top-0 left-0 right-0 bottom-0 bg-gray-500 bg-opacity-50 flex justify-center items-center">
-    <div className="bg-white p-6 rounded-lg">
-      <h3 className="text-black font-semibold mb-6">Change Roles for {formData.userName}</h3>
-      <form onSubmit={handleFormSubmit}>
+    {showPopup && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div className="bg-white p-6 rounded-lg shadow-lg w-1/2">
+      <h2 className="text-lg font-bold mb-6 text-center">Assign Role</h2>
 
-        {/* Roles Editable */}
+      <form>
+        {/* Display the selected user's name */}
         <div className="mb-4">
-  <label className="mb-2.5 block font-medium text-black dark:text-white">Roles</label>
-  <div className="grid grid-cols-4 gap-4">
-    {availableRoles.map((role) => (
-      <div key={role.id} className="flex items-center">
+          <p className="text-lg font-medium">Assign roles for: {selectedUser?.username}</p>
+        </div>
+
+        {/* Dynamically render roles in multiple rows with 3 checkboxes per row */}
+        <div className="grid grid-cols-3 gap-6 mb-4">
+  {allRoles.map((role) => (
+    <div key={role.roleID} className="role-checkbox">
+      <label className="flex items-center gap-2">
         <input
           type="checkbox"
-          id={`role-${role.id}`}
-          checked={formData.roles.includes(role.name)}
-          onChange={() => handleRoleChange(role.name)}
-          className="mr-2"
+          value={role.roleID}
+          checked={selectedRoles.includes(role.roleID)} // Checked if the role is in the array
+          onChange={() => handleRoleChange(role.roleID)} // Toggle role
         />
-        <label htmlFor={`role-${role.id}`} className="text-black">
-          {role.name}
-        </label>
-      </div>
-    ))}
-  </div>
-</div>
+        {role.roleName}
+      </label>
+    </div>
+  ))}
 
 
-        {/* Action Buttons */}
-        <div className="mt-4 flex gap-4">
+
+
+        </div>
+
+        {/* Buttons */}
+        <div className="mt-4 flex gap-4 justify-end">
           <button
             type="button"
             className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
             hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
+            text-white transition duration-150
             ease-out hover:ease-in py-2 px-5 rounded-lg"
-            onClick={() => setShowForm(false)}
+            onClick={() => setShowPopup(false)}
           >
             Cancel
           </button>
           <button
-            type="submit"
+            type="button"
             className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
+            hover:from-[#007BFF] hover:to-[#004A99]
+            text-white transition duration-150
+            ease-out hover:ease-in py-2 px-5 rounded-lg"
+            onClick={handleSaveRoles} // Save button logic
           >
-            Submit
+            Save
           </button>
         </div>
       </form>
     </div>
   </div>
 )}
+
+
+
+
+
+
+<style jsx>{`
+        .center-header .ag-header-cell-label {
+          text-align: center;
+          display: flex;
+          justify-content: center;
+          font-weight: bold;
+        }
+      `}</style>
+
+
+
+
+
 
     </div>
   );
