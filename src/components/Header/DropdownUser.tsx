@@ -15,7 +15,7 @@ const DropdownUser = () => {
   const handleLogout = () => {
     dispatch(logout());
     localStorage.removeItem('authToken'); // Clear token from localStorage
-    navigate('/signin');
+    navigate('/LoginPage');
   };
 
   return (

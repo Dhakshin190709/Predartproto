@@ -144,10 +144,16 @@ const handleEditClick = (tenant: RowData) => {
   // Add or update tenant
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+  // Retrieve userID from sessionStorage
+  const userID = sessionStorage.getItem("userID");
+  if (!userID) {
+    console.error("User ID not found in session storage.");
+    alert("User not logged in. Please log in again.");
+    return;
+  }
     try {
       const isActive = formData.status === 'Active';
-      const createdBy = "dd606a34-6e0a-4b0f-8cfd-8e9138267627"; // Ensure this matches backend requirements
+      const createdBy = userID; // Ensure this matches backend requirements
   
       // Construct the payload
       const payload = {

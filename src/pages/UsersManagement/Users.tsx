@@ -20,10 +20,13 @@ const Users: React.FC = () => {
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
   const [quickSearchText, setQuickSearchText] = useState('');
+   const [tenants, setTenants] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+   const [selectedTenant, setSelectedTenant] = useState("");
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
-  const [showConfirmation, setShowConfirmation] = useState(false); // Show confirmation for deletion
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false); // Show confirmation for deletion
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null); // ID of row to delete
   const [formData, setFormData] = useState({
     userID: 0,
@@ -67,9 +70,22 @@ const Users: React.FC = () => {
   }, [apiData]); // Empty dependency array means it runs only once
 
   // Log the rowData to check if it's being updated correctly
+  // useEffect(() => {
+  //   console.log('Row Data:', rowData); 
+  // }, [rowData]);
+
+
   useEffect(() => {
-    console.log('Row Data:', rowData); // Debug log to ensure data is set
-  }, [rowData]);
+    fetch("https://predart003-001-site1.anytempurl.com/api/Tenant")
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("Tenant Data Structure:", data);
+        setTenants(data.data || data); // Adjust if needed
+      })
+      .catch((error) => console.error("Error fetching tenant data:", error));
+  }, []);
+  
+
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -84,19 +100,35 @@ const Users: React.FC = () => {
     },
     {
       headerName: 'S.No',
-      valueGetter: (params: any) => params.node.rowIndex + 1,  // Automatically generate serial number
-      flex: 0.8,  // Reduced flex to make it smaller
+      valueGetter: (params: any) => params.node.rowIndex + 1,
+      flex: 0.8,
       headerClass: 'text-left',
       cellClass: 'left',
-      sortable: false,  // Optional: you can disable sorting for the serial number column
-      filter: false,    // Optional: you can disable filtering for the serial number column
+      sortable: false,
+      filter: false,
     },
+    ...(isSuperAdmin
+      ? [
+          {
+            headerName: 'Tenant Name',
+            field: 'tenantID',
+            flex: 1.5,
+            headerClass: 'text-left',
+            cellStyle: { textAlign: 'left' },
+            valueGetter: (params: any) => {
+              if (!tenants.length) return 'Loading...';
+              const tenant = tenants.find((t) => String(t.tenantID) === String(params.data.tenantID));
+              return tenant ? tenant.tenantName : 'N/A';
+            },
+          },
+        ]
+      : []), // Only add this column if isSuperAdmin is true
     {
       headerName: 'User Name',
       field: 'username',
       sortable: true,
       filter: true,
-      flex: 2,  // Increased flex for more space
+      flex: 2,
       headerClass: 'text-left',
       cellStyle: { textAlign: 'left' },
     },
@@ -105,7 +137,7 @@ const Users: React.FC = () => {
       field: 'mobile',
       sortable: true,
       filter: true,
-      flex: 1.3,  // Adjusted flex for balance
+      flex: 1.3,
       headerClass: 'text-left',
       cellStyle: { textAlign: 'left' },
     },
@@ -114,18 +146,18 @@ const Users: React.FC = () => {
       field: 'email',
       sortable: true,
       filter: true,
-      flex: 2,  // Increased flex for more space
+      flex: 2,
       headerClass: 'text-left',
       cellStyle: { textAlign: 'left' },
     },
     {
       headerName: 'Status',
       field: 'isActive',
-      flex: 1,  // Adjusted flex for balance
+      flex: 1,
       headerClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => {
-        const isActive = params.value === 'Active' || params.value === true; // Adjust based on your data
+        const isActive = params.value === 'Active' || params.value === true;
         return (
           <span
             onClick={() => toggleStatus(params)}
@@ -138,7 +170,7 @@ const Users: React.FC = () => {
     },
     {
       headerName: 'Edit',
-      flex: 0.7,  // Adjusted flex for balance
+      flex: 0.7,
       headerClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
@@ -152,7 +184,7 @@ const Users: React.FC = () => {
     },
     {
       headerName: 'Delete',
-      flex: 0.8,  // Adjusted flex for balance
+      flex: 0.8,
       headerClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
@@ -164,7 +196,7 @@ const Users: React.FC = () => {
         </span>
       ),
       suppressSizeToFit: true,
-      width: 150,  // Fixed width for the Delete column to avoid resizing issues
+      width: 150,
     },
   ];
   
@@ -296,6 +328,7 @@ const Users: React.FC = () => {
   
 
   const handleEdit = (userID: number) => {
+    
     const selectedRow = rowData.find((item) => item.userID === userID);
     if (selectedRow) {
       setFormData({
@@ -334,10 +367,72 @@ const Users: React.FC = () => {
     setShowForm(false);
   };
    
+  const [roleIDs, setRoleIDs] = useState([]);
+
+   const [roleNames, setRoleNames] = useState([]);
+
   
+
+   useEffect(() => {
+     const userID = sessionStorage.getItem("userID");
+   
+     if (!userID) {
+       console.error("User ID not found in session storage.");
+       return;
+     }
+   
+     const fetchUserRoles = async () => {
+       try {
+         const roleResponse = await fetch(`https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`);
+   
+         if (!roleResponse.ok) {
+           throw new Error("Failed to fetch user roles.");
+         }
+   
+         const roleData = await roleResponse.json();
+   
+         if (roleData.success && Array.isArray(roleData.data) && roleData.data.length > 0) {
+           const roleIDs = roleData.data.map((item) => item.roleID);
+   
+           // Fetch role names
+           const roleNamesPromises = roleIDs.map(async (roleID) => {
+             const roleResponse = await fetch(`https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`);
+             if (!roleResponse.ok) {
+               console.error(`Failed to fetch role name for roleID: ${roleID}`);
+               return null;
+             }
+             const roleInfo = await roleResponse.json();
+             return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
+           });
+   
+           const resolvedRoleNames = await Promise.all(roleNamesPromises);
+   
+           // Check if the user is a SuperAdmin
+           setIsSuperAdmin(resolvedRoleNames.includes("SuperAdmin"));
+         }
+       } catch (error) {
+         console.error("Error fetching user roles:", error);
+       }
+     };
+   
+     fetchUserRoles();
+   }, []);
+   
+
+  
+
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-  
+  // Retrieve userID from sessionStorage
+  const userID = sessionStorage.getItem("userID");
+
+  console.log("Retrieved userID from sessionStorage:", userID);
+  if (!userID) {
+    console.error("User ID not found in session storage.");
+    alert("User not logged in. Please log in again.");
+    return;
+  }
     // Convert `isActive` to boolean
     const isActiveBoolean = formData.isActive === "Active";
   
@@ -354,8 +449,8 @@ const Users: React.FC = () => {
       email: formData.email.trim(),
       mobile: formData.mobile.trim(),
       isActive: isActiveBoolean, // Convert to boolean
-      tenantID: "4e6e4cd1-5f6f-43f9-d5b1-08dd31472972",  // Hardcoded tenantID
-      createdBy: "dd606a34-6e0a-4b0f-8cfd-8e9138267624",  // Hardcoded createdBy
+      tenantID: selectedTenant,  // Hardcoded tenantID
+      createdBy: userID,  // Hardcoded createdBy
       password: formData.password.trim() || "DefaultPassword",
       userPlan: formData.userPlan || "Free",
     });
@@ -412,6 +507,7 @@ const Users: React.FC = () => {
   
   
   
+ 
   
   
   
@@ -448,6 +544,7 @@ const Users: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
+      
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Users</h2>
       {isFormVisible && (
         <div>
@@ -493,7 +590,24 @@ const Users: React.FC = () => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-           <div className="flex gap-4 mb-2">
+          <div className="grid grid-cols-4 gap-4 mb-2">
+  {/* Tenant Name */}
+  <select
+    value={selectedTenant || ''}
+    onChange={(e) => setSelectedTenant(e.target.value)}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="" disabled>Select Tenant</option>
+    {tenants.map((tenant) => (
+      <option key={tenant.tenantID} value={tenant.tenantID}>
+        {tenant.tenantName}
+      </option>
+    ))}
+  </select>
+
+  {/* Username */}
   <input
     type="text"
     value={formData.username}
@@ -501,10 +615,12 @@ const Users: React.FC = () => {
       setFormData({ ...formData, username: e.target.value })
     }
     placeholder="User Name"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
   />
+
+  {/* Email */}
   <input
     type="email"
     value={formData.email}
@@ -512,8 +628,10 @@ const Users: React.FC = () => {
       setFormData({ ...formData, email: e.target.value })
     }
     placeholder="Email"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
   />
+
+  {/* Mobile */}
   <input
     type="text"
     value={formData.mobile}
@@ -521,47 +639,13 @@ const Users: React.FC = () => {
       setFormData({ ...formData, mobile: e.target.value })
     }
     placeholder="Mobile"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
   />
 </div>
-<div className="flex gap-4 mb-2">
-  <input
-    type="hidden"
-    value={formData.tenantID}
-    onChange={(e) =>
-      setFormData({ ...formData, tenantID: e.target.value })
-    }
-    placeholder="Tenant ID"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
-  <input
-    type="hidden"
-    value={formData.createdBy}
-    onChange={(e) =>
-      setFormData({ ...formData, createdBy: e.target.value })
-    }
-    placeholder="Created By"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
- <select
-  value={formData.isActive} // Directly use the string value ('Active' or 'Inactive')
-  onChange={(e) => {
-    const newStatus = e.target.value; // This will be 'Active' or 'Inactive'
-    setFormData({ ...formData, isActive: newStatus }); // Set the value as a string
-    handleStatusChange(formData.userID, newStatus === 'Active'); // Convert the string to boolean and pass to handleStatusChange
-  }}
-  className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
->
-  <option value="Active">Active</option>
-  <option value="Inactive">Inactive</option>
-</select>
 
-
-
-</div>
-<div className="flex gap-4 mb-2">
+{/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
+<div className="grid grid-cols-4 gap-4 mb-2">
+  {/* Password */}
   <input
     type="password"
     value={formData.password}
@@ -569,18 +653,37 @@ const Users: React.FC = () => {
       setFormData({ ...formData, password: e.target.value })
     }
     placeholder="Password"
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
   />
+
+  {/* Status (Only Show in Edit Mode) */}
+  {formData.userID !== 0 && (
+    <select
+      value={formData.isActive}
+      onChange={(e) => {
+        const newStatus = e.target.value;
+        setFormData({ ...formData, isActive: newStatus });
+        handleStatusChange(formData.userID, newStatus === 'Active');
+      }}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="Active">Active</option>
+      <option value="Inactive">Inactive</option>
+    </select>
+  )}
+
+  {/* User Plan */}
   <select
     value={formData.userPlan}
     onChange={(e) =>
       setFormData({ ...formData, userPlan: e.target.value })
     }
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
   >
-   
     <option value="Free">Free</option>
     <option value="Bronze">Bronze</option>
     <option value="Silver">Silver</option>
@@ -588,31 +691,36 @@ const Users: React.FC = () => {
     <option value="Diamond">Diamond</option>
     <option value="Platinum">Platinum</option>
   </select>
+
+  {/* Empty column for spacing when Status is hidden */}
+  {formData.userID === 0 && <div></div>}
 </div>
 
-
-            <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                onSubmit={handleFormSubmit}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+{/* Buttons Row */}
+<div className="flex justify-end gap-4 mt-4">
+  <button
+    type="submit"
+    onClick={handleFormSubmit}
+    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
       ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.userID === 0 ? 'Add' : 'Update'}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
+  >
+    {formData.userID === 0 ? 'Add' : 'Update'}
+  </button>
+  
+  <button
+    type="button"
+    onClick={handleCancel}
+    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+  >
+    Cancel
+  </button>
+</div>
+
           </form>
         </div>
       )}

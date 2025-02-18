@@ -20,6 +20,7 @@ import FeedBackMaster from './pages/Masters/FeedBackMaster';
 import OffersMaster from './pages/Masters/OffersMaster';
 import Users from '../src/pages/UsersManagement/Users';
 import Role from '../src/pages/UsersManagement/Role';
+import Rights from '../src/pages/UsersManagement/Rights';
 import Menus from './pages/UsersManagement/Menus';
 import ManageAvailability from './pages/ManageAvailability';
 import Settings from './pages/Settings';
@@ -29,8 +30,10 @@ import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
 import MultiSteps from './components/MultiSteps';
 import DocumentUpload from './pages/DocumentUpload';
+import DocumentViewPage from './pages/DocumentViewPage';
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
+import LabRegistration from './pages/Registration/LabRegistration';
 import Dashboard from './pages/Dashboard/Dashboard';
 import { useSelector } from 'react-redux';
 import Profile from './pages/Profile';
@@ -42,11 +45,11 @@ import Login from './pages/LoginPage';
 import ApiResponsePage from './pages/ApiResponsePage';
 import BookAppointment from './pages/BookAppointment';
 import QuickAppointment from './pages/QuickAppointment';
-import DoctorFormWizard from './pages/DoctorFormWizard';
-import DoctorRegistration from './pages/DoctorRegistration';
+import DoctorFormWizard from './pages/Profile/DoctorFormWizard';
+import DoctorRegistration from './pages/Registration/DoctorRegistration';
 import Membership from './pages/Membership';
-import PatientRegistration from './pages/PatientRegistration';
-import PatientFormWizard from './pages/PatientFormWizard';
+import PatientRegistration from './pages/Registration/PatientRegistration';
+import PatientFormWizard from './pages/Profile/PatientFormWizard';
 import MedicalPrescription from './pages/MedicalPrescription';
 import PrescriptionAnswers from './pages/PrescriptionAnswers';
 import SearchPatient from './pages/Search/SearchPatient';
@@ -84,10 +87,15 @@ import AdmissionDetails from './pages/AdmissionDetails';
 import RoomBooking from './pages/RoomBooking';
 import OrderTracking from './pages/OrderTracking';
 import Barcode from './pages/Barcode';
+import Facilities from './pages/Facilities';
 import QrCode from './pages/QrCode';
 import Tenant from './pages/Tenant';
-import Hospital from './pages/HospitalPage';
+import Hospital from './pages/Registration/HospitalPage';
 import MenuRights from './pages/MenuRights';
+import LabProfile from './pages/Profile/LabProfile';
+import Timeslot from './pages/Timeslot';
+import Notification from './pages/Settings/Notifications';
+
 
 interface RootState {
   auth: {
@@ -238,6 +246,17 @@ function App() {
             </>
           }
         />
+         <Route
+          path="/Registration/LabRegistration"
+
+          element={
+            <>
+              <PageTitle title="LabRegistration | CarePoint Pro" />
+              <LabRegistration />
+            </>
+          }
+        />
+         
          
         
         <Route
@@ -342,6 +361,15 @@ function App() {
           }
           />
         <Route
+          path="/Settings" 
+          element={
+            <>
+              <PageTitle title="Settings | CarePoint Pro" />
+              <Settings />
+              </>
+          }
+          />
+        <Route
           path="/usersmanagement/users"
           element={
             <>
@@ -356,6 +384,15 @@ function App() {
             <>
               <PageTitle title="Role | CarePoint Pro" />
                 <Role />
+            </>
+          }
+        />
+        <Route
+          path="/usersmanagement/rights"
+          element={
+            <>
+              <PageTitle title="Rights | CarePoint Pro" />
+                <Rights />
             </>
           }
         />
@@ -414,6 +451,15 @@ function App() {
           }
         />
         <Route
+          path="/documentViewPage"
+          element={
+            <>
+              <PageTitle title="DocumentViewPage | CarePoint Pro" />
+                <DocumentViewPage />
+            </>
+          }
+        />
+        <Route
           path="/appointment/view-available-slots"
 
           element={
@@ -429,6 +475,15 @@ function App() {
             <>
               <PageTitle title="ManageAvailability | CarePoint Pro" />
                 <ManageAvailability />
+            </>
+          }
+        />
+        <Route
+          path="Notification"
+          element={
+            <>
+              <PageTitle title="Notification | CarePoint Pro" />
+                <Notification />
             </>
           }
         />
@@ -450,13 +505,41 @@ function App() {
             </>
           }
         />
-        
+        <Route
+          path="/labProfile"
+
+          element={
+            <>
+              <PageTitle title="LabProfile | CarePoint Pro" />
+              <LabProfile />
+            </>
+          }
+        />
+        <Route
+          path="/timeslot"
+
+          element={
+            <>
+              <PageTitle title="Timeslot | CarePoint Pro" />
+              <Timeslot />
+            </>
+          }
+        />
         <Route
           path="/DoctorFormWizard"
           element={
             <>
               <PageTitle title="DoctorFormWizard | CarePoint Pro" />
               <DoctorFormWizard />
+            </>
+          }
+        />
+        <Route
+          path="/Facilities"
+          element={
+            <>
+              <PageTitle title="Facilities | CarePoint Pro" />
+              <Facilities />
             </>
           }
         />

@@ -13,6 +13,15 @@ const PatientFormWizard: React.FC = () => {
     patientGender: '',
     patientPhoneNumber: '',
     patientEmail: '',
+    createdBy: "dd606a34-6e0a-4b0f-8cfd-8e9138267627",
+   
+    height: "",
+    weight: "",
+    bloodGroupID: "",
+    email: "",
+    phoneNumber: "",
+    name: "",
+    
   });
   const [genderOptions, setGenderOptions] = useState<string[]>([]); // State to store gender options
  
@@ -422,16 +431,54 @@ const addNewRowBelow = (index, day) => {
     setPopupVisible(true);
   };
 
-  const [boxes, setBoxes] = useState([{ height: '', weight: '', bloodGroup: '' }]);
+ 
 
-  // const handleInputChange = (index: number, field: string, value: string) => {
-  //   const updatedBoxes = [...boxes];
-  //   updatedBoxes[index][field] = value;
-  //   setBoxes(updatedBoxes);
-  // };
+  const handleSingInputChange = (index: number, key: string, value: string) => {
+    const newBoxes = [...boxes];
+    newBoxes[index][key] = value;
+    setBoxes(newBoxes);
+  };
 
   const handleAddBox = () => {
-    setBoxes([...boxes, { height: '', weight: '', bloodGroup: '' }]);
+    setBoxes([...boxes, { bloodGroup: "" }]);
+  };
+
+  const [boxes, setBoxes] = useState([{ bloodGroup: "" }]);
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const bloodGroupID = bloodGroups.find(group => group.name === boxes[0].bloodGroup)?.appLOVID;
+
+    const payload = {
+      createdBy: formData.createdBy,
+      patientsID: patientID, 
+      height: parseFloat(formData.height), // Ensure height is a number
+      weight: parseFloat(formData.weight), // Ensure weight is a number
+      bloodGroupID, // Pass the blood group ID
+      email: formData.email,
+      phoneNumber: formData.phoneNumber,
+    };
+
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily", {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert("Family information saved successfully!");
+      } else {
+        alert("Failed to save family information.");
+      }
+    } catch (error) {
+      console.error("Error saving family information:", error);
+      alert("An error occurred while saving.");
+    }
   };
 
   const [uploadBoxes, setUploadBoxes] = useState([
@@ -985,7 +1032,7 @@ const itemStyle: React.CSSProperties = {
     <button onClick={handleAddressSubmit} disabled={!patientID}
       type="button"
       className="bg-gradient-to-b from-[#004A99] to-[#007BFF] text-white py-2 px-6 rounded-lg hover:from-[#007BFF] hover:to-[#004A99]"
-      onClick={handleAddressSubmit}
+     
     >
       Save Address
     </button>
@@ -1138,10 +1185,10 @@ const itemStyle: React.CSSProperties = {
                 </div>
               }
             >
-             <form className="space-y-6">
+             <form className="space-y-6" onSubmit={handleFormSubmit}>
      
      <h2 className="text-lg font-bold text-black-700 text-left">
-     Medical Information
+     Family Medical Information
      </h2>
     
 
@@ -1183,8 +1230,8 @@ const itemStyle: React.CSSProperties = {
         <input
           type="tel"
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          value={formData.phone}
-          onChange={(e) => handleSingleInputChange('phone', e.target.value)}
+          value={formData.phoneNumber}
+          onChange={(e) => handleSingleInputChange('phoneNumber', e.target.value)}
           placeholder="Enter your number"
         />
       </div>
@@ -1209,136 +1256,57 @@ const itemStyle: React.CSSProperties = {
 
       {/* Blood Group */}
       <div className="col-span-2">
-      <select
-          value={box.bloodGroup || ""}
-          onChange={(e) => handleInputChange(index, "bloodGroup", e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        >
-          <option value="">Select Blood Group</option>
-          {bloodGroups.map((group) => (
-            <option key={group.appLOVID} value={group.name}>
-              {group.name}
-            </option>
-          ))}
-        </select>
-      </div>
+                <select
+                  value={box.bloodGroup || ""}
+                  onChange={(e) => handleSingInputChange(index, "bloodGroup", e.target.value)}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                >
+                  <option value="">Select Blood Group</option>
+                  {bloodGroups.map((group) => (
+                    <option key={group.appLOVID} value={group.name}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-     
+     {/* Height */}
+     <div className="col-span-1">
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={formData.height}
+                  onChange={(e) => handleSingleInputChange('height', e.target.value)}
+                  placeholder="Height (in cm)"
+                />
+              </div>
+
+              {/* Weight */}
+              <div className="col-span-1">
+                <input
+                  type="number"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={formData.weight}
+                  onChange={(e) => handleSingleInputChange('weight', e.target.value)}
+                  placeholder="Weight (in kg)"
+                />
+              </div>
     
 
       
     </div>
-    <div>
-      <div className="col-span-2 mt-4">
-        <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-          <input
-            type="checkbox"
-            onChange={handleCheckboxChange}
-            className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-          />
-          <span>Add new address</span>
-        </label>
-      </div>
-
-      {showAddressFields &&
-        addresses.map((address, index) => (
-          <div
-            key={index}
-            onClick={() => handleSelectAddress(index)}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          >
-           <div className="flex justify-between items-center mb-4">
-            <select
-              className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-              value={address.type}
-              onChange={(e) =>
-                updateAddress(index, "type", e.target.value)
-              }
-            >
-              <option value="">Select Address Type</option>
-              {addressTypes.map((type) => (
-                <option key={type.appLOVID} value={type.name}>
-                  {type.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <input
-                type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={address.address1}
-                onChange={(e) =>
-                  updateAddress(index, "address1", e.target.value)
-                }
-                placeholder="Enter address line 1"
-              />
-              <input
-                type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={address.address2}
-                onChange={(e) =>
-                  updateAddress(index, "address2", e.target.value)
-                }
-                placeholder="Enter address line 2"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
-              <input
-                type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={address.city}
-                onChange={(e) => updateAddress(index, "city", e.target.value)}
-                placeholder="Enter city"
-              />
-               
-  {/* District Input Field */}
-  <input
-    type="text"
-    placeholder="Enter District"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-    value={address.district}
-    onChange={(e) => updateAddress(index, 'district', e.target.value)}
-  />
-
-
-
-  {/* State Input Field */}
-  <input
-    type="text"
-    placeholder="Enter State"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-    value={address.state}
-    onChange={(e) => updateAddress(index, 'state', e.target.value)}
-  />
-
-              <input
-                type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={address.zipCode}
-                onChange={(e) =>
-                  updateAddress(index, "zipCode", e.target.value)
-                }
-                placeholder="Enter zip code"
-              />
-            </div>
-          </div>
-        ))}
-    </div>
+   
   </div>
   
 ))}
-
-
-
+<div className='flex mt-4'>
+<button
+        type="submit"
+        className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition"
+      >
+        Save
+      </button>
+      </div>
 
 
 
@@ -1355,6 +1323,8 @@ const itemStyle: React.CSSProperties = {
        <span className="text-sm font-medium text-black-600">Add</span>
      </div>
    </div>
+   
+
    </form>
 
             </FormWizard.TabContent>

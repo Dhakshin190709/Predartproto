@@ -74,27 +74,58 @@ const BookAppointment = () => {
   const dropdownRef = useRef<HTMLUListElement>(null);
   const doctorDropdownRef = useRef<HTMLUListElement>(null);
 
-  const hospitalList = [
-    'Applo Hospital',
-    'Aravind Eye Hospital',
-    'Vasanth Eye Care',
-    'K.G. Hospital',
-    'Kauvery Hospital',
-    'SIMS Hospital',
-    'SRM Hospital',
-  ];
+  
+  
+  const [hospitals, setHospitals] = useState([]); // Ensure default state is an array
+  const [doctors, setDoctors] = useState([]); // Ensure default state is an array
 
-  const doctorList = [
-    'Dr. James Carter',
-    'Dr. Sarah Johnson',
-    'Dr. Emily Davis',
-    'Dr. Michael Lee',
-    'Dr. Sophia Patel',
-    'Dr. Daniel Smith',
-    'Dr. Laura Wilson',
-  ];
+  useEffect(() => {
+    fetchHospitals();
+    fetchDoctors();
+  }, []);
 
-  // Refs for dropdowns to handle click outside
+  const fetchHospitals = async () => {
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Hospital");
+      const result = await response.json();
+  
+      console.log("API Response:", result); // Log the response for debugging
+  
+      // Check if the response contains a 'data' array
+      if (Array.isArray(result.data)) {
+        setHospitals(result.data); // Set hospitals list from the 'data' property
+      } else {
+        console.error("Expected an array of hospitals inside 'data', but received:", result.data);
+        setHospitals([]); // Set an empty array if there's no valid data
+      }
+    } catch (error) {
+      console.error("Error fetching hospitals:", error);
+    }
+  };
+  
+  const [loading, setLoading] = useState(true);
+  const fetchDoctors = async () => {
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Doctor");
+      const result = await response.json();
+  
+      console.log("API Response:", result); // Log the full response for debugging
+  
+      // Check if the response contains a 'data' array
+      if (Array.isArray(result.data)) {
+        setDoctors(result.data); // Set the doctors list from the 'data' property
+      } else {
+        console.error("Expected an array of doctors inside 'data', but received:", result.data);
+        setDoctors([]); // Set an empty array if there's no valid data
+      }
+    } catch (error) {
+      console.error("Error fetching doctors:", error);
+    }
+  };
+  
+  
+  
+  
   const hospitalDropdownRef = useRef<HTMLDivElement>(null);
 
   const validateField = (name: string, value: string | Date | null): string => {
@@ -242,13 +273,26 @@ const BookAppointment = () => {
       console.log('Form Submitted:', formData);
       setSuccessMessage('Form submitted successfully!');
     } else {
-      setSuccessMessage('');  // Clear the success message if there are errors
+      setSuccessMessage('');  
     }
   };
+  const fetchDoctorTimeSlot = async () => {
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot");
+      const result = await response.json();
   
+      console.log("Doctor Time Slot API Response:", result); 
+    } catch (error) { 
+      console.error("Error fetching doctor time slots:", error);
+    }
+  };
+  useEffect(() => {
+   
+  }, []);
+    
   
 
-  useEffect(() => {
+  useEffect(() => {fetchDoctorTimeSlot
     const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
@@ -587,94 +631,50 @@ const BookAppointment = () => {
                     </div>
                   )}
 
-                  {/* Hospital */}
-                  <div className="mb-4">
-                    <input
-                      type="text"
-                      name="hospital"
-                      value={formData.hospital}
-                      onChange={handleInputChange}
-                      placeholder="Hospital"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
-                    {/* Hospital Suggestions Dropdown */}
-                    {showHospitalDropdown && filteredHospitals.length > 0 && (
-                      <div
-                        ref={hospitalDropdownRef}
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      >
-                        {filteredHospitals.map((hospital) => (
-                          <div
-                            key={hospital}
-                            className="px-4 py-2 hover:bg-gray-200 cursor-pointer"
-                            onClick={() => selectHospital(hospital)}
-                          >
-                            {hospital}
-                          </div>
-                        ))}
-                        {filteredHospitals.length === 0 && (
-                          <div className="px-4 py-2 text-gray-500">
-                            No results found
-                          </div>
-                        )}
-                      </div>
-                    )}
+                   {/* Hospital Dropdown */}
+                   <div className="mb-4 flex gap-4">
+                   <div className="relative w-1/2">
+  <select
+    name="hospital"
+    value={formData.hospital}
+    onChange={handleInputChange}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="">Select Hospital</option>
+    {hospitals.length > 0 ? (
+      hospitals.map((hospital) => (
+        <option key={hospital.hospitalID} value={hospital.hospitalID}>
+          {hospital.hospitalName}
+        </option>
+      ))
+    ) : (
+      <option disabled>Loading hospitals...</option>
+    )}
+  </select>
+</div>
 
-                    {/* Error Message */}
-                    {errors.hospital && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.hospital}
-                      </p>
-                    )}
-                  </div>
+<div className="relative w-1/2">
+  <select
+    name="doctor"
+    value={formData.doctor}
+    onChange={handleInputChange}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="">Select Doctor</option>
+    {doctors.length > 0 ? (
+      doctors.map((doctor) => (
+        <option key={doctor.doctorID} value={doctor.doctorID}>
+          {doctor.doctorName}
+        </option>
+      ))
+    ) : (
+      <option disabled>Loading doctors...</option>
+    )}
+  </select>
+</div>
+</div>
 
-                  {/* Doctor */}
-                  <div className="mb-4">
-                    <input
-                      type="text"
-                      name="doctor"
-                      value={formData.doctor}
-                      onChange={handleInputChange}
-                      placeholder="Doctor"
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
-                    {/* Doctor Suggestions Dropdown */}
-                    {showDoctorDropdown && filteredDoctors.length > 0 && (
-                      <div
-                        ref={doctorDropdownRef}
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-                        text-black outline-none focus:border-primary dark:border-form-strokedark
-                        dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      >
-                        {filteredDoctors.map((doctor) => (
-                          <div
-                            key={doctor}
-                            className="px-4 py-2 hover:bg-gray-200 cursor-pointer"
-                            onClick={() => selectDoctor(doctor)}
-                          >
-                            {doctor}
-                          </div>
-                        ))}
-                        {filteredDoctors.length === 0 && (
-                          <div className="px-4 py-2 text-gray-500">
-                            No results found
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    {/* Error Message */}
-                    {errors.doctor && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {errors.doctor}
-                      </p>
-                    )}
-                  </div>
+
 
                   {/* Reason */}
                   <div className="mb-4">

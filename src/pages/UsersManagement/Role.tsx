@@ -89,10 +89,16 @@ const Role: React.FC = () => {
   
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+  // Retrieve userID from sessionStorage
+  const userID = sessionStorage.getItem("userID");
+  if (!userID) {
+    console.error("User ID not found in session storage.");
+    alert("User not logged in. Please log in again.");
+    return;
+  }
     try {
       const isActive = formData.status === 'Active';
-      const createdBy = "dd606a34-6e0a-4b0f-8cfd-8e9138267627"; // Fixed CreatedBy ID
+      const createdBy = userID; // Fixed CreatedBy ID
       let response;
   
       if (!formData.roleID) {

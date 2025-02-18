@@ -1,172 +1,77 @@
-import React, { useState, useEffect, useRef } from 'react';  
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import React, { useState, useEffect } from 'react';
 
-
+import { FaUserAlt, FaPhoneAlt,FaGenderless, 
+  FaEnvelope,FaMars, FaVenus,FaMapMarkerAlt, FaDirections} from "react-icons/fa";
 interface RowData {
   id: number;
   patientName: string;
   patientId: string; // Appointment ID
-  mobileNumber: string;  // Mobile Number
-  fromDate: string;      // From Date
-  toDate: string;        // To Date
+  mobileNumber: string; // Mobile Number
+  fromDate: string; // From Date
+  toDate: string; // To Date
 }
 
-const initialData: RowData[] = [
-  {
-    id: 1,
-    patientName: 'John Doe',
-    patientId: 'PAT001',
-    mobileNumber: '1234567890',
-    fromDate: '2024-12-01',
-    toDate: '2024-12-10',
-  },
-  {
-    id: 2,
-    patientName: 'Jane Smith',
-    patientId: 'PAT002',
-    mobileNumber: '9876543210',
-    fromDate: '2024-12-05',
-    toDate: '2024-12-15',
-  },
-  {
-    id: 3,
-    patientName: 'Alice Johnson',
-    patientId: 'PAT003',
-    mobileNumber: '1122334455',
-    fromDate: '2024-12-10',
-    toDate: '2024-12-20',
-  },
-];
+interface PatientData {
+  patientName: string;
+  patientGender: string;
+  patientPhoneNumber: string;
+  patientEmail: string;
+}
 
 const SearchPatient: React.FC = () => {
-  const [type, setType] = useState(''); // Type filter for UI
-  // State for filter form
-const [filterPatientName, setFilterPatientName] = useState('');
-const [filterPatientId, setFilterPatientId] = useState('');
-const [filterMobileNumber, setFilterMobileNumber] = useState('');
-const [filterFromDate, setFilterFromDate] = useState('');
-const [filterToDate, setFilterToDate] = useState('');
-
-
-
-
-  
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
+  const [patientData, setPatientData] = useState<PatientData[]>([]); // Patient data for the new card section
   const [quickSearchText, setQuickSearchText] = useState(""); // For global search
-  const [showForm, setShowForm] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    id: 0, // Default to 0 for "Add New Data"
-    patientId: '',
-    patientName: '',
-    
-    mobileNumber: '',
-    fromDate: '',
-    toDate: '',
-    
-  });
+
+  const [loading, setLoading] = useState<boolean>(true); // To manage loading state
   
- 
- 
+const getGenderIcon = (gender: string) => {
+  const lowerGender = gender.toLowerCase();
 
-
-  const gridApi = useRef<any>(null);
-  const gridColumnApi = useRef<any>(null);
-
-  useEffect(() => {
-    setRowData(initialData); // Setting initial data
-    setFilteredData(initialData); // Set the same data as filtered initially
-  }, []);
-
-  // Column Definitions for AG Grid
-  const columnDefs: ColDef[] = [
-    { 
-      headerName: 'S.No', 
-      field: 'id', 
-      flex: 0.5, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Patient ID', 
-      field: 'patientId', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-     
-    },
-
-    { 
-      headerName: 'Patient Name', 
-      field: 'patientName', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-   
-    { 
-      headerName: 'Mobile Number', 
-      field: 'mobileNumber', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-      
-    },
-    { 
-      headerName: 'Date', 
-      field: 'fromDate', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-      
-    },
-    
-  ];
-  
-
- 
-  
-
-  
-
-  // Handles the form submission to update the row data
- const handleFormSubmit = (e) => {
-  e.preventDefault();
-
-  // Create the new data object
-  const newData = {
-    id: Date.now(), // Unique ID for the new data
-    name: formData.patientName,
-    appointmentId: formData.patientId,
-    mobileNumber: formData.mobileNumber,
-    fromDate: formData.fromDate,
-    toDate: formData.toDate,
-  };
-
-  
-  // Reset the form inputs
-  setFormData({
-    id: 0, // Reset to initial state for "Add New Data"
-    patientName: '',
-    patientId: '',
-    mobileNumber: '',
-    fromDate: '',
-    toDate: '',
-    
-  });
-
-  setShowForm(false); // Hide the form after submission
+  if (lowerGender === "male" || lowerGender === "m") {
+    return <FaMars className="text-blue-500 ml-1" />;
+  } else if (lowerGender === "female" || lowerGender === "f") {
+    return <FaVenus className="text-pink-500 ml-1" />;
+  } else {
+    return <FaGenderless className="text-black ml-1" />;
+  }
 };
 
 
+  const [expandedIndex, setExpandedIndex] = useState(null);
+
+  const toggleExpand = (index) => {
+    setExpandedIndex(expandedIndex === index ? null : index);
+  };
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      try {
+        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Patient');
+        const data = await response.json();
+        if (data?.success && Array.isArray(data.data)) {
+          setPatientData(data.data); // Set the patient data 
+        } else {
+          console.error('Unexpected response structure:', data);
+        }
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+      } finally {
+        setLoading(false); // Set loading to false after the fetch is done
+      }
+    };
+
+    if (patientData.length === 0) { // Fetch only if the data is not already fetched
+      fetchPatientData();
+    }
+
+  }, [patientData.length]); // Only refetch if patientData is empty
+
+  if (loading) {
+    return <div>Loading...</div>; // Show loading state while fetching
+  }
+
+  
 
   // Apply the global search filter to the data
   const applyGlobalSearch = (data: RowData[]) => {
@@ -178,167 +83,125 @@ const [filterToDate, setFilterToDate] = useState('');
       row.toDate.toLowerCase().includes(quickSearchText.toLowerCase())
     );
   };
-  
-  const onGridReady = (params: any) => {
-    gridApi.current = params.api;
-    gridColumnApi.current = params.columnApi;
-    params.api.sizeColumnsToFit(); // Ensure columns fit the grid width
-  };
 
-  const handleFilterSearch = () => {
-    const filtered = initialData.filter(item => {
-      const matchesName = filterPatientName ? item.patientName.toLowerCase().includes(filterPatientName.toLowerCase()) : true;
-      const matchesAppointmentId = filterPatientId ? item.patientId.toString().includes(filterPatientId) : true;
-      const matchesMobile = filterMobileNumber ? item.mobileNumber.toString().includes(filterMobileNumber) : true;
-      const matchesFromDate = filterFromDate ? new Date(item.fromDate) >= new Date(filterFromDate) : true;
-      const matchesToDate = filterToDate ? new Date(item.toDate) <= new Date(filterToDate) : true;
-  
-      return (
-        matchesName &&
-        matchesAppointmentId &&
-        matchesMobile &&
-        matchesFromDate &&
-        matchesToDate
-      );
-    });
-  
-    setRowData(filtered); // Update the displayed data in the table
-    setFilteredData(filtered); // Optionally update a filtered state if required
-  };
-  
-  
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h1 className="text-2xl font-semibold text-gray-800 mb-6">Search Patient</h1>
 
       {/* Filters Section (Type, Code, Active) */}
-     <div className="flex flex-col gap-4 mb-4">
-  {/* First Row (Filter) */}
-  <div className="flex gap-4">
-    
+      <div className="flex flex-col gap-4 mb-4">
+        {/* First Row (Filter) */}
+        <div className="flex gap-4">
+          <input
+            type="text"
+            placeholder="Patient Id"
+            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+          />
+          <input
+            type="text"
+            placeholder="Patient Name"
+            className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+          />
+          <input
+            type="text"
+            placeholder="Mobile Number"
+            className="w-[25%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+          />
+          <input
+            type="text"
+            placeholder="From Date"
+            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+          />
+          <input
+            type="text"
+            placeholder="To Date"
+            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+          />
+        </div>
 
-    {/* Patient ID Filter */}
-    <input
-      type="text"
-      placeholder="Patient Id"
-      value={filterPatientId}
-      onChange={(e) => setFilterPatientId(e.target.value)} // Use filterAppointmentId state
-      className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-{/*Patient Name Filter */}
-<input
-      type="text"
-      placeholder="Patient Name"
-      value={filterPatientName}
-      onChange={(e) => setFilterPatientName(e.target.value)} // Use filterName state
-     className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-    {/* Mobile Number Filter */}
-    <input
-      type="text"
-      placeholder="Mobile Number"
-      value={filterMobileNumber}
-      onChange={(e) => setFilterMobileNumber(e.target.value)} // Use filterMobileNumber state
-      className="w-[25%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-  
-
- 
-   
-    {/* From Date Filter */}
-<input
-  type="text" // Use text for custom placeholder functionality
-  value={filterFromDate}
-  onFocus={(e) => (e.target.type = "date")} // Change type to date on focus
-  onBlur={(e) => (e.target.type = filterFromDate ? "date" : "text")} // Retain date format if value exists
-  placeholder="From Date"
-  onChange={(e) => setFilterFromDate(e.target.value)} 
-  className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-  text-black outline-none focus:border-primary dark:border-form-strokedark 
-  dark:bg-form-input dark:text-white dark:focus:border-primary"
-/>
-
-{/* To Date Filter */}
-<input
-  type="text" // Use text for custom placeholder functionality
-  value={filterToDate}
-  onFocus={(e) => (e.target.type = "date")} // Change type to date on focus
-  onBlur={(e) => (e.target.type = filterToDate ? "date" : "text")} // Retain date format if value exists
-  placeholder="To Date"
-  onChange={(e) => setFilterToDate(e.target.value)} 
-  className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-  text-black outline-none focus:border-primary dark:border-form-strokedark 
-  dark:bg-form-input dark:text-white dark:focus:border-primary"
-/>
-
-  </div>
-
-  {/* Search Button */}
-  <div className="flex justify-start mt-4">
-    <button
-       className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-       hover:from-[#007BFF] hover:to-[#004A99]
-       text-white transition duration-150 
-       ease-out hover:ease-in py-2 px-5 rounded-lg"
-      onClick={handleFilterSearch}
-    >
-      Search
-    </button>
-  </div>
-</div>
-
-
-    <hr className="border-t-2 border-stroke bg-transparent my-6" />
-
-   
-
-      {/* Global Search and Add Button in the Same Row */}
-      <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
-  <div className="relative">
-    <input
-      type="text"
-      placeholder="Search..."
-      value={quickSearchText}
-      onChange={(e) => setQuickSearchText(e.target.value)}
-      className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-    <span className="absolute right-4 top-4">
-                          <svg
-                            className="fill-current"
-                            width="22"
-                            height="22"
-                            viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg"><g opacity="0.5"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.16666 3.33332C5.945 3.33332 3.33332 5.945 3.33332 9.16666C3.33332 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66666 9.16666C1.66666 5.02452 5.02452 1.66666 9.16666 1.66666C13.3088 1.66666 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66666 13.3088 1.66666 9.16666Z" fill=""></path><path fill-rule="evenodd" clip-rule="evenodd" d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z" fill=""></path></g></svg>
-  </span>
-  </div>
-  
-   
-       </div> 
-       
-      {/* Table Component */}
-      <div
-        className="ag-theme-alpine mt-6 w-fit"
-        style={{ height: '400px', width: '100%' }}
-      >
-        <AgGridReact
-         rowData={applyGlobalSearch(filteredData)}
-         columnDefs={columnDefs}
-         pagination={true}
-         paginationPageSize={10}
-         domLayout="autoHeight"
-         headerHeight={40} // Adjust header height
-         rowHeight={40} // Adjust row height
-         onGridReady={onGridReady}
-        />
+        {/* Search Button */}
+        <div className="flex justify-start mt-4">
+          <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">
+            Search
+          </button>
+        </div>
       </div>
-     
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 mt-6">
+      {patientData.length > 0 ? (
+        patientData.map((patient, index) => (
+          <div 
+            key={index} 
+            className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-100 
+            transition-transform transform hover:scale-105 hover:shadow-lg"
+          >
+            {/* Top Section: Profile Icon, Name, Gender Icon in Brackets */}
+            <div className="flex items-center gap-3">
+              <FaUserAlt className="text-blue-400 text-xl" />
+              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
+                {patient.patientName} (<span className="flex items-center">{getGenderIcon(patient.patientGender)}</span>)
+              </h2>
+            </div>
 
-      
+            <hr className="my-3 border-blue-100" />
+
+            {/* Phone with Icon (Clickable) */}
+            <p className="flex items-center text-gray-700 font-medium">
+              <a href={`tel:${patient.patientPhoneNumber}`} className="flex items-center hover:text-green-600 transition">
+                <FaPhoneAlt className="text-green-400 mr-2" /> {patient.patientPhoneNumber}
+              </a>
+            </p>
+
+            {/* Email with Icon (Clickable) */}
+            <p className="flex items-center text-gray-700 font-medium">
+              <a href={`mailto:${patient.patientEmail}`} className="flex items-center hover:text-orange-600 transition">
+                <FaEnvelope className="text-orange-400 mr-2" /> {patient.patientEmail}
+              </a>
+            </p>
+
+            {/* Hardcoded Location */}
+            <p className="flex items-center text-gray-700 font-medium mt-2">
+              <FaMapMarkerAlt className="text-red-500 mr-2" /> Anna nagar,chennai
+            </p>
+
+            {/* View More / View Less Toggle */}
+            {expandedIndex === index ? (
+              <div className="mt-3">
+                <p className="text-gray-600">Additional patient details can be shown here...</p>
+                <button 
+                  className="text-blue-500 mt-2 hover:underline" 
+                  onClick={() => toggleExpand(index)}
+                >
+                  View Less
+                </button>
+              </div>
+            ) : (
+              <button 
+                className="text-blue-500 mt-2 hover:underline" 
+                onClick={() => toggleExpand(index)}
+              >
+                View More
+              </button>
+            )}
+
+            {/* Directions Button (Opens Google Maps) */}
+            <div className="mt-3">
+              <a  
+                href="https://www.google.com/maps/search/Anna+nagar,+chennai" 
+               
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-500 hover:underline flex items-center"
+                            >
+                              <FaDirections className="mr-1" /> Directions
+                            </a>
+            </div>
+          </div>
+        ))
+      ) : (
+        <p className="text-center text-gray-500">No patients found</p>
+      )}
+    </div>
+
     </div>
   );
 };

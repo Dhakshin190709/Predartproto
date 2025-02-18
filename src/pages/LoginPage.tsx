@@ -7,7 +7,7 @@ import { loginSuccess } from '../../redux/actions/authActions';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
-//const BASE_URL = 'https://predart001-001-site1.qtempurl.com';
+
 const BASE_URL = 'https://predart003-001-site1.anytempurl.com';
 
 
@@ -152,131 +152,90 @@ const Login: React.FC = () => {
   
   
   
-  const handleLogin = async () => {
-    console.log("Login initiated.");
-  
-    // Validate input fields
-    if (!emailOrMobile) {
+ 
+
+
+// Main Login Handler
+const handleLogin = async () => {
+  // Validate input fields
+  if (!emailOrMobile) {
       setLoginMessage("Please enter your email or mobile number.");
       return;
-    }
-  
-    if (isOtp) {
+  }
+
+  if (isOtp) {
       if (!otp || otp.some((digit) => digit === "")) {
-        setLoginMessage("Please enter the complete OTP.");
-        return;
+          setLoginMessage("Please enter the complete OTP.");
+          return;
       }
-    } else {
+  } else {
       if (!password) {
-        setLoginMessage("Please enter your password.");
-        return;
+          setLoginMessage("Please enter your password.");
+          return;
       }
-    }
-  
-    let payload = {};
-    let endpoint = "";
-  
-    if (isOtp) {
+  }
+
+  let payload = {};
+  let endpoint = "";
+
+  if (isOtp) {
       payload = isMobile
-        ? { method: "Mobile", mobile: emailOrMobile, otp: otp.join("") }
-        : { method: "Email", email: emailOrMobile, otp: otp.join("") };
+          ? { method: "Mobile", mobile: emailOrMobile, otp: otp.join("") }
+          : { method: "Email", email: emailOrMobile, otp: otp.join("") };
       endpoint = `${BASE_URL}/api/login/ValidateOTP`;
-    } else {
+  } else {
       payload = { username: emailOrMobile, password };
       endpoint = `${BASE_URL}/api/login`;
-    }
-  
-    try {
+  }
+
+  try {
       const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
       });
-  
+
       const responseBody = await response.json();
-  
+      console.log("API Response:", responseBody);
+      console.log("User ID:", responseBody.data?.userID);
+      console.log("Username:", responseBody.data?.username);
+      console.log("User Plan:", responseBody.data?.userPlan);
+      console.log("Tenant ID:", responseBody.data?.tenantID);
+
+      // Store user details in sessionStorage
+      sessionStorage.setItem("userID", responseBody.data?.userID || "");
+      sessionStorage.setItem("username", responseBody.data?.username || "");
+      sessionStorage.setItem("userPlan", responseBody.data?.userPlan || "");
+      sessionStorage.setItem("tenantID", responseBody.data?.tenantID || "");
+
+      // Log stored session data
+      console.log("Stored User ID:", sessionStorage.getItem("userID"));
+      console.log("Stored Username:", sessionStorage.getItem("username"));
+      console.log("Stored User Plan:", sessionStorage.getItem("userPlan"));
+      console.log("Stored Tenant ID:", sessionStorage.getItem("tenantID"));
+
       if (response.ok) {
-        if (isOtp) {
-          if (responseBody.status === "OTP Valid") {
-            await fetchUserMenuInfo();
-            navigate("/dashboard");
-          } else {
-            setLoginMessage("Invalid OTP. Please try again.");
-          }
-        } else {
-          const menuInfo = responseBody.data?.menuInfo;
-  
-          if (menuInfo && Array.isArray(menuInfo)) {
-            console.log("Extracted menuInfo:", menuInfo);
-  
-            // Extract user-specific menuIDs
-            const userMenuIDs = menuInfo.map((menu) => menu.menuID);
-  
-            // Retrieve stored menuIDs from sessionStorage
-            const storedMenuIDs = sessionStorage.getItem("filteredMenuIDs");
-            let menuIDs = [];
-            if (storedMenuIDs) {
-              try {
-                menuIDs = JSON.parse(storedMenuIDs);
-              } catch (error) {
-                console.error("Error parsing stored menu IDs:", error);
+          if (isOtp) {
+              if (responseBody.status === "OTP Valid") {
+                  console.log("OTP is valid");
+              } else {
+                  setLoginMessage("Invalid OTP. Please try again.");
               }
-            }
-  
-            // Filter common menuIDs
-            const commonMenuIDs = userMenuIDs.filter((id) => menuIDs.includes(id));
-            console.log("Common Menu IDs:", commonMenuIDs);
-  
-            // Store only the common menu IDs in sessionStorage
-            sessionStorage.setItem("commonMenuIDs", JSON.stringify(commonMenuIDs));
-            console.log("Filtered common menu IDs stored in session:", commonMenuIDs);
-  
-            // Navigate to the dashboard
-            navigate("/dashboard");
           } else {
-            console.error("API 'menuInfo' is not an array or missing:", menuInfo);
-            setLoginMessage("Unexpected API response format.");
+              console.log("Login successful");
           }
-        }
+          // Always navigate to the dashboard after processing
+          navigate("/dashboard");
       } else {
-        setLoginMessage(responseBody.message || "Login failed. Please try again.");
+          setLoginMessage(responseBody.message || "Login failed. Please try again.");
       }
-    } catch (error) {
+  } catch (error) {
       console.error("Network or Unexpected Error:", error);
       setLoginMessage("An error occurred while processing your request.");
-    }
-  };
-  
-  // Fetch User-specific menu info
-  const fetchUserMenuInfo = async () => {
-    const userID = "8B904E63-B150-484B-0A66-08DD363B643E"; // Hardcoded UserID
-    const menuEndpoint = `https://predart003-001-site1.anytempurl.com/api/Login/${userID}`;
-  
-    try {
-      const response = await fetch(menuEndpoint);
-  
-      if (!response.ok) {
-        throw new Error("Failed to fetch menu data.");
-      }
-  
-      const menuData = await response.json();
-      console.log("Fetched User Menu Data:", menuData);
-  
-      const menuIDs = menuData.data.map((item) => item.menuID);
-      console.log("Filtered Menu IDs:", menuIDs);
-  
-      // Store menuIDs in sessionStorage
-      sessionStorage.setItem("filteredMenuIDs", JSON.stringify(menuIDs));
-    } catch (error) {
-      console.error("Error fetching menu data:", error);
-    }
-  };
-  
-  // Call the function to fetch and filter menu data
-  fetchUserMenuInfo();
-  
-  
-  
+  }
+};
+
+
 
   
   

@@ -109,17 +109,15 @@ const LovMasters: React.FC = () => {
 };
 
   
-  // Handles the form submission to update the row data
- // Handles form submission for adding or editing data
+  
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault(); // Prevent page reload on form submission
   console.log('Form submission triggered');
 
-  // If the form ID is 0, it's a new row (POST request)
   if (formData.appLOVID === 0) {
-    await postDataToApi();
+    await postDataToApi(); // Call the function to handle the POST request
   } else {
-    // If it's an existing row, make an UPDATE (PUT request)
+    // Prepare the payload for the PUT request
     const payload = {
       appLOVID: formData.appLOVID,
       type: formData.type,
@@ -128,8 +126,10 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       isActive: formData.isActive === 'Active', // Boolean value for isActive
     };
 
+    console.log('PUT Payload:', payload); // Log payload for debugging
+
     try {
-      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/AppLOV/${formData.appLOVID}`, {
+      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/AppLOV`, {
         method: 'PUT', // PUT for updating existing data
         headers: {
           'Content-Type': 'application/json',
@@ -137,13 +137,15 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         body: JSON.stringify(payload),
       });
 
+      console.log('Response status:', response.status); // Log response status for debugging
+
       if (response.ok) {
         const updatedData = await response.json();
         console.log('Data updated successfully:', updatedData);
 
         // Update the grid with the new data
         const updatedRowData = rowData.map(item =>
-          item.appLOVID === formData.appLOVID ? { ...item, ...formData } : item
+          item.appLOVID === formData.appLOVID ? { ...item, ...payload } : item
         );
         setRowData(updatedRowData);
         setFilteredData(updatedRowData); // Ensure the filtered data is updated
@@ -158,7 +160,8 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         });
         setShowForm(false); // Hide the form after submission
       } else {
-        console.error('Failed to update data:', response.statusText);
+        const errorData = await response.json();
+        console.error('Failed to update data:', errorData);
         alert('Failed to update data. Please try again.');
       }
     } catch (error) {
@@ -167,6 +170,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     }
   }
 };
+
 
   
   
@@ -396,6 +400,9 @@ const cancelDelete = () => {
   <option value="Worktype">Worktype</option>
   <option value="Relationship">Relationship</option> 
   <option value="DocumentType">DocumentType</option> 
+  <option value="LanguageMaster">LanguageMaster</option> 
+  <option value="LabType">LabType</option> 
+  <option value="FacilitiesType">FacilitiesType</option> 
  
 </select>
 
@@ -472,6 +479,9 @@ const cancelDelete = () => {
   <option value="Worktype">Worktype</option>
   <option value="Relationship">Relationship</option>
   <option value="DocumentType">DocumentType</option> 
+  <option value="LanguageMaster">LanguageMaster</option> 
+  <option value="LabType">LabType</option> 
+  <option value="FacilitiesType">FacilitiesType</option> 
  
 </select>
 

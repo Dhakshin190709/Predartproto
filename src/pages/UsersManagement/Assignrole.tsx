@@ -163,9 +163,17 @@ const Assignrole: React.FC = () => {
     return;
   }
 
-  const userID = selectedUser?.userID; // Get the userID from the selected user
+  // const userID = selectedUser?.userID; 
+  // if (!userID) {
+  //   alert("User not selected.");
+  //   return;
+  // }
+
+  // Retrieve userID from sessionStorage
+  const userID = sessionStorage.getItem("userID");
   if (!userID) {
-    alert("User not selected.");
+    console.error("User ID not found in session storage.");
+    alert("User not logged in. Please log in again.");
     return;
   }
 
@@ -173,7 +181,7 @@ const Assignrole: React.FC = () => {
   const roleAssignments = selectedRoles.map((roleID) => ({
     userID, // User ID of the selected user
     roleID, // Role ID from selectedRoles
-    createdBy: "dd606a34-6e0a-4b0f-8cfd-8e9138267627", // Replace with the actual `createdBy` value if dynamic
+    createdBy: userID, // Replace with the actual `createdBy` value if dynamic
   }));
 
   try {
