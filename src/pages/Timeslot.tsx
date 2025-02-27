@@ -68,7 +68,7 @@ const Timeslot = () => {
     alert("User not logged in. Please log in again.");
     return;
   }
-    const doctorID = "1e745cbe-7f7f-4192-0616-08dd40f5dca2"; // Replace dynamically if needed
+    const doctorID = "ee7462c5-55a1-46cd-0610-08dd40f5dca2"; // Replace dynamically if needed
    
     const timestamp = new Date().toISOString(); // Generate current timestamp
   

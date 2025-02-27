@@ -13,6 +13,7 @@ const DoctorRegistration: React.FC = () => {
     DateOfBirth: '',
     aadhaar: '',
     pan: '',
+   
   });
 
   const [errors, setErrors] = useState({
@@ -22,6 +23,11 @@ const DoctorRegistration: React.FC = () => {
     hospitalType: '',
     qualification: '',
     specialization: '',
+    DateOfBirth:'',
+    aadhaar:'',
+gender:'',
+    pan:'',
+    tenant:'',
   });
   const [hospitals, setHospitals] = useState([]);
   const [tenants, setTenants] = useState([]); // State for tenant data
@@ -29,99 +35,147 @@ const DoctorRegistration: React.FC = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [qualifications, setQualifications] = useState([]);
   const [specializations, setSpecializations] = useState([]);
+  
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+ 
   const [genders, setGenders] = useState([]);
   const [hospitalTypes, setHospitalTypes] = useState([]);
+
   const validateFields = () => {
     console.log('Form Data Before Validation:', formData);
-
+  
     const newErrors = {
       name: formData.name ? '' : 'Name is required.',
       email:
-        formData.email && /\S+@\S+\.\S+/.test(formData.email)
+        formData.email && /^[^@.]+@[^@.]+\.[^@.]+$/.test(formData.email)
           ? ''
-          : 'Valid email is required.',
+          : 'Valid email is required (only one "@" and one "." allowed).',
       phone:
         formData.phone && /^\d{10}$/.test(formData.phone)
           ? ''
           : 'Phone number must be 10 digits.',
       qualification: formData.qualification ? '' : 'Qualification is required.',
-      specialization: formData.specialization
-        ? ''
-        : 'Specialization is required.',
+      specialization: formData.specialization ? '' : 'Specialization is required.',
       tenant: formData.tenant ? '' : 'Tenant is required.',
       hospitalType: formData.hospitalType ? '' : 'Hospital is required.',
       gender: formData.gender ? '' : 'Gender is required.',
+      aadhaar:
+        formData.aadhaar && /^\d{12}$/.test(formData.aadhaar)
+          ? ''
+          : 'Aadhar number must be 12 digits.',
+          pan: !formData.pan || !formData.pan.trim()
+          ? "PAN number is required"
+          : /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(formData.pan)
+            ? ""
+            : "Invalid PAN format (e.g., ABCDE1234F)",
+        
+
+
+
+      DateOfBirth: (() => {
+        if (!formData.DateOfBirth) {
+          return 'Date of Birth is required.';
+        }
+        const dob = new Date(formData.DateOfBirth);
+        const today = new Date();
+  
+        // Check if the date is in the future
+        if (dob > today) {
+          return 'Date of Birth cannot be in the future.';
+        }
+  
+        // Calculate age
+        let age = today.getFullYear() - dob.getFullYear();
+        const monthDiff = today.getMonth() - dob.getMonth();
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+          age--;
+        }
+        return age < 18 ? 'Minimum age is 18.' : '';
+      })()
     };
-
-    console.log('Validation Errors:', newErrors); // Debugging
-
+  
+    console.log('Validation Errors:', newErrors);
     setErrors(newErrors);
+    // Return true if all fields are valid (i.e. no error messages exist)
     return Object.values(newErrors).every((error) => error === '');
   };
+  
+  
 
   const handleRegister = async () => {
-    console.log('Submit button clicked!');
+  const userID = sessionStorage.getItem("userID");
+  if (!userID) {
+    alert("User not logged in. Please log in again.");
+    return { isValid: false, errors: { userID: "User not logged in." } };
+  }
+  console.log("Submit button clicked!");
 
-    if (!validateFields()) {
-      console.log('Validation failed!');
-      setSuccessMessage('');
-      return;
-    }
+  if (!validateFields()) {
+    console.log("Validation failed!");
+    setSuccessMessage("");
+    return;
+  }
 
-    console.log('Validation passed. Sending data...');
+  console.log("Validation passed. Sending data...");
 
-    const requestData = {
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627', // Replace with actual logged-in user ID
-      tenantID: formData.tenant, // Ensure this is an ID
-      hospitalID: formData.hospitalType, // Ensure this is an ID
-      doctorName: formData.name,
-      doctorDateOfBirth: formData.DateOfBirth,
-      doctorEmail: formData.email,
-      doctorPhoneNumber: formData.phone,
-      doctorGender: genders.find((g) => g.appLOVID === formData.gender)?.name, // Convert ID to string value
-      qualificationID: formData.qualification, // Ensure this is an ID
-      specializationID: formData.specialization, // Ensure this is an ID
-      genderID: formData.gender, // Ensure this is an ID
-      aadhaarNumber: formData.aadhaar,
-      panNumber: formData.pan,
-    };
-
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctor',
-        requestData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      console.log('API Response:', response);
-
-      if (response.status === 200 || response.status === 201) {
-        setSuccessMessage('Doctor registered successfully!');
-        setFormData({
-          name: '',
-          email: '',
-          phone: '',
-          qualification: '',
-          specialization: '',
-          gender: '',
-          tenant: '',
-          hospitalType: '',
-          DateOfBirth: '',
-          aadhaar: '',
-          pan: '',
-        });
-      } else {
-        setSuccessMessage('Something went wrong. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setSuccessMessage('Error occurred while registering the doctor.');
-    }
+  const requestData = {
+    createdBy: userID, // Replace with actual logged-in user ID
+    tenantID: formData.tenant, // Ensure this is an ID
+    hospitalID: formData.hospitalType, // Ensure this is an ID
+    doctorName: formData.name,
+    doctorDateOfBirth: formData.DateOfBirth,
+    doctorEmail: formData.email,
+    doctorPhoneNumber: formData.phone,
+    doctorGender: genders.find((g) => g.appLOVID === formData.gender)?.name, // Convert ID to string value
+    qualificationID: formData.qualification, // Ensure this is an ID
+    specializationID: formData.specialization, // Ensure this is an ID
+    genderID: formData.gender, // Ensure this is an ID
+    aadhaarNumber: formData.aadhaar,
+    panNumber: formData.pan,
   };
+
+  try {
+    const response = await axios.post(
+      "https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctor",
+      requestData,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    console.log("API Response:", response);
+
+    if (response.status === 200 || response.status === 201) {
+      // Extract the doctorID from the response and store it in sessionStorage
+      const doctorID = response.data.data;
+      sessionStorage.setItem("doctorID", doctorID);
+      console.log("Stored doctorID:", doctorID);
+
+      setSuccessMessage("Doctor registered successfully!");
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        qualification: "",
+        specialization: "",
+        gender: "",
+        tenant: "",
+        hospitalType: "",
+        DateOfBirth: "",
+        aadhaar: "",
+        pan: "",
+      });
+    } else {
+      setSuccessMessage("Something went wrong. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error submitting form:", error);
+    setSuccessMessage("Error occurred while registering the doctor.");
+  }
+};
+
 
   const handleSingleInputChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value });
@@ -147,19 +201,77 @@ const DoctorRegistration: React.FC = () => {
   }, []);
 
  
-
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
       .then((response) => response.json())
       .then((data) => {
-        if (data && data.data) {
-          setHospitals(data.data); // Assuming `data.data` contains the list
+        console.log('API Response:', data); // This will show the array of hospital objects
+        if (Array.isArray(data)) {
+          setHospitals(data); // Directly set the hospitals since data is an array
+        } else {
+          console.warn('Unexpected response format:', data);
         }
       })
       .catch((error) => console.error('Error fetching hospitals:', error));
   }, []);
+  
+  
+  // Fetch and set user roles to determine if user is a SuperAdmin
+  useEffect(() => {
+    
+     const userID = sessionStorage.getItem("userID");
+  const tenantID = sessionStorage.getItem("tenantID");
 
-  // Fetch tenant data
+  console.log("UserID from session:", userID);
+  console.log("TenantID from session:", tenantID);
+    if (!userID) {
+      console.error("User ID not found in session storage.");
+      return;
+    }
+
+    const fetchUserRoles = async () => {
+      try {
+        const roleResponse = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`
+        );
+        if (!roleResponse.ok) {
+          throw new Error("Failed to fetch user roles.");
+        }
+        const roleData = await roleResponse.json();
+
+        if (
+          roleData.success &&
+          Array.isArray(roleData.data) &&
+          roleData.data.length > 0
+        ) {
+          const roleIDs = roleData.data.map((item) => item.roleID);
+
+          // Fetch role names for each role ID
+          const roleNamesPromises = roleIDs.map(async (roleID) => {
+            const roleResponse = await fetch(
+              `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`
+            );
+            if (!roleResponse.ok) {
+              console.error(`Failed to fetch role for roleID: ${roleID}`);
+              return null;
+            }
+            const roleInfo = await roleResponse.json();
+            return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
+          });
+
+          const resolvedRoleNames = await Promise.all(roleNamesPromises);
+          // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
+          setIsSuperAdmin(resolvedRoleNames.includes("SuperAdmin"));
+        }
+      } catch (error) {
+        console.error("Error fetching user roles:", error);
+      }
+    };
+
+    fetchUserRoles();
+  }, []);
+
+
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
       .then((response) => {
@@ -170,12 +282,24 @@ const DoctorRegistration: React.FC = () => {
       })
       .then((data) => {
         console.log('Tenant Data:', data);
-        setTenants(data.data || data); // Adjust based on the API structure
+        const tenantList = data.data || data; // Adjust based on API structure
+        setTenants(tenantList);
+        
+        const storedTenantID = sessionStorage.getItem('tenantID');
+        if (storedTenantID) {
+          const tenantExists = tenantList.find(
+            (tenant) => tenant.tenantID === storedTenantID || tenant.id === storedTenantID
+          );
+          if (tenantExists) {
+            setFormData((prev) => ({ ...prev, tenant: storedTenantID }));
+          }
+        }
       })
       .catch((error) => {
         console.error('Error fetching tenant data:', error);
       });
   }, []);
+  
 
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -323,26 +447,56 @@ const DoctorRegistration: React.FC = () => {
                   {/* Tenant */}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <select
-                        value={formData.tenant || ''} // Use formData.tenant
-                        onChange={(e) => {
-                          setFormData({ ...formData, tenant: e.target.value });
-                          handleSingleInputChange('tenant', e.target.value);
-                        }}
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      >
-                        <option value="" disabled>
-                          Select Tenant
-                        </option>
-                        {tenants.map((tenant) => (
-                          <option key={tenant.tenantID} value={tenant.tenantID}>
-                            {tenant.tenantName}{' '}
-                            {/* Display the tenant's name */}
-                          </option>
-                        ))}
-                      </select>
+                     {/* Conditionally render the tenant dropdown only for SuperAdmin */}
+     {isSuperAdmin && (
+  <div>
+    <select
+      name="tenant"
+      value={formData.tenant}
+      onChange={(e) =>
+        setFormData({ ...formData, tenant: e.target.value })
+      }
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                 text-black outline-none focus:border-primary dark:border-form-strokedark 
+                 dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">Select Tenant</option>
+      {tenants.map((tenant) => (
+        <option
+          key={tenant.tenantID || tenant.id}
+          value={tenant.tenantID || tenant.id}
+        >
+          {tenant.tenantName || tenant.name || "Unnamed Tenant"}
+        </option>
+      ))}
+    </select>
+    {errors.tenant && <div className="error">{errors.tenant}</div>}
+  </div>
+)}
+
+{!isSuperAdmin && (
+  <div>
+    <select
+      disabled
+      name="tenant"
+      value={formData.tenant}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                 text-black outline-none focus:border-primary dark:border-form-strokedark 
+                 dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      {tenants.map((tenant) => (
+        <option
+          key={tenant.tenantID || tenant.id}
+          value={tenant.tenantID || tenant.id}
+        >
+          {tenant.tenantName || tenant.name || "Default Tenant"}
+        </option>
+      ))}
+    </select>
+  </div>
+)}
+
+
 
                       {errors.tenant && (
                         <p className="text-red-500 text-sm">{errors.tenant}</p>
@@ -452,6 +606,9 @@ const DoctorRegistration: React.FC = () => {
                         }
                         placeholder="DOB"
                       />
+                       {errors.DateOfBirth && (
+                        <p className="text-red-500 text-sm">{errors.DateOfBirth}</p>
+                      )}
                     </div>
                   </div>
                   {/* Qualification */}
@@ -535,6 +692,11 @@ const DoctorRegistration: React.FC = () => {
                         }
                         placeholder="Enter your Aadhaar"
                       />
+
+{errors.aadhaar && (
+                        <p className="text-red-500 text-sm">{errors.aadhaar}</p>
+                      )}
+                       
                     </div>
 
                     {/* PAN */}
@@ -551,6 +713,10 @@ const DoctorRegistration: React.FC = () => {
                         }
                         placeholder="Enter your PAN"
                       />
+                      {errors.pan && (
+                        <p className="text-red-500 text-sm">{errors.pan}</p>
+                      )}
+                       
                     </div>
                   </div>
                   {/* Gender */}

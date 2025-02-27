@@ -64,7 +64,7 @@ const FileUploadBox = ({ documentTypes }: { documentTypes: { id: string; name: s
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
-
+  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       const file = event.target.files[0];
@@ -104,7 +104,7 @@ const FileUploadBox = ({ documentTypes }: { documentTypes: { id: string; name: s
       const payload = {
         createdBy: userID,
         isActive: true,
-        id: "6ce4f694-0fad-4138-0619-08dd40f5dca2",
+        id: doctorID,
         type: "doctor",
         documentType: selectedType,
         fileName: selectedFile.name,
@@ -160,7 +160,8 @@ const FileUploadBox = ({ documentTypes }: { documentTypes: { id: string; name: s
             <a href="#" onClick={() => setIsPreviewOpen(true)} className="text-blue-500 underline mr-4">
               Preview
             </a>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleRemoveFile(); }} className="text-red-500 underline">
+            <a href="#" onClick={(e) => { e.preventDefault(); handleRemoveFile(); }} 
+            className="text-red-500 underline">
   Remove
 </a>
 

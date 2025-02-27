@@ -1,0 +1,471 @@
+// DoctorExperienceForm.tsx
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { Calendar } from 'lucide-react';
+
+interface Experience {
+  type: string;
+  hospitalName: string;
+  specialization: string;
+  joinDate: Date | null;
+  leaveDate: Date | null;
+}
+
+interface WorkType {
+  appLOVID: string;
+  name: string;
+}
+
+interface Specialization {
+  appLOVID: string;
+  name: string;
+}
+
+const Experience: React.FC = () => {
+  const [experience, setExperience] = useState<Experience[]>([
+    {
+      type: '',
+      hospitalName: '',
+      specialization: '',
+      joinDate: null,
+      leaveDate: null,
+    },
+  ]);
+  const [workTypes, setWorkTypes] = useState<WorkType[]>([]);
+  const [specializations, setSpecializations] = useState<Specialization[]>([]);
+  const [experienceErrors, setExperienceErrors] = useState<
+    Record<number, Partial<Experience>>
+  >({});
+  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+  const [loading, setLoading] = useState(true);
+  const [selectedSpecialization, setSelectedSpecialization] = useState('');
+
+  const [employmentTypes, setEmploymentTypes] = useState<WorkType[]>([]);
+
+  useEffect(() => {
+    // Fetch Employment Types
+    fetch(
+      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Worktype',
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('📌 Employment Type API Response:', data);
+        if (data?.data) {
+          setEmploymentTypes(data.data); // ✅ Store as employmentTypes
+        }
+      })
+      .catch((err) =>
+        console.error('❌ Error fetching Employment Types:', err),
+      );
+
+    // Fetch Specializations
+    fetch(
+      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Specializations',
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        console.log('📌 Specialization API Response:', data);
+        if (data?.data) {
+          setSpecializations(data.data);
+        }
+      })
+      .catch((err) => console.error('❌ Error fetching Specializations:', err));
+  }, []);
+
+  const [savedExperience, setSavedExperience] = useState<ExperienceType[]>([]);
+
+useEffect(() => {
+  if (doctorID && specializations.length > 0 && employmentTypes.length > 0) {
+    axios
+      .get(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorExprience?doctorId=${doctorID}`,
+      )
+      .then((res) => {
+        console.log('📌 Experience API Response:', res.data);
+
+        if (res.data.data.length > 0) {
+          const experienceData = res.data.data.map((exp) => ({
+            ...exp,
+            specialization:
+              specializations.find((s) => s.appLOVID === exp.specializationID)
+                ?.appLOVID || '',
+            type:
+              employmentTypes.find((w) => w.appLOVID === exp.employmentType)
+                ?.appLOVID || '', 
+          }));
+
+          console.log('📌 Mapped Experience Data:', experienceData);
+          setExperience(experienceData);
+          setSavedExperience(experienceData); // Store fetched experience separately
+        }
+      })
+      .catch((err) => console.error('❌ Error fetching experience:', err));
+  }
+}, [doctorID, specializations, employmentTypes]);
+ // ✅ Updated dependency
+
+  const handleExperienceChange = (
+    index: number,
+    field: keyof Experience,
+    value: any,
+  ) => {
+    setExperience((prevExperience) => {
+      const updatedExperience = [...prevExperience];
+      updatedExperience[index] = {
+        ...updatedExperience[index],
+        [field]: value,
+      };
+      return updatedExperience;
+    });
+
+    setExperienceErrors((prevErrors) => {
+      const updatedErrors = { ...prevErrors };
+      if (!updatedErrors[index]) updatedErrors[index] = {};
+
+      if (field === 'type' && !value) {
+        updatedErrors[index][field] = 'Work type is required.';
+      } else {
+        delete updatedErrors[index]?.[field];
+      }
+      return updatedErrors;
+    });
+  };
+
+  const validateField = (
+    index: number,
+    field: keyof Experience,
+    value: any,
+    joinDate: Date | null,
+    leaveDate: Date | null,
+  ) => {
+    const errors = { ...experienceErrors };
+    const fieldName =
+      field === 'hospitalName'
+        ? 'Hospital name'
+        : field === 'joinDate'
+          ? 'Join date'
+          : 'Leave date';
+
+    if (['hospitalName', 'joinDate', 'leaveDate'].includes(field) && !value) {
+      errors[index] = { ...errors[index], [field]: `${fieldName} is required` };
+    } else if (
+      field === 'joinDate' &&
+      leaveDate &&
+      value &&
+      new Date(value) > new Date(leaveDate)
+    ) {
+      errors[index] = {
+        ...errors[index],
+        joinDate: 'Join date must be before leave date',
+      };
+    } else if (
+      field === 'leaveDate' &&
+      joinDate &&
+      value &&
+      new Date(value) < new Date(joinDate)
+    ) {
+      errors[index] = {
+        ...errors[index],
+        leaveDate: 'Leave date must be after join date',
+      };
+    } else if (joinDate && leaveDate) {
+      const diffMonths =
+        (leaveDate.getFullYear() - joinDate.getFullYear()) * 12 +
+        (leaveDate.getMonth() - joinDate.getMonth());
+      if (diffMonths < 6) {
+        errors[index] = {
+          ...errors[index],
+          leaveDate: 'Experience must be at least 6 months',
+        };
+      } else {
+        if (errors[index]?.leaveDate) delete errors[index].leaveDate;
+      }
+    } else {
+      if (errors[index]?.[field]) delete errors[index][field];
+    }
+
+    if (errors[index] && Object.keys(errors[index]).length === 0)
+      delete errors[index];
+    setExperienceErrors(errors);
+  };
+
+  const handleExperienceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    const userID = sessionStorage.getItem('userID');
+    if (!userID || !doctorID) {
+      alert('User not logged in. Please log in again.');
+      return;
+    }
+  
+    const newErrors = experience.map((exp) => {
+      const fieldErrors: ExperienceErrors = {};
+      if (!exp.hospitalName?.trim())
+        fieldErrors.hospitalName = 'Hospital name is required.';
+      if (!exp.joinDate) fieldErrors.joinDate = 'Join date is required.';
+      if (!exp.leaveDate) fieldErrors.leaveDate = 'Leave date is required.';
+      return fieldErrors;
+    });
+  
+    setExperienceErrors(newErrors);
+    if (newErrors.some((errors) => Object.values(errors).some((msg) => msg)))
+      return;
+  
+    // Track saved experiences
+    const savedExperienceSet = new Set(
+      savedExperience.map(
+        (exp) =>
+          `${exp.hospitalName.trim()}_${new Date(exp.joinDate).toISOString()}_${new Date(exp.leaveDate).toISOString()}`
+      )
+    );
+  
+    // Filter new experiences (avoid duplicates & existing records)
+    const newExperienceDataArray = experience
+      .filter((exp) => {
+        const expKey = `${exp.hospitalName.trim()}_${new Date(exp.joinDate).toISOString()}_${new Date(exp.leaveDate).toISOString()}`;
+        return !savedExperienceSet.has(expKey); // Send only new experiences
+      })
+      .map((exp) => ({
+        createdBy: userID,
+        isActive: true,
+        doctorID: doctorID,
+        employmentType: exp.type,
+        specializationID: exp.specialization,
+        hospitalName: exp.hospitalName.trim(),
+        joinDate: new Date(exp.joinDate).toISOString(),
+        leaveDate: new Date(exp.leaveDate).toISOString(),
+      }));
+  
+    if (newExperienceDataArray.length === 0) {
+      alert('✅ No new experience to save.');
+      return;
+    }
+  
+    try {
+      const response = await axios.post(
+        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorExprience',
+        newExperienceDataArray,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+  
+      if (response.status === 200 || response.status === 201) {
+        alert('✅ Experience saved successfully!');
+        setExperienceErrors([]);
+        setSavedExperience([...savedExperience, ...newExperienceDataArray]); // Update saved state
+      } else {
+        console.error('Unexpected response:', response.status);
+        alert('❌ Failed to save experience. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('🚨 API error:', error.response?.data || error.message);
+      alert('API error: Unable to save experience.');
+    }
+  };
+  
+  
+
+  return (
+    <form className="space-y-6">
+      {/* Doctor Experience Section */}
+      <h2 className="text-lg font-bold text-black-700 text-left">
+        Doctor Experience
+      </h2>
+      <div className="space-y-4">
+        {experience.map((exp, index) => (
+          <div
+            key={index}
+            className="w-full border border-stroke rounded-lg p-4"
+          >
+            <div className="flex justify-between items-center mb-4">
+              <select
+                className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
+  text-black outline-none focus:border-primary dark:border-form-strokedark 
+  dark:bg-form-input dark:text-white dark:focus:border-primary"
+                value={exp.type} // ✅ Bind to the correct field
+                onChange={(e) =>
+                  handleExperienceChange(index, 'type', e.target.value)
+                }
+              >
+                <option value="">Select Employment Type</option>
+                {employmentTypes.length > 0 ? (
+                  employmentTypes.map((item) => (
+                    <option key={item.appLOVID} value={item.appLOVID}>
+                      {item.name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>Loading...</option>
+                )}
+              </select>
+            </div>
+
+            {experienceErrors[index]?.type && (
+              <span className="text-red-500 text-sm">
+                {experienceErrors[index]?.type}
+              </span>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+              <input
+                type="text"
+                placeholder="Hospital Name"
+                value={exp.hospitalName}
+                onChange={(e) =>
+                  handleExperienceChange(index, 'hospitalName', e.target.value)
+                }
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                text-black outline-none focus:border-primary dark:border-form-strokedark 
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
+              />
+              {experienceErrors[index]?.hospitalName && (
+                <span className="text-red-500 text-sm">
+                  {experienceErrors[index]?.hospitalName}
+                </span>
+              )}
+
+              <select
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+ text-black outline-none focus:border-primary dark:border-form-strokedark 
+ dark:bg-form-input dark:text-white dark:focus:border-primary"
+                value={exp.specialization} // ✅ Bind to experience array
+                onChange={(e) =>
+                  handleExperienceChange(
+                    index,
+                    'specialization',
+                    e.target.value,
+                  )
+                }
+              >
+                <option value="">Select Specialization</option>
+                {specializations.length > 0 ? (
+                  specializations.map((item) => (
+                    <option key={item.appLOVID} value={item.appLOVID}>
+                      {item.name}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>Loading...</option>
+                )}
+              </select>
+              {experienceErrors[index]?.specialization && (
+                <span className="text-red-500 text-sm">
+                  {experienceErrors[index]?.specialization}
+                </span>
+              )}
+            </div>
+            <div className="grid mt-2 grid-cols-2 gap-4 w-full">
+              {/* Column 1: Join Date & Leave Date (Side by Side) */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Join Date */}
+                <div className="relative">
+                  <DatePicker
+                    selected={exp.joinDate}
+                    onChange={(date) =>
+                      handleExperienceChange(index, 'joinDate', date)
+                    }
+                    dateFormat="MM/dd/yyyy"
+                    placeholderText="Join Date"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  />
+                  {experienceErrors[index]?.joinDate && (
+                    <span className="text-red-500 text-sm">
+                      {experienceErrors[index]?.joinDate}
+                    </span>
+                  )}
+                  <span
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    style={{ color: '#c2c3c4' }}
+                  >
+                    <i className="fas fa-calendar-alt"></i>
+                  </span>
+                </div>
+
+                {/* Leave Date */}
+                <div className="relative">
+                  <DatePicker
+                    selected={exp.leaveDate}
+                    onChange={(date) =>
+                      handleExperienceChange(index, 'leaveDate', date)
+                    }
+                    dateFormat="MM/dd/yyyy"
+                    placeholderText="Leave Date"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  />
+                  {experienceErrors[index]?.leaveDate && (
+                    <span className="text-red-500 text-sm">
+                      {experienceErrors[index]?.leaveDate}
+                    </span>
+                  )}
+                  <span
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+                    style={{ color: '#c2c3c4' }}
+                  >
+                    <i className="fas fa-calendar-alt"></i>
+                  </span>
+                </div>
+              </div>
+
+              {/* Column 2: Empty */}
+              <div></div>
+            </div>
+
+            {/* {index > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setExperience(experience.filter((_, i) => i !== index));
+                const updatedErrors = { ...experienceErrors };
+                delete updatedErrors[index];
+                setExperienceErrors(updatedErrors);
+              }}
+              className="mt-4 bg-gradient-to-b from-red-700 to-red-500 hover:from-red-500 hover:to-red-700 text-white py-2 px-6 rounded-2xl"
+            >
+              Remove Experience
+            </button>
+          )} */}
+          </div>
+        ))}
+        <div className="flex items-center justify-end gap-1 ">
+          {/* Clickable Icon */}
+          <div
+            className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+            onClick={() =>
+              setExperience([
+                ...experience,
+                {
+                  type: '',
+                  hospitalName: '',
+                  specialization: '',
+                  joinDate: null,
+                  leaveDate: null,
+                },
+              ])
+            }
+          >
+            +
+          </div>
+
+          {/* Non-clickable Text */}
+          <span className="text-sm font-medium text-black-600">Add</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={handleExperienceSubmit}
+            className="bg-gradient-to-b from-blue-700 to-blue-500 hover:from-blue-500 hover:to-blue-700 text-white py-2 px-6 rounded-2xl"
+          >
+            Submit
+          </button>
+        </div>
+      </div>
+    </form>
+  );
+};
+
+export default Experience;

@@ -191,7 +191,8 @@ const handleLogin = async () => {
   try {
       const response = await fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json" },
           body: JSON.stringify(payload),
       });
 
@@ -491,7 +492,7 @@ useEffect(() => {
   id="emailOrMobile"
   value={emailOrMobile}
   onChange={handleEmailOrMobileChange}
-  maxLength={20}
+  maxLength={30}
   placeholder="Enter your email or mobile"
   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 

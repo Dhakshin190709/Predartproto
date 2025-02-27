@@ -95,6 +95,15 @@ import MenuRights from './pages/MenuRights';
 import LabProfile from './pages/Profile/LabProfile';
 import Timeslot from './pages/Timeslot';
 import Notification from './pages/Settings/Notifications';
+import MainDoctor from './pages/DoctorProfile/MainDoctor';
+import BasicDetails from './pages/DoctorProfile/BasicDetails';
+import Education from './pages/DoctorProfile/Education';
+import Awards from './pages/DoctorProfile/Awards';
+import Skills from './pages/DoctorProfile/Skills';
+import Experience from './pages/DoctorProfile/Experience';
+import Address from './pages/DoctorProfile/Address';
+import Language from './pages/DoctorProfile/Language';
+import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
 
 
 interface RootState {
@@ -366,6 +375,87 @@ function App() {
             <>
               <PageTitle title="Settings | CarePoint Pro" />
               <Settings />
+              </>
+          }
+          />
+        <Route
+          path="/doctorProfile" 
+          element={
+            <>
+              <PageTitle title="DoctorProfile | CarePoint Pro" />
+              <MainDoctor />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/BasicDetails" 
+          element={
+            <>
+              <PageTitle title="BasicDetails | CarePoint Pro" />
+              <BasicDetails />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Education" 
+          element={
+            <>
+              <PageTitle title="Education | CarePoint Pro" />
+              <Education />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Awards" 
+          element={
+            <>
+              <PageTitle title="Awards | CarePoint Pro" />
+              <Awards />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Experience" 
+          element={
+            <>
+              <PageTitle title="Experience | CarePoint Pro" />
+              <Experience />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Address" 
+          element={
+            <>
+              <PageTitle title="Address | CarePoint Pro" />
+              <Address />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Language" 
+          element={
+            <>
+              <PageTitle title="Language | CarePoint Pro" />
+              <Language />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/Skills" 
+          element={
+            <>
+              <PageTitle title="Skills | CarePoint Pro" />
+              <Skills />
+              </>
+          }
+          />
+        <Route
+          path="doctorProfile/DocumentUpload" 
+          element={
+            <>
+              <PageTitle title="DocumentUpload | CarePoint Pro" />
+              <DocumentUpload />
               </>
           }
           />
