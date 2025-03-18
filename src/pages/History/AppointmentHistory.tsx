@@ -1,350 +1,286 @@
-import React, { useState, useEffect, useRef } from 'react';  
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { FaUser, FaCalendarAlt, FaClock, FaPhoneAlt, FaUserMd, FaTruck } from "react-icons/fa";
+
+interface Appointment {
+  appointmentID: string;
+  patientID: string;
+  patientName?: string;
+  doctorID: string;
+  doctorName?: string;
+  appointmentDate: string;
+  appointmentTime: string;
+  statusID: string;
+  phoneNumber: string | null;
+}
+
+interface Status {
+  appLOVID: string;
+  name: string;
+}
+
+interface Patient {
+  patientID: string;
+  patientName: string;
+  patientPhoneNumber: string;
+}
+
+interface Doctor {
+  doctorID: string;
+  doctorName: string;
+}
+
+interface AppointmentHistory {
+  appointmentHistoryID: string;
+  createdOn: string;
+  username: string;
+  name: string;
+}
 
 
-interface RowData {
-    id: number; // S.No
-    appointmentNumber: string; // Appointment Number
-    date: string; // Date
-    hospital: string; // Hospital
-    location: string; // Location
-    status: string; // Status
-  }
-  
-  const initialData: RowData[] = [
-    {
-      id: 1,
-      appointmentNumber: 'APPT001',
-      date: '2024-12-01',
-      hospital: 'City Hospital',
-      location: 'Tiruchy',
-      status: 'Completed',
-    },
-    {
-      id: 2,
-      appointmentNumber: 'APPT002',
-      date: '2024-12-05',
-      hospital: 'General Hospital',
-      location: 'Madurai',
-      status: 'Pending',
-    },
-    {
-      id: 3,
-      appointmentNumber: 'APPT003',
-      date: '2024-12-10',
-      hospital: 'Community Clinic',
-      location: 'Chennai',
-      status: 'Cancelled',
-    },
-  ];
-
-const AppointmentHistory: React.FC = () => {
- 
-  // State for filter form
-
-const [filterPatientId, setFilterPatientId] = useState('');
-
-
-const [filterFromDate, setFilterFromDate] = useState('');
-const [filterToDate, setFilterToDate] = useState('');
-
-
-
-
-  
-  const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
-  const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
-  const [quickSearchText, setQuickSearchText] = useState(""); // For global search
-  const [showForm, setShowForm] = useState(false);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
-  const [formData, setFormData] = useState({
-    id: 0, // Default to 0 for "Add New Data"
-    patientId: '',
-    patientName: '',
-    
-    mobileNumber: '',
-    fromDate: '',
-    toDate: '',
-    
-  });
-  
- 
- 
-
-
-  const gridApi = useRef<any>(null);
-  const gridColumnApi = useRef<any>(null);
+const AppointmentHistoryPage: React.FC = () => {
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [statusList, setStatusList] = useState<Status[]>([]);
+  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [trackingData, setTrackingData] = useState<AppointmentHistory[]>([]);
+  const [trackingAppointment, setTrackingAppointment] = useState<Appointment | null>(null);
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    setRowData(initialData); // Setting initial data
-    setFilteredData(initialData); // Set the same data as filtered initially
+    const fetchAppointments = async () => {
+      try {
+        const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/Appointment");
+        let appointmentsData: Appointment[] = Array.isArray(response.data) ? response.data : [];
+
+        // Fetch Patient Data
+        let patientsData: Patient[] = [];
+        try {
+          const patientResponse = await axios.get("https://predart003-001-site1.anytempurl.com/api/Patient");
+          patientsData = Array.isArray(patientResponse.data?.data) ? patientResponse.data.data : [];
+        } catch {
+          console.error("Failed to fetch patient data.");
+        }
+
+        // Fetch Doctor Data
+        let doctorsData: Doctor[] = [];
+        try {
+          const doctorResponse = await axios.get("https://predart003-001-site1.anytempurl.com/api/Doctor");
+          doctorsData = Array.isArray(doctorResponse.data?.data) ? doctorResponse.data.data : [];
+        } catch {
+          console.error("Failed to fetch doctor data.");
+        }
+
+        // Map patientName and phoneNumber, and doctorName
+        appointmentsData = appointmentsData.map((appt) => {
+          const patient = patientsData.find((p) => p.patientID === appt.patientID);
+          const doctor = doctorsData.find((d) => d.doctorID === appt.doctorID);
+          return {
+            ...appt,
+            phoneNumber: appt.phoneNumber || patient?.patientPhoneNumber || "N/A",
+            patientName: patient?.patientName || "Unknown",
+            doctorName: doctor?.doctorName || "Unknown Doctor",
+          };
+        });
+
+        setAppointments(appointmentsData);
+        setFilteredAppointments(appointmentsData);
+      } catch {
+        console.error("Failed to fetch appointments.");
+      }
+    };
+
+    const fetchStatusList = async () => {
+      try {
+        const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts");
+        if (Array.isArray(response.data?.data)) {
+          setStatusList(response.data.data);
+        }
+      } catch {
+        console.error("Failed to fetch status list.");
+      }
+    };
+    
+
+    fetchAppointments();
+    fetchStatusList();
   }, []);
 
-  // Column Definitions for AG Grid
-  const columnDefs: ColDef[] = [
-    { 
-      headerName: 'S.No', 
-      field: 'id', 
-      flex: 0.5, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Appointment Number', 
-      field: 'appointmentNumber', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Date', 
-      field: 'date', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Hospital', 
-      field: 'hospital', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Location', 
-      field: 'location', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-    { 
-      headerName: 'Status', 
-      field: 'status', 
-      flex: 1, 
-      sortable: true, 
-      filter: true, 
-      headerClass: 'text-center',
-    },
-  ];
-
- 
-  
-
-  
-
-  // Handles the form submission to update the row data
- const handleFormSubmit = (e) => {
-  e.preventDefault();
-
-  // Create the new data object
-  const newData = {
-    id: Date.now(), // Unique ID for the new data
-    name: formData.patientName,
-    appointmentId: formData.patientId,
-    mobileNumber: formData.mobileNumber,
-    fromDate: formData.fromDate,
-    toDate: formData.toDate,
-  };
-
-  
-  // Reset the form inputs
-  setFormData({
-    id: 0, // Reset to initial state for "Add New Data"
-    patientName: '',
-    patientId: '',
-    mobileNumber: '',
-    fromDate: '',
-    toDate: '',
-    
-  });
-
-  setShowForm(false); // Hide the form after submission
-};
-
-
-
-  // Apply the global search filter to the data
-  const applyGlobalSearch = (data: RowData[]) => {
-    return data.filter((row) =>
-      row.appointmentNumber.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.date.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      
-      row.hospital.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.location.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-      row.status.toLowerCase().includes(quickSearchText.toLowerCase())
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const term = e.target.value.toLowerCase();
+    setSearchTerm(term);
+    setFilteredAppointments(
+      appointments.filter(
+        (appointment) =>
+          appointment.patientName?.toLowerCase().includes(term) ||
+          appointment.doctorName?.toLowerCase().includes(term)
+      )
     );
+  };
+
+  const handleTracking = async (appointment: Appointment) => {
+    try {
+      const response = await axios.get(
+        `https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentHistory/${appointment.appointmentID}`
+      );
+      let historyData: AppointmentHistory[] = Array.isArray(response.data) ? response.data : [];
+  
+      // Sort history data by createdOn (latest first)
+      historyData.sort((a, b) => new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime());
+  
+      // Remove duplicate statuses (keep only latest entry for each unique status name)
+      const uniqueStatusMap = new Map();
+      historyData.forEach((history) => {
+        const matchedStatus = statusList.find((status) => status.appLOVID === history.appointmentHistoryID);
+        const statusName = matchedStatus ? matchedStatus.name : history.name;
+  
+        if (!uniqueStatusMap.has(statusName)) {
+          uniqueStatusMap.set(statusName, { ...history, name: statusName });
+        }
+      });
+  
+      setTrackingAppointment(appointment);
+      setTrackingData(Array.from(uniqueStatusMap.values())); // Convert Map to array
+      setIsTrackingModalOpen(true);
+    } catch {
+      console.error("Failed to fetch appointment history.");
+    }
+  };
+  
+  {/* Function to get color based on date */}
+const getDateColor = (date) => {
+  const day = new Date(date).getDate(); // Extract day from the date
+  const colors = ['bg-red-400', 'bg-blue-400', 'bg-green-400', 'bg-yellow-400', 'bg-purple-400']; // Add more colors if needed
+  return colors[day % colors.length]; // Assign color based on day
 };
 
-  
-  const onGridReady = (params: any) => {
-    gridApi.current = params.api;
-    gridColumnApi.current = params.columnApi;
-    params.api.sizeColumnsToFit(); // Ensure columns fit the grid width
+  const formatDate = (dateString: string) => dateString.split("T")[0];
+
+  const getStatusName = (statusID: string) => {
+    const status = statusList.find((s) => s.appLOVID === statusID);
+    return status ? status.name : "Unknown Status";
   };
-  const handleFilterSearch = () => {
-    const fromDate = filterFromDate ? new Date(filterFromDate) : null;
-    const toDate = filterToDate ? new Date(filterToDate) : null;
-  
-    const filtered = initialData.filter(item => {
-      // Replace 'appointmentId' with the correct field name in RowData
-      const matchesAppointmentNumber = filterPatientId
-        ? item.appointmentNumber.toString().includes(filterPatientId.trim())
-        : true;
-      const matchesFromDate = fromDate
-        ? new Date(item.fromDate) >= fromDate
-        : true;
-      const matchesToDate = toDate
-        ? new Date(item.toDate) <= toDate
-        : true;
-  
-      return matchesAppointmentNumber && matchesFromDate && matchesToDate;
-    });
-  
-    setRowData(filtered); // Update the displayed data in the table
-    setFilteredData(filtered); // Optionally update a filtered state if required
-  };
-  
-  
-  
+
   return (
-    <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-       <h1 className="text-2xl font-semibold text-gray-800 mb-6">Appointment History</h1>
-
-      <div className="rounded-lg border border-stroke bg-transparent py-4 px-6 text-gray-400 shadow-md">
-          <div className="text-center font-semibold" style={{ color: '#bcc2be' }}>
-          Patient ID: PAT001 | Patient Name: John Doe | Mobile Number: 1234567890 | Date: 2024-12-09  
-          </div>
-        </div>
-
-    <hr className="border-t-2 border-stroke bg-transparent my-6" />
-
-   
-
-      {/* Global Search 3 search Same Row */}
-      <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
-  <div className="relative">
-    <input
-      type="text"
-      placeholder="Appointment Number..."
-      value={filterPatientId}
-      onChange={(e) => setFilterPatientId(e.target.value)}
-      className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    />
-    <span className="absolute right-4 top-4">
-      <svg
-        className="fill-current"
-        width="22"
-        height="22"
-        viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <g opacity="0.5">
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M9.16666 3.33332C5.945 3.33332 3.33332 5.945 3.33332 9.16666C3.33332 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66666 9.16666C1.66666 5.02452 5.02452 1.66666 9.16666 1.66666C13.3088 1.66666 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66666 13.3088 1.66666 9.16666Z" fill=""></path>
-          <path fill-rule="evenodd" clip-rule="evenodd" d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z" fill=""></path>
-        </g>
-      </svg>
-    </span>
-  </div>
-
-  <div className="relative">
-  <input
-    type="text"
-    placeholder="From Date (dd-mm-yyyy)..."
-    value={filterFromDate}
-    onChange={(e) => setFilterFromDate(e.target.value)}
-    className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  />
-  <span className="absolute right-4 top-4">
-    <svg
-      className="fill-current"
-      width="22"
-      height="22"
-      viewBox="0 0 22 22"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <g opacity="0.5">
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
-          d="M9.16666 3.33332C5.945 3.33332 3.33332 5.945 3.33332 9.16666C3.33332 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66666 9.16666C1.66666 5.02452 5.02452 1.66666 9.16666 1.66666C13.3088 1.66666 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66666 13.3088 1.66666 9.16666Z"
-          fill=""
-        ></path>
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
-          d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z"
-          fill=""
-        ></path>
-      </g>
-    </svg>
-  </span>
-</div>
-
-<div className="relative">
-  <input
-    type="text"
-    placeholder="To Date (dd-mm-yyyy)..."
-    value={filterToDate}
-    onChange={(e) => setFilterToDate(e.target.value)}
-    className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  />
-  <span className="absolute right-4 top-4">
-    <svg
-      className="fill-current"
-      width="22"
-      height="22"
-      viewBox="0 0 22 22"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <g opacity="0.5">
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
-          d="M9.16666 3.33332C5.945 3.33332 3.33332 5.945 3.33332 9.16666C3.33332 12.3883 5.945 15 9.16666 15C12.3883 15 15 12.3883 15 9.16666C15 5.945 12.3883 3.33332 9.16666 3.33332ZM1.66666 9.16666C1.66666 5.02452 5.02452 1.66666 9.16666 1.66666C13.3088 1.66666 16.6667 5.02452 16.6667 9.16666C16.6667 13.3088 13.3088 16.6667 9.16666 16.6667C5.02452 16.6667 1.66666 13.3088 1.66666 9.16666Z"
-          fill=""
-        ></path>
-        <path
-          fill-rule="evenodd"
-          clip-rule="evenodd"
-          d="M13.2857 13.2857C13.6112 12.9603 14.1388 12.9603 14.4642 13.2857L18.0892 16.9107C18.4147 17.2362 18.4147 17.7638 18.0892 18.0892C17.7638 18.4147 17.2362 18.4147 16.9107 18.0892L13.2857 14.4642C12.9603 14.1388 12.9603 13.6112 13.2857 13.2857Z"
-          fill=""
-        ></path>
-      </g>
-    </svg>
-  </span>
-</div>
-
-</div>
-
+    <div className="p-4">
+      <input
+        type="text"
+        placeholder="Search by Patient or Doctor Name"
+        value={searchTerm}
+        onChange={handleSearch}
        
-      {/* Table Component */}
-      <div
-        className="ag-theme-alpine mt-6 w-fit"
-        style={{ height: '400px', width: '100%' }}
-      >
-        <AgGridReact
-         rowData={applyGlobalSearch(filteredData)}
-         columnDefs={columnDefs}
-         pagination={true}
-         paginationPageSize={10}
-         domLayout="autoHeight"
-         headerHeight={40} // Adjust header height
-         rowHeight={40} // Adjust row height
-         onGridReady={onGridReady}
-        />
-      </div>
-     
+        className="w-full p-2 rounded-md mb-4 border border-stroke bg-transparent 
+     text-black outline-none focus:border-primary dark:border-form-strokedark 
+     dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {filteredAppointments.map((appointment, index) => (
+          <div key={index} className="p-4 rounded-lg shadow-md bg-white border border-blue-300">
+            <div className="flex items-center gap-2">
+              <FaUser color="#007bff" />
+              <span className="text-black font-semibold">{appointment.patientName}</span>
+            </div>
 
-      
+            <div className="mt-2 flex items-center gap-2">
+              <FaUserMd color="#6c757d" />
+              <span>{appointment.doctorName}</span>
+            </div>
+
+            <div className="mt-2 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <FaCalendarAlt color="#dc3545" />
+                <span>{formatDate(appointment.appointmentDate)}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <FaClock color="#ffc107" />
+                <span>{appointment.appointmentTime}</span>
+              </div>
+            </div>
+
+            <div className="mt-2 flex items-center gap-2">
+              <FaPhoneAlt color="#28a745" />
+              <span>{appointment.phoneNumber}</span>
+            </div>
+
+            <div className="mt-2 flex justify-between items-center">
+              <button
+                onClick={() => handleTracking(appointment)}
+                className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 flex items-center gap-2"
+              >
+                <FaTruck />
+                Tracking
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {isTrackingModalOpen && trackingAppointment && (
+  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
+      <h2 className="text-xl font-bold mb-4">
+        Tracking for {trackingAppointment.patientName}
+      </h2>
+
+      {/* Timeline Container */}
+      <div className="relative">
+       
+
+        {trackingData.map((item, index) => (
+  <div key={index} className="flex items-start relative mb-6">
+   <div className={`w-5 h-5 ${getDateColor(item.createdOn)} rounded-full border-2 border-white z-10 absolute left-0`}></div>
+
+    {/* Vertical Line Connecting Dots */}
+   {index !== trackingData.length - 1 && (
+  <div className="absolute left-2 top-5 h-full border-l-2 border-dashed border-green-300"></div>
+)}
+
+
+    {/* Timeline Content (Shifted Right for Left Alignment) */}
+    <div className="bg-gray-100 p-3 rounded-lg shadow-md w-3/4 ml-8">
+      <p className="font-semibold">{item.name}</p>
+      <p className="text-sm text-gray-600">
+  {new Date(item.createdOn).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  })} -  
+  {new Date(item.createdOn).toLocaleString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).replace(':', '.')}
+</p>
+
+
+       {/* User Name Label */}
+       <p className="text-sm text-gray-200">
+          <span className="text-sm">Updated by:</span> {item.username}
+        </p>
+    </div>
+  </div>
+))}
+
+      </div>
+<div className="flex justify-end">
+<button
+        onClick={() => setIsTrackingModalOpen(false)}
+       
+        className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]
+            text-white transition duration-150 
+            ease-out hover:ease-in px-4 py-2 rounded-lg mt-4"
+      >
+        Close
+      </button>
+</div>
+     
+    </div>
+  </div>
+)}
+
+
     </div>
   );
 };
 
-export default AppointmentHistory;
+export default AppointmentHistoryPage;

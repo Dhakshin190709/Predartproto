@@ -118,25 +118,34 @@ const Assignrole: React.FC = () => {
         const response = await fetch("https://predart003-001-site1.anytempurl.com/api/User");
         const result = await response.json();
   
-        if (result.success && Array.isArray(result.data)) {
-          const transformedData = result.data.map((user: User) => {
-            const tenant = tenants.find((t) => t.tenantID === user.tenantID);
-            return {
-              ...user,
-              tenantName: tenant ? tenant.tenantName : "Unknown Tenant",
-            };
-          });
+        console.log("API Response:", result); // Debugging log
   
-          setRowData(transformedData); // Pass transformed data to the grid
+        let usersArray = [];
   
-          // Extract 'username' values for the dropdown
-          const userNames = transformedData.map((user) => user.username);
-          setUsers(userNames); // Update dropdown options
+        // Handle both formats: direct array OR { success: true, data: [...] }
+        if (Array.isArray(result)) {
+          usersArray = result;
+        } else if (result.success && Array.isArray(result.data)) {
+          usersArray = result.data;
         } else {
-          console.error("Fetched user data is not an array:", result);
+          console.error("❌ Unexpected API response format:", result);
+          return;
         }
+  
+        // Transform data if needed
+        const transformedData = usersArray.map((user: User) => {
+          const tenant = tenants.find((t) => t.tenantID === user.tenantID);
+          return {
+            ...user,
+            tenantName: tenant ? tenant.tenantName : "Unknown Tenant",
+          };
+        });
+  
+        setRowData(transformedData);
+        setUsers(transformedData.map((user) => user.username));
+        
       } catch (error) {
-        console.error("Error fetching user data:", error);
+        console.error("❌ Error fetching user data:", error);
       }
     };
   
@@ -144,6 +153,7 @@ const Assignrole: React.FC = () => {
       fetchUsers();
     }
   }, [tenants]);
+  
   
 
   if (error) {
@@ -351,33 +361,42 @@ const Assignrole: React.FC = () => {
     try {
       // Fetch all available roles
       const rolesResponse = await fetch("https://predart003-001-site1.anytempurl.com/api/Role");
+      if (!rolesResponse.ok) throw new Error("Failed to fetch roles");
+  
       const rolesResult = await rolesResponse.json();
-      if (!rolesResult.success || !Array.isArray(rolesResult.data)) {
-        console.error("Failed to fetch all roles:", rolesResult);
+  
+      // Ensure roles data is an array
+      if (rolesResult.success && Array.isArray(rolesResult.data)) {
+        setAllRoles(rolesResult.data);
+      } else {
+        console.error("Roles response is not an array:", rolesResult);
         return;
       }
-  
-      setAllRoles(rolesResult.data); // Update state with all roles
   
       // Fetch roles assigned to the selected user
       const userRolesResponse = await fetch(
         `https://predart003-001-site1.anytempurl.com/api/UserRoles/${user.userID}`
       );
+      if (!userRolesResponse.ok) throw new Error("Failed to fetch user roles");
+  
       const userRolesResult = await userRolesResponse.json();
-      if (!userRolesResponse.ok) {
-        console.error("Failed to fetch user roles:", userRolesResult);
-        return;
+  
+      // **Debugging Log**
+      console.log("Fetched user roles response:", userRolesResult);
+  
+      // Ensure user roles data is an array before processing
+      if (userRolesResult.success && Array.isArray(userRolesResult.data)) {
+        const assignedRoleIDs = userRolesResult.data.map((role: any) => role.roleID);
+        setSelectedRoles(assignedRoleIDs);
+      } else {
+        console.error("User roles response is not an array:", userRolesResult);
       }
-  
-      // Extract assigned role IDs
-      const assignedRoleIDs = userRolesResult.data.map((role: any) => role.roleID);
-  
-      // Update selectedRoles to match assigned roles
-      setSelectedRoles(assignedRoleIDs);
     } catch (error) {
       console.error("Error fetching roles or user roles:", error);
     }
   };
+  
+  
   
   
   

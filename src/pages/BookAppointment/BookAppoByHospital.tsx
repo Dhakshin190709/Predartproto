@@ -3,13 +3,13 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
-
+import { useLocation } from "react-router-dom";
 interface AppLOVOption {
   appLOVID: string;
   name: string;
 }
 
-const BookAppointment = () => {
+const BookAppoByHospital = () => {
   const [formData, setFormData] = useState({
     name: '',
     relationship: '',
@@ -39,7 +39,10 @@ const BookAppointment = () => {
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
   const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string>('');
-
+  const location = useLocation();
+  
+  const queryParams = new URLSearchParams(location.search);
+  const hospitalNameFromQuery = queryParams.get("hospital");
   const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
   const handleTimeChange = (time: Date | null) => {
     if (time) {
@@ -119,14 +122,11 @@ const BookAppointment = () => {
       try {
         const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Hospital");
         const result = await response.json();
-    
-        console.log("API Response:", result);  // Verify the entire response
-    
-        // Since the response is already an array:
+
         if (Array.isArray(result)) {
-          setHospitals(result);  // Set the hospitals directly
+          setHospitals(result);
         } else if (Array.isArray(result?.data)) {
-          setHospitals(result.data);  // Fallback if data is nested
+          setHospitals(result.data);
         } else {
           console.error("Invalid hospital data format:", result);
           setHospitals([]);
@@ -168,7 +168,18 @@ const BookAppointment = () => {
 
  
   
-  
+   // Auto-select hospital from query when hospitals are loaded
+   useEffect(() => {
+    if (hospitalNameFromQuery && hospitals.length > 0) {
+      const matchingHospital = hospitals.find(
+        (hospital) => hospital.hospitalName.toLowerCase() === hospitalNameFromQuery.toLowerCase()
+      );
+      if (matchingHospital) {
+        setSelectedHospitalID(matchingHospital.hospitalID);
+      }
+    }
+  }, [hospitals, hospitalNameFromQuery]);
+
   
   
   
@@ -794,19 +805,19 @@ const BookAppointment = () => {
                   <div className="mb-4 flex gap-4">
       {/* Hospital Dropdown */}
       <div className="relative w-1/2">
-        <select
-          name="hospital"
-          value={selectedHospitalID}
-          onChange={(e) => setSelectedHospitalID(e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        >
-          <option value="">Select Hospital</option>
-          {hospitals.map((hospital) => (
-            <option key={hospital.hospitalID} value={hospital.hospitalID}>
-              {hospital.hospitalName}
-            </option>
-          ))}
-        </select>
+      <select
+        name="hospital"
+        value={selectedHospitalID}
+        onChange={(e) => setSelectedHospitalID(e.target.value)}
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+      >
+        <option value="">Select Hospital</option>
+        {hospitals.map((hospital) => (
+          <option key={hospital.hospitalID} value={hospital.hospitalID}>
+            {hospital.hospitalName}
+          </option>
+        ))}
+      </select>
         {errors.hospital && (
                       <p className="text-red-500 text-sm">{errors.hospital}</p>
                     )}
@@ -947,4 +958,4 @@ const BookAppointment = () => {
   );
 };
 
-export default BookAppointment;
+export default BookAppoByHospital;

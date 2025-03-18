@@ -20,10 +20,10 @@ const Users: React.FC = () => {
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
   const [quickSearchText, setQuickSearchText] = useState('');
-   const [tenants, setTenants] = useState([]);
+  const [tenants, setTenants] = useState([]);
   const [isFormVisible, setIsFormVisible] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
-   const [selectedTenant, setSelectedTenant] = useState("");
+  const [selectedTenant, setSelectedTenant] = useState('');
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false); // Show confirmation for deletion
@@ -39,53 +39,49 @@ const Users: React.FC = () => {
     password: '', // New field
     userPlan: 'Free', // Default plan
   });
-  
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
 
   // Fetch data on component mount (only once)
   useEffect(() => {
-    // Function to fetch data from the API
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/User',
+          'https://predart003-001-site1.anytempurl.com/api/User'
         );
+  
+        if (!response.ok) throw new Error('Failed to fetch data');
+  
         const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          setApiData(data.data);
-          setRowData(data.data);
+  
+        // Ensure the response is an array
+        if (Array.isArray(data)) {
+          setApiData(data);
+          setRowData(data);
+        } else {
+          throw new Error('Invalid API response');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
       }
     };
-
-    // Only fetch data when apiData is empty (to prevent multiple requests)
+  
     if (apiData.length === 0) {
       fetchData();
     }
-  }, [apiData]); // Empty dependency array means it runs only once
-
-  // Log the rowData to check if it's being updated correctly
-  // useEffect(() => {
-  //   console.log('Row Data:', rowData); 
-  // }, [rowData]);
-
-
-  useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/Tenant")
-      .then((response) => response.json())
-      .then((data) => {
-        console.log("Tenant Data Structure:", data);
-        setTenants(data.data || data); // Adjust if needed
-      })
-      .catch((error) => console.error("Error fetching tenant data:", error));
-  }, []);
+  }, [apiData]); 
   
 
+  useEffect(() => {
+    fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
+      .then((response) => response.json())
+      .then((data) => {
+        console.log('Tenant Data Structure:', data);
+        setTenants(data.data || data); // Adjust if needed
+      })
+      .catch((error) => console.error('Error fetching tenant data:', error));
+  }, []);
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -117,7 +113,9 @@ const Users: React.FC = () => {
             cellStyle: { textAlign: 'left' },
             valueGetter: (params: any) => {
               if (!tenants.length) return 'Loading...';
-              const tenant = tenants.find((t) => String(t.tenantID) === String(params.data.tenantID));
+              const tenant = tenants.find(
+                (t) => String(t.tenantID) === String(params.data.tenantID),
+              );
               return tenant ? tenant.tenantName : 'N/A';
             },
           },
@@ -199,7 +197,6 @@ const Users: React.FC = () => {
       width: 150,
     },
   ];
-  
 
   const toggleStatus = (params: any) => {
     const updatedData = rowData.map((item) =>
@@ -217,8 +214,6 @@ const Users: React.FC = () => {
     setFilteredData(updatedData);
   };
 
-  
-  
   const handleAdd = () => {
     setFormData({
       userID: 0,
@@ -234,38 +229,39 @@ const Users: React.FC = () => {
     setShowForm(true);
     setIsFormVisible(false);
   };
-  
+
   const handleCancel = () => {
     setShowForm(false);
     setIsFormVisible(true);
-    
   };
-  
-  
+
   const handleDelete = (userID: number) => {
     setDeleteRowId(userID);
     setShowConfirmation(true);
   };
-  
+
   const confirmDelete = async () => {
     try {
       // Send DELETE request to API to delete the user by userID
-      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/User/${deleteRowId}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/User/${deleteRowId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         },
-      });
-  
+      );
+
       if (!response.ok) {
         throw new Error('Failed to delete the user');
       }
-  
+
       // If the delete request is successful, filter the rowData to remove the deleted user
       const updatedData = rowData.filter((item) => item.userID !== deleteRowId);
       setRowData(updatedData);
       setFilteredData(updatedData);
-  
+
       // Hide the confirmation modal and reset deleteRowId
       setShowConfirmation(false);
       setDeleteRowId(null);
@@ -274,17 +270,17 @@ const Users: React.FC = () => {
       alert('There was an error deleting the user. Please try again.');
     }
   };
-  
+
   const cancelDelete = () => {
     setShowConfirmation(false);
     setDeleteRowId(null);
   };
-  
+
   const handleStatusChange = async (userID: number, currentStatus: boolean) => {
     try {
       // Toggle the isActive status
       const updatedStatus = !currentStatus;
-  
+
       // Send PATCH request to API to update isActive status of the user
       const response = await fetch(
         `https://predart003-001-site1.anytempurl.com/api/User/${userID}/status`,
@@ -296,21 +292,21 @@ const Users: React.FC = () => {
           body: JSON.stringify({
             isActive: updatedStatus,
           }),
-        }
+        },
       );
-  
+
       if (!response.ok) {
         throw new Error('Failed to update status');
       }
-  
+
       // Update the rowData and filteredData states with the new status
       const updatedData = rowData.map((item) =>
-        item.userID === userID ? { ...item, isActive: updatedStatus } : item
+        item.userID === userID ? { ...item, isActive: updatedStatus } : item,
       );
-  
+
       setRowData(updatedData);
       setFilteredData(updatedData);
-  
+
       // Toggle form visibility based on the status
       if (updatedStatus) {
         setShowForm(true); // Show the form when status is Active
@@ -324,11 +320,8 @@ const Users: React.FC = () => {
       alert('There was an error updating the status. Please try again.');
     }
   };
-  
-  
 
   const handleEdit = (userID: number) => {
-    
     const selectedRow = rowData.find((item) => item.userID === userID);
     if (selectedRow) {
       setFormData({
@@ -359,89 +352,91 @@ const Users: React.FC = () => {
             tenantID: formData.tenantID,
             userPlan: formData.userPlan,
           }
-        : item
+        : item,
     );
-  
+
     setRowData(updatedData);
     setFilteredData(updatedData);
     setShowForm(false);
   };
-   
+
   const [roleIDs, setRoleIDs] = useState([]);
 
-   const [roleNames, setRoleNames] = useState([]);
+  const [roleNames, setRoleNames] = useState([]);
 
-  
+  useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
 
-   useEffect(() => {
-     const userID = sessionStorage.getItem("userID");
-   
-     if (!userID) {
-       console.error("User ID not found in session storage.");
-       return;
-     }
-   
-     const fetchUserRoles = async () => {
-       try {
-         const roleResponse = await fetch(`https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`);
-   
-         if (!roleResponse.ok) {
-           throw new Error("Failed to fetch user roles.");
-         }
-   
-         const roleData = await roleResponse.json();
-   
-         if (roleData.success && Array.isArray(roleData.data) && roleData.data.length > 0) {
-           const roleIDs = roleData.data.map((item) => item.roleID);
-   
-           // Fetch role names
-           const roleNamesPromises = roleIDs.map(async (roleID) => {
-             const roleResponse = await fetch(`https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`);
-             if (!roleResponse.ok) {
-               console.error(`Failed to fetch role name for roleID: ${roleID}`);
-               return null;
-             }
-             const roleInfo = await roleResponse.json();
-             return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
-           });
-   
-           const resolvedRoleNames = await Promise.all(roleNamesPromises);
-   
-           // Check if the user is a SuperAdmin
-           setIsSuperAdmin(resolvedRoleNames.includes("SuperAdmin"));
-         }
-       } catch (error) {
-         console.error("Error fetching user roles:", error);
-       }
-     };
-   
-     fetchUserRoles();
-   }, []);
-   
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      return;
+    }
 
-  
+    const fetchUserRoles = async () => {
+      try {
+        const roleResponse = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
+        );
 
+        if (!roleResponse.ok) {
+          throw new Error('Failed to fetch user roles.');
+        }
+
+        const roleData = await roleResponse.json();
+
+        if (
+          roleData.success &&
+          Array.isArray(roleData.data) &&
+          roleData.data.length > 0
+        ) {
+          const roleIDs = roleData.data.map((item) => item.roleID);
+
+          // Fetch role names
+          const roleNamesPromises = roleIDs.map(async (roleID) => {
+            const roleResponse = await fetch(
+              `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
+            );
+            if (!roleResponse.ok) {
+              console.error(`Failed to fetch role name for roleID: ${roleID}`);
+              return null;
+            }
+            const roleInfo = await roleResponse.json();
+            return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
+          });
+
+          const resolvedRoleNames = await Promise.all(roleNamesPromises);
+
+          // Check if the user is a SuperAdmin
+          setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
+        }
+      } catch (error) {
+        console.error('Error fetching user roles:', error);
+      }
+    };
+
+    fetchUserRoles();
+  }, []);
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-  // Retrieve userID from sessionStorage
-  const userID = sessionStorage.getItem("userID");
+    // Retrieve userID from sessionStorage
+    const userID = sessionStorage.getItem('userID');
 
-  console.log("Retrieved userID from sessionStorage:", userID);
-  if (!userID) {
-    console.error("User ID not found in session storage.");
-    alert("User not logged in. Please log in again.");
-    return;
-  }
+    console.log('Retrieved userID from sessionStorage:', userID);
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      alert('User not logged in. Please log in again.');
+      return;
+    }
     // Convert `isActive` to boolean
-    const isActiveBoolean = formData.isActive === "Active";
-  
+    const isActiveBoolean = formData.isActive === 'Active';
+
     // Set method dynamically based on userID
-    const method = formData.userID === 0 ? "POST" : "PUT";
-  
+    const method = formData.userID === 0 ? 'POST' : 'PUT';
+
     // Use the same URL for both POST and PUT
-    const url = "https://predart003-001-site1.anytempurl.com/api/User";
-  
+    const url = 'https://predart003-001-site1.anytempurl.com/api/User';
+
     // Construct request body with hardcoded tenantID and createdBy
     const body = JSON.stringify({
       userID: formData.userID === 0 ? undefined : formData.userID, // Include userID only for PUT
@@ -449,69 +444,62 @@ const Users: React.FC = () => {
       email: formData.email.trim(),
       mobile: formData.mobile.trim(),
       isActive: isActiveBoolean, // Convert to boolean
-      tenantID: selectedTenant,  // Hardcoded tenantID
-      createdBy: userID,  // Hardcoded createdBy
-      password: formData.password.trim() || "DefaultPassword",
-      userPlan: formData.userPlan || "Free",
+      tenantID: selectedTenant, // Hardcoded tenantID
+      createdBy: userID, // Hardcoded createdBy
+      password: formData.password.trim() || 'DefaultPassword',
+      userPlan: formData.userPlan || 'Free',
     });
-  
-    console.log("Request Body:", body);
-  
+
+    console.log('Request Body:', body);
+
     try {
       const response = await fetch(url, {
         method,
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body,
       });
-  
+
       const data = await response.json();
-      console.log("API Full Response:", data);
-  
+      console.log('API Full Response:', data);
+
       if (response.ok) {
-        console.log("User added/updated successfully.");
+        console.log('User added/updated successfully.');
         if (formData.userID === 0) {
           const newUser = { ...formData, userID: data.userID };
           setRowData((prev) => [...prev, newUser]);
           setFilteredData((prev) => [...prev, newUser]);
         } else {
           const updatedData = rowData.map((item) =>
-            item.userID === formData.userID ? { ...item, ...formData } : item
+            item.userID === formData.userID ? { ...item, ...formData } : item,
           );
           setRowData(updatedData);
           setFilteredData(updatedData);
         }
-  
+
         setShowForm(false);
         setFormData({
           userID: 0,
-          username: "",
-          email: "",
-          mobile: "",
-          isActive: "Active",
-          tenantID: "",
-          createdBy: "",
-          password: "",
-          userPlan: "Free",
+          username: '',
+          email: '',
+          mobile: '',
+          isActive: 'Active',
+          tenantID: '',
+          createdBy: '',
+          password: '',
+          userPlan: 'Free',
         });
       } else {
-        console.error("API Error:", data.errors || data.message);
-        alert("Error: " + JSON.stringify(data.errors || data.message));
+        console.error('API Error:', data.errors || data.message);
+        alert('Error: ' + JSON.stringify(data.errors || data.message));
       }
     } catch (error) {
-      console.error("Network Error:", error);
-      alert("An unexpected error occurred. Please try again later.");
+      console.error('Network Error:', error);
+      alert('An unexpected error occurred. Please try again later.');
     }
   };
-  
-  
-  
- 
-  
-  
-  
-  
+
   const handleFilterSearch = () => {
     const filtered = apiData.filter((item) => {
       const matchesName = name
@@ -535,7 +523,6 @@ const Users: React.FC = () => {
     );
   };
 
-  
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
     gridColumnApi.current = params.columnApi;
@@ -544,45 +531,45 @@ const Users: React.FC = () => {
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-      
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Users</h2>
       {isFormVisible && (
         <div>
-        <div className="flex flex-wrap gap-4 mb-4 items-center">
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-          />
-          <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
+          <div className="flex flex-wrap gap-4 mb-4 items-center">
             <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-              className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
+              type="text"
+              placeholder="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
             />
-            <span>Active</span>
-          </label>
-          <button
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+            <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
+              />
+              <span>Active</span>
+            </label>
+            <button
+              className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
            hover:from-[#007BFF] hover:to-[#004A99]
            text-white transition duration-150 
            ease-out hover:ease-in py-2 px-5 rounded-lg"
-            onClick={handleFilterSearch}
-          >
-            Search
-          </button>
-        </div>
-        <hr className="border-t-2 border-stroke bg-transparent my-6" />
-
+              onClick={handleFilterSearch}
+            >
+              Search
+            </button>
+          </div>
+          <hr className="border-t-2 border-stroke bg-transparent my-6" />
         </div>
       )}
-      
+
       {showForm && (
-        <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-         text-black outline-none">
+        <div
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+         text-black outline-none"
+        >
           <h3 className="text-xl font-semibold mb-4">
             {formData.userID === 0 ? 'Add New Data' : 'Edit Data'}
           </h3>
@@ -590,137 +577,138 @@ const Users: React.FC = () => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-          <div className="grid grid-cols-4 gap-4 mb-2">
-  {/* Tenant Name */}
-  <select
-    value={selectedTenant || ''}
-    onChange={(e) => setSelectedTenant(e.target.value)}
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+            <div className="grid grid-cols-4 gap-4 mb-2">
+              {/* Tenant Name */}
+              <select
+                value={selectedTenant || ''}
+                onChange={(e) => setSelectedTenant(e.target.value)}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="" disabled>Select Tenant</option>
-    {tenants.map((tenant) => (
-      <option key={tenant.tenantID} value={tenant.tenantID}>
-        {tenant.tenantName}
-      </option>
-    ))}
-  </select>
+              >
+                <option value="" disabled>
+                  Select Tenant
+                </option>
+                {tenants.map((tenant) => (
+                  <option key={tenant.tenantID} value={tenant.tenantID}>
+                    {tenant.tenantName}
+                  </option>
+                ))}
+              </select>
 
-  {/* Username */}
-  <input
-    type="text"
-    value={formData.username}
-    onChange={(e) =>
-      setFormData({ ...formData, username: e.target.value })
-    }
-    placeholder="User Name"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+              {/* Username */}
+              <input
+                type="text"
+                value={formData.username}
+                onChange={(e) =>
+                  setFormData({ ...formData, username: e.target.value })
+                }
+                placeholder="User Name"
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-  />
+              />
 
-  {/* Email */}
-  <input
-    type="email"
-    value={formData.email}
-    onChange={(e) =>
-      setFormData({ ...formData, email: e.target.value })
-    }
-    placeholder="Email"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
+              {/* Email */}
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) =>
+                  setFormData({ ...formData, email: e.target.value })
+                }
+                placeholder="Email"
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              />
 
-  {/* Mobile */}
-  <input
-    type="text"
-    value={formData.mobile}
-    onChange={(e) =>
-      setFormData({ ...formData, mobile: e.target.value })
-    }
-    placeholder="Mobile"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
-</div>
+              {/* Mobile */}
+              <input
+                type="text"
+                value={formData.mobile}
+                onChange={(e) =>
+                  setFormData({ ...formData, mobile: e.target.value })
+                }
+                placeholder="Mobile"
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              />
+            </div>
 
-{/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
-<div className="grid grid-cols-4 gap-4 mb-2">
-  {/* Password */}
-  <input
-    type="password"
-    value={formData.password}
-    onChange={(e) =>
-      setFormData({ ...formData, password: e.target.value })
-    }
-    placeholder="Password"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
+            {/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
+            <div className="grid grid-cols-4 gap-4 mb-2">
+              {/* Password */}
+              <input
+                type="password"
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                placeholder="Password"
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              />
 
-  {/* Status (Only Show in Edit Mode) */}
-  {formData.userID !== 0 && (
-    <select
-      value={formData.isActive}
-      onChange={(e) => {
-        const newStatus = e.target.value;
-        setFormData({ ...formData, isActive: newStatus });
-        handleStatusChange(formData.userID, newStatus === 'Active');
-      }}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+              {/* Status (Only Show in Edit Mode) */}
+              {formData.userID !== 0 && (
+                <select
+                  value={formData.isActive}
+                  onChange={(e) => {
+                    const newStatus = e.target.value;
+                    setFormData({ ...formData, isActive: newStatus });
+                    handleStatusChange(formData.userID, newStatus === 'Active');
+                  }}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="Active">Active</option>
-      <option value="Inactive">Inactive</option>
-    </select>
-  )}
+                >
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              )}
 
-  {/* User Plan */}
-  <select
-    value={formData.userPlan}
-    onChange={(e) =>
-      setFormData({ ...formData, userPlan: e.target.value })
-    }
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+              {/* User Plan */}
+              <select
+                value={formData.userPlan}
+                onChange={(e) =>
+                  setFormData({ ...formData, userPlan: e.target.value })
+                }
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="Free">Free</option>
-    <option value="Bronze">Bronze</option>
-    <option value="Silver">Silver</option>
-    <option value="Gold">Gold</option>
-    <option value="Diamond">Diamond</option>
-    <option value="Platinum">Platinum</option>
-  </select>
+              >
+                <option value="Free">Free</option>
+                <option value="Bronze">Bronze</option>
+                <option value="Silver">Silver</option>
+                <option value="Gold">Gold</option>
+                <option value="Diamond">Diamond</option>
+                <option value="Platinum">Platinum</option>
+              </select>
 
-  {/* Empty column for spacing when Status is hidden */}
-  {formData.userID === 0 && <div></div>}
-</div>
+              {/* Empty column for spacing when Status is hidden */}
+              {formData.userID === 0 && <div></div>}
+            </div>
 
-{/* Buttons Row */}
-<div className="flex justify-end gap-4 mt-4">
-  <button
-    type="submit"
-    onClick={handleFormSubmit}
-    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+            {/* Buttons Row */}
+            <div className="flex justify-end gap-4 mt-4">
+              <button
+                type="submit"
+                onClick={handleFormSubmit}
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
       ease-out hover:ease-in py-2 px-5 rounded-lg"
-  >
-    {formData.userID === 0 ? 'Add' : 'Update'}
-  </button>
-  
-  <button
-    type="button"
-    onClick={handleCancel}
-    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+              >
+                {formData.userID === 0 ? 'Add' : 'Update'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
       ease-out hover:ease-in py-2 px-5 rounded-lg"
-  >
-    Cancel
-  </button>
-</div>
-
+              >
+                Cancel
+              </button>
+            </div>
           </form>
         </div>
       )}

@@ -3,13 +3,16 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
-
+import { useLocation } from "react-router-dom";
 interface AppLOVOption {
   appLOVID: string;
   name: string;
 }
 
-const BookAppointment = () => {
+const BookAppoByDoctor = () => {
+    const location = useLocation();
+  const { doctorName, hospitalName } = location.state || {}; // Fallback to empty object
+
   const [formData, setFormData] = useState({
     name: '',
     relationship: '',
@@ -33,6 +36,7 @@ const BookAppointment = () => {
     date: '',
     time: '',
   });
+  const [hospitals, setHospitals] = useState([]);
   const [slotDuration, setSlotDuration] = useState(10); // Default slot duration, adjust as necessary
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -52,6 +56,19 @@ const BookAppointment = () => {
     }
   };
   
+
+  useEffect(() => {
+    // Preselect hospital if provided
+    if (hospitalName) {
+      const selectedHospital = hospitals.find(
+        (h) => h.hospitalName === hospitalName
+      );
+      if (selectedHospital) {
+        setSelectedHospitalID(selectedHospital.hospitalID);
+      }
+    }
+  }, [hospitals, hospitalName]);
+
   
   const [selectedHospitalID, setSelectedHospitalID] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -79,11 +96,11 @@ const BookAppointment = () => {
 
   
   
-  const [hospitals, setHospitals] = useState([]); // Ensure default state is an array
+ 
   const [doctors, setDoctors] = useState([]); // Ensure default state is an array
 
 
-
+  
   
   
   const [loading, setLoading] = useState(true);
@@ -156,18 +173,39 @@ const BookAppointment = () => {
     fetchDoctors();
   }, []);
 
-  useEffect(() => {
-    if (selectedHospitalID) {
-      const filtered = doctors.filter((doctor) => doctor.hospitalID === selectedHospitalID);
-      setFilteredDoctors(filtered);
-    } else {
-      setFilteredDoctors([]);
-    }
-  }, [selectedHospitalID, doctors]);
+//   useEffect(() => {
+//     if (selectedHospitalID) {
+//       const filtered = doctors.filter((doctor) => doctor.hospitalID === selectedHospitalID);
+//       setFilteredDoctors(filtered);
+//     } else {
+//       setFilteredDoctors([]);
+//     }
+//   }, [selectedHospitalID, doctors]);
 
 
  
-  
+  useEffect(() => {
+    // Filter doctors based on selected hospital
+    if (selectedHospitalID) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.hospitalID === selectedHospitalID
+      );
+      setFilteredDoctors(filtered);
+
+      // Preselect doctor if provided
+      if (doctorName) {
+        const selectedDoctor = filtered.find(
+          (d) => d.doctorName === doctorName
+        );
+        if (selectedDoctor) {
+          setSelectedDoctorID(selectedDoctor.doctorID);
+        }
+      }
+    } else {
+      setFilteredDoctors([]);
+    }
+  }, [selectedHospitalID, doctors, doctorName]);
+
   
   
   
@@ -794,7 +832,7 @@ const BookAppointment = () => {
                   <div className="mb-4 flex gap-4">
       {/* Hospital Dropdown */}
       <div className="relative w-1/2">
-        <select
+      <select
           name="hospital"
           value={selectedHospitalID}
           onChange={(e) => setSelectedHospitalID(e.target.value)}
@@ -808,13 +846,13 @@ const BookAppointment = () => {
           ))}
         </select>
         {errors.hospital && (
-                      <p className="text-red-500 text-sm">{errors.hospital}</p>
-                    )}
+          <p className="text-red-500 text-sm">{errors.hospital}</p>
+        )}
       </div>
 
       {/* Doctor Dropdown */}
       <div className="relative w-1/2">
-        <select
+      <select
           name="doctor"
           value={selectedDoctorID}
           onChange={handleDoctorChange}
@@ -832,8 +870,8 @@ const BookAppointment = () => {
           )}
         </select>
         {errors.doctor && (
-                      <p className="text-red-500 text-sm">{errors.doctor}</p>
-                    )}
+          <p className="text-red-500 text-sm">{errors.doctor}</p>
+        )}
       </div>
     </div>
 
@@ -947,4 +985,4 @@ const BookAppointment = () => {
   );
 };
 
-export default BookAppointment;
+export default BookAppoByDoctor;

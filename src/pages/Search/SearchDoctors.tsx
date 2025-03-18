@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { FaStethoscope, FaMapMarkerAlt, FaDirections,FaPhoneAlt,FaHospital } from "react-icons/fa";
-
+import { useNavigate } from "react-router-dom";
 interface Doctor {
   doctorName: string;
   doctorEmail: string;
@@ -21,7 +21,12 @@ const SearchDoctors: React.FC = () => {
   const [doctorData, setDoctorData] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [specializations, setSpecializations] = useState<{ [key: string]: string }>({});
+ 
   const [hospitals, setHospitals] = useState<{ [key: string]: string }>({});
+  const [selectedHospital, setSelectedHospital] = useState("");
+  const navigate = useNavigate();
+
+ 
 
   useEffect(() => {
     fetch("https://predart003-001-site1.anytempurl.com/api/Doctor")
@@ -32,35 +37,52 @@ const SearchDoctors: React.FC = () => {
       })
       .catch((error) => console.error("Error fetching doctor data:", error));
 
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=specializations")
+     
+      fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Specializations")
       .then((response) => response.json())
-      .then((jsonResponse) => {
-        if (jsonResponse.success && Array.isArray(jsonResponse.data)) {
-          const specMap = jsonResponse.data.reduce((acc, spec) => {
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          const specMap = data.data.reduce((acc: { [key: string]: string }, spec: any) => {
             acc[spec.appLOVID] = spec.name;
             return acc;
-          }, {} as { [key: string]: string });
-
+          }, {});
           setSpecializations(specMap);
         }
       })
-      .catch((error) => console.error("Error fetching specializations:", error));
+      .catch((error) => console.error("Error fetching Specializations:", error));
+     
+  }, []);
 
-    fetch("https://predart003-001-site1.anytempurl.com/api/Hospital")
-      .then((response) => response.json())
-      .then((jsonResponse) => {
-        if (jsonResponse.success && Array.isArray(jsonResponse.data)) {
-          const hospitalMap = jsonResponse.data.reduce((acc, hospital) => {
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const response = await fetch(
+          "https://predart003-001-site1.anytempurl.com/api/Hospital"
+        );
+        const result = await response.json();
+
+        console.log("API Response:", result);
+
+        if (Array.isArray(result)) {
+          const hospitalMap = result.reduce((acc, hospital) => {
             acc[hospital.hospitalID] = hospital.hospitalName;
             return acc;
           }, {} as { [key: string]: string });
 
           setHospitals(hospitalMap);
+        } else {
+          console.error("Invalid hospital data format:", result);
+          setHospitals({});
         }
-      })
-      .catch((error) => console.error("Error fetching hospitals:", error));
-  }, []);
+      } catch (error) {
+        console.error("Error fetching hospitals:", error);
+      }
+    };
 
+    fetchHospitals();
+  }, []);
+  
+  
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
       <h1 className="text-2xl font-semibold text-gray-800 mb-6">Search Doctor</h1>
@@ -68,35 +90,55 @@ const SearchDoctors: React.FC = () => {
         <div>
           <input
             type="text"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black"
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
             placeholder="Enter Doctor Name"
           />
         </div>
         <div>
           <input
             type="text"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black"
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
             placeholder="Enter Doctor ID"
           />
         </div>
         <div>
-          <input
-            type="text"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black"
-            placeholder="Enter Specialization (e.g., Cardiology)"
-          />
+        <select 
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary">
+          <option value="">-- Select Specialization --</option>
+          {Object.entries(specializations).map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
+        </div>
+        <div>
+        <select
+        id="hospital"
+        value={selectedHospital}
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+        onChange={(e) => setSelectedHospital(e.target.value)}
+      >
+        <option value="">-- Select Hospital --</option>
+        {Object.entries(hospitals).map(([id, name]) => (
+          <option key={id} value={id}>
+            {name}
+          </option>
+        ))}
+      </select>
         </div>
         <div>
           <input
             type="text"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black"
-            placeholder="Enter Hospital Name"
-          />
-        </div>
-        <div>
-          <input
-            type="text"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black"
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+              text-black outline-none focus:border-primary dark:border-form-strokedark
+              dark:bg-form-input dark:text-white dark:focus:border-primary"
             placeholder="Enter Location"
           />
         </div>
@@ -130,7 +172,18 @@ const DoctorCard = ({ doctorData, loading, specializations, hospitals }) => {
 
 const DoctorCardItem = ({ doctor, loading, specializations, hospitals }) => {
   const [showMore, setShowMore] = useState(false);
+  const navigate = useNavigate(); // Use navigate inside the component
+
   
+
+  const handleBookNow = () => {
+    navigate("/BookAppointment/BookAppoByDoctor", {
+      state: {
+        doctorName: doctor.doctorName,
+        hospitalName: hospitals[doctor.hospitalID] || "Unknown",
+      },
+    });
+  };
   return (
     <div className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-100 
     transition-transform transform hover:scale-105 hover:shadow-lg">
@@ -187,6 +240,14 @@ const DoctorCardItem = ({ doctor, loading, specializations, hospitals }) => {
   </a>
 )}
 </div>
+
+ {/* Book Now Button */}
+ <button 
+        className="mt-4 w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-lg"
+        onClick={handleBookNow}
+      >
+        Book Now
+      </button>
 </div>
   );
 };

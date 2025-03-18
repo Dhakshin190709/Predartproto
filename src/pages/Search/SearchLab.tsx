@@ -4,6 +4,8 @@ import { FaFlask, FaMicroscope, FaRadiation, FaPhoneAlt,FaDirections,FaMapMarker
 const SearchLab: React.FC = () => {
   const [labs, setLabs] = useState<any[]>([]);
   const [filteredLabs, setFilteredLabs] = useState<any[]>([]);
+  const [labTypes, setLabTypes] = useState<{ id: string; name: string }[]>([]);
+  const [labFacilities, setLabFacilities] = useState<{ id: string; name: string }[]>([]);
   const [labFacilitiesMap, setLabFacilitiesMap] = useState<{ [key: string]: string }>({});
   const [searchParams, setSearchParams] = useState({
     labName: "",
@@ -40,16 +42,33 @@ const SearchLab: React.FC = () => {
       .then((response) => response.json())
       .then((data) => {
         if (data && Array.isArray(data.data)) {
-          const mapping: { [key: string]: string } = {};
-          data.data.forEach((facility: any) => {
-            mapping[facility.appLOVID] = facility.name; // Store mapping
-          });
-          setLabFacilitiesMap(mapping);
+          const facilitiesList = data.data.map((facility: any) => ({
+            id: facility.appLOVID,
+            name: facility.name,
+          }));
+          setLabFacilities(facilitiesList);
         } else {
           console.error('Expected an array inside "data" but got:', data);
         }
       })
       .catch((error) => console.error("Error fetching AppLOV:", error));
+  }, []);
+
+  useEffect(() => {
+    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=LabType")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          const typesList = data.data.map((lab: any) => ({
+            id: lab.appLOVID,
+            name: lab.name,
+          }));
+          setLabTypes(typesList);
+        } else {
+          console.error('Expected an array inside "data" but got:', data);
+        }
+      })
+      .catch((error) => console.error("Error fetching Lab Types:", error));
   }, []);
 
   // Fetch Labs and replace labFacilities ID with the corresponding name
@@ -112,28 +131,40 @@ const SearchLab: React.FC = () => {
           />
         </div>
         <div>
-          <input
-            type="text"
-            id="testType"
-            value={searchParams.testType}
-            onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-            placeholder="Enter Test Type"
-          />
+        <select
+      id="labType"
+      name="labType"
+      value={searchParams.labType}
+      onChange={handleInputChange}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">-- Select Lab Type --</option>
+      {labTypes.map((lab) => (
+        <option key={lab.id} value={lab.id}>
+          {lab.name}
+        </option>
+      ))}
+    </select>
         </div>
         <div>
-          <input
-            type="text"
-            id="labFacilities"
-            value={searchParams.labFacilities}
-            onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-            placeholder="Enter Lab Facilities"
-          />
+        <select
+      id="labFacilities"
+      name="labFacilities"
+      value={searchParams.labFacilities}
+      onChange={handleInputChange}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                text-black outline-none focus:border-primary dark:border-form-strokedark
+                dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">-- Select Lab Facility --</option>
+      {labFacilities.map((facility) => (
+        <option key={facility.id} value={facility.id}>
+          {facility.name}
+        </option>
+      ))}
+    </select>
         </div>
         <div>
           <input

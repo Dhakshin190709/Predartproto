@@ -34,6 +34,7 @@
     "date-fns": "^4.1.0",
     "flatpickr": "^4.6.13",
     "font-awesome": "^4.7.0",
+    "framer-motion": "^12.4.7",
     "gridjs": "^6.2.0",
     "headlessui": "^0.0.0",
     "jsvectormap": "^1.6.0",

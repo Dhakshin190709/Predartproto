@@ -368,15 +368,19 @@ const PatientFormWizard: React.FC = () => {
     )?.appLOVID;
 
     const payload = {
-      createdBy: boxes[0].name,
-      patientsID:patientID, // Replace with dynamic patientID if available
-      height: parseFloat(boxes[0].height),
-      weight: parseFloat(boxes[0].weight),
+      createdBy: "dd606a34-6e0a-4b0f-8cfd-8e9138267627",
+      patientsID: patientID, // Ensure this is a valid GUID
+    
+      isActive: true, // Add this field if required
+      name: boxes[0].name, // Ensure this is included
+      height: parseFloat(boxes[0].height) || 0, // Default to 0 if empty
+      weight: parseFloat(boxes[0].weight) || 0,
+      dateOfBirth: boxes[0].patientDateOfBirth || new Date().toISOString(), // Ensure date is valid
       bloodGroupID,
-      email: boxes[0].email,
-      phoneNumber: boxes[0].phoneNumber,
+      email: boxes[0].email || "", // Ensure it is not undefined
+      phoneNumber: boxes[0].phoneNumber || "",
     };
-
+    
     try {
       const response = await fetch(
         "https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily",
@@ -470,6 +474,7 @@ const itemStyle: React.CSSProperties = {
   //     [name]: checked, 
   //   }));
   // };
+ 
 
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -520,11 +525,14 @@ const itemStyle: React.CSSProperties = {
   };
   
 
-  const handleFormInputChange
-    = (fieldName: string, value: string) => {
+  const handleFormInputChange = (fieldName: string, value: string) => {
     setFormData((prev) => ({ ...prev, [fieldName]: value }));
-    setformErrors((prev) => ({ ...prev, [fieldName]: validateField(fieldName, value) }));
+    setFormErrors((prev) => ({
+      ...prev,
+      [fieldName]: validateField(fieldName, value) // Ensure validateField is properly defined
+    }));
   };
+  
   const handleboxInputChange
     = (index, field, value) => {
     const updatedBoxes = [...boxes];
@@ -535,11 +543,12 @@ const itemStyle: React.CSSProperties = {
     const newErrors = Object.keys(formData).reduce((acc, key) => {
       acc[key as keyof typeof formData] = validateField(key, formData[key as keyof typeof formData]);
       return acc;
-    }, {} as typeof formErrors,);
-
-    setformErrors(newErrors);
+    }, {} as typeof formErrors);
+  
+    setFormErrors(newErrors); // Fixed the function name
     return Object.values(newErrors).every((error) => !error); // True if no errors
   };
+  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1495,7 +1504,16 @@ const backTemplate = (handlePrevious: () => void) => {
        <span className="text-sm font-medium text-black-600">Add</span>
      </div>
    </div>
-   
+    
+   <button
+          type="submit"
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+          hover:from-[#007BFF] hover:to-[#004A99]
+          text-white transition duration-150 
+          ease-out hover:ease-in py-2 px-5 rounded-lg"
+        >
+          Submit
+        </button> 
 
    </form>
 

@@ -27,7 +27,7 @@ const doctors = [
 ];
 
 const Calendar: React.FC = () => {
-
+ const [selectedDoctorID, setSelectedDoctorID] = useState(null);
   const initialEvents: Event[] = [
     {
       title: 'Appointment with Dr. Smith',
@@ -48,20 +48,24 @@ const Calendar: React.FC = () => {
       patientId: 'P002',
     },
   ];
-
+ 
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [currentDate, setCurrentDate] = useState(moment()); // Manage the current date for custom toolbar
-  const [selectedDoctor, setSelectedDoctor] = useState<string>('');
+ 
   const [patientName, setPatientName] = useState<string>('');
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showMessage, setShowMessage] = useState<string | null>(null); // State for custom alert message
-  const [timeInterval, setTimeInterval] = useState(15); // Default to 15 minutes interval
+ // Default to 15 minutes interval
+  const [selectedDoctor, setSelectedDoctor] = useState("");
+  const [doctors, setDoctors] = useState([]);
 
-  
+  const [timeInterval, setTimeInterval] = useState(30); // Default to 30 minutes
+const [doctorAvailability, setDoctorAvailability] = useState([]);
+const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   // Handle change of time interval from dropdown
   const handleTimeIntervalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const interval = parseInt(e.target.value, 10);
@@ -94,67 +98,182 @@ const Calendar: React.FC = () => {
 
   // Function to validate and handle time change for the selected event
   const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newDoctor = e.target.value;
+    const doctorID = e.target.value;
+    setSelectedDoctor(doctorID);
+    
+    console.log("Selected Doctor ID:", doctorID); // Debug log for selected ID
+  
+    fetchDoctorTimeSlots(doctorID); // Fetch time slots
+  };
 
-    if (selectedEvent) {
-      // Update the selected event's doctor
-      const updatedEvent = { ...selectedEvent, doctor: newDoctor };
+  
 
-      // Update events state with the new doctor
-      const updatedEvents = events.map((event) =>
-        event.start === selectedEvent.start && event.doctor === selectedEvent.doctor ? updatedEvent : event
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Doctor");
+        const result = await response.json();
+        if (result.success && Array.isArray(result.data)) {
+          setDoctors(result.data);
+        } else {
+          console.error("Invalid doctor data format:", result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching doctors:", error);
+      }
+    };
+
+
+
+  
+    fetchDoctors();
+  }, []);
+
+  
+
+  const fetchDoctorAvailability = async (doctorID: string) => {
+    if (!doctorID) return;
+  
+    try {
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
       );
-
-      // Update the events and selected event state
-      setEvents(updatedEvents);
-      setSelectedEvent(updatedEvent);
-      setSelectedDoctor(newDoctor); // Set the new doctor in the dropdown
+      const result = await response.json();
+  
+      if (result.success && Array.isArray(result.data)) {
+        setDoctorAvailability(result.data);
+  
+        // Find the slot duration for the selected day
+        const selectedDayOfWeek = selectedDate?.getDay();
+        const availability = result.data.find(
+          (slot) => slot.dayofWeek === selectedDayOfWeek
+        );
+  
+        if (availability && availability.slotDuration) {
+          setTimeInterval(availability.slotDuration);
+        }
+      } else {
+        console.error("Invalid doctor availability format:", result.data);
+        setDoctorAvailability([]);
+      }
+    } catch (error) {
+      console.error("Error fetching doctor availability:", error);
+      setDoctorAvailability([]);
     }
   };
+  // Get available time range for the selected doctor on the selected day
+  const getAvailableTimeRange = () => {
+    if (!selectedDoctor || !selectedDate) return { fromTime: null, toTime: null };
+  
+    const selectedDayOfWeek = selectedDate.getDay(); // Get selected day's index (0 = Sunday, 1 = Monday, etc.)
+  
+    const availability = doctorAvailability.find((slot) => slot.dayofWeek === selectedDayOfWeek);
+  
+    if (availability) {
+      return {
+        fromTime: new Date(`1970-01-01T${availability.fromTime}:00`),
+        toTime: new Date(`1970-01-01T${availability.toTime}:00`),
+      };
+    }
+    return { fromTime: null, toTime: null };
+  };
+  
+  // Fetch doctor availability when doctor selection changes
+useEffect(() => {
+  if (selectedDoctor) {
+    fetchDoctorAvailability(selectedDoctor);
+  }
+}, [selectedDoctor, selectedDate]);
+
+
+  
+  
+  const generateTimeSlots = (fromTime: string, toTime: string, slotDuration: number) => {
+    const slots = [];
+  
+    // Convert fromTime and toTime strings to Date objects
+    let start = new Date(`2000-01-01T${fromTime}`);
+    const end = new Date(`2000-01-01T${toTime}`);
+  
+    while (start < end) {
+      // Format the time as HH:mm
+      const hours = String(start.getHours()).padStart(2, "0");
+      const minutes = String(start.getMinutes()).padStart(2, "0");
+      slots.push(`${hours}:${minutes}`);
+  
+      // Add slotDuration minutes
+      start.setMinutes(start.getMinutes() + slotDuration);
+    }
+  
+    return slots;
+  };
+  
+  const fetchDoctorTimeSlots = async (doctorID: string) => {
+    if (!doctorID) return;
+  
+    try {
+      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`);
+      const result = await response.json();
+  
+      if (result.success && Array.isArray(result.data)) {
+        result.data.forEach((slot, index) => {
+          console.log(`Slot ${index + 1}:`, slot);
+          console.log("Day of Week:", slot.dayofWeek);
+          console.log("From Time:", slot.fromTime);
+          console.log("To Time:", slot.toTime);
+          console.log("Slot Duration:", slot.slotDuration);
+  
+          // Generate and log the time slots
+          const timeSlots = generateTimeSlots(slot.fromTime, slot.toTime, slot.slotDuration);
+          console.log("Generated Time Slots:", timeSlots);
+        });
+      } else {
+        console.error("Invalid time slot data format:", result.data);
+      }
+    } catch (error) {
+      console.error("Error fetching doctor time slots:", error);
+    }
+  };
+  
 
   // Function to handle start time changes
   const handleStartTimeChange = (date: Date | null) => {
     if (date && selectedEvent) {
       const now = new Date();
   
-      // If the selected date and time are in the past, show the message
+      // Prevent selecting past dates/times
       if (date < now) {
         setShowMessage('You cannot select a past time. Please select a future time.');
-        return; // Exit early to prevent the event from updating
+        return;
       }
-      // Otherwise, clear the message
       setShowMessage(null);
   
-      // Preserve the original date, but update the time (hours, minutes, seconds)
+      // Preserve original date but update time
       const updatedStartTime = new Date(selectedEvent.start);
-  
-      // Use `setFullYear`, `setMonth`, and `setDate` to preserve the original date, while setting the new time
       updatedStartTime.setFullYear(date.getFullYear());
       updatedStartTime.setMonth(date.getMonth());
       updatedStartTime.setDate(date.getDate());
-      updatedStartTime.setHours(date.getHours(), date.getMinutes(), date.getSeconds(), 0); // Set time (hours, minutes, seconds)
+      updatedStartTime.setHours(date.getHours(), date.getMinutes(), date.getSeconds(), 0);
   
-      // Adjust the end time based on the new start time (keep the same duration as before)
+      // Adjust end time based on the new start time
       const updatedEndTime = new Date(updatedStartTime.getTime() + (selectedEvent.end.getTime() - selectedEvent.start.getTime()));
   
-      // Update the event with new start and end times
+      // Update the event object
       const updatedEvent = {
         ...selectedEvent,
         start: updatedStartTime,
         end: updatedEndTime,
       };
   
-      // Update the events array with the modified event
+      // Update the events array
       const updatedEvents = events.map((event) =>
         event.start === selectedEvent.start && event.doctor === selectedEvent.doctor ? updatedEvent : event
       );
   
-      // Update the state to reflect the new times
       setEvents(updatedEvents);
       setSelectedEvent(updatedEvent);
     }
   };
-  
     // Save updated appointment
     const handleSaveAppointment = () => {
       if (!selectedDoctor || !patientName || !selectedPatientId) {
@@ -236,103 +355,137 @@ const Calendar: React.FC = () => {
     return (
       <div className="rbc-toolbar w-full flex justify-between items-center">
       {/* Time Interval Dropdown (Left side) */}
-      <div className="flex items-center ml-4"> {/* ml-4 to add a little margin to the left */}
-        <label className="mr-2 text-black">Time Interval:</label>
-        <select
-          value={timeInterval}
-          onChange={handleTimeIntervalChange}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        >
-          <option value={10}>10 minutes</option>
-          <option value={15}>15 minutes</option>
-          <option value={20}>20 minutes</option>
-          <option value={30}>30 minutes</option>
-          <option value={45}>45 minutes</option>
-          <option value={60}>1 hour</option>
-        </select>
-      </div>
+      <div className="flex items-center justify-between w-full px-4">
+  {/* Left Dropdown */}
+  <div className="flex items-center">
+          <label className="mr-2 text-black">Select Doctor:</label>
+          <select
+      value={selectedDoctor}
+      onChange={handleDoctorChange}
+      className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">Select a Doctor</option>
+      {doctors.map((doctor) => (
+        <option key={doctor.doctorID} value={doctor.doctorID}>
+          {doctor.doctorName}
+        </option>
+      ))}
+    </select>
 
-      {/* Week navigation buttons (Center of the webpage) */}
-      <div className="flex items-center justify-center flex-1 space-x-4">
-            {/* Previous Month Button (<<) */}
-            <span
-              className="mb-4 text-xl font-bold text-black dark:text-white "
-              onClick={() => {
-                setCurrentDate(currentDate.clone().subtract(1, 'month')); // Move to previous month
-                onNavigate('PREV');
-              }}
-            >
-              {'<<'}
-            </span>
 
-            {/* Previous Week Button (<) */}
-            <span
-              className="mb-4 text-xl font-bold text-black dark:text-white"
-              onClick={() => {
-                setCurrentDate(currentDate.clone().subtract(1, 'week')); // Move to previous week
-                onNavigate('PREV');
-              }}
-            >
-              {'<'}
-            </span>
+  </div>
+{/* center Dropdown */}
+<div className="flex items-center">
+    <label className="mr-2 text-black">Time Interval:</label>
+    <select
+      value={timeInterval}
+      onChange={handleTimeIntervalChange}
+      className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value={10}>10 minutes</option>
+      <option value={15}>15 minutes</option>
+      <option value={20}>20 minutes</option>
+      <option value={30}>30 minutes</option>
+      <option value={45}>45 minutes</option>
+      <option value={60}>1 hour</option>
+    </select>
+  </div>
+  {/* right Week Navigation Buttons */}
+  <div className="flex items-center space-x-4">
+    {/* Previous Month Button (<<) */}
+    <span
+      className="text-xl font-bold text-black dark:text-white cursor-pointer"
+      onClick={() => {
+        setCurrentDate(currentDate.clone().subtract(1, 'month'));
+        onNavigate('PREV');
+      }}
+    >
+      {'<<'}
+    </span>
 
-            {/* Current Week Display */}
-            <span className="mb-4 text-xl font-bold text-black dark:text-white">{dateRange}</span>
+    {/* Previous Week Button (<) */}
+    <span
+      className="text-xl font-bold text-black dark:text-white cursor-pointer"
+      onClick={() => {
+        setCurrentDate(currentDate.clone().subtract(1, 'week'));
+        onNavigate('PREV');
+      }}
+    >
+      {'<'}
+    </span>
 
-            {/* Next Week Button (>) */}
-            <span
-              className="mb-4 text-xl font-bold text-black dark:text-white"
-              onClick={() => {
-                setCurrentDate(currentDate.clone().add(1, 'week')); // Move to next week
-                onNavigate('NEXT');
-              }}
-            >
-              {'>'}
-            </span>
+    {/* Current Week Display */}
+    <span className="text-xl font-bold text-black dark:text-white">{dateRange}</span>
 
-            {/* Next Month Button (>>) */}
-            <span
-              className="mb-4 text-xl font-bold text-black dark:text-white"
-              onClick={() => {
-                setCurrentDate(currentDate.clone().add(1, 'month')); // Move to next month
-                onNavigate('NEXT');
-              }}
-            >
-              {'>>'}
-            </span>
-          </div>
+    {/* Next Week Button (>) */}
+    <span
+      className="text-xl font-bold text-black dark:text-white cursor-pointer"
+      onClick={() => {
+        setCurrentDate(currentDate.clone().add(1, 'week'));
+        onNavigate('NEXT');
+      }}
+    >
+      {'>'}
+    </span>
+
+    {/* Next Month Button (>>) */}
+    <span
+      className="text-xl font-bold text-black dark:text-white cursor-pointer"
+      onClick={() => {
+        setCurrentDate(currentDate.clone().add(1, 'month'));
+        onNavigate('NEXT');
+      }}
+    >
+      {'>>'}
+    </span>
+  </div>
+
+  
+</div>
+
+
         </div>
     );
   };
+  const { fromTime, toTime } = getAvailableTimeRange();
+  // Handle Date Selection Change
+  const handleDateChange = (date: Date | null) => {
+    console.log("Selected Date:", date);
+    console.log("Selected Day:", date ? date.toDateString() : "No date selected");
+    setSelectedDate(date);
+    handleStartTimeChange(date);
+  };
+  
+
 
   return (
     <div className="h-screen flex justify-center items-center bg-gray-100">
       <div className="w-full max-w-full lg:h-full">
-        <BigCalendar
-          localizer={localizer}
-          events={events} // Updated events will reflect on calendar
-          startAccessor="start"
-          endAccessor="end"
-          style={{ height: '100%'}}
-          views={['week', 'month']}
-          defaultView="week"
-          step={timeInterval} // Set the time step from the dropdown
-          timeslots={1}
-          eventPropGetter={eventStyleGetter}
-          onSelectSlot={handleSelectSlot} // Hook to navigate to appointment page when selecting a slot
-          onSelectEvent={handleEventClick}
-          formats={{
-            eventTimeRangeFormat: () => '', // Hide time range in event
-          }}
-          components={{
-            event: ({ event }) => (
-              <span>{event.patient} ({event.patientId})</span> // Show patient name and ID
-            ),
-            toolbar: CustomToolbar,
-          }}
-          selectable={true}
-          scrollToTime={currentDate.toDate()}
-        />
+      <BigCalendar
+  localizer={localizer}
+  events={events}
+  startAccessor="start"
+  endAccessor="end"
+  style={{ height: '100%' }}
+  views={['week', 'month']}
+  defaultView="week"
+  step={timeInterval} // Set the time step from API
+  timeslots={1}
+  eventPropGetter={eventStyleGetter}
+  onSelectSlot={handleSelectSlot}
+  onSelectEvent={handleEventClick}
+  formats={{
+    eventTimeRangeFormat: () => '', // Hide time range in event
+  }}
+  components={{
+    event: ({ event }) => (
+      <span>{event.patient} ({event.patientId})</span>
+    ),
+    toolbar: CustomToolbar,
+  }}
+  selectable={true}
+  scrollToTime={currentDate.toDate()}
+/>
       </div>
 
       {/* Add Appointment Modal */}
@@ -360,29 +513,39 @@ const Calendar: React.FC = () => {
             <div className="mb-2.5 block font-medium text-black dark:text-white">
               <label>Start Time</label>
               <DatePicker
-                selected={selectedEvent ? selectedEvent.start : new Date()}
-                onChange={handleStartTimeChange}
-                showTimeSelect
-                dateFormat="Pp"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-stroke-dark dark:bg-transparent dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
-              />
+  selected={selectedEvent ? selectedEvent.start : new Date()}
+  onChange={handleDateChange}
+  showTimeSelect
+  minTime={fromTime} // Restrict minimum selectable time for selected day
+  maxTime={toTime} // Restrict maximum selectable time for selected day
+  dateFormat="Pp"
+  className="w-full rounded-lg border border-stroke 
+  bg-transparent py-4 pl-6 pr-10 text-black outline-none
+   focus:border-primary focus-visible:shadow-none
+    dark:border-stroke-dark dark:bg-transparent
+     dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
+/>
             </div>
 
             {/* Doctor selection */}
             <div className="mb-2.5 block font-medium text-black dark:text-white">
               <label>Doctor</label>
-              <select
-                value={selectedDoctor}
-                onChange={handleDoctorChange}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-stroke-dark dark:bg-transparent dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
-              >
-                <option value="">Select a Doctor</option>
-                {doctors.map((doctor) => (
-                  <option key={doctor.id} value={doctor.name}>
-                    {doctor.name}
-                  </option>
-                ))}
-              </select>
+                   <select
+        value={selectedDoctor}
+        onChange={(e) => setSelectedDoctor(e.target.value)}
+        className="w-full rounded-lg border border-stroke 
+                bg-transparent py-4 pl-6 pr-10 text-black outline-none
+                 focus:border-primary focus-visible:shadow-none
+                  dark:border-stroke-dark dark:bg-transparent
+                   dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
+      >
+        <option value="">Select a Doctor</option>
+        {doctors.map((doctor) => (
+          <option key={doctor.id} value={doctor.id}>
+            {doctor.doctorName}
+          </option>
+        ))}
+      </select>
             </div>
             {/* Display Custom Alert Message */}
             {showMessage && (
@@ -400,7 +563,9 @@ const Calendar: React.FC = () => {
                 Close
               </button>
               <button
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                 hover:from-[#007BFF] hover:to-[#004A99] text-white
+                  transition duration-150 ease-out hover:ease-in rounded-lg px-5 py-2 mt-2 w-fit text-center"
                 onClick={handleSaveAppointment}
               >
                 Save
@@ -496,7 +661,7 @@ const Calendar: React.FC = () => {
               </button>
               <button
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-                onClick={confirmCancel} // Confirm cancellation and delete
+                onClick={confirmCancel} 
               >
                 Yes
               </button>

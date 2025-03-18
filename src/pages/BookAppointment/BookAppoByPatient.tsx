@@ -3,6 +3,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface AppLOVOption {
   appLOVID: string;
@@ -10,11 +11,15 @@ interface AppLOVOption {
 }
 
 const BookAppointment = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { patientName, phoneNumber } = location.state || {};
   const [formData, setFormData] = useState({
-    name: '',
-    relationship: '',
    
-    phoneNumber:'',
+    relationship: '',
+    name: patientName || "",
+    phoneNumber: phoneNumber || "",
+  
     hospital: '',
     doctor: '',
     reason: '',
@@ -23,11 +28,12 @@ const BookAppointment = () => {
   });
 
   const [errors, setErrors] = useState({
-    name: '',
-    relationship: '',
    
+    relationship: '',
+    name: patientName || "",
+    phoneNumber: phoneNumber || "",
     hospital: '',
-    phoneNumber:'',
+    
     doctor: '',
     reason: '',
     date: '',
@@ -51,7 +57,13 @@ const BookAppointment = () => {
       }));
     }
   };
-  
+  // Redirect if no data is passed
+  useEffect(() => {
+    if (!patientName || !phoneNumber) {
+      navigate("/");
+    }
+  }, [patientName, phoneNumber, navigate]);
+
   
   const [selectedHospitalID, setSelectedHospitalID] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -297,32 +309,33 @@ const BookAppointment = () => {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
-
-    if (name === 'relationship' && value.length > 0) {
+  
+    if (name === "relationship" && value.length > 0) {
       setShowSuggestions(true);
       setFilteredRelationships(
         relationships.filter((relation) =>
-          relation.toLowerCase().includes(value.toLowerCase()),
-        ),
+          relation.toLowerCase().includes(value.toLowerCase())
+        )
       );
     } else {
       setShowSuggestions(false);
     }
-
-    if (name === 'hospital') {
+  
+    if (name === "hospital") {
       filterHospitals(value);
     }
-    if (name === 'doctor') {
+  
+    if (name === "doctor") {
       filterDoctors(value);
     }
-
-    // Validate the field
-    setErrors({ ...errors, [name]: validateField(name, value) });
+      // Validate the field
+      setErrors({ ...errors, [name]: validateField(name, value) });
   };
+  
 
   const handleSuggestionClick = (suggestion: string) => {
     setFormData((prevData) => ({
@@ -718,35 +731,36 @@ const BookAppointment = () => {
                   {/* Name */}
                   <div className="mb-4 flex gap-4">
                   <div className="relative w-1/2">
-                    <input
-                      type="text"
-                      name="name"
-                      maxLength={30}
-                      placeholder="Name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      // disabled={appointmentType === 'Self'}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-           text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
-                    {errors.name && (
+                  <input
+          type="text"
+          name="name"
+          maxLength={30}
+          placeholder="Name"
+          value={formData.name}
+          onChange={handleInputChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+                    {/* {errors.name && (
                       <p className="text-red-500 text-sm">{errors.name}</p>
-                    )}
+                    )} */}
                   </div>
                   <div className="relative w-1/2">
                   <input
-        type="text"
-        name="phoneNumber"
-        maxLength={10}
-        placeholder="Phone Number"
-        value={formData.phoneNumber}
-        onChange={handleInputChange}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-       {errors.phoneNumber && (
+          type="text"
+          name="phoneNumber"
+          maxLength={10}
+          placeholder="Phone Number"
+          value={formData.phoneNumber}
+          onChange={handleInputChange}
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
+        />
+       {/* {errors.phoneNumber && (
                       <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
-                    )}
+                    )} */}
       </div>
       </div>
                   {/* Relationship (for Others) */}

@@ -104,8 +104,10 @@ import Experience from './pages/DoctorProfile/Experience';
 import Address from './pages/DoctorProfile/Address';
 import Language from './pages/DoctorProfile/Language';
 import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
-
-
+import BookAppoByPatient from './pages/BookAppointment/BookAppoByPatient';
+import BookAppoByHospital from './pages/BookAppointment/BookAppoByHospital';
+import BookAppoByDoctor from './pages/BookAppointment/BookAppoByDoctor';
+import RescheduleModel from './pages/RescheduleModel';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -328,6 +330,34 @@ function App() {
           }
         />
       </Route>
+
+      <Route
+          path="/BookAppointment/BookAppoByPatient"
+          element={
+            <>
+              <PageTitle title="BookAppoByPatient | CarePoint Pro" />
+              <BookAppoByPatient />
+            </>
+          }
+          />
+      <Route
+          path="/BookAppointment/BookAppoByHospital"
+          element={
+            <>
+              <PageTitle title="BookAppoByHospital | CarePoint Pro" />
+              <BookAppoByHospital />
+            </>
+          }
+          />
+      <Route
+          path="/BookAppointment/BookAppoByDoctor"
+          element={
+            <>
+              <PageTitle title="BookAppoByDoctor | CarePoint Pro" />
+              <BookAppoByDoctor />
+            </>
+          }
+          />
      
       {/* Default Layout */}
       <Route element={<DefaultLayout />}>
@@ -338,6 +368,17 @@ function App() {
               <PageTitle title="Dashboard | CarePoint Pro" />
               
                 <Dashboard />
+             
+            </>
+          }
+        />
+        <Route
+          path="/reschedule"
+          element={
+            <>
+              <PageTitle title="RescheduleModel | CarePoint Pro" />
+              
+                <RescheduleModel />
              
             </>
           }
@@ -378,6 +419,7 @@ function App() {
               </>
           }
           />
+         
         <Route
           path="/doctorProfile" 
           element={

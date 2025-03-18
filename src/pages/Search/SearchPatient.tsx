@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
+import { useNavigate } from "react-router-dom";
 import { FaUserAlt, FaPhoneAlt,FaGenderless, 
   FaEnvelope,FaMars, FaVenus,FaMapMarkerAlt, FaDirections} from "react-icons/fa";
 interface RowData {
@@ -9,6 +9,7 @@ interface RowData {
   mobileNumber: string; // Mobile Number
   fromDate: string; // From Date
   toDate: string; // To Date
+  patientDateOfBirth:number;
 }
 
 interface PatientData {
@@ -16,6 +17,7 @@ interface PatientData {
   patientGender: string;
   patientPhoneNumber: string;
   patientEmail: string;
+  patientDateOfBirth:number;
 }
 
 const SearchPatient: React.FC = () => {
@@ -38,6 +40,30 @@ const getGenderIcon = (gender: string) => {
   }
 };
 
+const navigate = useNavigate(); // Hook for navigation
+
+const handleBookNow = (patientName: string, phoneNumber: string) => {
+  if (!patientName || !phoneNumber) {
+    console.error("patientName or phoneNumber is not defined!");
+    return;
+  }
+  navigate('/BookAppointment/BookAppoByPatient', { state: { patientName, phoneNumber } });
+};
+
+
+
+  // Function to calculate age from Date of Birth
+  const calculateAge = (dob: string) => {
+    if (!dob) return "N/A"; // If DOB is missing, return "N/A"
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    return `${age} yrs`; // Return age in years
+  };
 
   const [expandedIndex, setExpandedIndex] = useState(null);
 
@@ -95,28 +121,33 @@ const getGenderIcon = (gender: string) => {
           <input
             type="text"
             placeholder="Patient Id"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
+           
           />
           <input
             type="text"
             placeholder="Patient Name"
-            className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+            className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
           <input
             type="text"
             placeholder="Mobile Number"
-            className="w-[25%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+            className="w-[25%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+            text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
-          <input
-            type="text"
-            placeholder="From Date"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-          />
-          <input
-            type="text"
-            placeholder="To Date"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-          />
+           <input type="text" onFocus={(e) => (e.target.type = "date")} onBlur={(e) => (e.target.type = "text")} placeholder="From Date" 
+        className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary" />
+        <input type="text" onFocus={(e) => (e.target.type = "date")} onBlur={(e) => (e.target.type = "text")} 
+        placeholder="To Date"  className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary" />
         </div>
 
         {/* Search Button */}
@@ -135,12 +166,21 @@ const getGenderIcon = (gender: string) => {
             transition-transform transform hover:scale-105 hover:shadow-lg"
           >
             {/* Top Section: Profile Icon, Name, Gender Icon in Brackets */}
-            <div className="flex items-center gap-3">
-              <FaUserAlt className="text-blue-400 text-xl" />
-              <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-                {patient.patientName} (<span className="flex items-center">{getGenderIcon(patient.patientGender)}</span>)
-              </h2>
-            </div>
+            <div className="flex items-center justify-between w-full">
+  {/* Left Section: Icon, Name, and Gender */}
+  <div className="flex items-center gap-2">
+    <FaUserAlt className="text-blue-400 text-lg" />
+    <h2 className="text-md font-semibold text-gray-800 flex items-center gap-1">
+      {patient.patientName}
+      <span className="text-gray-600">{getGenderIcon(patient.patientGender)}</span>
+    </h2>
+  </div>
+
+  {/* Right Section: Age */}
+  <span className="text-gray-600 font-medium text-sm">{calculateAge(patient.patientDateOfBirth)}</span>
+</div>
+
+
 
             <hr className="my-3 border-blue-100" />
 
@@ -184,17 +224,29 @@ const getGenderIcon = (gender: string) => {
             )}
 
             {/* Directions Button (Opens Google Maps) */}
-            <div className="mt-3">
-              <a  
-                href="https://www.google.com/maps/search/Anna+nagar,+chennai" 
-               
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-green-500 hover:underline flex items-center"
-                            >
-                              <FaDirections className="mr-1" /> Directions
-                            </a>
-            </div>
+           <div className="mt-3 flex items-center gap-4">
+  {/* Directions Link */}
+  <a  
+    href="https://www.google.com/maps/search/Anna+nagar,+chennai" 
+    target="_blank"
+    rel="noopener noreferrer"
+    className="text-green-500 hover:underline flex items-center"
+  >
+    <FaDirections className="mr-1" /> Directions
+  </a>
+
+  {/* Book Now Button (Aligned Right) */}
+  <button
+    onClick={() => handleBookNow(patient.patientName, patient.patientPhoneNumber)}
+    className="ml-auto px-3 py-1 bg-blue-500 text-white text-sm font-medium rounded hover:bg-blue-600 transition"
+  >
+    Book Now
+  </button>
+</div>
+
+
+
+
           </div>
         ))
       ) : (

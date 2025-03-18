@@ -199,7 +199,7 @@ const Awards: React.FC = () => {
                 </div>
       <div className="flex justify-center gap-2">
         
-        <button
+       <button
           type="submit"
           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
           hover:from-[#007BFF] hover:to-[#004A99]
@@ -207,7 +207,7 @@ const Awards: React.FC = () => {
           ease-out hover:ease-in py-2 px-5 rounded-lg"
         >
           Submit
-        </button>
+        </button> 
       </div>
     </form>
   );

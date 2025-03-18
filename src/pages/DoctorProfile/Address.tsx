@@ -124,10 +124,12 @@ const Address: React.FC = () => {
   };
 
   const handleAddressSubmit = async (): Promise<{
+    
     isValid: boolean;
     errors: AddressError[];
   }> => {
     const userID = sessionStorage.getItem('userID');
+    event.preventDefault(); // Prevent page refresh
     if (!userID) {
       alert('User not logged in. Please log in again.');
       return { isValid: false, errors: [] };

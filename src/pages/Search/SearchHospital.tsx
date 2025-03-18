@@ -3,7 +3,7 @@ import 'tailwindcss/tailwind.css';
 import {  FaMapMarkerAlt, FaEnvelope, FaPhone, FaDirections} from "react-icons/fa";
 import { AiOutlineFieldTime } from "react-icons/ai";
 
-
+import { useNavigate } from 'react-router-dom';
 import { FaLandmark, FaBuilding, FaHospital, FaClock, FaHospitalUser, FaPlusSquare } from "react-icons/fa";
 
 const getHospitalIcon = (type) => {
@@ -27,9 +27,14 @@ const getHospitalIcon = (type) => {
 
 const HospitalCards = () => {
   const [hospitalTypes, setHospitalTypes] = useState([]);
+  const [specializations, setSpecializations] = useState<{ [key: string]: string }>({});
   const [hospitals, setHospitals] = useState([]);
   const [showFullAddress, setShowFullAddress] = useState({});
   const [formData, setFormData] = useState({ hospitalType: '' });
+  const navigate = useNavigate();
+  const handleBookNow = (hospitalName) => {
+    navigate(`/BookAppointment/BookAppoByHospital?hospital=${encodeURIComponent(hospitalName)}`);
+  };
 
   useEffect(() => {
     fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
@@ -39,23 +44,43 @@ const HospitalCards = () => {
         setHospitalTypes(filteredTypes);
       })
       .catch((error) => console.error("Error fetching data:", error));
+
+      fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Specializations")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.data)) {
+          const specMap = data.data.reduce((acc: { [key: string]: string }, spec: any) => {
+            acc[spec.appLOVID] = spec.name;
+            return acc;
+          }, {});
+          setSpecializations(specMap);
+        }
+      })
+      .catch((error) => console.error("Error fetching Specializations:", error));
+     
   }, []);
 
+ 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
-      .then(response => response.json())
-      .then(data => {
-        const hospitalData = data.data.map((hospital) => ({
-          hospitalName: hospital.hospitalName,
-          type: hospital.hospitalType,
-          location: 'Anna nagar, Chennai', // Replace with actual location data
-          email: 'hp@gmail.com', // Replace with actual email data
-          is24x7: hospital.hospitalType.toLowerCase() === '24/7'
-        }));
-        setHospitals(hospitalData);
+    fetch("https://predart003-001-site1.anytempurl.com/api/Hospital")
+      .then((response) => response.json())
+      .then((data) => {
+        if (data && Array.isArray(data)) {
+          const hospitalData = data.map((hospital) => ({
+            hospitalName: hospital.hospitalName,
+            type: hospital.hospitalType,
+            location: "Anna nagar, Chennai", // Replace with actual location data
+            email: "hp@gmail.com", // Replace with actual email data
+            is24x7: hospital.hospitalType.toLowerCase() === "24/7",
+          }));
+          setHospitals(hospitalData);
+        } else {
+          console.error("Invalid response format:", data);
+        }
       })
-      .catch(error => console.error('Error fetching data:', error));
+      .catch((error) => console.error("Error fetching data:", error));
   }, []);
+
 
   const toggleAddress = (index) => {
     setShowFullAddress((prev) => ({
@@ -71,20 +96,26 @@ const HospitalCards = () => {
         <input
           type="text"
           id="location"
-          className="w-full rounded-lg border border-stroke py-4 pl-6 pr-10 text-black outline-none"
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
           placeholder="Enter Location"
         />
         <input
           type="text"
           id="hospitalName"
-          className="w-full rounded-lg border border-stroke py-4 pl-6 pr-10 text-black outline-none"
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+              text-black outline-none focus:border-primary dark:border-form-strokedark
+              dark:bg-form-input dark:text-white dark:focus:border-primary"
           placeholder="Enter Hospital Name"
         />
         <select
           id="hospitalType"
           name="hospitalType"
           value={formData.hospitalType}
-          className="w-full rounded-lg border border-stroke py-4 pl-6 pr-10 text-black outline-none"
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
           onChange={(e) => setFormData({ ...formData, hospitalType: e.target.value })}
           required
         >
@@ -97,14 +128,18 @@ const HospitalCards = () => {
             <option value="">No Hospital Types Available</option>
           )}
         </select>
-        <input
-          type="text"
-          id="specialization"
-          className="w-full rounded-lg border border-stroke py-4 pl-6 pr-10 text-black outline-none"
-          placeholder="Enter Specialization (e.g., Cardiology)"
-        />
+        <select 
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary">
+          <option value="">-- Select Specialization --</option>
+          {Object.entries(specializations).map(([id, name]) => (
+            <option key={id} value={id}>{name}</option>
+          ))}
+        </select>
          <div className="flex justify-start mt-4">
-          <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">
+          <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+          hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">
             Search
           </button>
         </div>
@@ -140,10 +175,21 @@ const HospitalCards = () => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-green-500 hover:underline flex items-center"
+                
               >
                 <FaDirections className="mr-1" /> Directions
               </a>
             </div>
+            {/* Book Now Button */}
+           <div className="flex justify-center mt-2">
+  <button 
+    onClick={() => handleBookNow(hospital.hospitalName)} 
+    className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded w-auto"
+  >
+    Book Now
+  </button>
+</div>
+
           </div>
         ))}
       </div>
