@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import React from "react";
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 
 import Loader from './common/Loader';
@@ -29,7 +30,7 @@ import Alerts from './pages/UiElements/Alerts';
 import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
 import MultiSteps from './components/MultiSteps';
-import DocumentUpload from './pages/DocumentUpload';
+import FileUpload from './pages/DocumentUpload';
 import DocumentViewPage from './pages/DocumentViewPage';
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
@@ -120,10 +121,10 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const { pathname } = useLocation();
 
-  const PrivateRoute = ({ children }) => {
-    const isAuthenticated = useSelector((state) => state.auth.isAuthenticated);
-    return isAuthenticated ? children : <Navigate to="/AppointmentBooking" />;
-  };
+  // const PrivateRoute = ({ children }: any) => {
+  //   const isAuthenticated = useSelector((state:any) => state.auth.isAuthenticated);
+  //   return isAuthenticated ? children : <Navigate to="/AppointmentBooking" />;
+  // };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -378,7 +379,11 @@ function App() {
             <>
               <PageTitle title="RescheduleModel | CarePoint Pro" />
               
-                <RescheduleModel />
+                <RescheduleModel isOpen={false} onClose={function (): void {
+                throw new Error('Function not implemented.');
+              } } details={null} onSave={function (updatedDetails: Record<string, any>): void {
+                throw new Error('Function not implemented.');
+              } } />
              
             </>
           }
@@ -578,7 +583,7 @@ function App() {
           element={
             <>
               <PageTitle title="DocumentUpload | CarePoint Pro" />
-                <DocumentUpload />
+                <FileUpload />
             </>
           }
         />

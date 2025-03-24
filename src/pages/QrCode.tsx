@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import QRCode from "qrcode.react";  // Default import
+import { QRCodeCanvas } from "qrcode.react";
 
 const QRCodeGenerator: React.FC = () => {
   const [name, setName] = useState<string>("");
@@ -33,7 +33,8 @@ const QRCodeGenerator: React.FC = () => {
         </div>
         <div className="mt-6 flex justify-center">
           {qrCodeValue ? (
-            <QRCode value={qrCodeValue} size={200} className="shadow-lg" />
+            <QRCodeCanvas value="https://example.com" />
+            // <QRCode  value={qrCodeValue} size={200} className="shadow-lg" />
           ) : (
             <p className="text-gray-500">Enter your name and age to generate a QR code</p>
           )}
