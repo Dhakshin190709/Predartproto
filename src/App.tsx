@@ -134,9 +134,7 @@ function App() {
     setTimeout(() => setLoading(false), 1000);
   }, []);
 
-  return loading ? (
-    <Loader />
-  ) : (
+  return <>
     <Routes>
       {/* Landing Page Layout */}
       <Route element={<LandingPageLayout children={undefined} />}>
@@ -1039,7 +1037,7 @@ function App() {
         />
       </Route>
     </Routes>
-  );
+    </>
 }
 
 export default App;

@@ -18,16 +18,24 @@ import "react-datepicker/dist/react-datepicker.css";
 
 const rootElement = document.getElementById("root");
 
+console.log("React is starting...");
+
+if (!rootElement) {
+  console.error("No root element found!");
+} else {
+  console.log("Root element found, mounting React...");
+}
+
 if (rootElement) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
-    
+    <React.StrictMode>
       <Provider store={store}>
         <Router>
           <App />
         </Router>
       </Provider>
-    
+      </React.StrictMode>
   );
 } else {
   console.error("Root element not found!");
