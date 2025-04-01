@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CustomButton from '../../components/CustomButton';
 
 const EventCreation = () => {
   const [formData, setFormData] = useState({
@@ -154,15 +155,9 @@ const EventCreation = () => {
             onChange={handleFileChange}
             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary col-span-2"
           />
-          <button
-            type="submit"
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
-            ease-out hover:ease-in py-4  rounded-lg"
-          >
-            Save
-          </button>
+          <CustomButton >
+     save
+    </CustomButton>
         </div>
       </form>
     </div>

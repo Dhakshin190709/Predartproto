@@ -3,7 +3,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
 const Timeslot = () => {
-  const doctorID = "4f753961-3a5b-4fa3-3c8b-08dd548796a6";
+  const [doctorID,setDoctorID]=useState([]);
   const [hospitals, setHospitals] = useState([]);
   const [weekdays, setWeekdays] = useState([]);
   const [existingTimeSlots, setExistingTimeSlots] = useState([]); // Existing slots (editable, not submitted)

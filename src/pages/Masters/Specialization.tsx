@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';  
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
+import CustomButton from '../../components/CustomButton';
 
 
 interface RowData {
@@ -266,15 +267,11 @@ const Specialization: React.FC = () => {
 
 
         {/* Search Button */}
-        <button
-       className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-       hover:from-[#007BFF] hover:to-[#004A99]
-       text-white transition duration-150 
-       ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={handleFilterSearch}  
-        >
-          Search
-        </button>
+       
+
+        <CustomButton onClick={handleFilterSearch}>
+        Search
+    </CustomButton>
       </div>
 
       <hr className="border-t-2 border-stroke bg-transparent my-6" />
@@ -318,25 +315,14 @@ const Specialization: React.FC = () => {
 
             {/* Submit and Cancel Buttons */}
             <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.id === 0 ? 'Add' : 'Update'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            <CustomButton type="submit">
+  {formData.id === 0 ? "Add" : "Update"}
+</CustomButton>
+
+<CustomButton type="button" onClick={() => setShowForm(false)}>
+  Cancel
+</CustomButton>
+
             </div>
           </form>
         </div>
@@ -396,18 +382,14 @@ const Specialization: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-              <button
-                onClick={confirmDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-              >
-                Yes, Delete
-              </button>
-              <button
-                onClick={cancelDelete}
-                className="bg-gradient hover:to-[#004A99] text-black transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-              >
-                Cancel
-              </button>
+            <CustomButton onClick={confirmDelete} className="w-fit text-center">
+  Yes, Delete
+</CustomButton>
+
+<CustomButton onClick={cancelDelete} className="bg-gradient text-black w-fit text-center">
+  Cancel
+</CustomButton>
+
             </div>
           </div>
         </div>

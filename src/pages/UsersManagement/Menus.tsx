@@ -4,6 +4,8 @@ import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from "axios";
+import { Edit } from "lucide-react";
+import CustomButton from '../../components/CustomButton';
 interface RowData {
   sNo?: number; 
   Id:0;
@@ -18,7 +20,9 @@ const BASE_URL = 'https://predart003-001-site1.anytempurl.com';
 const Menus: React.FC = () => {
   const [selectedMenuName, setSelectedMenuName] = useState(""); // For filtering
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
-  
+ 
+
+const formRef = useRef<HTMLDivElement | null>(null);
   const [code, setCode] = useState(""); // For filtering
   const [selectedParentMenu, setSelectedParentMenu] = useState(""); // For filtering
   const [isActive, setIsActive] = useState(false); // Active filter for UI
@@ -130,6 +134,8 @@ const createMenu = async ({ menuName, code, displayOrder, selectedParentMenu, is
 
     const data = await response.json();
     console.log("Menu Created Successfully:", data);
+     // Reset form fields after successful submission
+    resetForm();
   } catch (error) {
     console.error("Error creating menu:", error);
   }
@@ -239,8 +245,8 @@ const createMenu = async ({ menuName, code, displayOrder, selectedParentMenu, is
     {
       headerName: 'Menu',
       field: 'menuName',
-      headerClass: 'center-header',
-      cellClass: 'text-center',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
       sortable: true,
       filter: true,
       flex: 2,
@@ -293,22 +299,26 @@ const createMenu = async ({ menuName, code, displayOrder, selectedParentMenu, is
         </span>
       ),
     },
-    {
-      headerName: 'Edit',
-      width: 80,
-      cellClass: 'text-center',
-      headerClass: 'center-header',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleEdit(params.data.displayOrder)}
-          className="cursor-pointer text-blue-500 font-bold"
-        >
-          Edit
-        </span>
-      ),
-    },
+ 
+
+{
+  headerName: "Edit",
+  width: 80,
+  cellClass: "text-center",
+  headerClass: "center-header",
+  cellRenderer: (params: any) => (
+    <span
+      onClick={() => handleEdit(params.data.displayOrder)}
+      className="cursor-pointer flex justify-center mt-3 items-center"
+    >
+      <Edit size={18} className="text-blue-500 hover:scale-110 transition-transform" />
+    </span>
+  ),
+},
+
     {
       headerName: 'Delete',
+      hide:true,
       width: 80,
       cellClass: 'text-center',
       headerClass: 'center-header',
@@ -330,16 +340,23 @@ const createMenu = async ({ menuName, code, displayOrder, selectedParentMenu, is
     resetForm(); 
   };
   
- 
-const handleEdit = (displayOrder: number) => {
-  const rowToEdit = rowData.find((row) => row.displayOrder === displayOrder);
-  if (rowToEdit) {
-    setFormData(rowToEdit); // Populate the form with selected row data
-    setSelectedRow(rowToEdit); // Store the selected row
-    setShowForm(true); // Show the form for editing
-    setFormMode("Edit"); // Set form mode to "Edit"
-  }
-};
+  const handleEdit = (displayOrder: number) => {
+    const rowToEdit = rowData.find((row) => row.displayOrder === displayOrder);
+    if (rowToEdit) {
+      setFormData(rowToEdit); // Populate the form with selected row data
+      setSelectedRow(rowToEdit); // Store the selected row
+      setShowForm(true); // Show the form for editing
+      setFormMode("Edit"); // Set form mode to "Edit"
+  
+      // Scroll to the form after updating the state
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100); // Delay to ensure form is visible before scrolling
+    }
+  };
+  
 
   
   const handleCancel = () => {
@@ -358,7 +375,49 @@ const handleEdit = (displayOrder: number) => {
     setSelectedRow(null); // Clear selected row
   };
   
+
+  const toggleStatus = async (params: any) => {
+    const menuID = params.data.menuID; // Extract the menu ID
+    const isActive = params.value !== 'Active'; // Toggle status
+    const userID = sessionStorage.getItem("userID");
+
+    if (!userID) {
+        console.error("User ID not found in session storage.");
+        alert("User not logged in. Please log in again.");
+        return;
+    }
+
+    try {
+        const response = await axios.patch(
+            'https://predart003-001-site1.anytempurl.com/api/Menu',
+            {
+                guidID: menuID,
+                updatedBy: userID,
+                isActive: isActive,
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            }
+        );
+
+        if (response.status === 200) {
+            console.log('Status updated successfully');
+
+            // Update AG Grid row data
+            params.node.setData({ 
+                ...params.data, 
+                status: isActive ? 'Active' : 'Inactive' 
+            });
+        }
+    } catch (error) {
+        console.error('Error updating status:', error);
+    }
+};
+
   
+
   
   const handleDelete = (menuID: number) => {
     setDeleteRowId(menuID); // Store the ID of the row to delete
@@ -418,77 +477,32 @@ const handleEdit = (displayOrder: number) => {
   }));
 };
 
-// Handle Form Submission
-const handleSubmit = (e) => {
-  e.preventDefault();
-  handleSave(formData); // Pass the data to parent
+const handleSubmit = () => {
+  createMenu(formData, () => {
+    setFormData({
+      menuName: "",
+      code: "",
+      displayOrder: "",
+      selectedParentMenu: null,
+      isActive: true,
+    });
+    setShowForm(false); // Close form
+  });
 };
+
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Menus</h2>
 
-      {/* {!showForm && (
-      <div>
-      <div className="flex flex-wrap gap-4 mb-4 items-center">
-       
-        <input
-          type="text"
-          placeholder="Menu Name"
-          value={selectedMenuName}
-          onChange={(e) => setSelectedMenuName(e.target.value)}
-          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        />
-
-        
-        <input
-          type="text"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        />
-
-      
-        <select
-          value={selectedParentMenu}
-          onChange={(e) => setSelectedParentMenu(e.target.value)}
-          className="w-48 rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        >
-          <option value="">Select Parent Menu</option>
-          <option value="parent1">Parent Menu 1</option>
-          <option value="parent2">Parent Menu 2</option>
-          <option value="parent3">Parent Menu 3</option>
-        </select>
-
-       
-        <label className="text-black flex items-center w-fit cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-          />
-          <span>Active</span>
-        </label>
-
-        <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={handleFilterSearch}
-        >
-          Search
-        </button>
-      </div>
-      <hr className="border-t-2 border-stroke bg-transparent my-6" />
-    </div>
-      )} */}
-      
-
+    
       {/* Table and Other Components */}
      
 
       {showForm && (
-        <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none mt-4">
+        <div 
+        ref={formRef}  // Attach ref here
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none mt-4">
           <h3 className="text-xl font-semibold mb-4">
              {formMode === "Add" ? 'Add New Data' : 'Edit Data'}
           </h3>
@@ -511,6 +525,7 @@ const handleSubmit = (e) => {
           <input
             type="text"
             name="code"
+            maxLength={5}
             value={formData.code}
             onChange={handleChange}
             placeholder="Code"
@@ -547,35 +562,33 @@ const handleSubmit = (e) => {
           </select>
 
           {/* Active Checkbox */}
-          <label className="text-black flex items-center w-fit cursor-pointer">
-            <input
-              type="checkbox"
-              name="isActive"
-              checked={formData.isActive}
-              onChange={handleChange}
-              className="w-4 h-4 border-2 border-gray-400 rounded-md mr-2 focus:ring-2 focus:ring-blue-500 checked:bg-blue-600 checked:border-blue-600"
-            />
-            <span>Active</span>
-          </label>
+         {/* Show checkbox only in Edit mode */}
+{formMode === "Edit" && (
+  <label className="text-black flex items-center w-fit cursor-pointer">
+    <input
+      type="checkbox"
+      name="isActive"
+      checked={formData.isActive}
+      onChange={handleChange}
+      className="w-4 h-4 border-2 border-gray-400 rounded-md mr-2 focus:ring-2 focus:ring-blue-500 checked:bg-blue-600 checked:border-blue-600"
+    />
+    <span>Active</span>
+  </label>
+)}
+
 
           {/* Submit and Cancel Buttons */}
           <div className="flex gap-4 mt-2 ml-auto">
-            <button
-              type="submit"
-              onClick={() => handleSave(formData)}
+           
 
-              className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-            >
-              {formMode === "Add" ? "Add" : "Update"}
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-            >
-              Cancel
-            </button>
+            <CustomButton type="submit" onClick={() => handleSave(formData)}>
+            {formMode === "Add" ? "Save" : "Update"}
+</CustomButton>
+
+<CustomButton type="button" onClick={() => setShowForm(false)}>
+  Cancel
+</CustomButton>
           </div>
         </div>
       </div>
@@ -606,31 +619,31 @@ const handleSubmit = (e) => {
   </span>
   </div>
   
-        <button
-           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-           hover:from-[#007BFF] hover:to-[#004A99]
-           text-white transition duration-150 
-           ease-out hover:ease-in py-2 px-5 rounded-lg"
-                       
-           onClick={handleAdd}
-        >
-          + Add
-        </button>
+       
+
+        <CustomButton onClick={handleAdd}>
+        + Add
+    </CustomButton>
       </div>
 
 
 
       {/* AgGrid Table */}
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-        <AgGridReact
-          gridOptions={{}}
-          domLayout="autoHeight"
-          rowData={applyGlobalSearch(filteredData)}
-          columnDefs={columnDefs}
-          onGridReady={onGridReady}
-          pagination={true}
-          paginationPageSize={10}
-        />
+        
+
+<AgGridReact
+  rowData={applyGlobalSearch(filteredData)}
+  columnDefs={columnDefs}
+  pagination={true}
+  paginationPageSize={10} // ✅ Default page size
+  paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+  domLayout="autoHeight"
+  headerHeight={40}
+  rowHeight={40}
+  onGridReady={onGridReady}
+/>
+
       </div>
 
       
@@ -641,22 +654,16 @@ const handleSubmit = (e) => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-              <button
-                onClick={confirmDelete}
-                //onClick={handleSave}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Yes, Delete
-              </button>
-              <button
-  onClick={() => {
+             
+
+
+<CustomButton onClick={confirmDelete}>Yes, Delete</CustomButton>
+<CustomButton  onClick={() => {
     cancelDelete();
     resetForm();
-  }}
-  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
->
+  }} className="bg-gray-300 text-black hover:bg-gray-400">
   Cancel
-</button>
+</CustomButton>
 
             </div>
           </div>

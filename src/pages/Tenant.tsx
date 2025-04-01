@@ -4,10 +4,11 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { Edit } from "lucide-react";
 
 const Tenant: React.FC = () => {
    // Initialize rowData with useState
-  
+   const editFormRef = useRef<HTMLDivElement | null>(null);
   const [name, setName] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [rowData, setRowData] = useState<RowData[]>([]);
@@ -35,7 +36,7 @@ const Tenant: React.FC = () => {
     fetchTenants();
   }, []);
 
-  // Fetch all tenants
+  // Fetch tennat from utils
   const fetchTenants = async () => {
     try {
       const response = await axios.get(`${apiBaseUrl}`);
@@ -122,7 +123,6 @@ const resetForm = () => {
   setIsActive(false);
 };
 
-
 const handleEditClick = (tenant: RowData) => {
   setFormData({
     tenantID: tenant.tenantID,
@@ -130,11 +130,17 @@ const handleEditClick = (tenant: RowData) => {
     tenantCode: tenant.tenantCode,
     tenantPlan: tenant.tenantPlan,
     isActive: tenant.isActive, // Ensure this is set for editing
-   
   });
+
   setShowForm(true); // Show the form when editing
-  setFormMode('Edit');
+  setFormMode("Edit");
+
+  // Scroll to the edit form
+  setTimeout(() => {
+    editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 100);
 };
+
 
 
   
@@ -250,50 +256,60 @@ const handleEditClick = (tenant: RowData) => {
      
       { headerName: "S.No", field: "S.No", headerClass: 'center-header',cellClass: 'text-center', 
         sortable: true, valueGetter: "node.rowIndex + 1",filter: true,width: 100 },
-  { headerName: "Tenant Name",headerClass: 'center-header', 
-    cellClass: 'text-center', field: "tenantName", sortable: true, filter: true,width: 300 },
-  { headerName: "Tenant Code", field: "tenantCode",headerClass: 'center-header', cellClass: 'text-center', sortable: true, filter: true,width: 130 },
-  { headerName: "Tenant Plan", field: "tenantPlan",headerClass: 'center-header', cellClass: 'text-center', sortable: true, filter: true,width: 130},
+  { headerName: "Tenant Name",headerClass: 'left-header', 
+    cellClass: 'left-center', field: "tenantName", sortable: true, filter: true,width: 280 },
+  { headerName: "Tenant Code", field: "tenantCode",headerClass: 'left-header', cellClass: 'text-left', sortable: true, filter: true,width: 120 },
+  { headerName: "Tenant Plan", field: "tenantPlan",headerClass: 'left-header', cellClass: 'text-left', sortable: true, filter: true,width: 130},
   
- 
-    {
-      headerName: "Status",
-      field: "isActive",
-      
-      
-      sortable: true,
-      filter: true,
-      valueGetter: (params) => (params.data.isActive ? "Active" : "Inactive"),
-      cellClass: (params) => {
-        return params.value === "Active" ? "text-green-500 font-bold" : "text-red-400 font-bold";
-      },
-      width: 100,
+
+  
+  {
+    headerName: "Status",
+    field: "isActive",
+    flex: 1,
+    width: 120,
+    headerClass: "text-center",
+    cellStyle: { textAlign: "center" },
+    cellRenderer: (params: any) => {
+      const isActive = params.value === "Active" || params.value === true;
+      return (
+        <span
+          onClick={() => toggleStatus(params)}
+          className={`cursor-pointer font-bold ${
+            isActive ? "text-green-500" : "text-red-400"
+          } hover:underline`}
+        >
+          {isActive ? "Active" : "Inactive"}
+        </span>
+      );
     },
+  },
 
   
   
-    {
-      headerName: 'Edit',
-      flex: 1,
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      width: 30,
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleEditClick(params.data)}
-          className="cursor-pointer text-blue-500 font-bold"
-        >
-          Edit
-        </span>
-      ),
-    },
+  {
+    headerName: "Edit",
+    flex: 1,
+    headerClass: "center-header",
+    cellClass: "text-center",
+    width: 20,
+    cellRenderer: (params: any) => (
+      <span
+        onClick={() => handleEditClick(params.data)}
+        className="cursor-pointer flex justify-center mt-3 items-center"
+      >
+        <Edit size={18} className="text-blue-500 hover:scale-110 transition-transform" />
+      </span>
+    ),
+  },
     
   {
     headerName: 'Delete',
+    hide:true,
     flex: 1,
     cellClass: 'text-center',
     headerClass: 'center-header', 
-    width: 30,
+    // width: 30,
     cellRenderer: (params: any) => (
       <span
         onClick={() => handleDelete(params.data.tenantID)} // Use tenantID here
@@ -353,20 +369,44 @@ const handleSearch = () => {
   };
 
 
-  // Toggle status
   const toggleStatus = async (params: any) => {
-    const updatedStatus = params.data.status === 'Active' ? 'Inactive' : 'Active';
+    const userID = sessionStorage.getItem("userID");
+  
+    if (!userID) {
+      alert("User not logged in. Please log in again.");
+      return;
+    }
+  
+    console.log("params.data:", params.data); // Debugging
+    console.log("params.data.guidID:", params.data.guidID); // Ensure this exists
+  
+    const updatedStatus =
+      params.data.isActive === "Active" || params.data.isActive === true
+        ? false
+        : true;
+  
     try {
-      await axios.put(`${apiBaseUrl}/${params.data.Id}`, { ...params.data, status: updatedStatus });
+      await axios.patch(`https://predart003-001-site1.anytempurl.com/api/Tenant`, {
+        guidID: params.data.tenantID, // Ensure correct field is sent
+        updatedBy: userID,
+        isActive: updatedStatus,
+      });
+  
+      // Update state with the new status
       const updatedData = rowData.map((item) =>
-        item.Id === params.data.Id ? { ...item, status: updatedStatus } : item
+        item.guidID === params.data.guidID
+          ? { ...item, isActive: updatedStatus ? "Active" : "Inactive" }
+          : item
       );
+  
       setRowData(updatedData);
       setFilteredData(updatedData);
     } catch (error) {
-      console.error('Error updating status:', error);
+      console.error("Error updating status:", error);
     }
   };
+  
+  
 
   
 
@@ -389,7 +429,9 @@ const handleSearch = () => {
 
     
     {showForm && (
-      <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
+      <div 
+      ref={editFormRef} 
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
         <h3 className="text-xl font-semibold mb-4">{formMode === "Add" ? 'Add New Tenant' : 'Edit Tenant'}</h3>
         <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
           <div className="flex gap-4 mb-2">
@@ -406,6 +448,7 @@ const handleSearch = () => {
               <input
                 type="text"
                 id="tenantCode"
+                maxLength={5}
                 name="tenantCode"
                 placeholder="Tenant Code"
                 value={formData.tenantCode || ''}  // Ensure it defaults to an empty string
@@ -451,6 +494,7 @@ const handleSearch = () => {
 </div>
 
           <div>
+          {formMode === "Edit" && (
             <select
               value={formData.status}
               onChange={(e) => setFormData({ ...formData, status: e.target.value })}
@@ -461,6 +505,7 @@ const handleSearch = () => {
               <option value="Active">Active</option>
               <option value="Inactive">Inactive</option>
             </select>
+          )}
           </div>
 
           <div className="mt-4 flex gap-4">
@@ -471,7 +516,7 @@ const handleSearch = () => {
     text-white transition duration-150 
     ease-out hover:ease-in py-2 px-5 rounded-lg"
             >
-              {formMode === "Add" ? "Add" : "Update"}
+              {formMode === "Add" ? "Save" : "Update"}
             </button>
             <button
               type="button"
@@ -521,16 +566,20 @@ const handleSearch = () => {
     </div>
 
     <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-      <AgGridReact
-        rowData={filteredData.length > 0 ? applyGlobalSearch(filteredData) : []}
-        columnDefs={columnDefs}
-        pagination={true}
-        paginationPageSize={10}
-        domLayout="autoHeight"
-        headerHeight={40}
-        rowHeight={40}
-        onGridReady={onGridReady}
-      />
+      
+
+<AgGridReact
+  rowData={filteredData.length > 0 ? applyGlobalSearch(filteredData) : []}
+  columnDefs={columnDefs}
+  pagination={true}
+  paginationPageSize={10} // ✅ Default page size
+  paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+  domLayout="autoHeight"
+  headerHeight={40}
+  rowHeight={40}
+  onGridReady={onGridReady}
+/>
+
     </div>
 
     {showConfirmation && (

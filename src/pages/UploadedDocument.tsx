@@ -9,7 +9,7 @@ const FileUpload = () => {
   const [documentURL, setDocumentURL] = useState("");
   const [isImage, setIsImage] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
-   const [doctorID,setDoctorID]=useState([]);
+  const doctorID = "4f753961-3a5b-4fa3-3c8b-08dd548796a6";
   const [documentTypes, setDocumentTypes] = useState<{ id: string; name: string }[]>([]);
   const [selectedType, setSelectedType] = useState<string>("");
   const [selectedDocumentType, setSelectedDocumentType] = useState("");

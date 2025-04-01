@@ -51,6 +51,13 @@ const MainDoctor: React.FC = () => {
     awardName: '',
   });
 
+
+   // Function for when the user clicks on the 'Add Award' button
+   const handleAddAwardClick = () => {
+    console.log("Add Award button clicked!");
+    // You can add your logic to handle award addition here
+  };
+
   // ✅ Finish button template
 
   const handleClosePopup = () => {
@@ -132,7 +139,7 @@ const MainDoctor: React.FC = () => {
                 </div>
               }
             >
-              <Awards />
+              <Awards onAddAwardClick={handleAddAwardClick} /> {/* Pass the function as a prop */}
             </FormWizard.TabContent>
 
             {/* Step 5: Doctor slot */}

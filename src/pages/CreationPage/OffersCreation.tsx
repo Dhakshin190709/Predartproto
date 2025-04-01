@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CustomButton from '../../components/CustomButton';
 const OffersMaster: React.FC = () => {
     const [filterName, setFilterName] = useState('');
     const [filterOfferType, setFilterOfferType] = useState('');
@@ -85,15 +86,9 @@ const OffersMaster: React.FC = () => {
             </label>
          {/* Search Button */}
         <div className="flex justify-start mt-4">
-          <button
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-            
-          >
-           Save
-          </button>
+        <CustomButton >
+    save
+    </CustomButton>
         </div>
         </div>
       </div>

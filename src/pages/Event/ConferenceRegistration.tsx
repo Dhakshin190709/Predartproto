@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CustomButton from '../../components/CustomButton';
 
 const ConferenceRegistration = () => {
   const [formData, setFormData] = useState({
@@ -127,15 +128,10 @@ const ConferenceRegistration = () => {
 
         {/* Submit Button */}
         <div className="text-center">
-          <button
-            type="submit"
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
-            ease-out hover:ease-in py-4 px-2 rounded-lg"
-          >
-            Submit Registration
-          </button>
+          
+          <CustomButton >
+          Submit Registration
+    </CustomButton>
         </div>
       </form>
     </div>

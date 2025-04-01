@@ -4,7 +4,8 @@ import { ColDef } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import axios from "axios";
-
+import { Edit } from "lucide-react";
+import CustomButton from "../../components/CustomButton";
 interface RowData {
 roleID: number;
   roleName: string;
@@ -16,6 +17,7 @@ roleID: number;
 const Role: React.FC = () => {
   
   const gridColumnApi = useRef<any>(null);
+  const formRef = useRef<HTMLDivElement | null>(null);
 
  
   const gridApi = useRef<any>(null);
@@ -65,9 +67,7 @@ const Role: React.FC = () => {
   
 
 
-
   const handleEdit = (roleID: number | string) => {
-    // Log the roleID to see what's passed into the function
     console.log("Editing row with roleID:", roleID);
   
     const rowToEdit = rowData.find((row) => row.roleID === roleID);
@@ -75,15 +75,21 @@ const Role: React.FC = () => {
     if (rowToEdit) {
       console.log("Found row to edit:", rowToEdit);
   
-      // Set the form data for editing
       setFormData({ ...rowToEdit });
-      setShowForm(true);  // Show the form modal
-      setFormMode("Edit"); // Set form mode to "Edit"
+      setShowForm(true);
+      setFormMode("Edit");
+  
+      // Wait a bit before scrolling to ensure the form is visible
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
     } else {
       console.error("Row not found for roleID:", roleID);
     }
   };
-
+  
 
   
   
@@ -255,13 +261,14 @@ const cancelDelete = () => {
     { headerName: "S.No", field: "S.No", sortable: true,cellClass: 'text-center',headerClass: 'center-header', valueGetter: "node.rowIndex + 1",filter: true,width:100},
  
     { headerName: "Role ID", field: "roleID", sortable: true, filter: true,hide: true,width: 150 },
-    { headerName: "Role Name", field: "roleName",headerClass: 'center-header', 
-      cellClass: 'text-center', sortable: true, filter: true,width: 400 },
-    { headerName: "Role Code", field: "roleCode",cellClass: 'text-center', headerClass: 'center-header',sortable: true, filter: true,width: 150 },
+    { headerName: "Role Name", field: "roleName",headerClass: 'left-header', 
+      cellClass: 'text-left', sortable: true, filter: true,width: 350 },
+    { headerName: "Role Code", field: "roleCode",cellClass: 'text-center', headerClass: 'center-header',sortable: true, filter: true,width: 160 },
     {
       headerName: "Status",
       field: "status",
       width:100,
+
       headerClass: 'center-header',
       cellClass: 'text-center',
       cellRenderer: (params: any) => (
@@ -277,24 +284,28 @@ const cancelDelete = () => {
     },
     
     
-    {
-      headerName: "Edit",
-      flex: 0.5,
-      width:50,
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          className="cursor-pointer text-blue-500 font-bold"
-          onClick={() => handleEdit(params.data.roleID)} // Ensure roleID is passed correctly
-          
-        >
-          Edit
-        </span>
-      ),
-    },
+  
+ 
+
+{
+  headerName: "Edit",
+  flex: 0.5,
+  width: 50,
+  headerClass: "center-header",
+  cellClass: "text-center",
+  cellRenderer: (params: any) => (
+    <span
+      className="cursor-pointer flex justify-center mt-3 items-center"
+      onClick={() => handleEdit(params.data.roleID)}
+    >
+      <Edit size={18} className="text-blue-500 hover:scale-110 transition-transform" />
+    </span>
+  ),
+},
+
     {
       headerName: "Delete",
+      hide:true,
       flex: 0.5,
       width:50,
       headerClass: 'center-header',
@@ -317,6 +328,12 @@ const cancelDelete = () => {
 
   const handleStatusToggle = async (roleID: number, currentStatus: string) => {
     const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+    const userID = sessionStorage.getItem("userID");
+  
+    if (!userID) {
+      alert("User not logged in. Please log in again.");
+      return;
+    }
     const updatedRole = rowData.find((role) => role.roleID === roleID);
   
     if (updatedRole) {
@@ -328,26 +345,27 @@ const cancelDelete = () => {
       );
   
       const payload = {
-        roleName: updatedRole.roleName,
-        roleCode: updatedRole.roleCode,
-        createdBy: updatedRole.createdBy,
+        guidID: updatedRole.roleID, // Ensure this exists in rowData
+       
+        updatedBy: userID, // Assuming the same user updates
+      
         isActive: newStatus === "Active",
       };
   
-      const url = `https://predart003-001-site1.anytempurl.com/api/Role/${updatedRole.roleID}`;
+      const url = `https://predart003-001-site1.anytempurl.com/api/Role`;
       try {
         const response = await axios.patch(url, payload);
         if (response.status === 200) {
-          // Optionally refresh roles after success
-          setFilteredData([...rowData]);  // Ensure filtered data is updated
+          setFilteredData([...rowData]); // Ensure filtered data updates
         } else {
-          console.error('Failed to update status');
+          console.error("Failed to update status");
         }
       } catch (error) {
         console.error("Error updating role status:", error);
       }
     }
   };
+  
   
   
 
@@ -389,7 +407,9 @@ const handleFilterSearch = () => {
     
 
       {showForm && (
-        <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
+        <div 
+        ref={formRef}
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
           <h3 className="text-xl font-semibold mb-4">{formData.roleID === 0 ? 'Add New Role' : 'Edit Role'}</h3>
           <form onSubmit={handleFormSubmit} className="flex flex-wrap gap-4 items-center justify-between">
             <div className="flex gap-4">
@@ -404,6 +424,7 @@ const handleFilterSearch = () => {
               />
               <input
                 type="text"
+                maxLength={5}
                 value={formData.roleCode}
                 onChange={(e) => setFormData({ ...formData, roleCode: e.target.value })}
                 placeholder="Role Code"
@@ -424,38 +445,31 @@ const handleFilterSearch = () => {
     onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })} // Directly update createdBy as string
     required
   />
-<select
-  value={formData.status}
-  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
->
-  <option value="Active">Active</option>
-  <option value="Inactive">Inactive</option>
-</select>
+{/* Show status dropdown only in Edit mode */}
+{formMode === "Edit" && (
+  <select
+    value={formData.status}
+    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+    className="w-60 rounded-lg border border-stroke bg-white py-2 pl-4 pr-8 text-black outline-none focus:border-primary"
+  >
+    <option value="Active">Active</option>
+    <option value="Inactive">Inactive</option>
+  </select>
+)}
+
               
             </div>
             <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-                            
-              >
-                {/* {formData.roleID === 0 ? 'Add' : 'Update'} */}
-                {formMode === "Add" ? "Add" : "Update"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-                            
-              >
-                Cancel
-              </button>
+             
+              
+
+              <CustomButton type="submit">
+              {formMode === "Add" ? "Save" : "Update"}
+</CustomButton>
+
+<CustomButton type="button" onClick={() => setShowForm(false)}>
+  Cancel
+</CustomButton>
             </div>
           </form>
         </div>
@@ -479,32 +493,33 @@ const handleFilterSearch = () => {
   </span>
   </div>
   
-        <button
-           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-           hover:from-[#007BFF] hover:to-[#004A99]
-           text-white transition duration-150 
-           ease-out hover:ease-in py-2 px-5 rounded-lg"
-                       
-           onClick={handleAdd}
-        >
-          + Add
-        </button>
+       
+
+        <CustomButton onClick={handleAdd}>
+      + Add
+    </CustomButton>
       </div>
 
 
 
       {/* AgGrid Table */}
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-        <AgGridReact
-          gridOptions={{}}
-          ref={gridApi}
-          domLayout="autoHeight"
-          rowData={filteredData}
-          columnDefs={columnDefs}
-          onGridReady={onGridReady}
-          pagination={true}
-          paginationPageSize={10}
-        />
+      
+
+<AgGridReact
+   rowData={filteredData}
+  ref={gridApi}
+  gridOptions={{}}
+  columnDefs={columnDefs}
+  pagination={true}
+  paginationPageSize={10} // ✅ Default page size
+  paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+  domLayout="autoHeight"
+  headerHeight={40}
+  rowHeight={40}
+  onGridReady={onGridReady}
+/>
+
       </div>
      
       
@@ -514,28 +529,13 @@ const handleFilterSearch = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-              <button
-                 onClick={confirmDelete}
-                // onClick={handleSave}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-                            
-              >
-                Yes, Delete
-              </button>
-              <button
-                onClick={cancelDelete}
-                // onClick={handleCancel}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-                  
-              >
-                Cancel
-              </button>
+              
+             
+
+              <CustomButton onClick={confirmDelete}>Yes, Delete</CustomButton>
+<CustomButton onClick={cancelDelete} className="bg-gray-300 text-black hover:bg-gray-400">
+  Cancel
+</CustomButton>
             </div>
           </div>
         </div>

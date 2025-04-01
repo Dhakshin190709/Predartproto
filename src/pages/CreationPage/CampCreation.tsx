@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import CustomButton from '../../components/CustomButton';
 
 const CampCreation = () => {
   const [formData, setFormData] = useState({
@@ -263,13 +264,10 @@ const CampCreation = () => {
 
         {/* Create Camp Button */}
         <div className="flex justify-center mt-4">
-          <button
-            type="submit"
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF]
-             hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-4 px-6 rounded-lg"
-          >
-            Create Camp
-          </button>
+         
+          <CustomButton >
+          Create Camp
+    </CustomButton>
         </div>
       </form>
     </div>

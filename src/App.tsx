@@ -23,35 +23,38 @@ import Users from '../src/pages/UsersManagement/Users';
 import Role from '../src/pages/UsersManagement/Role';
 import Rights from '../src/pages/UsersManagement/Rights';
 import Menus from './pages/UsersManagement/Menus';
-import ManageAvailability from './pages/ManageAvailability';
+// import ManageAvailability from './pages/ManageAvailability';
+// import PaymentGateway from './pages/PaymentGateway';
+// import CheckInCheckOut from './pages/CheckInCheckOut';
+// import MedicalPrescription from './pages/MedicalPrescription';
 import Settings from './pages/Settings';
 import Tables from './pages/Tables';
 import Alerts from './pages/UiElements/Alerts';
 import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
-import MultiSteps from './components/MultiSteps';
-import FileUpload from './pages/DocumentUpload';
-import DocumentViewPage from './pages/DocumentViewPage';
+
+
+
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
 import LabRegistration from './pages/Registration/LabRegistration';
 import Dashboard from './pages/Dashboard/Dashboard';
-import { useSelector } from 'react-redux';
+
 import Profile from './pages/Profile';
 import Assignrole from './pages/UsersManagement/Assignrole';
-import PaymentGateway from './pages/PaymentGateway';
+
 import ViewAvailableSlots from './pages/ViewAvailableSlots';
 import TemplateUI from './pages/TemplateUI/TemplateUI';
 import Login from './pages/LoginPage';
-import ApiResponsePage from './pages/ApiResponsePage';
+
 import BookAppointment from './pages/BookAppointment';
-import QuickAppointment from './pages/QuickAppointment';
+
 import DoctorFormWizard from './pages/Profile/DoctorFormWizard';
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
 import Membership from './pages/Membership';
 import PatientRegistration from './pages/Registration/PatientRegistration';
 import PatientFormWizard from './pages/Profile/PatientFormWizard';
-import MedicalPrescription from './pages/MedicalPrescription';
+
 import PrescriptionAnswers from './pages/PrescriptionAnswers';
 import SearchPatient from './pages/Search/SearchPatient';
 import SearchAppointment from './pages/Search/SearchAppointment';
@@ -59,12 +62,10 @@ import SearchDoctors from './pages/Search/SearchDoctors';
 import SearchHospital from './pages/Search/SearchHospital';
 import SearchLab from './pages/Search/SearchLab';
 import SearchMedicals from './pages/Search/SearchMedicals';
-import CheckInCheckOut from './pages/CheckInCheckOut';
+
 import AppointmentHistory from './pages/History/AppointmentHistory';
-import PatientHistory from './pages/History/PatientHistory';
-import PaymentHistory from './pages/History/PaymentHistory';
-import FamilyMedicalHistory from './pages/History/FamilyMedicalHistory';
-import TreatmentDetails from './pages/TreatmentDetails';
+
+
 import EventCreation from './pages/CreationPage/EventCreation';
 import CampCreation from './pages/CreationPage/CampCreation';
 import SurveyCreation from './pages/CreationPage/SurveyCreation';
@@ -87,12 +88,10 @@ import AdmissionPage from './pages/AdmissionPage';
 import AdmissionDetails from './pages/AdmissionDetails';
 import RoomBooking from './pages/RoomBooking';
 import OrderTracking from './pages/OrderTracking';
-import Barcode from './pages/Barcode';
-import Facilities from './pages/Facilities';
-import QrCode from './pages/QrCode';
+
 import Tenant from './pages/Tenant';
 import Hospital from './pages/Registration/HospitalPage';
-import MenuRights from './pages/MenuRights';
+
 import LabProfile from './pages/Profile/LabProfile';
 import Timeslot from './pages/Timeslot';
 import Notification from './pages/Settings/Notifications';
@@ -105,10 +104,9 @@ import Experience from './pages/DoctorProfile/Experience';
 import Address from './pages/DoctorProfile/Address';
 import Language from './pages/DoctorProfile/Language';
 import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
-import BookAppoByPatient from './pages/BookAppointment/BookAppoByPatient';
-import BookAppoByHospital from './pages/BookAppointment/BookAppoByHospital';
-import BookAppoByDoctor from './pages/BookAppointment/BookAppoByDoctor';
+
 import RescheduleModel from './pages/RescheduleModel';
+import UploadedDocument from './pages/UploadedDocument';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -147,15 +145,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/barcode"
-          element={
-            <>
-              <PageTitle title="Barcode | CarePoint Pro" />
-              <Barcode />
-            </>
-          }
-        />
+       
         <Route
           path="/signin"
           element={
@@ -166,15 +156,7 @@ function App() {
           }
         />
         
-        <Route
-          path="/homepage"
-          element={
-            <>
-              <PageTitle title="HomePage | CarePoint Pro" />
-              <HomePage />
-            </>
-          }
-        />
+        
         
          <Route
           path="/chart"
@@ -236,7 +218,7 @@ function App() {
             
           }
         />
-         <Route path="/api-response" element={<ApiResponsePage />} />
+        
         <Route
           path="/ResetPassword" 
           element={
@@ -246,78 +228,16 @@ function App() {
             </>
           }
         />
-         <Route
-          path="/appointment/booking"
-
-          element={
-            <>
-              <PageTitle title="BookAppointment | CarePoint Pro" />
-              <BookAppointment />
-            </>
-          }
-        />
-         <Route
-          path="/Registration/LabRegistration"
-
-          element={
-            <>
-              <PageTitle title="LabRegistration | CarePoint Pro" />
-              <LabRegistration />
-            </>
-          }
-        />
-         
+        
+        
          
         
-        <Route
-          path="/QuickAppointment"
-          element={
-            <>
-              <PageTitle title="QuickAppointment | CarePoint Pro" />
-              <QuickAppointment />
-            </>
-          }
-        />
-        <Route
-          path="/MultiSteps"
-          element={
-            <>
-              <PageTitle title="MultiSteps | CarePoint Pro" />
-              <MultiSteps />
-            </>
-          }
-        />
         
+       
 
        
-        <Route
-          path="/DoctorRegistration"
-          element={
-            <>
-              <PageTitle title="DoctorRegistration | CarePoint Pro" />
-              <DoctorRegistration />
-            </>
-          }
-        />
-        <Route
-          path="/PatientRegistration"
-          element={
-            <>
-              <PageTitle title="PatientRegistration | CarePoint Pro" />
-              <PatientRegistration />
-            </>
-          }
-        />
         
-        <Route
-          path="/qrCode"
-          element={
-            <>
-              <PageTitle title="QrCode | CarePoint Pro" />
-              <QrCode />
-            </>
-          }
-        />
+     
 
         <Route
           path="/templateui"
@@ -330,33 +250,7 @@ function App() {
         />
       </Route>
 
-      <Route
-          path="/BookAppointment/BookAppoByPatient"
-          element={
-            <>
-              <PageTitle title="BookAppoByPatient | CarePoint Pro" />
-              <BookAppoByPatient />
-            </>
-          }
-          />
-      <Route
-          path="/BookAppointment/BookAppoByHospital"
-          element={
-            <>
-              <PageTitle title="BookAppoByHospital | CarePoint Pro" />
-              <BookAppoByHospital />
-            </>
-          }
-          />
-      <Route
-          path="/BookAppointment/BookAppoByDoctor"
-          element={
-            <>
-              <PageTitle title="BookAppoByDoctor | CarePoint Pro" />
-              <BookAppoByDoctor />
-            </>
-          }
-          />
+   
      
       {/* Default Layout */}
       <Route element={<DefaultLayout />}>
@@ -383,6 +277,27 @@ function App() {
                 throw new Error('Function not implemented.');
               } } />
              
+            </>
+          }
+        />
+
+   
+         <Route
+          path="/Registration/LabRegistration"
+
+          element={
+            <>
+              <PageTitle title="LabRegistration | CarePoint Pro" />
+              <LabRegistration />
+            </>
+          }
+        />
+         <Route
+          path="/homepage"
+          element={
+            <>
+              <PageTitle title="HomePage | CarePoint Pro" />
+              <HomePage />
             </>
           }
         />
@@ -422,7 +337,16 @@ function App() {
               </>
           }
           />
-         
+              
+<Route
+          path="/PatientRegistration"
+          element={
+            <>
+              <PageTitle title="PatientRegistration | CarePoint Pro" />
+              <PatientRegistration />
+            </>
+          }
+        />
         <Route
           path="/doctorProfile" 
           element={
@@ -432,6 +356,16 @@ function App() {
               </>
           }
           />
+
+<Route
+          path="/DoctorRegistration"
+          element={
+            <>
+              <PageTitle title="DoctorRegistration | CarePoint Pro" />
+              <DoctorRegistration />
+            </>
+          }
+        />
         <Route
           path="doctorProfile/BasicDetails" 
           element={
@@ -540,15 +474,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/menuRights"
-          element={
-            <>
-              <PageTitle title="MenuRights | CarePoint Pro" />
-                <MenuRights />
-            </>
-          }
-        />
+       
         <Route
           path="/hospital"
           element={
@@ -580,20 +506,12 @@ function App() {
           path="/document-upload"
           element={
             <>
-              <PageTitle title="DocumentUpload | CarePoint Pro" />
-                <FileUpload />
+              <PageTitle title="UploadedDocument | CarePoint Pro" />
+                <UploadedDocument />
             </>
           }
         />
-        <Route
-          path="/documentViewPage"
-          element={
-            <>
-              <PageTitle title="DocumentViewPage | CarePoint Pro" />
-                <DocumentViewPage />
-            </>
-          }
-        />
+        
         <Route
           path="/appointment/view-available-slots"
 
@@ -604,7 +522,7 @@ function App() {
             </>
           }
         />
-        <Route
+        {/* <Route
           path="/manage-availability"
           element={
             <>
@@ -612,7 +530,7 @@ function App() {
                 <ManageAvailability />
             </>
           }
-        />
+        /> */}
         <Route
           path="Notification"
           element={
@@ -622,7 +540,7 @@ function App() {
             </>
           }
         />
-        <Route
+        {/* <Route
           path="/payment"
           element={
             <>
@@ -630,8 +548,8 @@ function App() {
                 <PaymentGateway />
             </>
           }
-        />
-        <Route
+        /> */}
+        {/* <Route
           path="/check-in-check-out"
           element={
             <>
@@ -639,7 +557,7 @@ function App() {
                 <CheckInCheckOut />
             </>
           }
-        />
+        /> */}
         <Route
           path="/labProfile"
 
@@ -669,15 +587,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/Facilities"
-          element={
-            <>
-              <PageTitle title="Facilities | CarePoint Pro" />
-              <Facilities />
-            </>
-          }
-        />
+       
         <Route
           path="/PatientFormWizard"
           element={
@@ -778,6 +688,16 @@ function App() {
             <>
               <PageTitle title="SurveyMaster | CarePoint Pro" />
               <SurveyMaster />
+            </>
+          }
+        />
+         <Route
+          path="/appointment/booking"
+
+          element={
+            <>
+              <PageTitle title="BookAppointment | CarePoint Pro" />
+              <BookAppointment />
             </>
           }
         />
@@ -893,7 +813,7 @@ function App() {
         
         
         
-        <Route path="/medical" element={<MedicalPrescription />} />
+        {/* <Route path="/medical" element={<MedicalPrescription />} /> */}
         <Route path="/prescription" element={<PrescriptionAnswers />} />
         
       
@@ -989,34 +909,9 @@ function App() {
             </>
           }
         />
-         <Route
-          path="/history/patienthistory" 
-          element={
-            <>
-              <PageTitle title="PatientHistory | CarePoint Pro" />
-              <PatientHistory />
-            </>
-          }
-        />
-         <Route
-          path="/history/paymenthistory" 
-          element={
-            <>
-              <PageTitle title="PaymentHistory | CarePoint Pro" />
-              <PaymentHistory />
-            </>
-          }
-        />
-         <Route
-          path="/history/FamilyMedicalHistory" 
-          element={
-            <>
-              <PageTitle title="FamilyMedicalHistory | CarePoint Pro" />
-              <FamilyMedicalHistory />
-            </>
-          }
-        />
-         <Route
+         
+         
+         {/* <Route
           path="/patient-record" 
           element={
             <>
@@ -1024,7 +919,7 @@ function App() {
               <TreatmentDetails />
             </>
           }
-        />
+        /> */}
          
         <Route
           path="/calendar" 

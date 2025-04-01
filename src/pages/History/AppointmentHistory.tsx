@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FaUser, FaCalendarAlt, FaClock, FaPhoneAlt, FaUserMd, FaTruck } from "react-icons/fa";
+import CustomButton from "../../components/CustomButton";
 
 interface Appointment {
   appointmentID: string;
@@ -263,15 +264,13 @@ const getDateColor = (date) => {
 
       </div>
 <div className="flex justify-end">
-<button
-        onClick={() => setIsTrackingModalOpen(false)}
-       
-        className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
-            ease-out hover:ease-in px-4 py-2 rounded-lg mt-4"
-      >
-        Close
-      </button>
+<CustomButton
+  onClick={() => setIsTrackingModalOpen(false)}
+  className="mt-4"
+>
+  Close
+</CustomButton>
+
 </div>
      
     </div>

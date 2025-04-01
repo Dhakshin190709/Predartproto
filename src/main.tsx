@@ -29,13 +29,11 @@ if (!rootElement) {
 if (rootElement) {
   const root = ReactDOM.createRoot(rootElement);
   root.render(
-    <React.StrictMode>
-      <Provider store={store}>
-        <Router>
-          <App />
-        </Router>
-      </Provider>
-      </React.StrictMode>
+    <Provider store={store}>
+      <Router>
+        <App />
+      </Router>
+    </Provider>
   );
 } else {
   console.error("Root element not found!");

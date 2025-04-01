@@ -4,6 +4,10 @@ import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from 'axios';
+import { Edit } from "lucide-react";
+import { fetchHospitalAPI, fetchTenants } from '../../Utils';
+import CustomButton from '../../components/CustomButton';
+
 
 interface RowData {
     hospitalID: number;
@@ -26,18 +30,19 @@ const Hospital: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false); // Show confirmation for deletion
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null); // ID of row to delete
   const [formData, setFormData] = useState<RowData>({
-    hospitalID: 0,
+    hospitalID: '',
     hospitalName: '',
     hospitalCode: '',
     hospitalType: '',
-    isActive: 'Active',
+    isActive: true, // now matches your check in the submit handler
   });
-
- 
+  
+const [formMode, setFormMode] = useState(""); 
+  const apiBaseUrl = 'https://predart003-001-site1.anytempurl.com/api/Hospital'; 
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
-
+  const editFormRef = useRef<HTMLDivElement | null>(null);
    // Fetch data from the API
   
 
@@ -59,24 +64,10 @@ const Hospital: React.FC = () => {
       });
   }, []);
   
-   // Fetch tenant data
+   // Fetch tenant data from utils
    useEffect(() => {
-  fetch("https://predart003-001-site1.anytempurl.com/api/Tenant")
-    .then((response) => {
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-      return response.json();
-    })
-    .then((data) => {
-      console.log("Tenant Data:", data);
-      setTenants(data.data || data); // Adjust based on the API structure
-    })
-    .catch((error) => {
-      console.error("Error fetching tenant data:", error);
-    });
-}, []);
-
+    fetchTenants().then(setTenants);
+  }, []);
 
   // Handle tenant selection
   const handleTenantChange = (e) => {
@@ -85,16 +76,16 @@ const Hospital: React.FC = () => {
   };
 
 // hospital type from appLOV
-useEffect(() => {
-  fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
-    .then((response) => response.json())
-    .then((data) => {
-      // Filter for "Hospital" type
-      const filteredTypes = data.data.filter((item) => item.type === "Hospital");
-      setHospitalTypes(filteredTypes); // Set filtered options
-    })
-    .catch((error) => console.error("Error fetching data:", error));
-}, []);
+
+  useEffect(() => {
+    const getHospitalTypes = async () => {
+      const types = await fetchHospitalAPI();
+      setHospitalTypes(types);
+    };
+
+    getHospitalTypes();
+  }, []);
+  
 
   
 
@@ -102,56 +93,58 @@ useEffect(() => {
   const columnDefs = [
     { headerName: 'S.No', valueGetter: 'node.rowIndex + 1', width: 80 },
     { headerName: "Hospital ID", field: "hospitalID", sortable: true, filter: true,hide:true,width: 150 },
-    { headerName: 'Hospital Type', field: 'hospitalType', sortable: true, filter: true, width: 200 },
-    { headerName: 'Hospital Name', field: 'hospitalName', sortable: true, filter: true, width: 200 },
-    { headerName: 'Hospital Code', field: 'hospitalCode', sortable: true, filter: true, width: 150 },
+    
+    { headerName: 'Hospital Name', field: 'hospitalName',sortable: true, filter: true, width: 280 },
+    { headerName: 'Hospital Type', field: 'hospitalType', sortable: true, filter: true, width: 180 },
+    { headerName: 'Hospital Code', field: 'hospitalCode', sortable: true, filter: true, width: 100 },
 
     {
-        headerName: "Status",
-        field: "isActive",
-        flex: 1,
-        width:50,
-        headerClass: 'center-header',
-        cellClass: 'text-center',
-        cellRenderer: (params: any) => {
-            const isActive = params.value === true ? "Active" : "Inactive";
-            return (
-              <span
-                className={`cursor-pointer font-bold ${
-                  isActive === "Active" ? "text-green-500" : "text-red-400"
-                }`}
-              >
-                {isActive}
-              </span>
-            );
-          }
-          
-          
-          
+      headerName: "Status",
+      field: "isActive",
+      flex: 1,
+      width: 70,
+      headerClass: "center-header",
+      cellClass: "text-center",
+      cellRenderer: (params: any) => {
+        const isActive = params.value === true; // Ensure boolean conversion
+    
+        return (
+          <span
+            className={`cursor-pointer font-bold ${
+              isActive ? "text-green-500" : "text-red-400"
+            }`}
+            onClick={() => toggleStatus(params)} // Make it clickable
+            style={{ cursor: "pointer" }} // Ensure the cursor shows it's clickable
+          >
+            {isActive ? "Active" : "Inactive"}
+          </span>
+        );
       },
+    },
+    
+
       
   
-     
     {
-        headerName: "Edit",
-        flex: 0.8,
-        width:50,
-        headerClass: 'center-header',
-        cellClass: 'text-center',
-        cellRenderer: (params: any) => (
-          <span
-            className="cursor-pointer text-blue-500 font-bold"
-            onClick={() => handleEdit(params.data)} // Ensure roleID is passed correctly
-            
-          >
-            Edit
-          </span>
-        ),
-      },
+      headerName: "Edit",
+      flex: 0.8,
+      width: 50,
+      headerClass: "center-header",
+      cellClass: "text-center",
+      cellRenderer: (params: any) => (
+        <span
+          onClick={() => handleEdit(params.data)}
+          className="cursor-pointer flex justify-center mt-3 items-center"
+        >
+          <Edit size={18} className="text-blue-500 hover:scale-110 transition-transform" />
+        </span>
+      ),
+    },
       {
         headerName: "Delete",
+        hide:true,
         flex: 0.8,
-        width: 50,
+        // width: 50,
         headerClass: 'center-header',
         cellClass: 'text-center',
         cellRenderer: (params: any) => (
@@ -167,15 +160,39 @@ useEffect(() => {
   ];
 
 
-  const toggleStatus = (params: any) => {
-    const updatedData = rowData.map((item) =>
-      item.hospitalID === params.data.hospitalID
-        ? { ...item, isActive: item.isActive === 'Active' ? 'Inactive' : 'Active' }
-        : item,
-    );
-    setRowData(updatedData);
-    setFilteredData(updatedData);
+ 
+  const toggleStatus = async (params: any) => {
+    const { hospitalID, isActive } = params.data;
+    const updatedStatus = isActive === true; // Ensure it's a boolean toggle
+    const userID = sessionStorage.getItem("userID");
+  
+    if (!userID) {
+      console.error("User ID not found in session storage.");
+      alert("User not logged in. Please log in again.");
+      return;
+    }
+  
+    try {
+      const response = await axios.patch("https://predart003-001-site1.anytempurl.com/api/Hospital", {
+        guidID: hospitalID, // Send hospitalID as guidID
+        updatedBy: userID,
+        isActive: !updatedStatus, // Toggle boolean
+      });
+  
+      if (response.status === 200) {
+        // Ensure `isActive` is stored as boolean
+        const updatedData = rowData.map((item) =>
+          item.hospitalID === hospitalID ? { ...item, isActive: !updatedStatus } : item
+        );
+        setRowData(updatedData);
+        setFilteredData(updatedData);
+        console.log("Updated isActive:", !updatedStatus);
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+    }
   };
+  
 
   const handleDelete = async (hospitalID: number) => {
     setDeleteRowId(hospitalID);
@@ -207,80 +224,62 @@ useEffect(() => {
 
   
    
-  
-  const createdBy = "dd606a34-6e0a-4b0f-8cfd-8e9138267627"; // hardcoded value
+ 
 
+  
   const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevent default form submission behavior
+  
+    const userID = sessionStorage.getItem("userID");
+    if (!userID) {
+      console.error("User ID not found in session storage.");
+      alert("User not logged in. Please log in again.");
+      return;
+    }
   
     try {
-      // Convert the isActive status to boolean
-      const isActive = formData.isActive === 'Active';
+      // const isActive = formData.isActive === "Active";
+
   
-      // Construct the payload
-      const newFormData = {
-        tenantID: selectedTenant, // Pass the selected tenant ID
-        hospitalName: formData.hospitalName,
-        hospitalCode: formData.hospitalCode,
-        hospitalType: formData.hospitalType,
-        isActive: isActive,  // Pass the boolean value of isActive
-        createdBy: createdBy,  // Hardcoded createdBy
+      // Construct payload
+      const payload: Record<string, any> = {
+        tenantID: selectedTenant,
+        hospitalName: formData.hospitalName.trim(),
+        hospitalCode: formData.hospitalCode.trim(),
+        hospitalType: formData.hospitalType.trim(),
+        createdBy: userID,
+        updatedBy: userID,
+        isActive: formData.isActive, // Ensure boolean is sent
       };
+      
+      
   
-      console.log('Form Data being sent:', newFormData);
-  
-      // Determine the method and URL based on whether it's a new entry or an update
-      const method = formData.hospitalID === 0 ? 'POST' : 'PUT'; // POST for new, PUT for update
-      const url = formData.hospitalID === 0
-        ? 'https://predart003-001-site1.anytempurl.com/api/Hospital'
-        : `https://predart003-001-site1.anytempurl.com/api/Hospital/${formData.hospitalID}`; // Add hospitalID for PUT
-  
-      // Perform the API request
-      let response;
-      if (method === 'POST') {
-        console.log('Performing POST request...');
-        response = await axios.post(url, newFormData);
-      } else {
-        console.log('Performing PUT request...');
-        response = await axios.put(url, newFormData);
+      if (formData.hospitalID) {
+        payload.hospitalID = formData.hospitalID; // Include hospitalID for updates
       }
   
-      console.log('Server response:', response.data);
+      const url = "https://predart003-001-site1.anytempurl.com/api/Hospital";
   
-      // Update the state with the new or updated data
-      setRowData((prevRowData) => {
-        if (formData.hospitalID !== 0) {
-          // Update existing hospital entry
-          return prevRowData.map((row) =>
-            row.hospitalID === formData.hospitalID ? response.data : row
-          );
-        }
-        // Add new hospital entry
-        return [...prevRowData, response.data];
-      });
+      let response;
+      if (formData.hospitalID) {
+        console.log("Performing PUT request...");
+        response = await axios.put(url, payload);
+        console.log("Update response:", response.data);
+      } else {
+        console.log("Performing POST request...");
+        response = await axios.post(url, payload);
+        console.log("Create response:", response.data);
+      }
   
-      setFilteredData((prevFilteredData) => {
-        if (formData.hospitalID !== 0) {
-          return prevFilteredData.map((row) =>
-            row.hospitalID === formData.hospitalID ? response.data : row
-          );
-        }
-        return [...prevFilteredData, response.data];
-      });
-  
-      // Hide the form and reset it
-      setShowForm(false);
-      setFormData({
-        hospitalID: 0,
-        hospitalName: '',
-        hospitalCode: '',
-        hospitalType: '',
-        isActive: 'Active',
-      });
-      setSelectedTenant('');
-  
+      if (response.status === 200 || response.status === 201) {
+        console.log("Success:", response.data);
+        await refreshTableData(); // Refresh table without reloading
+        resetForm(); // Reset form without reloading the page
+      } else {
+        console.error("Unexpected response:", response);
+      }
     } catch (error) {
-      console.error('Error submitting form:', error.response?.data || error.message);
+      console.error("Error saving hospital:", error.response?.data || error.message);
     }
   };
   
@@ -288,27 +287,71 @@ useEffect(() => {
   
   
 
+  const refreshTableData = async () => {
+    try {
+      const response = await axios.get(`${apiBaseUrl}`);
+      
+      let hospitalData = response.data?.data ?? response.data; // Handle cases where 'data' is missing
   
-
-
-
-
-
-  const handleEdit = (data: RowData | number) => {
-    let rowToEdit: RowData | undefined;
-  
-    if (typeof data === 'number') {
-      rowToEdit = rowData.find((row) => row.hospitalID === data);
-    } else {
-      rowToEdit = data;
-    }
-  
-    if (rowToEdit) {
-      setFormData(rowToEdit);
-      setShowForm(true);
+      if (Array.isArray(hospitalData)) {
+        setRowData([...hospitalData]);
+        setFilteredData([...hospitalData]);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching table data:', error);
     }
   };
   
+    
+const resetFormData = () => {
+  setFormData({
+      hospitalID: '',  // Set to empty if it's a new hospital
+      hospitalName: '',
+      hospitalCode: '',
+      hospitalType: '',
+      isActive: 'true', // Ensure default is active
+     
+  });
+};
+
+  
+const resetForm = () => {
+  setShowForm(false); // Hide the form after reset
+  setFormMode(""); // Reset form mode (e.g., "Edit" or "Create")
+  setFormData({
+    hospitalID: '',  
+    hospitalName: "",
+    hospitalCode: "",
+    hospitalType: "",
+    isActive: true, // Default to true for new entries
+  });
+};
+
+
+  
+const handleEdit = (data: RowData) => {
+  setFormData({
+    hospitalID: data.hospitalID,
+    hospitalName: data.hospitalName,
+    hospitalCode: data.hospitalCode,
+    hospitalType: data.hospitalType,
+    isActive: !!(data.isActive === "true" || data.isActive === true || data.isActive === 1), // Convert to boolean
+  });
+
+  setShowForm(true);
+  setFormMode("Edit");
+
+  // Scroll to the edit form smoothly
+  setTimeout(() => {
+    editFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 100);
+};
+
+
+
+
   
   const handleFilterSearch = () => {
     const filtered = initialData.filter(
@@ -343,7 +386,9 @@ useEffect(() => {
 
      
       {showForm && (
-        <div className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
+        <div 
+        ref={editFormRef}
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none">
           <h3 className="text-xl font-semibold mb-4">
             {formData.hospitalID === 0 ? 'Add New Data' : 'Edit Data'}
           </h3>
@@ -351,12 +396,12 @@ useEffect(() => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-            <div className="flex gap-4 mb-2 items-center">
+<div className="grid grid-cols-3 gap-4 mb-4">
   {/* Tenant Dropdown */}
   <select
   value={selectedTenant || ''}
   onChange={(e) => setSelectedTenant(e.target.value)}
-  className="w-35 rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
   text-black outline-none focus:border-primary dark:border-form-strokedark 
   dark:bg-form-input dark:text-white dark:focus:border-primary"
 >
@@ -376,7 +421,7 @@ useEffect(() => {
     id="hospitalType"
     name="hospitalType"
     value={formData.hospitalType}
-    className="w-38 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
     onChange={(e) =>
@@ -405,7 +450,7 @@ useEffect(() => {
       setFormData({ ...formData, hospitalName: e.target.value })
     }
     placeholder="Hospital Name"
-    className="w-50 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
   />
@@ -416,63 +461,59 @@ useEffect(() => {
     id="hospitalCode"
     name="hospitalCode"
     placeholder="Hospital Code"
+    maxLength={5}
     value={formData.hospitalCode}
     onChange={(e) => setFormData({ ...formData, hospitalCode: e.target.value })}
     required
-    className="w-35 rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
   />
-   <div>
+   
+ 
+ {/* Checkbox for Status - Only show in Edit mode */}
+ {formData.hospitalID !== "" && (
+  <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
+    <input
+      type="checkbox"
+      checked={formData.isActive}
+      onChange={(e) => {
+        setFormData((prev) => ({
+          ...prev,
+          isActive: e.target.checked, // Store as boolean
+        }));
+      }}
+      className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
+    />
+    <span>{formData.isActive ? "Active" : "Inactive"}</span>
+  </label>
+)}
+
+<div>
   <input
      type="hidden" 
     id="createdBy"
     name="createdBy"
     placeholder="Created By"
     value={formData.createdBy || ''} // Ensure it defaults to an empty string
-    className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
     onChange={(e) => setFormData({ ...formData, createdBy: e.target.value })} // Directly update createdBy as string
     required
   />
 </div>
-  {/* Checkbox for Status */}
-  <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-      <input
-        type="checkbox"
-        checked={isActive} // Checkbox reflects the state
-        onChange={(e) => {
-          console.log('Checkbox checked:', e.target.checked); // Debugging
-          setIsActive(e.target.checked); // Update state based on checkbox value
-        }}
-        
-        className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-      />
-      <span>{isActive ? 'Active' : 'Inactive'}</span> {/* Reflect state */}
-    </label>
     
 </div>
 
 
             <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.hospitalID === 0 ? 'Add' : 'Update'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            <CustomButton type="submit">
+  {formData.hospitalID ? "Update" : "Save"}
+</CustomButton>
+
+<CustomButton type="button" onClick={() => setShowForm(false)}>
+  Cancel
+</CustomButton>
+
             </div>
           </form>
         </div>
@@ -515,27 +556,36 @@ useEffect(() => {
         </div>
 
         <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={() => setShowForm(true)}
-        >
-          + Add
-        </button>
+  className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+  hover:from-[#007BFF] hover:to-[#004A99]
+  text-white transition duration-150 
+  ease-out hover:ease-in py-2 px-5 rounded-lg"
+  onClick={() => {
+    setFormData({ hospitalID: 0, hospitalType: "", hospitalName: "", hospitalCode: "", createdBy: "" }); // Reset form data
+    setIsActive(false); // Reset checkbox state
+    setShowForm(true);
+  }}
+>
+  + Add
+</button>
+
       </div>
 
       <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+        
+        
         <AgGridReact
-  rowData={rowData}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
+        rowData={rowData}
+        columnDefs={columnDefs}
+        pagination={true}
+        paginationPageSize={10} // ✅ Default page size
+        paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+        domLayout="autoHeight"
+        headerHeight={40}
+        rowHeight={40}
+        onGridReady={onGridReady}
+      />
+      
       </div>
      
       {showConfirmation && (
@@ -543,24 +593,14 @@ useEffect(() => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-              <button
-                onClick={confirmDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Yes, Delete
-              </button>
-              <button
-                onClick={cancelDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            <CustomButton onClick={confirmDelete}>
+  Yes, Delete
+</CustomButton>
+
+<CustomButton onClick={cancelDelete}>
+  Cancel
+</CustomButton>
+
             </div>
           </div>
         </div>

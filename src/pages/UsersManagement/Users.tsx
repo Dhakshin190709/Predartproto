@@ -2,8 +2,13 @@ import React, { useRef, useState, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
+import { Edit } from "lucide-react";
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
+
+
+import axios from "axios";
+import CustomButton from '../../components/CustomButton';
 interface RowData {
   userID: number;
   tenantName: string;
@@ -15,6 +20,8 @@ interface RowData {
 }
 const Users: React.FC = () => {
   const [apiData, setApiData] = useState([]);
+   const [pageSize, setPageSize] = useState(10);
+   
   const [name, setName] = useState(''); // Name filter for UI
   const [isActive, setIsActive] = useState(false); // Active filter for UI
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
@@ -39,10 +46,19 @@ const Users: React.FC = () => {
     password: '', // New field
     userPlan: 'Free', // Default plan
   });
-
+  const formRef = useRef<HTMLDivElement | null>(null);
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
+ 
 
+  const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const newSize = Number(event.target.value);
+      setPageSize(newSize);
+      if (gridApi.current) {
+          gridApi.current.paginationSetPageSize(newSize);
+      }
+  };
+  
   // Fetch data on component mount (only once)
   useEffect(() => {
     const fetchData = async () => {
@@ -103,6 +119,15 @@ const Users: React.FC = () => {
       sortable: false,
       filter: false,
     },
+    {
+      headerName: 'User Name',
+      field: 'username',
+      sortable: true,
+      filter: true,
+      flex: 2,
+      headerClass: 'text-left',
+      cellStyle: { textAlign: 'left' },
+    },
     ...(isSuperAdmin
       ? [
           {
@@ -121,15 +146,7 @@ const Users: React.FC = () => {
           },
         ]
       : []), // Only add this column if isSuperAdmin is true
-    {
-      headerName: 'User Name',
-      field: 'username',
-      sortable: true,
-      filter: true,
-      flex: 2,
-      headerClass: 'text-left',
-      cellStyle: { textAlign: 'left' },
-    },
+    
     {
       headerName: 'Mobile No',
       field: 'mobile',
@@ -149,39 +166,44 @@ const Users: React.FC = () => {
       cellStyle: { textAlign: 'left' },
     },
     {
-      headerName: 'Status',
-      field: 'isActive',
+      headerName: "Status",
+      field: "isActive",
       flex: 1,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
+      headerClass: "text-center",
+      cellStyle: { textAlign: "center" },
       cellRenderer: (params: any) => {
-        const isActive = params.value === 'Active' || params.value === true;
+        const isActive = params.value === "Active" || params.value === true;
         return (
           <span
             onClick={() => toggleStatus(params)}
-            className={`cursor-pointer font-bold ${isActive ? 'text-green-500' : 'text-red-400'} hover:underline`}
+            className={`cursor-pointer font-bold ${
+              isActive ? "text-green-500" : "text-red-400"
+            } hover:underline`}
           >
-            {isActive ? 'Active' : 'Inactive'}
+            {isActive ? "Active" : "Inactive"}
           </span>
         );
       },
     },
-    {
-      headerName: 'Edit',
-      flex: 0.7,
-      headerClass: 'text-center',
-      cellStyle: { textAlign: 'center' },
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleEdit(params.data.userID)}
-          className="cursor-pointer text-blue-500 font-bold"
-        >
-          Edit
-        </span>
-      ),
-    },
+    
+    
+{
+  headerName: "Edit",
+  flex: 0.7,
+  headerClass: "text-center",
+  cellStyle: { textAlign: "center" },
+  cellRenderer: (params: any) => (
+    <div
+      onClick={() => handleEdit(params.data.userID)}
+      className="cursor-pointer flex items-center justify-center w-8 h-8 mt-1 rounded-md hover:bg-gray-100"
+    >
+      <Edit size={18} className="text-blue-500" />
+    </div>
+  ),
+},
     {
       headerName: 'Delete',
+      hide:true,
       flex: 0.8,
       headerClass: 'text-center',
       cellStyle: { textAlign: 'center' },
@@ -198,21 +220,58 @@ const Users: React.FC = () => {
     },
   ];
 
-  const toggleStatus = (params: any) => {
-    const updatedData = rowData.map((item) =>
-      item.userID === params.data.userID
-        ? {
-            ...item,
-            isActive:
-              item.isActive === 'Active' || item.isActive === true
-                ? 'Inactive'
-                : 'Active',
-          }
-        : item,
-    );
-    setRowData(updatedData);
-    setFilteredData(updatedData);
+  const toggleStatus = async (params: any) => {
+    const userID = sessionStorage.getItem("userID");
+  
+    if (!userID) {
+      alert("User not logged in. Please log in again.");
+      return;
+    }
+  
+    const updatedStatus =
+      params.data.isActive === "Active" || params.data.isActive === true
+        ? false
+        : true;
+  
+    const payload = {
+      guidID: params.data.userID, // The user ID being updated
+    
+      updatedBy: userID,
+     
+      isActive: updatedStatus,
+    };
+  
+    try {
+      const response = await axios.patch(
+        "https://predart003-001-site1.anytempurl.com/api/User",
+        payload,
+        {
+          headers: { "Content-Type": "application/json" },
+        }
+      );
+  
+      if (response.status === 200) {
+        console.log("User status updated successfully:", response.data);
+  
+        // Update the UI
+        const updatedData = rowData.map((item) =>
+          item.userID === params.data.userID
+            ? { ...item, isActive: updatedStatus ? "Active" : "Inactive" }
+            : item
+        );
+  
+        setRowData(updatedData);
+        setFilteredData(updatedData);
+      } else {
+        console.error("Failed to update user status:", response.data);
+        alert("Failed to update status. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error updating user status:", error);
+      alert("An error occurred while updating the status.");
+    }
   };
+  
 
   const handleAdd = () => {
     setFormData({
@@ -322,21 +381,30 @@ const Users: React.FC = () => {
   };
 
   const handleEdit = (userID: number) => {
+    if (!rowData) return;
+  
     const selectedRow = rowData.find((item) => item.userID === userID);
     if (selectedRow) {
       setFormData({
         userID: selectedRow.userID,
-        username: selectedRow.username || '',
-        email: selectedRow.email || '',
-        mobile: selectedRow.mobile || '',
-        isActive: selectedRow.isActive ? 'Active' : 'Inactive', // Convert boolean to string
-        tenantID: selectedRow.tenantID || '',
-        createdBy: selectedRow.createdBy || '',
-        password: '', // Leave this field empty for security reasons
-        userPlan: selectedRow.userPlan || 'Free',
+        username: selectedRow.username || "",
+        email: selectedRow.email || "",
+        mobile: selectedRow.mobile || "",
+        isActive: selectedRow.isActive ? "Active" : "Inactive",
+        tenantID: selectedRow.tenantID || "",
+        createdBy: selectedRow.createdBy || "",
+        password: "", // Keep it empty
+        userPlan: selectedRow.userPlan || "Free",
       });
+  
       setShowForm(true);
-      setIsFormVisible(false);
+  
+      // Scroll to the form when edit is clicked
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100); // Slight delay to ensure visibility
     }
   };
 
@@ -419,65 +487,58 @@ const Users: React.FC = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
-    // Retrieve userID from sessionStorage
     const userID = sessionStorage.getItem('userID');
-
-    console.log('Retrieved userID from sessionStorage:', userID);
+  
     if (!userID) {
-      console.error('User ID not found in session storage.');
       alert('User not logged in. Please log in again.');
       return;
     }
-    // Convert `isActive` to boolean
+  
     const isActiveBoolean = formData.isActive === 'Active';
-
-    // Set method dynamically based on userID
-    const method = formData.userID === 0 ? 'POST' : 'PUT';
-
-    // Use the same URL for both POST and PUT
+    const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
     const url = 'https://predart003-001-site1.anytempurl.com/api/User';
-
-    // Construct request body with hardcoded tenantID and createdBy
+  
     const body = JSON.stringify({
-      userID: formData.userID === 0 ? undefined : formData.userID, // Include userID only for PUT
+      userID: formData.userID !== 0 ? formData.userID : undefined, // Include only for PUT
       username: formData.username.trim(),
       email: formData.email.trim(),
       mobile: formData.mobile.trim(),
-      isActive: isActiveBoolean, // Convert to boolean
-      tenantID: selectedTenant, // Hardcoded tenantID
-      createdBy: userID, // Hardcoded createdBy
+      isActive: isActiveBoolean,
+      tenantID: selectedTenant,
+      createdBy: userID,
       password: formData.password.trim() || 'DefaultPassword',
       userPlan: formData.userPlan || 'Free',
     });
-
+  
+    console.log('Request URL:', url);
+    console.log('Request Method:', method);
     console.log('Request Body:', body);
-
+  
     try {
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body,
       });
-
+  
       const data = await response.json();
+      console.log('Response Status:', response.status);
       console.log('API Full Response:', data);
-
+  
       if (response.ok) {
         console.log('User added/updated successfully.');
-        if (formData.userID === 0) {
+        if (method === 'POST') {
           const newUser = { ...formData, userID: data.userID };
           setRowData((prev) => [...prev, newUser]);
           setFilteredData((prev) => [...prev, newUser]);
         } else {
           const updatedData = rowData.map((item) =>
-            item.userID === formData.userID ? { ...item, ...formData } : item,
+            Number(item.userID) === Number(formData.userID) ? { ...item, ...formData } : item
           );
           setRowData(updatedData);
           setFilteredData(updatedData);
         }
-
+  
         setShowForm(false);
         setFormData({
           userID: 0,
@@ -499,6 +560,9 @@ const Users: React.FC = () => {
       alert('An unexpected error occurred. Please try again later.');
     }
   };
+  
+
+  
 
   const handleFilterSearch = () => {
     const filtered = apiData.filter((item) => {
@@ -526,8 +590,13 @@ const Users: React.FC = () => {
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
     gridColumnApi.current = params.columnApi;
-    params.api.sizeColumnsToFit();
-  };
+
+    params.api.sizeColumnsToFit(); // Auto-fit columns
+};
+
+
+
+
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -567,6 +636,7 @@ const Users: React.FC = () => {
 
       {showForm && (
         <div
+        ref={formRef}  // Attach the ref here
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
          text-black outline-none"
         >
@@ -687,27 +757,17 @@ const Users: React.FC = () => {
 
             {/* Buttons Row */}
             <div className="flex justify-end gap-4 mt-4">
-              <button
-                type="submit"
-                onClick={handleFormSubmit}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formData.userID === 0 ? 'Add' : 'Update'}
-              </button>
+            
 
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            
+
+              <CustomButton type="submit" onClick={handleFormSubmit}>
+              {formData.userID === 0 ? 'Save' : 'Update'}
+</CustomButton>
+
+<CustomButton type="button" onClick={handleCancel}>
+  Cancel
+</CustomButton>
             </div>
           </form>
         </div>
@@ -749,28 +809,24 @@ const Users: React.FC = () => {
           </span>
         </div>
 
-        <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={handleAdd}
-        >
-          + Add
-        </button>
+        <CustomButton onClick={handleAdd}>
+      + Add
+    </CustomButton>
       </div>
 
       <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={rowData}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
+      <AgGridReact
+    rowData={rowData}
+    columnDefs={columnDefs}
+    pagination={true}
+    paginationPageSize={10} // ✅ Set default page size
+    paginationPageSizeSelector={[10, 20, 50, 100]}
+    domLayout="autoHeight"
+    headerHeight={40}
+    rowHeight={40}
+    onGridReady={onGridReady}
+/>
+
       </div>
 
       {showConfirmation && (
@@ -778,24 +834,12 @@ const Users: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-              <button
-                onClick={confirmDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Yes, Delete
-              </button>
-              <button
-                onClick={cancelDelete}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-                hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 
-                ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+             
+              
+              <CustomButton onClick={confirmDelete}>Yes, Delete</CustomButton>
+<CustomButton onClick={cancelDelete} className="bg-gray-300 text-black hover:bg-gray-400">
+  Cancel
+</CustomButton>
             </div>
           </div>
         </div>

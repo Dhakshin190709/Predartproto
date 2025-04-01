@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import CustomButton from "../../components/CustomButton";
 
 const SurveyCreation = () => {
   const [formData, setFormData] = useState({
@@ -113,12 +114,10 @@ const SurveyCreation = () => {
           />
         </div>
 
-        <button
-          type="submit"
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Save
-        </button>
+       
+        <CustomButton >
+        Save
+    </CustomButton>
       </form>
 
       {/* Add Domain and Questions Buttons */}
@@ -149,12 +148,10 @@ const SurveyCreation = () => {
               text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input
               dark:text-white dark:focus:border-primary"
           />
-          <button
-            onClick={handleDomainSave}
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-          >
-            Save Domain
-          </button>
+          
+          <CustomButton onClick={handleDomainSave}>
+          Save Domain
+    </CustomButton>
         </div>
       )}
 
@@ -224,13 +221,10 @@ const SurveyCreation = () => {
             >
               <span className="text-2xl">+</span> {/* Add Option button */}
             </button>
-            <button
-              onClick={handleQuestionSave}
-              className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]
-                text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-            >
-              Save Question
-            </button>
+           
+            <CustomButton onClick={handleQuestionSave}>
+            Save Question
+    </CustomButton>
           </div>
         </div>
       )}

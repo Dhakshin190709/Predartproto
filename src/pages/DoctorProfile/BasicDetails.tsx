@@ -58,7 +58,9 @@ const BasicDetails: React.FC = () => {
  
   const [hospitalTypes, setHospitalTypes] = useState([]);
   const [validationSummary, setValidationSummary] = useState<string[]>([]);
-  const doctorId = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+  const [doctorId,setDoctorId]=useState([]);
+  // const doctorId = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+  
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
       .then((response) => response.json())

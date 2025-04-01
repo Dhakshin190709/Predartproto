@@ -13,7 +13,7 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
           <header className="bg-[#deeeff]">
             <div className="container mx-auto">
               <nav className="border-gray-200 dark:bg-gray-900">
-                <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-0 py-4">
+                <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto px-0 py-2">
                   <Link
                     className="flex items-center space-x-3 rtl:space-x-reverse"
                     to="/"
@@ -94,16 +94,19 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
               </nav>
             </div>
           </header>
-          <main><Outlet /></main>
+          <main>
+            <Outlet />
+          </main>
           <footer className="bg-[#deeeff]">
             <div className="container">
               <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto">
                 <div className="rounded-lg dark:bg-gray-900 w-full">
-                  <div className="w-full max-w-screen-xl mx-auto py-4 md:py-8">
+                  <div className="w-full max-w-screen-xl mx-auto py-4 md:py-5">
                     <div className="sm:flex sm:items-center sm:justify-between">
                       <Link
-                      className="flex items-center mb-4 sm:mb-0 space-x-3 rtl:space-x-reverse"
-                      to="/">
+                        className="flex items-center mb-4 sm:mb-0 space-x-3 rtl:space-x-reverse"
+                        to="/"
+                      >
                         <img
                           src={LogoIcon}
                           className="h-8"
@@ -132,18 +135,18 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                           </a>
                         </li>
                       </ul>
+
+                      <span className="block text-sm text-gray-500 dark:text-gray-400">
+                        © 2024{' '}
+                        <a
+                          href="https://carepointpro.in/"
+                          className="hover:underline"
+                        >
+                          carepointpro.in
+                        </a>
+                        . All Rights Reserved.
+                      </span>
                     </div>
-                    <hr className="my-6 border-gray-400 sm:mx-auto dark:border-gray-700 lg:mt-4 lg:mb-2" />
-                    <span className="block text-sm text-gray-500 dark:text-gray-400">
-                      © 2024{' '}
-                      <a
-                        href="https://carepointpro.in/"
-                        className="hover:underline"
-                      >
-                        carepointpro.in
-                      </a>
-                      . All Rights Reserved.
-                    </span>
                   </div>
                 </div>
               </div>

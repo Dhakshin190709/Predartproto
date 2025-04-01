@@ -3,6 +3,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { fetchHospitalAPI, fetchRoles } from '../../Utils';
+import CustomButton from '../../components/CustomButton';
 
 interface RowData {
   userID: number;
@@ -79,16 +81,17 @@ const Assignrole: React.FC = () => {
   const gridColumnApi = useRef<any>(null);
 
   const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
-      .then((response) => response.json())
-      .then((data) => {
-        // Filter for "Hospital" type
-        const filteredTypes = data.data.filter((item) => item.type === "Hospital");
-        setHospitalTypes(filteredTypes); // Set filtered options
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  }, []);
+
+  //fetch from hp utils
+ useEffect(() => {
+     const getHospitalTypes = async () => {
+       const types = await fetchHospitalAPI();
+       setHospitalTypes(types);
+     };
+ 
+     getHospitalTypes();
+   }, []);
+   
   
 
 
@@ -235,26 +238,14 @@ const Assignrole: React.FC = () => {
     
     
 
-    useEffect(() => {
-      const fetchRoles = async () => {
-        try {
-          const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Role"); // Replace with your API URL
-          const result = await response.json();
-    
-          // Check if the response has a 'data' field and if it's an array
-          if (Array.isArray(result.data)) {
-            setAllRoles(result.data); // Set the fetched roles into state
-            console.log("Fetched roles:", result.data); // Log to verify the structure
-          } else {
-            console.error("API response does not contain an array in 'data':", result);
-          }
-        } catch (error) {
-          console.error("Error fetching roles:", error);
-        }
-      };
-    
-      fetchRoles();
-    }, []);
+    // fetch role from utils
+     useEffect(() => {
+       const getRoles = async () => {
+         const data = await fetchRoles();
+         setRoles(data);
+       };
+       getRoles();
+     }, []);
 
     
     
@@ -292,22 +283,22 @@ const Assignrole: React.FC = () => {
         filter: false,    // Optional: you can disable filtering for the serial number column
       },
     { headerName: 'Tenant Name', field: 'tenantName', sortable: true, filter: true, 
-      flex: 1, headerClass: 'center-header',
-      cellClass: 'text-center',
+      flex: 1, headerClass: 'left-header',
+      cellClass: 'text-left',
       cellRenderer: (params) => params.value || "No Tenant Name"  },
     
       { 
         headerName: "User Name", 
         field: "username", 
         sortable: true, filter: true, flex: 1.5, 
-        headerClass: 'center-header',
-        cellClass: 'text-center',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
         cellRenderer: (params) => params.value || "No User Name" // Handle empty values
       },
     { headerName: 'Mobile No', field: 'mobile', sortable: true,flex:0.9, filter: true,headerClass: 'center-header',
       cellClass: 'text-center',},
-    { headerName: 'Email', field: 'email', sortable: true, filter: true, flex: 1.5, headerClass: 'center-header',
-      cellClass: 'text-center',},
+    { headerName: 'Email', field: 'email', sortable: true, filter: true, flex: 1.5, headerClass: 'left-header',
+      cellClass: 'text-left',},
 
     
       {
@@ -315,7 +306,7 @@ const Assignrole: React.FC = () => {
         field: "assignRole",
         flex: 1,
         headerClass: "text-center",
-        cellClass: "text-center",
+        cellClass: "text-left",
         cellRenderer: (params: any) => (
           <span
             onClick={() => handleChangeRole(params.data)} // Pass the whole row data
@@ -515,16 +506,10 @@ const Assignrole: React.FC = () => {
 </select>
 
 
-        <button
-          onClick={applyFilters}
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-          hover:from-[#007BFF] hover:to-[#004A99]
-          text-white transition duration-150 
-          ease-out hover:ease-in py-2 px-5 rounded-lg"
-                      >
-        
-          Search
-        </button>
+
+        <CustomButton onClick={applyFilters}>
+        Search
+    </CustomButton>
       </div>
 
       {/* Grid Table */}
@@ -575,26 +560,16 @@ const Assignrole: React.FC = () => {
 
         {/* Buttons */}
         <div className="mt-4 flex gap-4 justify-end">
-          <button
-            type="button"
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150
-            ease-out hover:ease-in py-2 px-5 rounded-lg"
-            onClick={() => setShowPopup(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150
-            ease-out hover:ease-in py-2 px-5 rounded-lg"
-            onClick={handleSaveRoles} // Save button logic
-          >
-            Save
-          </button>
+        
+
+          <CustomButton onClick={() => setShowPopup(false)}>
+          Cancel
+    </CustomButton>
+          
+
+          <CustomButton  onClick={handleSaveRoles}>
+          Save
+    </CustomButton>
         </div>
       </form>
     </div>

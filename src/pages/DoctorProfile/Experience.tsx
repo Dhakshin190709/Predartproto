@@ -38,7 +38,7 @@ const Experience: React.FC = () => {
   const [experienceErrors, setExperienceErrors] = useState<
     Record<number, Partial<Experience>>
   >({});
-  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+  const [doctorID,setDoctorID]=useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSpecialization, setSelectedSpecialization] = useState('');
 

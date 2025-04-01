@@ -5,7 +5,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
-import DocumentUpload from '../DocumentUpload'; 
+import DocumentUpload from '../UploadedDocument'; 
 
 import { differenceInMonths, isFuture } from "date-fns";
 interface Experience {

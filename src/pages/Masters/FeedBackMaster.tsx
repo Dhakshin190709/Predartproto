@@ -3,6 +3,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import CustomButton from '../../components/CustomButton';
 
 interface RowData {
   Id: number;
@@ -188,16 +189,8 @@ const Role: React.FC = () => {
           className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
         />
         
-        <button
-           className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-           hover:from-[#007BFF] hover:to-[#004A99]
-           text-white transition duration-150 
-           ease-out hover:ease-in py-2 px-5 rounded-lg"
-                       
-          onClick={handleFilterSearch}
-        >
-          Search
-        </button>
+        
+        <CustomButton onClick={handleFilterSearch}>Search</CustomButton>
       </div>
 
       <hr className="border-t-2 border-stroke bg-transparent my-6" />

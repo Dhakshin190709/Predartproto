@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Link } from 'react-router-dom'; // Import Link
+import CustomButton from '../../components/CustomButton';
 
 interface RowData {
   id: number;
@@ -163,15 +164,10 @@ const SurveyMaster: React.FC = () => {
 
         {/* Search Button */}
         <div className="flex justify-start mt-4">
-          <button
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-              hover:from-[#007BFF] hover:to-[#004A99]
-              text-white transition duration-150 
-              ease-out hover:ease-in py-2 px-5 rounded-lg"
-            onClick={handleFilterSearch}
-          >
-            Search
-          </button>
+          
+          <CustomButton onClick={handleFilterSearch}>
+          Search
+    </CustomButton>
         </div>
       </div>
 

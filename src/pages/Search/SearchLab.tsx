@@ -1,46 +1,66 @@
-import React, { useEffect, useState } from "react";
-import { FaFlask, FaMicroscope, FaRadiation, FaPhoneAlt,FaDirections,FaMapMarkerAlt,FaVial, FaXRay } from "react-icons/fa";
+import React, { useEffect, useState } from 'react';
+import {
+  FaFlask,
+  FaMicroscope,
+  FaRadiation,
+  FaPhoneAlt,
+  FaDirections,
+  FaMapMarkerAlt,
+  FaVial,
+  FaXRay,
+} from 'react-icons/fa';
+import CustomButton from '../../components/CustomButton';
 
 const SearchLab: React.FC = () => {
   const [labs, setLabs] = useState<any[]>([]);
   const [filteredLabs, setFilteredLabs] = useState<any[]>([]);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+  const toggleView = (index: number) => {
+    setExpandedIndex(expandedIndex === index ? null : index);
+  };
   const [labTypes, setLabTypes] = useState<{ id: string; name: string }[]>([]);
-  const [labFacilities, setLabFacilities] = useState<{ id: string; name: string }[]>([]);
-  const [labFacilitiesMap, setLabFacilitiesMap] = useState<{ [key: string]: string }>({});
+  const [labFacilities, setLabFacilities] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [labFacilitiesMap, setLabFacilitiesMap] = useState<{
+    [key: string]: string;
+  }>({});
   const [searchParams, setSearchParams] = useState({
-    labName: "",
-    testType: "",
-    labFacilities: "",
-    labCode: "",
+    labName: '',
+    testType: '',
+    labFacilities: '',
+    labCode: '',
   });
- 
 
   const getLabIcon = (labType: string) => {
     switch (labType.toLowerCase()) {
-      case "pathology lab":
-        return { icon: <FaMicroscope />, color: "#E67E22" }; // Orange
-      case "radiology lab":
-        return { icon: <FaRadiation />, color: "#8E44AD" }; // Purple
-      case "biochemistry lab":
-        return { icon: <FaVial />, color: "#27AE60" }; // Green
-      case "x-ray lab":
-        return { icon: <FaXRay />, color: "#f43ae6" }; // Pink
+      case 'pathology lab':
+        return { icon: <FaMicroscope />, color: '#E67E22' }; // Orange
+      case 'radiology lab':
+        return { icon: <FaRadiation />, color: '#8E44AD' }; // Purple
+      case 'biochemistry lab':
+        return { icon: <FaVial />, color: '#27AE60' }; // Green
+      case 'x-ray lab':
+        return { icon: <FaXRay />, color: '#f43ae6' }; // Pink
       default:
-        return { icon: <FaFlask />, color: "#007BFF" }; // Default Blue
+        return { icon: <FaFlask />, color: '#007BFF' }; // Default Blue
     }
   };
 
- 
-    const [expanded, setExpanded] = useState({});
-  
-    const toggleView = (index) => {
-      setExpanded((prev) => ({ ...prev, [index]: !prev[index] }));
-    };
+  const [expanded, setExpanded] = useState({});
+
+  // const toggleView = (index) => {
+  //   setExpanded((prev) => ({ ...prev, [index]: !prev[index] }));
+  // };
   // Fetch AppLOV data and create a mapping (id → name)
   useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=facilitiestype")
+    fetch(
+      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=facilitiestype',
+    )
       .then((response) => response.json())
       .then((data) => {
+        console.log('API Response:', data); // Debugging
         if (data && Array.isArray(data.data)) {
           const facilitiesList = data.data.map((facility: any) => ({
             id: facility.appLOVID,
@@ -51,11 +71,11 @@ const SearchLab: React.FC = () => {
           console.error('Expected an array inside "data" but got:', data);
         }
       })
-      .catch((error) => console.error("Error fetching AppLOV:", error));
+      .catch((error) => console.error('Error fetching AppLOV:', error));
   }, []);
 
   useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=LabType")
+    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV?type=LabType')
       .then((response) => response.json())
       .then((data) => {
         if (data.success && Array.isArray(data.data)) {
@@ -68,21 +88,21 @@ const SearchLab: React.FC = () => {
           console.error('Expected an array inside "data" but got:', data);
         }
       })
-      .catch((error) => console.error("Error fetching Lab Types:", error));
+      .catch((error) => console.error('Error fetching Lab Types:', error));
   }, []);
 
   // Fetch Labs and replace labFacilities ID with the corresponding name
   useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/Laboratory")
+    fetch('https://predart003-001-site1.anytempurl.com/api/Laboratory')
       .then((response) => response.json())
       .then((data) => {
         if (data && Array.isArray(data.data)) {
           const updatedLabs = data.data.map((lab: any) => ({
             ...lab,
             labFacilities: lab.labFacilities
-              .split(",") // If multiple facilities are stored as comma-separated IDs
+              .split(',') // If multiple facilities are stored as comma-separated IDs
               .map((id: string) => labFacilitiesMap[id.trim()] || id) // Replace ID with name
-              .join(", "),
+              .join(', '),
           }));
           setLabs(updatedLabs);
           setFilteredLabs(updatedLabs); // Initialize filteredLabs
@@ -90,7 +110,7 @@ const SearchLab: React.FC = () => {
           console.error("Expected an array inside 'data' but got:", data);
         }
       })
-      .catch((error) => console.error("Error fetching labs:", error));
+      .catch((error) => console.error('Error fetching labs:', error));
   }, [labFacilitiesMap]); // Re-fetch labs when mapping is updated
 
   // Handle input change
@@ -103,10 +123,26 @@ const SearchLab: React.FC = () => {
   const handleSearch = () => {
     const filtered = labs.filter((lab) => {
       return (
-        (searchParams.labName ? lab.labName.toLowerCase().includes(searchParams.labName.toLowerCase()) : true) &&
-        (searchParams.testType ? lab.labType.toLowerCase().includes(searchParams.testType.toLowerCase()) : true) &&
-        (searchParams.labFacilities ? lab.labFacilities.toLowerCase().includes(searchParams.labFacilities.toLowerCase()) : true) &&
-        (searchParams.labCode ? lab.labCode.toLowerCase().includes(searchParams.labCode.toLowerCase()) : true)
+        (searchParams.labName
+          ? lab.labName
+              .toLowerCase()
+              .includes(searchParams.labName.toLowerCase())
+          : true) &&
+        (searchParams.testType
+          ? lab.labType
+              .toLowerCase()
+              .includes(searchParams.testType.toLowerCase())
+          : true) &&
+        (searchParams.labFacilities
+          ? lab.labFacilities
+              .toLowerCase()
+              .includes(searchParams.labFacilities.toLowerCase())
+          : true) &&
+        (searchParams.labCode
+          ? lab.labCode
+              .toLowerCase()
+              .includes(searchParams.labCode.toLowerCase())
+          : true)
       );
     });
     setFilteredLabs(filtered);
@@ -131,40 +167,40 @@ const SearchLab: React.FC = () => {
           />
         </div>
         <div>
-        <select
-      id="labType"
-      name="labType"
-      value={searchParams.labType}
-      onChange={handleInputChange}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <select
+            id="labType"
+            name="labType"
+            value={searchParams.labType}
+            onChange={handleInputChange}
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
                 text-black outline-none focus:border-primary dark:border-form-strokedark
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="">-- Select Lab Type --</option>
-      {labTypes.map((lab) => (
-        <option key={lab.id} value={lab.id}>
-          {lab.name}
-        </option>
-      ))}
-    </select>
+          >
+            <option value="">-- Select Lab Type --</option>
+            {labTypes.map((lab) => (
+              <option key={lab.id} value={lab.id}>
+                {lab.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
-        <select
-      id="labFacilities"
-      name="labFacilities"
-      value={searchParams.labFacilities}
-      onChange={handleInputChange}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <select
+            id="labFacilities"
+            name="labFacilities"
+            value={searchParams.labFacilities}
+            onChange={handleInputChange}
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
                 text-black outline-none focus:border-primary dark:border-form-strokedark
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="">-- Select Lab Facility --</option>
-      {labFacilities.map((facility) => (
-        <option key={facility.id} value={facility.id}>
-          {facility.name}
-        </option>
-      ))}
-    </select>
+          >
+            <option value="">-- Select Lab Facility --</option>
+            {labFacilities.map((facility) => (
+              <option key={facility.id} value={facility.id}>
+                {facility.name}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
           <input
@@ -181,93 +217,86 @@ const SearchLab: React.FC = () => {
 
         {/* Search Button */}
         <div>
-          <button
-            type="button"
-            onClick={handleSearch}
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
-            ease-out hover:ease-in py-2 px-5 rounded-lg"
-          >
-            Search
-          </button>
+         
+
+          <CustomButton  onClick={handleSearch}>
+      Search
+    </CustomButton>
         </div>
       </form>
 
       {/* Lab Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <div className="grid grid-cols-1 gap-4 mt-4">
       {filteredLabs.length > 0 ? (
         filteredLabs.map((lab, index) => {
           const { icon, color } = getLabIcon(lab.labType);
-          const isExpanded = expanded[index];
+          const isExpanded = expandedIndex === index;
 
           return (
             <div
               key={index}
-              className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-100 
-              transition-transform transform hover:scale-105 hover:shadow-lg"
+              className="bg-white p-5 rounded-lg shadow border border-blue-200 transition hover:shadow-lg"
             >
-              {/* Lab Header: Icon, Name, and Code */}
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-2xl" style={{ color }}>{icon}</span>
-                <h2 className="text-xl font-bold text-gray-800 flex-1 text-center">{lab.labName}</h2>
-                <p className="text-md font-semibold" style={{ color: "#007BFF" }}>{lab.labCode}</p>
-              </div>
-
-              
-
-              {/* Lab Type (Color-coded) */}
-              <p className="text-md font-medium text-center mt-2" style={{ color }}>{lab.labType}</p>
-{/* Lab Facilities (2 per line, comma-separated) */}
-<p className="text-md text-gray-600 font-medium text-center mt-2">
-            {lab.labFacilities
-              .split(",")
-              .map((facility, i, arr) => (i % 2 === 0 ? arr.slice(i, i + 2).join(", ") : ""))
-              .filter(Boolean)
-              .map((line, i) => (
-                <span key={i}>
-                  {line}
-                  
-                  <br />
-                </span>
-              ))}
-          </p>
-              {/* Address with View More / Less */}
-              <div className="flex items-center justify-between text-gray-700 mt-2">
-                <div className="flex items-center">
-                  <FaMapMarkerAlt className="text-red-500 mr-1" />
-                  <span className="text-md">
-                    {isExpanded ? "Anna Nagar, Chennai, Tamil Nadu - 600102" : "Anna Nagar, Chennai"}
+              {/* Uniform Grid Layout */}
+              <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr] items-center gap-4">
+                {/* Icon */}
+                <div className="flex justify-center">
+                  <span className="text-2xl" style={{ color }}>
+                    {icon}
                   </span>
                 </div>
+
+                {/* Lab Name & Code */}
+                <h2 className="text-lg font-bold text-gray-800 text-center">
+                  {lab.labName} ({lab.labCode})
+                </h2>
+
+                {/* Lab Type */}
+                <p className="text-md font-medium text-center" style={{ color }}>
+                  {lab.labType}
+                </p>
+
+                {/* Location */}
+                <div className="flex items-center justify-center text-gray-700 text-md">
+                  <FaMapMarkerAlt className="text-red-500 mr-1" />
+                  <span>{isExpanded ? "Anna Nagar, Chennai, Tamil Nadu - 600102" : "Anna Nagar, Chennai"}</span>
+                </div>
+
+                {/* Directions */}
+                <a href="#" className="text-green-500 flex items-center justify-center text-md hover:underline">
+                  <FaDirections className="mr-1" /> Directions
+                </a>
+
+                {/* View More / Less */}
                 <button
                   onClick={() => toggleView(index)}
-                  className="text-blue-300 text-sm hover:underline"
+                  className="text-blue-500 text-sm hover:underline text-center"
                 >
                   {isExpanded ? "View Less" : "View More"}
                 </button>
               </div>
 
-              {/* Directions Link */}
-              <div className="flex items-center justify-between mt-2">
-  
-  <a href="#" className="text-green-500 flex items-center hover:underline">
-    <FaDirections className="mr-1" /> Directions
-  </a>
-
-  {/* Contact Link */}
-  <a href={`tel:${lab.contactNumber}`} className="text-blue-500 flex items-center hover:underline">
-    <FaPhoneAlt className="mr-1" /> Contact
-  </a>
-</div>
-
+              {/* Expanded Facilities Section */}
+              {isExpanded && (
+                <div className="mt-3 text-gray-600 text-md text-center font-medium">
+                  {lab.labFacilities
+                    .split(",")
+                    .map((id) => {
+                      const facility = labFacilities.find((f) => f.id.toString() === id.trim());
+                      return facility ? facility.name : id;
+                    })
+                    .join(", ")}
+                </div>
+              )}
             </div>
           );
         })
       ) : (
-        <p>No labs found</p>
+        <p className="text-lg font-semibold text-gray-700">No labs found</p>
       )}
     </div>
+
+
     </div>
   );
 };

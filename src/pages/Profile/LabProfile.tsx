@@ -28,10 +28,11 @@ const LabProfile: React.FC = () => {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [activeArrow, setActiveArrow] = useState<string | null>(null);
 
-  const handleSelectAddress = (addressIndex) => {
-    setSelectedAddress(addresses[addressIndex]);
+  const handleSelectAddress = (address, index) => {
+    setSelectedAddress(addresses[index]); // Use 'index' instead of 'addressIndex'
     console.log("Selected Address:", addresses[index]);
   };
+  
 
   interface LabFacility {
     laboratoryID: string;
@@ -114,7 +115,7 @@ const [labTypes, setLabTypes] = useState([]);
 
 
 const [labDetails, setLabDetails] = useState<any>(null);
-const labID = "bc4c719a-768e-4702-9ead-08dd49c3522e";
+const labID = "ab89e3b3-bbb3-4c4d-1664-08dd6ddee089";
 
 const handleArrowClick = (arrow) => {
   setActiveArrow(arrow);
@@ -282,18 +283,23 @@ useEffect(() => {
 
 
 
-
 const fetchHospitals = async () => {
   try {
     const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Hospital');
     const data = await response.json();
-    if (data && data.data) {
-      setHospitals(data.data);
+    
+    if (Array.isArray(data)) {
+      setHospitals(data); // ✅ Store directly, as the response is already an array
+    } else {
+      console.warn("Unexpected API response format", data);
+      setHospitals([]); // Prevents errors in dropdown rendering
     }
   } catch (error) {
     console.error('Error fetching hospitals:', error);
+    setHospitals([]);
   }
 };
+
 
 const handleHospitalChange = (index, value) => {
   setTimeSlots((prevSlots) =>
@@ -861,7 +867,8 @@ const handleCreateLab = async (e) => {
     </h2>
 
     {addresses.map((address, index) => (
-  <div key={index} onClick={() => handleSelectAddress(index)}
+  <div key={index} onClick={() => handleSelectAddress(address, index)}
+   
 
         className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import axios from "axios";
 import { FaUser, FaCalendarAlt, FaClock, FaHospital, FaPhoneAlt, FaMars, FaVenus } from "react-icons/fa";
+import CustomButton from "../../components/CustomButton";
 
 interface Appointment {
   patientID: string;
@@ -115,39 +116,65 @@ const SearchAppointment: React.FC = () => {
 
       {/* Buttons */}
       <div className="mt-6 flex gap-4">
-        <button type="button" className="bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-          hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">Search</button>
+      <CustomButton>
+    Search
+    </CustomButton>
+       
         <button type="button" className="bg-gradient-to-b from-[#008000] to-[#00CC00] 
           hover:from-[#00CC00] hover:to-[#008000] text-white py-2 px-5 rounded-lg"
 onClick={() => window.location.href = "/appointment/booking"}>Book Now</button>
       </div>
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {appointments.map((appointment) => {
-          const { name: patientName, age, phone: patientPhone, gender } = getPatientDetails(appointment.patientID);
-          const { name: doctorHospital } = getDoctorHospitalDetails(appointment.doctorID);
-          const appointmentID = `${appointment.patientID}-${appointment.appointmentDate}`;
-          const genderIcon = gender.toLowerCase() === "female" || gender.toLowerCase() === "f" ? <FaVenus className="text-pink-500" /> : <FaMars className="text-blue-500" />;
 
-          return (
-            <div key={appointmentID} className="p-4 border border-blue-300 rounded-lg shadow-md hover:shadow-lg transition-shadow cursor-pointer" onClick={() => toggleExpand(appointmentID)}>
-              <div className="flex justify-between items-center text-xl font-medium text-black">
-                <div className="flex items-center gap-2"> <FaUser className="text-blue-500" /> {patientName} {genderIcon} </div>
-                <div>{age} yrs</div>
-              </div>
-              <div className="flex justify-between items-center mt-2 text-sm font-medium text-black">
-                <div className="flex items-center gap-2"> <FaCalendarAlt className="text-green-500" /> {appointment.appointmentDate.slice(0, 10)} </div>
-                <div className="flex items-center gap-2"> <FaClock className="text-red-500" /> {appointment.appointmentTime.slice(0, 5).replace(":", ".")} </div>
-              </div>
-              {expandedCard === appointmentID && (
-                <div className="mt-2 p-2 border-t border-blue-200">
-                  <div className="flex items-center gap-2 text-md font-medium text-black"> <FaHospital className="text-purple-500" /> {doctorHospital} </div>
-                  <div className="flex items-center gap-2 text-md font-medium text-black"> <FaPhoneAlt className="text-orange-500" /><a href={`tel:${patientPhone}`} className="text-black">{patientPhone}</a> </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+
+      <div className="mt-6 grid grid-cols-1 gap-4">
+  {appointments.map((appointment) => {
+    const { name: patientName, age, phone: patientPhone, gender } = getPatientDetails(appointment.patientID);
+    const { name: doctorHospital } = getDoctorHospitalDetails(appointment.doctorID);
+    const appointmentID = `${appointment.patientID}-${appointment.appointmentDate}`;
+    const genderIcon = gender.toLowerCase() === "female" || gender.toLowerCase() === "f"
+      ? <FaVenus className="text-pink-500" />
+      : <FaMars className="text-blue-500" />;
+
+    return (
+      <div
+        key={appointmentID}
+        className="bg-white p-4 rounded-xl shadow-md border-2 border-blue-100 
+        transition-transform transform hover:scale-105 hover:shadow-lg w-full">
+        {/* First Row - Name, Age, Hospital, Phone */}
+        <div className="grid grid-cols-4 text-sm font-medium text-black">
+          <div className="flex items-center gap-1 truncate">
+            <FaUser className="text-blue-500" /> {patientName} {genderIcon}
+          </div>
+          <div className="flex items-center gap-1">
+            <span>{age} yrs</span>
+          </div>
+          <div className="flex items-center gap-1 truncate">
+            <FaHospital className="text-purple-500" /> {doctorHospital}
+          </div>
+          <div className="flex items-center gap-1">
+            <FaPhoneAlt className="text-orange-500" />
+            <a href={`tel:${patientPhone}`} className="text-black">{patientPhone}</a>
+          </div>
+        </div>
+
+        {/* Second Row - Date & Time */}
+        <div className="grid grid-cols-4 text-sm font-medium text-black mt-2">
+          <div className="flex items-center gap-1 truncate">
+            <FaCalendarAlt className="text-green-500" /> {appointment.appointmentDate.slice(0, 10)}
+          </div>
+          <div className="flex items-center gap-1">
+            <FaClock className="text-red-500" /> <span>{appointment.appointmentTime.slice(0, 5).replace(":", ".")}</span>
+          </div>
+        </div>
       </div>
+    );
+  })}
+</div>
+
+
+
+
+
     </div>
   );
 };

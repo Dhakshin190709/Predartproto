@@ -10,7 +10,7 @@ interface Award {
 type FormErrors = { [key: string]: string };
 
 const Awards: React.FC = () => {
-  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+   const [doctorID,setDoctorID]=useState([]);
   const [awards, setAwards] = useState<Award[]>([{ awardName: '', year: '', description: '' }]);
   const [existingAwards, setExistingAwards] = useState<Award[]>([]); // ✅ Track existing awards
   const [formErrors, setFormErrors] = useState<FormErrors>({});

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import ClickOutside from '../ClickOutside';
 import UserOne from '../../images/user/user-01.png';
-
+import React from "react";
 import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/actions/authActions';
 import { useNavigate } from 'react-router-dom'; 

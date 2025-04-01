@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import CustomButton from "../../components/CustomButton";
 
 const Survey: React.FC = () => {
   const [answers, setAnswers] = useState<any>({
@@ -235,15 +236,11 @@ const Survey: React.FC = () => {
 
       {/* Submit Button */}
       <div className="flex justify-center mt-8"> {/* Increased margin top */}
-        <button
-          onClick={handleSubmit}
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-            hover:from-[#007BFF] hover:to-[#004A99]
-            text-white transition duration-150 
-            ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Submit
-        </button>
+      
+
+        <CustomButton onClick={handleSubmit}>
+        Submit
+    </CustomButton>
       </div>
     </div>
   );

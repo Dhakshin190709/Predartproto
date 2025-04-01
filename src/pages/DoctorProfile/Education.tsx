@@ -18,7 +18,9 @@ interface Address {
 }
 
 const Education: React.FC = () => {
-  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+  const [doctorID, setDoctorID] = useState<string | null>(null);
+
+
   const [qualifications, setQualifications] = useState([]);
   const [specializations, setSpecializations] = useState([]);
   const [successMessage, setSuccessMessage] = useState('');
@@ -233,19 +235,21 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
     const parsedEndDate =
       typeof address.endDate === "string" ? parseISO(address.endDate) : address.endDate;
   
-    return {
-      createdBy: userID,
-      tenantID: "4e6e4cd1-5f6f-43f9-d5b1-08dd31472972",
-      doctorID,
-      specializationID: address.specialization,
-      graduateID: address.qualification,
-      degreeName: address.degreeName.trim(),
-      location: address.location.trim(),
-      universityName: address.university.trim(),
-      startDate: parsedStartDate instanceof Date ? parsedStartDate.toISOString().split("T")[0] : "",
-      endDate: parsedEndDate instanceof Date ? parsedEndDate.toISOString().split("T")[0] : "",
-      isHighestEducation: address.isHighestEducation,
-    };
+      return {
+        createdBy: userID,
+        tenantID: "4e6e4cd1-5f6f-43f9-d5b1-08dd31472972",
+        doctorID: doctorID ?? "", // Ensure it is not undefined or null
+        specializationID: address.specialization,
+        graduateID: address.qualification,
+        degreeName: address.degreeName.trim(),
+        location: address.location.trim(),
+        universityName: address.university.trim(),
+        startDate: parsedStartDate instanceof Date ? parsedStartDate.toISOString().split("T")[0] : "",
+        endDate: parsedEndDate instanceof Date ? parsedEndDate.toISOString().split("T")[0] : "",
+        isHighestEducation: address.isHighestEducation,
+      };
+      
+      
   });
   
   console.log("Payload sent to API:", JSON.stringify(educationData, null, 2));
