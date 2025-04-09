@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 const Language: React.FC = () => {
-  const [doctorID, setDoctorID] = useState<string>(''); // UI loads without doctorID
+  const [doctorID, setDoctorID] = useState("");
   const [languageOptions, setLanguageOptions] = useState<{ appLOVID: string; name: string }[]>([]);
   const [forms, setForms] = useState<any[]>([
     { id: Date.now(), language: '', abilities: { read: false, write: false, speak: false }, isNew: true }
@@ -10,6 +10,7 @@ const Language: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // Fetch language options when component loads (without waiting for doctorID)
+
   useEffect(() => {
     const fetchLanguages = async () => {
       try {
@@ -24,26 +25,44 @@ const Language: React.FC = () => {
     fetchLanguages();
   }, []);
 
-  // Fetch doctor's saved language details only when doctorID is entered
+  // ✅ First: Read doctorID from sessionStorage
   useEffect(() => {
-    if (!doctorID) return; // Skip fetching if doctorID is empty
+    const id = sessionStorage.getItem("doctorID");
+    console.log("Fetched from sessionStorage:", id);
+    if (id) {
+      setDoctorID(id);
+    }
+  }, []);
+  useEffect(() => {
+    if (!doctorID) {
+      console.log("doctorID is not available yet.");
+      return;
+    }
 
     const fetchDoctorLanguages = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`https://predart003-001-site1.anytempurl.com/api/Doctor/GetLanguage?doctorId=${doctorID}`);
-        
+        const { data } = await axios.get(
+          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetLanguage?doctorId=${doctorID}`
+        );
+
+        console.log("API Response:", data);
+
         if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
           const existingForms = data.data.map((lang: any) => ({
             id: lang.languageID,
             language: lang.languageMasterID,
-            abilities: { read: lang.read, write: lang.write, speak: lang.speak },
+            abilities: {
+              read: lang.read,
+              write: lang.write,
+              speak: lang.speak,
+            },
             isNew: false,
           }));
           setForms(existingForms);
         }
       } catch (err) {
-        console.error('Error fetching doctor languages:', err);
+        console.error("Error fetching doctor languages:", err);
       } finally {
         setLoading(false);
       }
@@ -51,7 +70,8 @@ const Language: React.FC = () => {
 
     fetchDoctorLanguages();
   }, [doctorID]);
-
+  
+  
   const selectedLanguages = forms.map((form) => form.language);
 
   const addForm = () => {
@@ -76,34 +96,46 @@ const Language: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+  
     if (!doctorID) {
-      alert('⚠️ Please enter a Doctor ID before saving.');
+      alert('⚠️ Doctor ID not found in session. Cannot submit.');
       return;
     }
-
+  
+    if (!userID) {
+      alert('⚠️ User not logged in. Please log in again.');
+      return;
+    }
+  
     const payload = forms.map((form) => ({
-      createdBy: sessionStorage.getItem('userID') || 'unknown',
+      createdBy: userID,
       id: doctorID,
       type: 'doctor',
       languageMasterID: form.language,
       ...form.abilities,
     }));
-
+  
+    console.log('🚀 Submitting Payload:', payload);
+  
     try {
       const { status } = await axios.post(
         'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveLanguage',
         payload,
         { headers: { 'Content-Type': 'application/json' } }
       );
-
+  
       if ([200, 201].includes(status)) {
         alert('✅ Languages saved successfully!');
       }
     } catch (err) {
-      console.error('Error saving languages:', err);
+      console.error('❌ Error saving languages:', err);
       alert('❌ Failed to save languages.');
     }
   };
+  
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

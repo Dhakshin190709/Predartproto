@@ -4,6 +4,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
 import CustomButton from '../components/CustomButton';
+import CalendarIcon from "../../src/images/icon/calendar.svg";
+import ClockIcon from "../../images/icon/Clock.png";
 
 interface AppLOVOption {
   appLOVID: string;
@@ -34,14 +36,16 @@ const BookAppointment = () => {
     date: '',
     time: '',
   });
-  const [slotDuration, setSlotDuration] = useState(10); // Default slot duration, adjust as necessary
+  const [slotDuration, setSlotDuration] = useState(5); // Default slot duration, adjust as necessary
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
   const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string>('');
+  
+  
+  const [doctorID, setDoctorID] = useState('');
 
-  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
   const handleTimeChange = (time: Date | null) => {
     if (time) {
       setSelectedTime(time);
@@ -215,25 +219,50 @@ const BookAppointment = () => {
     }
 
     // Date validation
-    if (name === 'date') {
-      const dateValue = formData.date; // Use formData.date for consistency
-      if (!dateValue) {
-        error = 'Date is required.';
-      } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
-        error = 'Invalid date.';
-      } else {
-        error = ''; // Clear error when valid
-      }
-    }
+   // Date validation
+if (name === 'date') {
+  const dateValue = formData.date;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
+
+  if (!dateValue) {
+    error = 'Date is required.';
+  } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
+    error = 'Invalid date.';
+  } else if (dateValue < today) {
+    error = 'Past dates are not allowed.';
+  } else {
+    error = ''; // Clear error when valid
+  }
+}
+
 
     // Time validation
     if (name === 'time') {
+      const selectedDate = formData.date; // assuming this is the selected date
+      const selectedTime = value as Date;
+      const now = new Date();
+    
       if (!value) {
         error = 'Time is required.';
-      } else if (value instanceof Date && isNaN(value.getTime())) {
+      } else if (selectedTime instanceof Date && isNaN(selectedTime.getTime())) {
         error = 'Invalid time.';
+      } else if (selectedDate) {
+        const selectedDateOnly = new Date(selectedDate);
+        selectedDateOnly.setHours(0, 0, 0, 0);
+    
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+    
+        if (selectedDateOnly.getTime() === today.getTime()) {
+          // If the selected date is today, validate that time is now or in the future
+          if (selectedTime < now) {
+            error = 'Past time is not allowed for today.';
+          }
+        }
       }
     }
+    
 
     return error;
   };
@@ -330,47 +359,81 @@ const BookAppointment = () => {
     }));
   };
 
+
+  const convertTo24HourFormat = (timeStr: string): string => {
+    const [time, modifier] = timeStr.trim().split(' ');
+    let [hours, minutes] = time.split(':').map(Number);
+  
+    if (modifier === 'PM' && hours < 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+  
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+  };
+
+  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
     const userID = sessionStorage.getItem('userID');
-    if (!userID || !doctorID) {
+    if (!userID) {
       alert('User not logged in. Please log in again.');
       return;
     }
-
+  
     // Validate all fields before submitting
     const newErrors = {
       name: validateField('name', formData.name),
       relationship: validateField('relationship', formData.relationship),
       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
-      // hospital: validateField('hospital', formData.hospital),
       doctor: validateField('doctor', formData.doctor),
       reason: validateField('reason', formData.reason),
       date: validateField('date', formData.date),
       time: validateField('time', formData.time),
     };
-
+  
     setErrors(newErrors);
-
+  
     if (Object.values(newErrors).every((error) => error === '')) {
-      const payload = {
-        createdBy: userID,
-        isActive: true,
-        doctorID: formData.doctor,
-        patientID: '1e3b8a00-d9c7-453d-aa97-005281e76f80',
-        timeSlotID: formData.timeSlotID,
-        appointmentDate: formData.date
-          ? new Date(formData.date).toISOString().split('T')[0]
-          : null,
-        appointmentTime: formData.time ? `${formData.time}:00` : null,
-        statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-        notes: formData.reason || '',
-        toWhom: appointmentType, // ✅ Send the ID, not name
-        relationship: selectedRelationship,
-        phoneNumber: formData.phoneNumber || '',
-      };
-
       try {
+        // Fetch patientID using userID
+        const patientRes = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`
+        );
+  
+        if (!patientRes.ok) {
+          throw new Error('Failed to fetch patient ID');
+        }
+  
+        const patientData = await patientRes.json();
+        const patientID = patientData?.data?.patientID;
+  
+        if (!patientID) {
+          alert('Patient ID not found for the logged-in user.');
+          return;
+        }
+  
+        const appointmentTimeFormatted = formData.time
+          ? convertTo24HourFormat(formData.time)
+          : '00:00:00';
+  
+        const payload = {
+          createdBy: userID,
+          isActive: true,
+          doctorID: formData.doctor,
+          patientID: patientID,
+          timeSlotID: formData.timeSlotID,
+          appointmentDate: formData.date
+            ? new Date(formData.date).toISOString().split('T')[0]
+            : null,
+          appointmentTime: appointmentTimeFormatted,
+          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+          notes: formData.reason?.trim() || 'No additional notes',
+          toWhom: appointmentType,
+          relationShip: selectedRelationship,
+          phoneNumber: formData.phoneNumber || '',
+        };
+  
         const response = await fetch(
           'https://predart003-001-site1.anytempurl.com/api/Appointment',
           {
@@ -379,12 +442,15 @@ const BookAppointment = () => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload),
-          },
+          }
         );
-
+  
         if (response.ok) {
           setSuccessMessage('Form submitted successfully!');
           console.log('Form Submitted:', payload);
+  
+          // ✅ Reset the form
+          resetForm();
         } else {
           const errorData = await response.json();
           console.error('Submission failed:', errorData);
@@ -398,6 +464,31 @@ const BookAppointment = () => {
       setSuccessMessage('');
     }
   };
+  
+  // ✅ Helper function to reset the form completely
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      relationship: '',
+      phoneNumber: '',
+      doctor: '',
+      reason: '',
+      date: '',
+      time: '',
+      timeSlotID: '',
+    });
+    setSelectedRelationship('');
+    setAppointmentType('');
+    setSelectedHospitalID('');
+    setSelectedDoctorID('');
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setErrors({});
+  };
+  
+  
+  
+  
 
   const [selectedRelationship, setSelectedRelationship] = useState('');
 
@@ -488,26 +579,44 @@ const BookAppointment = () => {
     fromTime: string,
     toTime: string,
     slotDuration: number,
-    timeSlotID: string,
+    timeSlotID: string
   ) => {
     console.log('Generating slots for timeSlotID:', timeSlotID);
-
+  
     const slots = [];
-    const today = new Date();
     const [fromHours, fromMinutes] = fromTime.split(':').map(Number);
     const [toHours, toMinutes] = toTime.split(':').map(Number);
-
-    let current = new Date(today.setHours(fromHours, fromMinutes, 0, 0));
-    const end = new Date(today.setHours(toHours, toMinutes, 0, 0));
-
-    while (current <= end) {
-      slots.push({ time: new Date(current), timeSlotID });
-      current = new Date(current.getTime() + slotDuration * 60000); // Add slot duration
+  
+    const now = new Date(); // Current time
+    const selectedDateCopy = new Date(selectedDate!); // Copy to avoid mutation
+    selectedDateCopy.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+  
+    let currentSlot = new Date(selectedDate!); // Start at the selected date
+    currentSlot.setHours(fromHours, fromMinutes, 0, 0);
+  
+    const endSlot = new Date(selectedDate!);
+    endSlot.setHours(toHours, toMinutes, 0, 0);
+  
+    while (currentSlot <= endSlot) {
+      // Allow slot if selectedDate is not today OR slot is in future
+      if (
+        selectedDateCopy.getTime() !== today.getTime() ||
+        currentSlot.getTime() >= now.getTime()
+      ) {
+        slots.push({ time: new Date(currentSlot), timeSlotID });
+      }
+  
+      currentSlot = new Date(currentSlot.getTime() + slotDuration * 60000);
     }
-
-    setGeneratedTimeSlots(slots); // ✅ Save slots with IDs
+  
+    setGeneratedTimeSlots(slots);
   };
+  
 
+
+  
   useEffect(() => {
     const selectedOption = options.find(
       (opt) => opt.appLOVID === appointmentType,
@@ -522,6 +631,17 @@ const BookAppointment = () => {
     }
   }, [appointmentType]);
 
+
+  useEffect(() => {
+    if (!appointmentType && options.length > 0) {
+      const defaultOption = options.find(opt => opt.name === 'Self');
+      if (defaultOption) {
+        setAppointmentType(defaultOption.appLOVID);
+        handleOptionChange(defaultOption); // optional
+      }
+    }
+  }, [options]);
+  
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     setSelectedTime(time);
     setSelectedTimeSlotID(timeSlotID);
@@ -543,7 +663,7 @@ const BookAppointment = () => {
           <h2 className="mt-0 mb-3 text-2xl font-semibold text-black dark:text-white sm:text-title-xl2">
             Book Appointment
           </h2>
-          <form onSubmit={handleSubmit}>
+          <form>
             {/* Appointment Type */}
             <div className="mb-4 flex justify-center gap-4">
               {options.map((option) => (
@@ -560,7 +680,7 @@ const BookAppointment = () => {
                       setAppointmentType(option.appLOVID); // ✅ Store the ID
                       handleOptionChange(option); // Pass the entire option for name reference if needed
                     }}
-                    className="form-radio text-primary-600"
+                    className="form-radio text-primary-600 w-5 h-4"
                   />
                   <span>{option.name}</span> {/* Display name, but store ID */}
                 </label>
@@ -714,24 +834,28 @@ const BookAppointment = () => {
             <div className="mb-4 flex flex-wrap gap-4">
   {/* Date Picker */}
   <div className="relative w-1/4">
-    <DatePicker
-      selected={selectedDate}
-      onChange={(date) => handleDateChange(date)}
-      placeholderText="Select Date"
-      className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${
-        errors.date ? 'border-red-500' : ''
-      }`}
-    />
-    {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+  <DatePicker
+    selected={selectedDate}
+    onChange={(date) => handleDateChange(date)}
+    placeholderText="Select Date"
+    className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${
+      errors.date ? 'border-red-500' : ''
+    }`}
+  />
+  {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
 
-    {/* Calendar Icon */}
-    <span
-      className="absolute right-4 top-1/2 transform -translate-y-1/2"
-      style={{ color: '#c2c3c4' }}
-    >
-      <i className="fas fa-calendar-alt fa-xs"></i>
-    </span>
-  </div>
+  {/* Image Calendar Icon */}
+  <span
+    className="absolute right-8 top-1/2 transform -translate-y-1/2"
+  >
+    <img
+      src={CalendarIcon} // 👈 Replace with your image path
+      alt="Calendar Icon"
+      className="w-5 h-6 opacity-70"
+    />
+  </span>
+</div>
+
 
   {/* Time Picker */}
   <div className="relative w-1/4">
@@ -762,19 +886,15 @@ const BookAppointment = () => {
 
     {/* Timer Icon */}
     <span
-      className="absolute right-4 top-1/2 transform -translate-y-1/2"
+      className="absolute right-8 top-1/2 transform -translate-y-1/2"
       style={{ color: '#c2c3c4' }}
     >
-      <i className="fas fa-clock fa-xs"></i>
+      <i className="fas fa-clock fa-sm"></i>
     </span>
   </div>
 
   {/* Column 3 (Submit Button) */}
-  <div className="relative w-1/4 flex items-center justify-start">
-  <CustomButton>
-      Book Now
-    </CustomButton>
-  </div>
+  
 
   {/* Column 4 (Empty Space) */}
   <div className="relative w-1/4"></div>
@@ -783,6 +903,11 @@ const BookAppointment = () => {
 
            
           </form>
+          <div className="relative w-1/4 flex items-center justify-start">
+  <CustomButton onClick={handleSubmit}>
+      Book Now
+    </CustomButton>
+  </div>
         </div>
       </div>
     </div>

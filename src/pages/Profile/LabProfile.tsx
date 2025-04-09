@@ -6,6 +6,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import { inputFieldClass } from '../../components/FormStyles';
 
 
 const LabProfile: React.FC = () => {
@@ -712,9 +713,7 @@ const handleCreateLab = async (e) => {
                           setFormData({ ...formData, tenant: e.target.value });
                           handleSingleInputChange('tenant', e.target.value);
                         }}
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        className={inputFieldClass}
                       >
                         <option value="" disabled>
                           Select Tenant
@@ -740,9 +739,7 @@ const handleCreateLab = async (e) => {
                             e.target.value,
                           )
                         }
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        className={inputFieldClass}
                       >
                         <option value="">Select Hospital</option>
                         {hospitals.length > 0 ? (
@@ -766,9 +763,7 @@ const handleCreateLab = async (e) => {
     <input
       type="text"
       placeholder="Enter Lab Name"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
       value={labName}
       onChange={(e) => setLabName(e.target.value)}
     />
@@ -784,9 +779,7 @@ const handleCreateLab = async (e) => {
     <input
       type="text"
       placeholder="Enter Code"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10  
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
       value={labCode}
       onChange={(e) => setLabCode(e.target.value)}
     />
@@ -797,9 +790,7 @@ const handleCreateLab = async (e) => {
                  
                     <div>
                   <select
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
+ className={inputFieldClass}
   value={selectedLabType} // Ensure you have a state for this
   onChange={(e) => setSelectedLabType(e.target.value)}
 >
@@ -814,9 +805,7 @@ const handleCreateLab = async (e) => {
 <div>
 {/* Facilities Input */}
 <select
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
+className={inputFieldClass}
   value={selectedFacilitiesType} // Ensure you have a state for this
   onChange={(e) => setSelectedFacilitiesType(e.target.value)}
 >
@@ -870,9 +859,7 @@ const handleCreateLab = async (e) => {
   <div key={index} onClick={() => handleSelectAddress(address, index)}
    
 
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+  className={inputFieldClass}
       >
         {/* Address Type */}
         
@@ -900,9 +887,7 @@ const handleCreateLab = async (e) => {
           <div>
             <input
               type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+              className={inputFieldClass}
               value={address.address1}
               onChange={(e) =>
                 updateAddress(index, 'address1', e.target.value)
@@ -913,9 +898,7 @@ const handleCreateLab = async (e) => {
           <div>
             <input
               type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+              className={inputFieldClass}
               value={address.address2}
               onChange={(e) =>
                 updateAddress(index, 'address2', e.target.value)
@@ -930,9 +913,7 @@ const handleCreateLab = async (e) => {
           <div>
             <input
               type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+              className={inputFieldClass}
               value={address.city}
               onChange={(e) =>
                 updateAddress(index, 'city', e.target.value)
@@ -946,9 +927,7 @@ const handleCreateLab = async (e) => {
   <input
     type="text"
     placeholder="Enter District"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    className={inputFieldClass}
     value={address.district}
     onChange={(e) => updateAddress(index, 'district', e.target.value)}
   />
@@ -959,9 +938,7 @@ const handleCreateLab = async (e) => {
   <input
     type="text"
     placeholder="Enter State"
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    className={inputFieldClass}
     value={address.state}
     onChange={(e) => updateAddress(index, 'state', e.target.value)}
   />
@@ -970,9 +947,7 @@ const handleCreateLab = async (e) => {
           <div>
             <input
               type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+              className={inputFieldClass}
               value={address.zipCode}
               onChange={(e) =>
                 updateAddress(index, 'zipCode', e.target.value)
@@ -1214,9 +1189,7 @@ const handleCreateLab = async (e) => {
      timeIntervals={15}
      dateFormat="h:mm aa"
      placeholderText="From Time"
-     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-     text-black outline-none focus:border-primary dark:border-form-strokedark 
-     dark:bg-form-input dark:text-white dark:focus:border-primary"
+     className={inputFieldClass}
    />
  
    {/* To Time Picker */}
@@ -1228,9 +1201,7 @@ const handleCreateLab = async (e) => {
      timeIntervals={15}
      dateFormat="h:mm aa"
      placeholderText="To Time"
-     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-     text-black outline-none focus:border-primary dark:border-form-strokedark 
-     dark:bg-form-input dark:text-white dark:focus:border-primary"
+     className={inputFieldClass}
    />
  </div>
  

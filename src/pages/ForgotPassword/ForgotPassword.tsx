@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CustomButton from '../../components/CustomButton';
 import MySVG from '../../components/MySvgComponent';
+import { inputFieldClass } from '../../components/FormStyles';
 
 const ForgotPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -17,9 +18,47 @@ const ForgotPassword: React.FC = () => {
   const [isCheckboxVisible, setIsCheckboxVisible] = useState(true); // Track checkbox visibility
   const [isOtpButtonVisible, setIsOtpButtonVisible] = useState(true); // Track OTP button visibility
 
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  const phoneRegex = /^[0-9]{10}$/;
+  const [isValidInput, setIsValidInput] = useState(false);
+  
+  
 
+  
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
+
+  const phoneRegex = /^[0-9]{10}$/;
+  
+  const validateEmailOrPhone = (input: string): string | null => {
+    if (!input) {
+      return "Email or mobile number is required.";
+    }
+  
+    if (phoneRegex.test(input)) {
+      return null; // Valid phone number ✅
+    }
+  
+    if (emailRegex.test(input)) {
+      return null; // Valid email ✅
+    }
+  
+    return "Enter a valid 10-digit phone number or an email from Gmail, Outlook, Yahoo, etc.";
+  };
+
+
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setEmailOrPhone(value);
+  
+    const validationMessage = validateEmailOrPhone(value);
+    setIsValidInput(!validationMessage); // true if no error
+    setMessage(''); // clear error message as they type
+  };
+  
+  
+  
+  const [inputValue, setInputValue] = useState("");
+  const [error, setError] = useState("");
+
+  
   useEffect(() => { 
     let interval: NodeJS.Timeout | null = null; 
     if (isOtpSent && timer > 0) { 
@@ -35,38 +74,45 @@ const ForgotPassword: React.FC = () => {
     };
   }, [isOtpSent, timer]);
 
-  const validateEmailOrPhone = (input: string): "email" | "phone" | "" => {
-    if (emailRegex.test(input)) {
-      setEmailOrPhoneError('');
-      return 'email';
-    } else if (phoneRegex.test(input)) {
-      setEmailOrPhoneError('');
-      return 'phone';
-    } else {
-      setEmailOrPhoneError('Please enter a valid email or phone number.');
-      return '';
+ 
+  const handleSendLink = () => {
+    const validationMessage = validateEmailOrPhone(emailOrPhone);
+  
+    if (validationMessage) {
+      setMessage(validationMessage); // Will stay in red if there's an error
+      return;
     }
+  
+    setMessage('Reset link sent! Check your email.'); // Green message
+  
+    // Auto-hide after 1 second
+    setTimeout(() => {
+      setMessage('');
+    }, 2000);
   };
-
-  const handleSendLink = () => { 
-    const validType = validateEmailOrPhone(emailOrPhone);
-    if (!validType) {
-      return; // Don't send link if input is invalid
-    }
-    setMessage('Reset link sent! Check your email or phone.');
-  };
+  
+  
+  
 
   const handleSendOtp = () => { 
-    const validType = validateEmailOrPhone(emailOrPhone);
-    if (!validType) {
-      return; // Prevent sending OTP if input is invalid
+    const validationMessage = validateEmailOrPhone(emailOrPhone);
+    if (validationMessage) {
+      setMessage(validationMessage);
+      return;
     }
+  
     setIsOtpSent(true); 
-    setTimer(30); // Reset timer 
-    setMessage('OTP sent! Check your email or phone.');
-    setIsOtpButtonVisible(false); // Hide OTP button after sending OTP
-    setIsCheckboxVisible(false); // Hide the checkbox
+    setTimer(30); 
+    setMessage('OTP sent! Check your email');
+    setIsOtpButtonVisible(false); 
+    setIsCheckboxVisible(false); 
+  
+    // Hide message after 1 second
+    setTimeout(() => {
+      setMessage('');
+    }, 2000);
   };
+  
 
   const handleResendOtp = () => { 
     if (timer === 0) {
@@ -75,7 +121,12 @@ const ForgotPassword: React.FC = () => {
       setOtp(''); // Clear OTP field
       setMessage('Resending OTP...');
       setIsOtpSent(true);
+      // Clear the message after 1 second
+    setTimeout(() => {
+      setMessage('');
+    }, 2000);
     }
+    
   };
 
   const handleVerifyOtp = () => { 
@@ -83,11 +134,17 @@ const ForgotPassword: React.FC = () => {
       setOtpError('OTP must be 6 digits.'); 
       return; 
     } 
+  
     setOtpError(''); 
     setIsOtpVerified(true); 
     setMessage('OTP Verified!');
-    navigate('/ResetPassword');  
+  
+    // Delay navigation by 1 second
+    setTimeout(() => {
+      navigate('/ResetPassword');  
+    }, 4000);
   };
+  
 
   const handleOtpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -98,36 +155,43 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <>
-      <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div>
         <div className="container">
           <div className="max-w-screen-xl mx-auto py-4">
             <div className="flex flex-wrap items-center">
               <div className="hidden w-full xl:block xl:w-1/2">
-                <div className="py-0 px-26 text-center">
-                <p className="2xl:px-20">Access your health records and appointments securely.</p>
+              <div className="flex flex-col justify-center items-center h-full text-center px-6 py-4">
+            <p className="mb-6 text-md font-sm text-black dark:text-white">
+              Access your health records and appointments securely.
+            </p>
+            <div className="flex justify-center items-center">
+              <MySVG className="w-62 h-72" />
+            </div>
+          </div>
+    </div>
 
-                  <span className="mt-5 inline-block">
-                  <MySVG />
-                  </span>
-                </div>
-              </div>
+    {/* Right Side */}
+    <div className="w-full xl:w-1/2 xl:border-l-2 border-stroke dark:border-strokedark">
+  <div className="w-full p-2 sm:p-4 xl:p-4 xl:pl-20">
+    <h2 className="mb-4 text-2xl font-semibold text-black dark:text-white">
+      Forgot Password
+    </h2>
 
-             <div className="w-full border-stroke dark:border-strokedark xl:w-1/2 xl:border-l-2">
-             <div className="w-full p-0 sm:p-4 xl:p-6">
-          <h2 className="mt-0 mb-9 text-2xl font-bold text-black dark:text-white sm:text-title-xl2">
-            Forgot Password
-          </h2>
+        
+
+           
+
 
           <div className="mb-4">
-            <label className="mb-2.5 block font-medium text-black dark:text-white">
-              Email or Phone Number
+            <label className="block text-gray-700 font-medium mb-1">
+              Email
             </label>
             <div className="relative">
               <input
-                onChange={(e) => setEmailOrPhone(e.target.value)}
+              onChange={handleInputChange}
                 type="text"
-                placeholder="Enter your email or Phone"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                placeholder="Enter your email"
+                className={`w-full ${inputFieldClass}`}
               />
               <span className="absolute right-4 top-4">
                 <svg
@@ -146,16 +210,29 @@ const ForgotPassword: React.FC = () => {
                 </svg>
               </span>
             </div>
-            {emailOrPhoneError && (
-              <p className="text-sm text-red-500 mr-2">{emailOrPhoneError}</p>
-            )}
+            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
           </div>
 
           <div className="mb-4">
-            {message && (
-              <p className="text-sm text-green-500 mt-2">{message}</p> 
-            )}
+          {message && (
+  <p style={{ 
+    color: (
+      message === 'Reset link sent! Check your email.' || 
+      message === 'OTP sent! Check your email' || 
+      message === 'Resending OTP...' ||
+      message === 'OTP Verified!'
+    ) ? 'green' : 'red',
+    fontSize: '0.875rem'
+  }}>
+    {message}
+  </p>
+)}
+
+
+
+
           </div>
+          
 
           {isCheckboxVisible && (
             <div className="mb-7 flex items-center">
@@ -174,11 +251,17 @@ const ForgotPassword: React.FC = () => {
 
           {isOtpButtonVisible && (
             <div className="mb-4">
-              <div className="flex justify-left w-full">
-              <CustomButton onClick={isOtpOptionChecked ? handleSendOtp : handleSendLink}>
-      {isOtpOptionChecked ? "Send OTP" : "Send Link"}
-    </CustomButton>
-              </div>
+            <CustomButton 
+  onClick={isOtpOptionChecked ? handleSendOtp : handleSendLink}
+  disabled={!isValidInput}
+  style={{
+    backgroundColor: isValidInput ? '#007bff' : '#ccc',
+    cursor: isValidInput ? 'pointer' : 'not-allowed',
+  }}
+>
+  {isOtpOptionChecked ? "Send OTP" : "Send Link"}
+</CustomButton>
+
             </div>
           )}
 
@@ -193,7 +276,7 @@ const ForgotPassword: React.FC = () => {
                     onChange={handleOtpChange}
                     placeholder="Enter OTP"
                     maxLength={6}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className={inputFieldClass}
                   />
                 </div>
               </div>
@@ -234,6 +317,8 @@ const ForgotPassword: React.FC = () => {
 </div>
 </div>
 </div>
+
+
 </>
 
   );

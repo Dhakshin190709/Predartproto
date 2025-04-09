@@ -1,8 +1,11 @@
 import React from "react";
-
-const MySVG: React.FC = () => {
+type Props = {
+  className?: string;
+};
+const MySVG: React.FC = ({ className }) => {
   return (
    <svg
+   className={className}
                          width="350"
                          height="350"
                          viewBox="0 0 350 350"

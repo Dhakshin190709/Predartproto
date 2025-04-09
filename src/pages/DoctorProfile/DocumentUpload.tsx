@@ -43,16 +43,24 @@ const FileUpload = () => {
 
   // Fetch Uploaded Documents
   const fetchUploadedDocuments = async () => {
+    const userID = sessionStorage.getItem("userID");
+    const doctorID = sessionStorage.getItem("doctorID");
+  
+    if (!userID || !doctorID) {
+      console.warn("User ID or Doctor ID is missing. Please log in again.");
+      return;
+    }
+  
     try {
       const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDocuments?doctorID=${doctorID}`
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}`
       );
       setUploadedDocuments(response.data.data || []);
     } catch (error) {
       console.error("Failed to fetch uploaded documents:", error);
     }
   };
-
+  
   
   // const handleFileChange = (event) => {
   //   setSelectedFile(event.target.files[0]);
@@ -79,7 +87,7 @@ const FileUpload = () => {
       alert("Please select a file and document type.");
       return;
     }
-
+  
     const reader = new FileReader();
     reader.readAsDataURL(selectedFile);
     reader.onload = async () => {
@@ -88,16 +96,18 @@ const FileUpload = () => {
         console.error("Failed to convert file to Base64");
         return;
       }
-
+  
       const userID = sessionStorage.getItem("userID");
-      if (!userID) {
-        alert("User not logged in. Please log in again.");
+      const doctorID = sessionStorage.getItem("doctorID"); // ✅ Get doctorID from session
+  
+      if (!userID || !doctorID) {
+        alert("User or Doctor ID missing. Please log in again.");
         return;
       }
-
+  
       const fileExtension = selectedFile.name.split(".").pop();
       const filePath = `uploads/${selectedFile.name}`;
-
+  
       const payload = {
         createdBy: userID,
         isActive: true,
@@ -109,7 +119,7 @@ const FileUpload = () => {
         fileBase64: base64String,
         fileExtenstion: fileExtension,
       };
-
+  
       try {
         const response = await axios.post(
           "https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDocuments",
@@ -124,6 +134,7 @@ const FileUpload = () => {
       }
     };
   };
+  
 
   
   

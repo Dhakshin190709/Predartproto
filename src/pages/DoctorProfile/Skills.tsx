@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { inputFieldClass } from '../../components/FormStyles';
 type SkillForm = {
   skill: string;
   yearsOfExperience: string;
@@ -50,9 +51,17 @@ const Skills: React.FC = () => {
   // ✅ Fetch doctor skills
 
   useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    if (!userID || !doctorID) {
+      console.warn('Missing userID or doctorID. Cannot fetch doctor skills.');
+      return;
+    }
+  
     axios
       .get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorSkill?doctorId=${doctorID}`,
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorSkill?doctorId=${doctorID}`
       )
       .then((res) => {
         const fetchedSkills: SkillForm[] =
@@ -62,7 +71,7 @@ const Skills: React.FC = () => {
             monthsOfExperience: skill?.monthOfExperience?.toString() ?? '',
             description: skill?.description ?? '',
           })) ?? [];
-
+  
         const skillsToSet = fetchedSkills.length
           ? fetchedSkills
           : [
@@ -73,25 +82,25 @@ const Skills: React.FC = () => {
                 description: '',
               },
             ];
-
+  
         setSkills(skillsToSet);
-
-        // Ensure skillErrors has the same length
+  
         setSkillErrors(
           skillsToSet.map(() => ({
             skill: '',
             yearsOfExperience: '',
             monthsOfExperience: '',
             description: '',
-          })),
+          }))
         );
-
+  
         setExistingSkills(
-          res.data?.data?.map((skill: any) => skill?.skillMasterID ?? '') ?? [],
+          res.data?.data?.map((skill: any) => skill?.skillMasterID ?? '') ?? []
         );
       })
-      .catch((err) => console.error('Error fetching doctor skills:', err));
-  }, [doctorID]);
+      .catch((err) => console.error('❌ Error fetching doctor skills:', err));
+  }, []);
+  
 
   const handleSkillInputChange = (
     index: number,
@@ -169,48 +178,50 @@ const Skills: React.FC = () => {
 
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     if (!validateSkills()) {
       console.error('🚨 Validation failed.');
       return;
     }
-
+  
     const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    if (!userID || !doctorID) {
+      alert('User or Doctor not logged in. Please log in again.');
       return;
     }
-
+  
     // Filter out already existing skills
     const newSkills = skills.filter(
-      (skill) => !existingSkills.includes(skill.skill),
+      (skill) => !existingSkills.includes(skill.skill)
     );
-
+  
     if (newSkills.length === 0) {
       alert('No new skills to submit.');
       return;
     }
-
+  
     const apiSkillsData = newSkills.map((skill) => ({
       createdBy: userID,
-      doctorID,
+      doctorID: doctorID,
       skillMasterID: skill.skill,
       yearOfExperience: skill.yearsOfExperience,
       monthOfExperience: skill.monthsOfExperience,
       description: skill.description.trim(),
     }));
-
+  
     try {
       const response = await axios.post(
         'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorSkill',
         apiSkillsData,
-        { headers: { 'Content-Type': 'application/json' } },
+        { headers: { 'Content-Type': 'application/json' } }
       );
-
+  
       if ([200, 201].includes(response.status)) {
         console.log('✅ Skill Data Saved Successfully:', response.data);
         alert('✅ New skills added successfully!');
-
+  
         // Update existingSkills with newly submitted skills
         setExistingSkills((prev) => [
           ...prev,
@@ -222,10 +233,11 @@ const Skills: React.FC = () => {
     } catch (error: any) {
       console.error(
         '🚨 Error submitting skill details:',
-        error?.response?.data || error.message,
+        error?.response?.data || error.message
       );
     }
   };
+  
 
   return (
     <form className="space-y-6">
@@ -238,9 +250,7 @@ const Skills: React.FC = () => {
             <div>
               <select
                 value={skill?.skill ?? ''}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 onChange={(e) =>
                   handleSkillInputChange(index, 'skill', e.target.value)
                 }
@@ -274,9 +284,7 @@ const Skills: React.FC = () => {
                   )
                 }
                 placeholder="-- Years of Experience --"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
               />
               {skillErrors[index]?.yearsOfExperience && (
                 <p className="text-red-500 text-sm">
@@ -300,9 +308,7 @@ const Skills: React.FC = () => {
                   )
                 }
                 placeholder="-- Months of Experience --"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
               />
               {skillErrors[index]?.monthsOfExperience && (
                 <p className="text-red-500 text-sm">
@@ -319,9 +325,7 @@ const Skills: React.FC = () => {
               handleSkillInputChange(index, 'description', e.target.value)
             }
             placeholder="Description"
-            className="w-full mt-2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-      text-black outline-none focus:border-primary dark:border-form-strokedark
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className={`${inputFieldClass} mt-2`}
           />
           {skillErrors[index]?.description && (
             <p className="text-red-500 text-sm">

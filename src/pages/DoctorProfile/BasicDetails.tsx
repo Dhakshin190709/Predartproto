@@ -5,6 +5,8 @@ import 'react-form-wizard-component/dist/style.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import { inputFieldClass } from '../../components/FormStyles';
+import CustomButton from '../../components/CustomButton';
 
 const BasicDetails: React.FC = () => {
   const [hospitals, setHospitals] = useState([]);
@@ -60,7 +62,8 @@ const BasicDetails: React.FC = () => {
   const [validationSummary, setValidationSummary] = useState<string[]>([]);
   const [doctorId,setDoctorId]=useState([]);
   // const doctorId = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
-  
+  const userId = localStorage.getItem('userId');
+
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
       .then((response) => response.json())
@@ -300,12 +303,27 @@ const BasicDetails: React.FC = () => {
 
   useEffect(() => {
     const fetchDoctorDetails = async () => {
+      const userID = sessionStorage.getItem('userID'); // ✔️ Get userID
+      if (!userID) {
+        alert('User not logged in.');
+        return;
+      }
+  
       try {
-        const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Doctor/${doctorId}`);
+        const response = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorsByUserID?userId=${userID}`
+        );
         if (!response.ok) throw new Error('Failed to fetch doctor details.');
   
         const { data } = await response.json();
   
+        // ✅ Store doctorID in sessionStorage
+        sessionStorage.setItem('doctorID', data.doctorID);
+  
+        // ✅ Log to console
+        console.log('Doctor ID:', data.doctorID);
+  
+        // ✅ Set form data
         setFormData({
           tenant: data.tenantID || '',
           hospital: data.hospitalID || '',
@@ -316,7 +334,9 @@ const BasicDetails: React.FC = () => {
           qualification: data.qualificationID || '',
           specialization: data.specializationID || '',
           pan: data.panNumber || '',
-          DateOfBirth: data.doctorDateOfBirth ? data.doctorDateOfBirth.split('T')[0] : '',
+          DateOfBirth: data.doctorDateOfBirth
+            ? data.doctorDateOfBirth.split('T')[0]
+            : '',
           gender: data.genderID || '',
         });
       } catch (error) {
@@ -324,10 +344,10 @@ const BasicDetails: React.FC = () => {
       }
     };
   
-    if (doctorId) {
-      fetchDoctorDetails();
-    }
-  }, [doctorId]);
+    fetchDoctorDetails(); // 👈 Call the function
+  }, []);
+  
+  
   
 
  // 🔄 Handle input change
@@ -353,7 +373,7 @@ const BasicDetails: React.FC = () => {
             name="tenant"
             value={formData.tenant || ''}
             onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className={inputFieldClass}
           >
             <option value="" disabled>
               Select Tenant
@@ -375,7 +395,7 @@ const BasicDetails: React.FC = () => {
             name="hospital"
             value={formData.hospital}
             onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className={inputFieldClass}
           >
             <option value="">Select Hospital</option>
             {hospitals.length > 0 ? (
@@ -402,10 +422,7 @@ const BasicDetails: React.FC = () => {
             value={formData.name}
             onChange={handleInputChange}
             placeholder="Enter your name"
-            className="w-full rounded-lg border border-stroke bg-transparent 
-            py-4 pl-6 pr-10 text-black outline-none focus:border-primary
-             dark:border-form-strokedark dark:bg-form-input
-              dark:text-white dark:focus:border-primary"
+           className={inputFieldClass}
           />
           {formErrors.name && (
             <p className="text-red-500 text-sm">{formErrors.name}</p>
@@ -422,10 +439,7 @@ const BasicDetails: React.FC = () => {
             value={formData.email}
             onChange={handleInputChange}
             placeholder="Enter your email"
-            className="w-full rounded-lg border border-stroke bg-transparent
-       py-4 pl-6 pr-10 text-black outline-none focus:border-primary
-        dark:border-form-strokedark dark:bg-form-input dark:text-white
-         dark:focus:border-primary"
+            className={inputFieldClass}
           />
           {formErrors.email && (
             <p className="text-red-500 text-sm">{formErrors.email}</p>
@@ -440,7 +454,7 @@ const BasicDetails: React.FC = () => {
             value={formData.phone}
             onChange={handleInputChange}
             placeholder="Enter your number"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className={inputFieldClass}
           />
           {formErrors.phone && (
             <p className="text-red-500 text-sm">{formErrors.phone}</p>
@@ -455,7 +469,7 @@ const BasicDetails: React.FC = () => {
             value={formData.aadhaar}
             onChange={handleInputChange}
             placeholder="Enter your Aadhaar"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className={inputFieldClass}
           />
           {formErrors.aadhaar && (
             <p className="text-red-500 text-sm">{formErrors.aadhaar}</p>
@@ -470,7 +484,7 @@ const BasicDetails: React.FC = () => {
             name="qualification"
             value={formData.qualification}
             onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+             className={inputFieldClass}
           >
             <option value="">Select Qualification</option>
             {qualifications.map((qual) => (
@@ -490,7 +504,7 @@ const BasicDetails: React.FC = () => {
             name="specialization"
             value={formData.specialization}
             onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+             className={inputFieldClass}
           >
             <option value="">Select Specialization</option>
             {specializations.length > 0 ? (
@@ -516,7 +530,7 @@ const BasicDetails: React.FC = () => {
             value={formData.pan}
             onChange={handleInputChange}
             placeholder="Enter your PAN"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+             className={inputFieldClass}
           />
           {formErrors.pan && (
             <p className="text-red-500 text-sm">{formErrors.pan}</p>
@@ -533,7 +547,7 @@ const BasicDetails: React.FC = () => {
             value={formData.DateOfBirth}
             onChange={handleInputChange}
             placeholder="Enter your date of birth"
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+         className={inputFieldClass}
           />
           {formErrors.DateOfBirth && (
             <p className="text-red-500 text-sm">{formErrors.DateOfBirth}</p>
@@ -546,7 +560,7 @@ const BasicDetails: React.FC = () => {
             name="gender"
             value={formData.gender}
             onChange={handleInputChange}
-            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+          className={inputFieldClass}
           >
             <option value="">Select Gender</option>
             {genderOptions.length > 0 ? (
@@ -565,16 +579,9 @@ const BasicDetails: React.FC = () => {
         </div>
       </div>
       <div className="flex justify-center gap-2">
-        
-        <button
-          type="submit"
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-          hover:from-[#007BFF] hover:to-[#004A99]
-          text-white transition duration-150 
-          ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Submit
-        </button>
+      
+
+        <CustomButton> Submit</CustomButton>
       </div>
     </form>
   );

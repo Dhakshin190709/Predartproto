@@ -2,12 +2,11 @@ import React, { useRef, useState, useEffect } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
-import { Edit } from "lucide-react";
+import { Edit } from 'lucide-react';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { Eye, EyeOff } from 'lucide-react';
 
-
-
-import axios from "axios";
+import axios from 'axios';
 import CustomButton from '../../components/CustomButton';
 interface RowData {
   userID: number;
@@ -20,8 +19,21 @@ interface RowData {
 }
 const Users: React.FC = () => {
   const [apiData, setApiData] = useState([]);
-   const [pageSize, setPageSize] = useState(10);
-   
+  const [pageSize, setPageSize] = useState(10);
+  const [selectedUnitName, setSelectedUnitName] = useState<string>("N/A");
+  const [selectedUnitID, setSelectedUnitID] = useState(""); // Ensure default state
+
+  const [selectedSecondDropdownValue, setSelectedSecondDropdownValue] =
+    useState('');
+    const [showPassword, setShowPassword] = useState(false);
+  const [unitTypes, setUnitTypes] = useState<any[]>([]); 
+  const [selectedUnitType, setSelectedUnitType] = useState('');
+
+  const [selectedSecondItem, setSelectedSecondItem] = useState('');
+  const [secondDropdownData, setSecondDropdownData] = useState([]); // ✅ Ensure it's an array
+  const [unitType, setUnitType] = useState('');
+  const [secondDropdown, setSecondDropdown] = useState('');
+
   const [name, setName] = useState(''); // Name filter for UI
   const [isActive, setIsActive] = useState(false); // Active filter for UI
   const [rowData, setRowData] = useState<RowData[]>([]); // Data to be displayed in the table
@@ -43,34 +55,285 @@ const Users: React.FC = () => {
     isActive: 'Active',
     tenantID: '',
     createdBy: '',
+    unittype: '', // Ensure these fields exist
+    seconddropdown: '',
+    selectedUnitType: '',
+    selectedSecondItem: '',
     password: '', // New field
     userPlan: 'Free', // Default plan
   });
+
   const formRef = useRef<HTMLDivElement | null>(null);
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
- 
 
-  const handlePageSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const newSize = Number(event.target.value);
-      setPageSize(newSize);
-      if (gridApi.current) {
-          gridApi.current.paginationSetPageSize(newSize);
-      }
+  const handlePageSizeChange = (
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const newSize = Number(event.target.value);
+    setPageSize(newSize);
+    if (gridApi.current) {
+      gridApi.current.paginationSetPageSize(newSize);
+    }
+  };
+  const fetchHospitalData = async () => {
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Hospital");
+      const data = await response.json();
+      console.log("Fetched Hospitals:", data);
+  
+      // ✅ Ensure state updates correctly
+      setSecondDropdownData(data);  
+      return data;  
+    } catch (error) {
+      console.error("Error fetching hospitals:", error);
+      return [];
+    }
   };
   
+  const fetchLaboratoryData = async () => {
+    try {
+      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Laboratory");
+      const result = await response.json();
+  
+      // ✅ Check if the response has the correct structure
+      if (Array.isArray(result)) {  
+        console.log("Fetched Laboratory Data:", result);
+        setSecondDropdownData(result);  
+        return result;  
+      } else if (result.success && Array.isArray(result.data)) {  
+        console.log("Fetched Laboratory Data:", result.data);
+        setSecondDropdownData(result.data);
+        return result.data;
+      } else {
+        console.error("Unexpected response format:", result);
+        return [];
+      }
+    } catch (error) {
+      console.error("Error fetching laboratory data:", error);
+      return [];
+    }
+  };
+  useEffect(() => {
+    console.log("Updated secondDropdownData:", secondDropdownData);
+  }, [secondDropdownData]);
+    
+    
+ 
+
+ 
+  
+  // Example: Edit Mode - Prefilled Data
+  const [editMode, setEditMode] = useState(false);
+  const [editData, setEditData] = useState(null);
+  
+  
+  // Fetch Unit Types
+  const fetchUnitTypes = async () => {
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=UnitType'
+      );
+      const result = await response.json();
+  
+      console.log("Unit Types API Response:", result);
+  
+      if (result.success && Array.isArray(result.data)) {
+        setUnitTypes(result.data);
+      } else {
+        setUnitTypes([]);
+      }
+    } catch (error) {
+      console.error('Error fetching unit types:', error);
+      setUnitTypes([]);
+    }
+  };
+  
+  useEffect(() => {
+    fetchUnitTypes();
+  }, []); // Runs once when the component mounts
+  
+// State to store fetched unit names
+
+const [unitNames, setUnitNames] = useState<Record<string, string>>({});
+
+const fetchUnitName = async (unitType: string, unitID: string) => {
+  if (!unitID || unitID === "N/A") {
+    console.warn(`⚠️ Invalid unitID: ${unitID}`);
+    return "N/A";
+  }
+
+  const normalizedType = unitType?.trim().toLowerCase();
+  console.log("🔍 Checking unitType before API call:", normalizedType);
+  console.log("🔍 Checking unitID before API call:", unitID);
+
+  if (!normalizedType) {
+    console.warn(`⚠️ Missing or invalid unitType: ${unitType}`);
+    return "N/A";
+  }
+
+  // ✅ Check cached data before making API call
+  if (unitNames[unitID]) {
+    console.log(`✅ Using Cached Name for ${unitID}:`, unitNames[unitID]);
+    return unitNames[unitID];
+  }
+
+  // 🔄 Determine API URL
+  let apiUrl = "";
+  if (normalizedType === "hospital") {
+    apiUrl = `https://predart003-001-site1.anytempurl.com/api/Hospital/${unitID}`;
+  } else if (normalizedType === "lab") {
+    apiUrl = `https://predart003-001-site1.anytempurl.com/api/Laboratory/${unitID}`;
+  } else {
+    console.warn(`❌ Invalid unitType provided: ${unitType}`);
+    return "N/A";
+  }
+
+  console.log(`🔗 Fetching from API: ${apiUrl}`);
+
+  try {
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      console.error(`⚠️ API Request Failed (${response.status}): ${response.statusText}`);
+      return "N/A";
+    }
+
+    const result = await response.json();
+    console.log(`✅ Raw API Response for ${unitID}:`, result);
+
+    let unitName = "N/A";
+
+    if (!result?.data) {
+      console.warn(`⚠️ No data found for ${unitID}`);
+      return "N/A";
+    }
+
+    // 🏥 Extract hospital name
+    if (normalizedType === "hospital" && result.success && result.data) {
+      unitName = result.data.hospitalName?.trim() || "N/A";
+    }
+    // 🧪 Extract lab name (handling different response formats)
+    else if (normalizedType === "lab" && result.success) {
+      if (Array.isArray(result.data)) {
+        console.log(`🔎 Searching for Lab ID: ${unitID} in array format`);
+        const matchingLab = result.data.find((lab) => String(lab.laboratoryID) === String(unitID));
+        unitName = matchingLab?.labName?.trim() || "N/A";
+      } else if (typeof result.data === "object" && String(result.data.laboratoryID) === String(unitID)) {
+        console.log(`🧪 Extracting Lab Name from object response`);
+        unitName = result.data.labName?.trim() || "N/A";
+      } else {
+        console.warn(`⚠️ No matching lab found for ID: ${unitID}`);
+      }
+    }
+
+    console.log(`🏥 Extracted Name for ${unitID}: ${unitName}`);
+
+    // ✅ Update state to cache the name
+    setUnitNames((prev) => ({ ...prev, [unitID]: unitName }));
+
+    return unitName;
+  } catch (error) {
+    console.error(`⚠️ Error fetching ${unitType} name for ${unitID}:`, error);
+    return "N/A";
+  }
+};
+
+
+
+
+
+
+const UnitNameRenderer = (params: any) => {
+  const { unitType, unitID } = params.data || {};
+  const [name, setName] = useState("Loading...");
+
+  useEffect(() => {
+    const load = async () => {
+      if (!unitType || !unitID) {
+        setName("N/A");
+        return;
+      }
+      const n = await fetchUnitName(unitType, unitID);
+      setName(n || "N/A");
+    };
+    load();
+  }, [unitType, unitID]);
+
+  return <span>{name}</span>;
+};
+
+
+const handleUnitTypeChange = (event) => {
+  const unitID = event.target.value;
+  setSelectedUnitID(unitID);
+
+  console.log("🔵 Available unitTypes:", unitTypes);
+  console.log("🟡 Selected Unit ID:", unitID);
+
+  const selectedUnit = unitTypes.find((unit) => String(unit.appLOVID) === unitID);
+
+  if (!selectedUnit) {
+    console.warn("⚠️ No matching unit found for unitID:", unitID);
+    setSelectedUnitType(""); 
+    return;
+  }
+
+  const normalizedUnitType = selectedUnit.name.trim().toLowerCase();
+  setSelectedUnitType(selectedUnit.name);
+
+  console.log("🟢 Updated selectedUnitID:", unitID);
+  console.log("🟢 Updated selectedUnitType:", selectedUnit.name);
+  console.log("🔍 Normalized Unit Type:", normalizedUnitType);
+
+  if (normalizedUnitType === "lab") {
+    console.log("🧪 Fetching Lab Data...");
+    fetchLaboratoryData();
+  } else if (normalizedUnitType === "hospital") {
+    console.log("🏥 Fetching Hospital Data...");
+    fetchHospitalData();
+  } else {
+    console.warn("⚠️ Unknown unit type:", selectedUnit.name);
+  }
+};
+
+
+
+  useEffect(() => {
+    console.log("🟢 Updated selectedUnitType in useEffect:", selectedUnitType);
+  }, [selectedUnitType]);
+  
+  
+  // Handle Second Dropdown Selection
+  const handleSecondItemChange = (e) => {
+    setSelectedSecondItem(e.target.value);
+  };
+  
+  // Fetch Data Based on Selected Unit Type
+  useEffect(() => {
+    if (selectedUnitType === 'Lab') {
+      fetchLaboratoryData();
+    } else if (selectedUnitType === 'Hospital') {
+      fetchHospitalData();
+    } else {
+      setSecondDropdownData([]); // Reset if neither Lab nor Hospital
+    }
+  }, [selectedUnitType]);
+  
+  
+ 
   // Fetch data on component mount (only once)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/User'
+          'https://predart003-001-site1.anytempurl.com/api/User',
         );
-  
+
         if (!response.ok) throw new Error('Failed to fetch data');
-  
+
         const data = await response.json();
-  
+
         // Ensure the response is an array
         if (Array.isArray(data)) {
           setApiData(data);
@@ -82,22 +345,32 @@ const Users: React.FC = () => {
         console.error('Error fetching data:', error);
       }
     };
-  
+
     if (apiData.length === 0) {
       fetchData();
     }
-  }, [apiData]); 
-  
+  }, [apiData]);
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
       .then((response) => response.json())
       .then((data) => {
-        console.log('Tenant Data Structure:', data);
-        setTenants(data.data || data); // Adjust if needed
+        console.log('Tenant API Response:', data); // Debugging
+  
+        if (data.data) {
+          setTenants(data.data); // Adjusting if API response contains { data: [...] }
+        } else {
+          setTenants(data);
+        }
       })
       .catch((error) => console.error('Error fetching tenant data:', error));
   }, []);
+  useEffect(() => {
+    if (formData.userID !== 0 && formData.tenantID) {
+      setSelectedTenant(formData.tenantID);
+    }
+  }, [formData.userID, formData.tenantID]);
+    
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -146,7 +419,7 @@ const Users: React.FC = () => {
           },
         ]
       : []), // Only add this column if isSuperAdmin is true
-    
+
     {
       headerName: 'Mobile No',
       field: 'mobile',
@@ -166,44 +439,68 @@ const Users: React.FC = () => {
       cellStyle: { textAlign: 'left' },
     },
     {
-      headerName: "Status",
-      field: "isActive",
+      headerName: 'Unit Type',
+      field: 'unitType',
+      sortable: true,
+      filter: true,
+      flex: 1.5,
+      headerClass: 'text-left',
+      cellStyle: { textAlign: 'left' },
+      valueGetter: (params: any) => {
+        const value = params.data?.unitType;
+        return value ? value : 'N/A';
+      },
+    },
+    
+   
+    {
+      headerName: 'Unit Name',
+      field: 'unitName',
+      sortable: true,
+      filter: true,
+      flex: 2,
+      headerClass: 'text-left',
+      cellStyle: { textAlign: 'left' },
+      cellRenderer: UnitNameRenderer, // Uses async fetching correctly
+    },
+    {
+      headerName: 'Status',
+      field: 'isActive',
       flex: 1,
-      headerClass: "text-center",
-      cellStyle: { textAlign: "center" },
+      headerClass: 'text-center',
+      cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => {
-        const isActive = params.value === "Active" || params.value === true;
+        const isActive = params.value === 'Active' || params.value === true;
         return (
           <span
             onClick={() => toggleStatus(params)}
             className={`cursor-pointer font-bold ${
-              isActive ? "text-green-500" : "text-red-400"
+              isActive ? 'text-green-500' : 'text-red-400'
             } hover:underline`}
           >
-            {isActive ? "Active" : "Inactive"}
+            {isActive ? 'Active' : 'Inactive'}
           </span>
         );
       },
     },
-    
-    
-{
-  headerName: "Edit",
-  flex: 0.7,
-  headerClass: "text-center",
-  cellStyle: { textAlign: "center" },
-  cellRenderer: (params: any) => (
-    <div
-      onClick={() => handleEdit(params.data.userID)}
-      className="cursor-pointer flex items-center justify-center w-8 h-8 mt-1 rounded-md hover:bg-gray-100"
-    >
-      <Edit size={18} className="text-blue-500" />
-    </div>
-  ),
-},
+
+    {
+      headerName: 'Edit',
+      flex: 0.7,
+      headerClass: 'text-center',
+      cellStyle: { textAlign: 'center' },
+      cellRenderer: (params: any) => (
+        <div
+          onClick={() => handleEdit(params.data.userID)}
+          className="cursor-pointer flex items-center justify-center w-8 h-8 mt-1 rounded-md hover:bg-gray-100"
+        >
+          <Edit size={18} className="text-blue-500" />
+        </div>
+      ),
+    },
     {
       headerName: 'Delete',
-      hide:true,
+      hide: true,
       flex: 0.8,
       headerClass: 'text-center',
       cellStyle: { textAlign: 'center' },
@@ -221,57 +518,56 @@ const Users: React.FC = () => {
   ];
 
   const toggleStatus = async (params: any) => {
-    const userID = sessionStorage.getItem("userID");
-  
+    const userID = sessionStorage.getItem('userID');
+
     if (!userID) {
-      alert("User not logged in. Please log in again.");
+      alert('User not logged in. Please log in again.');
       return;
     }
-  
+
     const updatedStatus =
-      params.data.isActive === "Active" || params.data.isActive === true
+      params.data.isActive === 'Active' || params.data.isActive === true
         ? false
         : true;
-  
+
     const payload = {
       guidID: params.data.userID, // The user ID being updated
-    
+
       updatedBy: userID,
-     
+
       isActive: updatedStatus,
     };
-  
+
     try {
       const response = await axios.patch(
-        "https://predart003-001-site1.anytempurl.com/api/User",
+        'https://predart003-001-site1.anytempurl.com/api/User',
         payload,
         {
-          headers: { "Content-Type": "application/json" },
-        }
+          headers: { 'Content-Type': 'application/json' },
+        },
       );
-  
+
       if (response.status === 200) {
-        console.log("User status updated successfully:", response.data);
-  
+        console.log('User status updated successfully:', response.data);
+
         // Update the UI
         const updatedData = rowData.map((item) =>
           item.userID === params.data.userID
-            ? { ...item, isActive: updatedStatus ? "Active" : "Inactive" }
-            : item
+            ? { ...item, isActive: updatedStatus ? 'Active' : 'Inactive' }
+            : item,
         );
-  
+
         setRowData(updatedData);
         setFilteredData(updatedData);
       } else {
-        console.error("Failed to update user status:", response.data);
-        alert("Failed to update status. Please try again.");
+        console.error('Failed to update user status:', response.data);
+        alert('Failed to update status. Please try again.');
       }
     } catch (error) {
-      console.error("Error updating user status:", error);
-      alert("An error occurred while updating the status.");
+      console.error('Error updating user status:', error);
+      alert('An error occurred while updating the status.');
     }
   };
-  
 
   const handleAdd = () => {
     setFormData({
@@ -334,7 +630,7 @@ const Users: React.FC = () => {
     setShowConfirmation(false);
     setDeleteRowId(null);
   };
-
+ 
   const handleStatusChange = async (userID: number, currentStatus: boolean) => {
     try {
       // Toggle the isActive status
@@ -380,33 +676,104 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleEdit = (userID: number) => {
-    if (!rowData) return;
-  
-    const selectedRow = rowData.find((item) => item.userID === userID);
-    if (selectedRow) {
-      setFormData({
-        userID: selectedRow.userID,
-        username: selectedRow.username || "",
-        email: selectedRow.email || "",
-        mobile: selectedRow.mobile || "",
-        isActive: selectedRow.isActive ? "Active" : "Inactive",
-        tenantID: selectedRow.tenantID || "",
-        createdBy: selectedRow.createdBy || "",
-        password: "", // Keep it empty
-        userPlan: selectedRow.userPlan || "Free",
-      });
-  
-      setShowForm(true);
-  
-      // Scroll to the form when edit is clicked
-      setTimeout(() => {
-        if (formRef.current) {
-          formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100); // Slight delay to ensure visibility
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    setFormData((prev) => {
+      const newState = { ...prev, [name]: value };
+      console.log('Updated formData:', newState); // Debugging
+      return newState;
+    });
   };
+
+  const handleEdit = async (userID: number) => {
+    if (!Array.isArray(rowData)) return;
+
+    const selectedRow = rowData.find((item) => item.userID === userID);
+    if (!selectedRow) return;
+
+    console.log("🟢 Selected Row Data:", selectedRow);
+    console.log("✅ Unit Type from API:", selectedRow.unitType);
+    console.log("✅ Unit ID from API:", selectedRow.unitID);
+
+    const formData = {
+        userID: selectedRow.userID,
+        username: selectedRow.username ?? '',
+        email: selectedRow.email ?? '',
+        mobile: selectedRow.mobile ?? '',
+        isActive: selectedRow.isActive ? 'Active' : 'Inactive',
+        tenantID: selectedRow.tenantID ?? '',
+        createdBy: selectedRow.createdBy ?? '',
+        password: '',
+        userPlan: selectedRow.userPlan ?? 'Free',
+    };
+
+    console.log("🟢 Form Data before setting state:", formData);
+
+    setFormData(formData);
+    setSelectedUnitID(selectedRow.unitID);  // ✅ Setting Unit ID
+    setSelectedUnitType(selectedRow.unitType);  // ✅ Setting Unit Type
+
+    console.log("🔄 Updated selectedUnitID:", selectedRow.unitID);
+    console.log("🔄 Updated selectedUnitType:", selectedRow.unitType);
+
+    let fetchedData = [];
+    if (selectedRow.unitType === "Lab") {
+        fetchedData = await fetchLaboratoryData();
+    } else if (selectedRow.unitType === "Hospital") {
+        fetchedData = await fetchHospitalData();
+    }
+
+    console.log("🟢 Fetched Data for", selectedRow.unitType, ":", fetchedData);
+
+    let selectedUnitID = selectedRow.unitID || "";
+    let selectedUnitName = "N/A";
+
+    if (!selectedUnitID) {
+        console.warn("⚠️ selectedRow.unitID is missing, unable to set hospital/lab.");
+    }
+
+    const selectedItem = fetchedData.find((item) =>
+        selectedRow.unitType === "Hospital"
+            ? item.hospitalID === selectedUnitID
+            : item.laboratoryID === selectedUnitID
+    );
+
+    if (selectedItem) {
+        selectedUnitID =
+            selectedRow.unitType === "Hospital" ? selectedItem.hospitalID : selectedItem.laboratoryID;
+
+        selectedUnitName =
+            selectedRow.unitType === "Hospital" ? selectedItem.hospitalName : selectedItem.labName;
+
+        console.log(`✅ Setting Selected Unit ID:`, selectedUnitID);
+        console.log(`✅ Setting Unit Name:`, selectedUnitName);
+    } else {
+        console.warn(`⚠️ No matching ${selectedRow.unitType} found for ID:`, selectedUnitID);
+    }
+
+    setSelectedSecondItem(selectedUnitID);  
+    setSelectedUnitName(selectedUnitName);
+    setShowForm(true);
+};
+
+// 🛠️ Track `selectedUnitID` and `selectedUnitType` changes
+useEffect(() => {
+  console.log("🛠️ selectedUnitID changed:", selectedUnitID);
+}, [selectedUnitID]);
+
+
+
+
+
+  
+  
+  
+  
+  
+  
+  
+  
 
   const handleSave = () => {
     const updatedData = rowData.map((item) =>
@@ -488,57 +855,52 @@ const Users: React.FC = () => {
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!userID) {
       alert('User not logged in. Please log in again.');
       return;
     }
-  
+
+    console.log('Selected Tenant before sending:', selectedTenant); // Debugging
+
+    if (!selectedTenant) {
+      alert('Please select a tenant before submitting.');
+      return;
+    }
+
     const isActiveBoolean = formData.isActive === 'Active';
     const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
     const url = 'https://predart003-001-site1.anytempurl.com/api/User';
-  
+
     const body = JSON.stringify({
-      userID: formData.userID !== 0 ? formData.userID : undefined, // Include only for PUT
+      userID: formData.userID !== 0 ? formData.userID : undefined,
       username: formData.username.trim(),
       email: formData.email.trim(),
       mobile: formData.mobile.trim(),
-      isActive: isActiveBoolean,
-      tenantID: selectedTenant,
-      createdBy: userID,
       password: formData.password.trim() || 'DefaultPassword',
+      isActive: isActiveBoolean,
+      tenantID: selectedTenant,  // 🔹 Ensure tenant ID is passed
+      unitType: selectedUnitType,
+      unitID: selectedSecondItem,
+      createdBy: userID,
       userPlan: formData.userPlan || 'Free',
     });
-  
-    console.log('Request URL:', url);
-    console.log('Request Method:', method);
-    console.log('Request Body:', body);
-  
+
+    console.log('Final Payload:', body); // Debugging
+
     try {
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body,
       });
-  
+
       const data = await response.json();
       console.log('Response Status:', response.status);
       console.log('API Full Response:', data);
-  
+
       if (response.ok) {
         console.log('User added/updated successfully.');
-        if (method === 'POST') {
-          const newUser = { ...formData, userID: data.userID };
-          setRowData((prev) => [...prev, newUser]);
-          setFilteredData((prev) => [...prev, newUser]);
-        } else {
-          const updatedData = rowData.map((item) =>
-            Number(item.userID) === Number(formData.userID) ? { ...item, ...formData } : item
-          );
-          setRowData(updatedData);
-          setFilteredData(updatedData);
-        }
-  
         setShowForm(false);
         setFormData({
           userID: 0,
@@ -551,6 +913,7 @@ const Users: React.FC = () => {
           password: '',
           userPlan: 'Free',
         });
+        setSelectedTenant(""); // Reset selection
       } else {
         console.error('API Error:', data.errors || data.message);
         alert('Error: ' + JSON.stringify(data.errors || data.message));
@@ -559,10 +922,8 @@ const Users: React.FC = () => {
       console.error('Network Error:', error);
       alert('An unexpected error occurred. Please try again later.');
     }
-  };
-  
+};
 
-  
 
   const handleFilterSearch = () => {
     const filtered = apiData.filter((item) => {
@@ -592,11 +953,7 @@ const Users: React.FC = () => {
     gridColumnApi.current = params.columnApi;
 
     params.api.sizeColumnsToFit(); // Auto-fit columns
-};
-
-
-
-
+  };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -636,7 +993,7 @@ const Users: React.FC = () => {
 
       {showForm && (
         <div
-        ref={formRef}  // Attach the ref here
+          ref={formRef} // Attach the ref here
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
          text-black outline-none"
         >
@@ -648,23 +1005,31 @@ const Users: React.FC = () => {
             className="flex flex-wrap gap-4 items-center justify-between"
           >
             <div className="grid grid-cols-4 gap-4 mb-2">
-              {/* Tenant Name */}
-              <select
-                value={selectedTenant || ''}
-                onChange={(e) => setSelectedTenant(e.target.value)}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+            <select
+  disabled={formData.userID !== 0} // Disable in edit mode
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="" disabled>
-                  Select Tenant
-                </option>
-                {tenants.map((tenant) => (
-                  <option key={tenant.tenantID} value={tenant.tenantID}>
-                    {tenant.tenantName}
-                  </option>
-                ))}
-              </select>
+  value={selectedTenant} // Ensure controlled component
+  onChange={(e) => setSelectedTenant(e.target.value)} // Update state
+>
+  <option value="">
+    {formData.userID !== 0 && selectedTenant
+      ? tenants.find((t) => t.tenantID == selectedTenant)?.tenantName || 'No Tenant Selected'
+      : 'Select Tenant'}
+  </option>
+
+  {formData.userID === 0 &&
+    tenants.map((tenant) => (
+      <option key={tenant.tenantID} value={tenant.tenantID}>
+        {tenant.tenantName}
+      </option>
+    ))}
+</select>
+
+
+
+
 
               {/* Username */}
               <input
@@ -682,10 +1047,9 @@ const Users: React.FC = () => {
               {/* Email */}
               <input
                 type="email"
+                name="email"
                 value={formData.email}
-                onChange={(e) =>
-                  setFormData({ ...formData, email: e.target.value })
-                }
+                onChange={handleInputChange}
                 placeholder="Email"
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
               />
@@ -704,17 +1068,28 @@ const Users: React.FC = () => {
 
             {/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
             <div className="grid grid-cols-4 gap-4 mb-2">
-              {/* Password */}
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                placeholder="Password"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-              />
+             
+             {/* Password (Only Show in Add Mode) */}
+{formData.userID === 0 && (
+  <div className="relative w-full">
+    <input
+      type={showPassword ? 'text' : 'password'}
+      name="password"
+      value={formData.password}
+      onChange={handleInputChange}
+      placeholder="Password"
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-12 text-black outline-none focus:border-primary"
+    />
+    <span
+      onClick={() => setShowPassword(!showPassword)}
+      className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500"
+    >
+      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+    </span>
+  </div>
+)}
 
+  
               {/* Status (Only Show in Edit Mode) */}
               {formData.userID !== 0 && (
                 <select
@@ -736,12 +1111,15 @@ const Users: React.FC = () => {
               {/* User Plan */}
               <select
                 value={formData.userPlan}
-                onChange={(e) =>
-                  setFormData({ ...formData, userPlan: e.target.value })
-                }
+                onChange={(e) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    userPlan: e.target.value,
+                  }));
+                }}
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+  text-black outline-none focus:border-primary dark:border-form-strokedark 
+  dark:bg-form-input dark:text-white dark:focus:border-primary"
               >
                 <option value="Free">Free</option>
                 <option value="Bronze">Bronze</option>
@@ -751,27 +1129,77 @@ const Users: React.FC = () => {
                 <option value="Platinum">Platinum</option>
               </select>
 
+              <div>
+  {/* First Dropdown: Unit Type */}
+  <select
+     key={selectedUnitID}
+    value={selectedUnitID} 
+    onChange={handleUnitTypeChange}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+    <option value="" disabled>Select Unit Type</option>
+    {unitTypes.map((unit) => (
+        <option key={unit.appLOVID} value={String(unit.appLOVID)}>
+            {unit.name}
+        </option>
+    ))}
+</select>
+
+
+
+
+
+</div>
+
+{/* Second Dropdown: Lab or Hospital */}
+{selectedUnitType && (
+ <select
+ value={selectedSecondItem} // Ensure this holds the ID, not name
+ onChange={(e) => setSelectedSecondItem(e.target.value)}
+ className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
+ <option value="" disabled>
+   {selectedUnitType === "Lab" ? "Select Lab" : "Select Hospital"}
+ </option>
+ {secondDropdownData.length > 0 ? (
+   secondDropdownData.map((item) => (
+     <option
+       key={selectedUnitType === "Lab" ? item.laboratoryID : item.hospitalID}
+       value={selectedUnitType === "Lab" ? item.laboratoryID : item.hospitalID} // Use ID as value
+     >
+       {selectedUnitType === "Lab" ? item.labName : item.hospitalName} {/* Display only name */}
+     </option>
+   ))
+ ) : (
+   <option disabled>No Data Available</option>
+ )}
+</select>
+
+)}
+
+
+
+
+
+
               {/* Empty column for spacing when Status is hidden */}
               {formData.userID === 0 && <div></div>}
             </div>
 
             {/* Buttons Row */}
             <div className="flex justify-end gap-4 mt-4">
-            
-
-            
-
               <CustomButton type="submit" onClick={handleFormSubmit}>
-              {formData.userID === 0 ? 'Save' : 'Update'}
-</CustomButton>
+                {formData.userID === 0 ? 'Save' : 'Update'}
+              </CustomButton>
 
-<CustomButton type="button" onClick={handleCancel}>
-  Cancel
-</CustomButton>
+              <CustomButton type="button" onClick={handleCancel}>
+                Cancel
+              </CustomButton>
             </div>
           </form>
         </div>
       )}
+
 
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
         <div className="relative">
@@ -809,24 +1237,21 @@ const Users: React.FC = () => {
           </span>
         </div>
 
-        <CustomButton onClick={handleAdd}>
-      + Add
-    </CustomButton>
+        <CustomButton onClick={handleAdd}>+ Add</CustomButton>
       </div>
 
       <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-      <AgGridReact
-    rowData={rowData}
-    columnDefs={columnDefs}
-    pagination={true}
-    paginationPageSize={10} // ✅ Set default page size
-    paginationPageSizeSelector={[10, 20, 50, 100]}
-    domLayout="autoHeight"
-    headerHeight={40}
-    rowHeight={40}
-    onGridReady={onGridReady}
-/>
-
+        <AgGridReact
+          rowData={rowData}
+          columnDefs={columnDefs}
+          pagination={true}
+          paginationPageSize={10} // ✅ Set default page size
+          paginationPageSizeSelector={[10, 20, 50, 100]}
+          domLayout="autoHeight"
+          headerHeight={40}
+          rowHeight={40}
+          onGridReady={onGridReady}
+        />
       </div>
 
       {showConfirmation && (
@@ -834,12 +1259,13 @@ const Users: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <p>Are you sure you want to delete this row?</p>
             <div className="flex gap-4 mt-4">
-             
-              
               <CustomButton onClick={confirmDelete}>Yes, Delete</CustomButton>
-<CustomButton onClick={cancelDelete} className="bg-gray-300 text-black hover:bg-gray-400">
-  Cancel
-</CustomButton>
+              <CustomButton
+                onClick={cancelDelete}
+                className="bg-gray-300 text-black hover:bg-gray-400"
+              >
+                Cancel
+              </CustomButton>
             </div>
           </div>
         </div>

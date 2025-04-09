@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import { inputFieldClass } from "../../components/FormStyles";
 
 const Timeslot = () => {
   const [doctorID,setDoctorID]=useState([]);
@@ -38,23 +39,38 @@ const Timeslot = () => {
   };
 
   const fetchDoctorTimeSlots = async () => {
+    const userID = sessionStorage.getItem("userID");
+    const doctorID = sessionStorage.getItem("doctorID");
+  
+    if (!userID || !doctorID) {
+      console.warn("⚠️ Missing userID or doctorID in sessionStorage.");
+      return;
+    }
+  
     try {
-      const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`);
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
+      );
       const data = await response.json();
+  
       if (data?.success) {
-        const formattedSlots = data.data.map(slot => ({
+        const formattedSlots = data.data.map((slot: any) => ({
           day: slot.dayofWeek ?? "",
           hospital: slot.hospitalID ?? "",
           duration: slot.slotDuration?.toString() ?? "",
           fromTime: slot.fromTime ? new Date(`1970-01-01T${slot.fromTime}`) : null,
           toTime: slot.toTime ? new Date(`1970-01-01T${slot.toTime}`) : null,
         }));
+  
         setExistingTimeSlots(formattedSlots);
+      } else {
+        console.warn("⚠️ Unexpected response format or no data.");
       }
     } catch (error) {
-      console.error("Error fetching doctor time slots:", error);
+      console.error("🚨 Error fetching doctor time slots:", error);
     }
   };
+  
 
   const handleChange = (slots, setSlots, index, field, value) => {
     const updatedSlots = [...slots];
@@ -68,13 +84,15 @@ const Timeslot = () => {
 
   const handleSubmit = async () => {
     const userID = sessionStorage.getItem("userID");
-    if (!userID) {
-      alert("User not logged in.");
+    const doctorID = sessionStorage.getItem("doctorID");
+  
+    if (!userID || !doctorID) {
+      alert("🚨 User or Doctor not logged in. Please log in again.");
       return;
     }
   
     if (newTimeSlots.every(slot => !slot.day && !slot.hospital && !slot.duration && !slot.fromTime && !slot.toTime)) {
-      alert("No new time slots to submit.");
+      alert("⚠️ No new time slots to submit.");
       return;
     }
   
@@ -89,7 +107,7 @@ const Timeslot = () => {
     });
   
     if (uniqueNewSlots.length === 0) {
-      alert("No unique new time slots to submit. Duplicates detected.");
+      alert("🚫 No unique new time slots to submit. Duplicates detected.");
       return;
     }
   
@@ -99,7 +117,7 @@ const Timeslot = () => {
       createdOn: timestamp,
       updatedBy: userID,
       updatedOn: timestamp,
-      doctorID,
+      doctorID: doctorID,
       hospitalID: slot.hospital,
       dayofWeek: slot.day,
       fromTime: slot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "00:00:00",
@@ -117,14 +135,14 @@ const Timeslot = () => {
   
       const result = await response.json();
       if (response.ok) {
-        alert("Unique new time slots saved successfully!");
+        alert("✅ Unique new time slots saved successfully!");
         setNewTimeSlots([{ day: "", hospital: "", duration: "", fromTime: null, toTime: null }]);
-        fetchDoctorTimeSlots(); // Refresh existing slots
+        fetchDoctorTimeSlots(); // 🔁 Refresh existing slots
       } else {
-        console.error("Failed to save:", result);
+        console.error("❌ Failed to save:", result);
       }
     } catch (error) {
-      console.error("Error submitting time slots:", error);
+      console.error("🚨 Error submitting time slots:", error);
     }
   };
   
@@ -180,10 +198,7 @@ const Timeslot = () => {
       onChange={time => handleChange(slots, setSlots, index, "fromTime", time)} 
       showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
       placeholderText="From Time" 
-      className="w-full rounded-lg border border-stroke bg-transparent 
-      py-4 pl-6 pr-10 text-black outline-none focus:border-primary
-       dark:border-form-strokedark dark:bg-form-input
-        dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
       disabled={!editable} />
 
       {/* To Time */}
@@ -191,10 +206,7 @@ const Timeslot = () => {
       onChange={time => handleChange(slots, setSlots, index, "toTime", time)} 
       showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
       placeholderText="To Time"
-      className="w-full rounded-lg border border-stroke bg-transparent 
-      py-4 pl-6 pr-10 text-black outline-none focus:border-primary
-       dark:border-form-strokedark dark:bg-form-input
-        dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
        disabled={!editable} />
     </div>
   );

@@ -404,6 +404,7 @@ const cancelDelete = () => {
   <option value="LanguageMaster">LanguageMaster</option> 
   <option value="LabType">LabType</option> 
   <option value="FacilitiesType">FacilitiesType</option> 
+  <option value="UnitType">UnitType</option> 
  
 </select>
 
@@ -475,6 +476,7 @@ const cancelDelete = () => {
   <option value="LanguageMaster">LanguageMaster</option> 
   <option value="LabType">LabType</option> 
   <option value="FacilitiesType">FacilitiesType</option> 
+  <option value="UnitType">UnitType</option> 
  
 </select>
 

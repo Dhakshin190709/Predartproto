@@ -5,6 +5,8 @@ import 'react-form-wizard-component/dist/style.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import { inputFieldClass } from '../../components/FormStyles';
+import CustomButton from '../../components/CustomButton';
 
 interface Address {
   addressID?: string | null;
@@ -20,7 +22,7 @@ interface Address {
 }
 const Address: React.FC = () => {
   const [addressTypes, setAddressTypes] = useState([]);
-  const doctorID = '4f753961-3a5b-4fa3-3c8b-08dd548796a6';
+ 
   type AddressError = {
     addressType?: string;
     address1?: string;
@@ -193,9 +195,7 @@ const Address: React.FC = () => {
       {addresses.map((address, index) => (
         <div
           key={index}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
+          className={inputFieldClass}
         >
           {/* Address Type Dropdown */}
           <div className="flex justify-between items-center mb-4">
@@ -225,9 +225,7 @@ const Address: React.FC = () => {
              
               <input
                 type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.address1}
                 onChange={(e) =>
                   handleAddressChange(index, 'address1', e.target.value)
@@ -242,9 +240,7 @@ const Address: React.FC = () => {
              
               <input
                 type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.address2}
                 onChange={(e) =>
                   handleAddressChange(index, 'address2', e.target.value)
@@ -263,9 +259,7 @@ const Address: React.FC = () => {
             
               <input
                 type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.city}
                 onChange={(e) =>
                   handleAddressChange(index, 'city', e.target.value)
@@ -282,9 +276,7 @@ const Address: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter District"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.district}
                 onChange={(e) =>
                   handleAddressChange(index, 'district', e.target.value)
@@ -301,9 +293,7 @@ const Address: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter State"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.state}
                 onChange={(e) =>
                   handleAddressChange(index, 'state', e.target.value)
@@ -319,9 +309,7 @@ const Address: React.FC = () => {
              
               <input
                 type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-            text-black outline-none focus:border-primary dark:border-form-strokedark 
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
                 value={address.zipCode}
                 onChange={(e) =>
                   handleAddressChange(index, 'zipCode', e.target.value)
@@ -369,15 +357,8 @@ const Address: React.FC = () => {
       </div>
       <div className="flex justify-center gap-2">
         
-        <button
-          type="submit"
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-          hover:from-[#007BFF] hover:to-[#004A99]
-          text-white transition duration-150 
-          ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Submit address
-        </button>
+       
+        <CustomButton  type="submit">Submit address</CustomButton>
       </div>
     </form>
   );

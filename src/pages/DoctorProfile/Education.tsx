@@ -3,6 +3,7 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import axios from 'axios';
 import { isFuture, differenceInCalendarMonths,differenceInMonths, parseISO } from 'date-fns';
+import { inputFieldClass } from '../../components/FormStyles';
 
 
 interface Address {
@@ -74,35 +75,44 @@ const Education: React.FC = () => {
       }
     };
   
-   const fetchDoctorEducation = async () => {
-  try {
-    const { data: response } = await axios.get(
-      `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorEducation?doctorId=${doctorID}`
-    );
-    console.log('Doctor Education API Response:', response.data);
-
-    if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-      const mappedData: Address[] = response.data.map((item: any) => ({
-        specialization: item.specializationID ?? '',
-        qualification: item.graduateID ?? '',
-        isActive: item.isActive ?? true,
-        degreeName: item.degreeName ?? '',
-        university: item.universityName ?? '',
-        location: item.location ?? '',
-        startDate: item.startDate ? new Date(item.startDate) : null,
-        endDate: item.endDate ? new Date(item.endDate) : null,
-        isHighestEducation: item.isHighestEducation ?? false,
-      }));
-
-      setAddresses(mappedData);
-    } else {
-      console.warn('No education data found or response was unsuccessful.');
-      setAddresses([]);
-    }
-  } catch (error) {
-    console.error('Error fetching doctor education:', error);
-  }
-};
+    const fetchDoctorEducation = async () => {
+      const doctorID = sessionStorage.getItem('doctorID'); // ✅ Pull from session
+    
+      if (!doctorID) {
+        console.error('Doctor ID is not found in session.');
+        return;
+      }
+    
+      try {
+        const { data: response } = await axios.get(
+          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorEducation?doctorId=${doctorID}`
+        );
+    
+        console.log('Doctor Education API Response:', response.data);
+    
+        if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+          const mappedData: Address[] = response.data.map((item: any) => ({
+            specialization: item.specializationID ?? '',
+            qualification: item.graduateID ?? '',
+            isActive: item.isActive ?? true,
+            degreeName: item.degreeName ?? '',
+            university: item.universityName ?? '',
+            location: item.location ?? '',
+            startDate: item.startDate ? new Date(item.startDate) : null,
+            endDate: item.endDate ? new Date(item.endDate) : null,
+            isHighestEducation: item.isHighestEducation ?? false,
+          }));
+    
+          setAddresses(mappedData);
+        } else {
+          console.warn('No education data found or response was unsuccessful.');
+          setAddresses([]);
+        }
+      } catch (error) {
+        console.error('Error fetching doctor education:', error);
+      }
+    };
+    
   
     const initializeData = async () => {
       await fetchLOV(); // Fetch LOV first
@@ -171,74 +181,46 @@ const Education: React.FC = () => {
   
 
   
-const handleEducationSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  console.log('Submit Button Clicked!');
-
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    alert('User not logged in.');
-    return;
-  }
-
-  if (!doctorID) {
-    console.error('Doctor ID is missing');
-    return;
-  }
-  if (!addresses || addresses.length === 0) {
-    console.error('No education data provided');
-    return;
-  }
-
-  const fetchExistingEducation = async () => {
-    try {
-      const { data } = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorEducation?doctorId=${doctorID}`
-      );
-      return data?.data ?? [];
-    } catch (error) {
-      console.error('Error fetching existing education:', error);
-      return [];
-    }
-  };
-
-  let existingEducation = [];
-  try {
-    existingEducation = await fetchExistingEducation();
-    console.log('Fetched Existing Education:', existingEducation);
-  } catch (error) {
-    console.error('Failed to fetch existing education:', error);
-  }
-
-  const isDuplicate = (newEntry: any) =>
-    existingEducation.some(
-      (existing: any) =>
-        existing.degreeName.trim().toLowerCase() === newEntry.degreeName.trim().toLowerCase() &&
-        existing.universityName.trim().toLowerCase() === newEntry.universityName.trim().toLowerCase() &&
-        existing.startDate === newEntry.startDate &&
-        existing.endDate === newEntry.endDate
-    );
-
-  const allErrors = addresses.map(validateEducationFields);
-  console.log('Validation Errors:', allErrors);
-  const hasErrors = allErrors.some((error) => Object.keys(error).length > 0);
-  if (hasErrors) {
-    setFormErrors(Object.assign({}, ...allErrors));
-    return;
-  }
-
+  const handleEducationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Submit Button Clicked!');
   
-
-  const educationData = addresses.map((address) => {
-    const parsedStartDate =
-      typeof address.startDate === "string" ? parseISO(address.startDate) : address.startDate;
-    const parsedEndDate =
-      typeof address.endDate === "string" ? parseISO(address.endDate) : address.endDate;
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID'); // ✅ Get from sessionStorage
+  
+    if (!userID) {
+      alert('User not logged in.');
+      return;
+    }
+  
+    if (!doctorID) {
+      console.error('Doctor ID is missing');
+      return;
+    }
+  
+    if (!addresses || addresses.length === 0) {
+      console.error('No education data provided');
+      return;
+    }
+  
+    const allErrors = addresses.map(validateEducationFields);
+    console.log('Validation Errors:', allErrors);
+    const hasErrors = allErrors.some((error) => Object.keys(error).length > 0);
+    if (hasErrors) {
+      setFormErrors(Object.assign({}, ...allErrors));
+      return;
+    }
+  
+    const educationData = addresses.map((address) => {
+      const parsedStartDate =
+        typeof address.startDate === "string" ? parseISO(address.startDate) : address.startDate;
+      const parsedEndDate =
+        typeof address.endDate === "string" ? parseISO(address.endDate) : address.endDate;
   
       return {
         createdBy: userID,
         tenantID: "4e6e4cd1-5f6f-43f9-d5b1-08dd31472972",
-        doctorID: doctorID ?? "", // Ensure it is not undefined or null
+        doctorID: doctorID,
         specializationID: address.specialization,
         graduateID: address.qualification,
         degreeName: address.degreeName.trim(),
@@ -248,41 +230,29 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
         endDate: parsedEndDate instanceof Date ? parsedEndDate.toISOString().split("T")[0] : "",
         isHighestEducation: address.isHighestEducation,
       };
-      
-      
-  });
+    });
   
-  console.log("Payload sent to API:", JSON.stringify(educationData, null, 2));
- 
-
-  console.log('Education Data Before Filtering:', educationData);
+    console.log("Payload sent to API:", JSON.stringify(educationData, null, 2));
   
-  const uniqueEducationData = educationData.filter((entry) => !isDuplicate(entry));
-  console.log('Final Data Sent to API:', uniqueEducationData);
-
-  if (uniqueEducationData.length === 0) {
-    alert('Duplicate entries detected. No new data to submit.');
-    return;
-  }
-
-  try {
-    const response = await axios.post(
-      'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorEducation',
-      uniqueEducationData,
-      { headers: { 'Content-Type': 'application/json' } }
-    );
-
-    console.log('API Response:', response);
-    
-    if (response.status === 200 || response.status === 201) {
-      setSuccessMessage('Doctor education details saved successfully!');
-      setTimeout(() => setSuccessMessage(''), 3000);
+    try {
+      const response = await axios.post(
+        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorEducation',
+        educationData,
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+  
+      console.log('API Response:', response);
+  
+      if (response.status === 200 || response.status === 201) {
+        setSuccessMessage('Doctor education details saved successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      setSuccessMessage('Error saving education details.');
     }
-  } catch (error) {
-    console.error('API Error:', error);
-    setSuccessMessage('Error saving education details.');
-  }
-};
+  };
+  
 
   
 
@@ -315,9 +285,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
       placeholder="Degree Name"
       value={address.degreeName}
       onChange={(e) => handleFormInputChange(index, 'degreeName', e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+     className={inputFieldClass}
     />
     {formErrors.degreeName && (
       <span className="text-red-500 text-sm mt-1">{formErrors.degreeName}</span>
@@ -331,9 +299,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
       placeholder="Location"
       value={address.location}
       onChange={(e) => handleFormInputChange(index, 'location', e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
     />
     {formErrors.location && (
       <span className="text-red-500 text-sm mt-1">{formErrors.location}</span>
@@ -347,9 +313,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
       placeholder="University"
       value={address.university}
       onChange={(e) => handleFormInputChange(index, 'university', e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+     className={inputFieldClass}
     />
     {formErrors.university && (
       <span className="text-red-500 text-sm mt-1">{formErrors.university}</span>
@@ -361,9 +325,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
     <select
       value={address.qualification}
       onChange={(e) => handleFormInputChange(index, 'qualification', e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
     >
       <option value="">Select Qualification</option>
       {qualifications.map((qual: any) => (
@@ -382,9 +344,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
     <select
       value={address.specialization}
       onChange={(e) => handleFormInputChange(index, 'specialization', e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
     >
       <option value="">Select Specialization</option>
       {specializations.map((spec: any) => (
@@ -404,9 +364,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
       selected={address.startDate}
       onChange={(date) => handleFormInputChange(index, 'startDate', date)}
       placeholderText="Start Date"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+      className={inputFieldClass}
     />
     <span className="absolute right-3 top-3 text-gray-400">
       <i className="fas fa-calendar-alt"></i>
@@ -422,9 +380,7 @@ const handleEducationSubmit = async (e: React.FormEvent) => {
       selected={address.endDate}
       onChange={(date) => handleFormInputChange(index, 'endDate', date)}
       placeholderText="End Date"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+     className={inputFieldClass}
     />
     <span className="absolute right-3 top-3 text-gray-400">
       <i className="fas fa-calendar-alt"></i>

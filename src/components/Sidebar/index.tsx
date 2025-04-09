@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Logo from '../../images/logo/logo-icon.svg';
+import Logo from '../../images/logo/image.png';
 import { NavLink } from 'react-router-dom';
 import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
 
@@ -70,6 +70,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Patient: { icon: <FaUserInjured />, route: '/search/patient' },
   Appointments: { icon: <FaHospital />, route: '/search/appointment' },
   LabRegister: { icon: <FaFlask />, route: '/Registration/LabRegistration' },
+  DoctorRegister: { icon: <FaUserMd />, route: '/DoctorRegistration' },
   Hospital: { icon: <MdLocalHospital />, route: '/search/hospital' },
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
@@ -194,10 +195,11 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
 
 
-      <div className="flex items-center px-4 py-4 lg:py-6">
-        <img src={Logo} alt="CarePoint Pro Logo" className="h-6 mr-2" />
-        <h1 className="font-semibold text-white text-sm">CarePoint Pro</h1>
-      </div>
+<div className="flex items-center px-4 py-4 lg:py-6">
+  <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-10 mr-3" />
+  <h1 className="font-semibold text-white text-xl">CarePoint Pro</h1>
+</div>
+
       <div className="sidebar-menu overflow-y-auto flex-1">
         <nav>
           {rootItems.map((parent) => (

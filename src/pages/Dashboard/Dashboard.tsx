@@ -1,17 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import {
-  FaMale,
-  FaFemale,
-  FaCalendarAlt,
-  FaUser,
-  FaClock,
-  FaPhoneAlt,
-  FaUserMd,
-  FaEdit,
-} from 'react-icons/fa'; // Gender icons
+import { useNavigate } from 'react-router-dom';
+import patientIcon from '../../images/icon/Patient profile people (3).svg';
+import PhoneIcon from '../../images/icon/Phone volume solid (2).svg';
+import CalendarIcon from '../../images/icon/calendars.svg';
+import ClockIcon from '../../images/icon/Clock (2).svg';
+import DoctorIcon from '../../images/icon/User doctor (2).svg';
+import { FaMale, FaFemale, FaEdit } from 'react-icons/fa'; // Gender icons
 import axios from 'axios';
+
 import CustomButton from '../../components/CustomButton';
 import { CalendarCheck } from 'lucide-react';
+import { inputFieldClass } from '../../components/FormStyles';
 interface Appointment {
   doctorName: string;
   patientName: string;
@@ -24,35 +23,266 @@ interface Appointment {
 }
 
 const AppointmentCard: React.FC = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-    const [fromTime, setFromTime] = useState("");
-    const [toTime, setToTime] = useState("");
-    const [searchTerm, setSearchTerm] = useState<string>("");
+  const [fromTime, setFromTime] = useState('');
+  const [toTime, setToTime] = useState('');
+
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const [currentAppointment, setCurrentAppointment] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [statusList, setStatusList] = useState<Status[]>([]);
-  
-  
-  const [dropdownVisible, setDropdownVisible] = useState<{
+  const [selectedAppointment, setSelectedAppointment] = useState<any>({
+    appointmentDate: '',
+  });
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
+  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+const[doctorID,setDoctorID]=useState('');
+const [dropdownVisible, setDropdownVisible] = useState<{
     [key: number]: boolean;
   }>({});
-  const [selectedAppointment, setSelectedAppointment] =
-    useState<Appointment | null>(null);
+  
   const [selectedDoctorID, setSelectedDoctorID] = useState<string>('');
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('');
+
   const [doctors, setDoctors] = useState<any[]>([]); // Sample doctors array
-  const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
+  
   const [selectedDoctor, setSelectedDoctor] = useState('');
+
+  const [roleName, setRoleName] = useState('');
+  const [userID, setUserID] = useState('');
+
   useEffect(() => {
-    fetch(
-      'https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment',
-    )
-      .then((response) => response.json())
-      .then((data) => setAppointments(data))
-      .catch((error) => console.error('Error fetching data:', error));
+    const user = sessionStorage.getItem('userID');
+    if (!user) {
+      alert('User not logged in.');
+      return;
+    }
+
+    setUserID(user);
+    initializeUserRoleAndAppointments(user);
   }, []);
+
+  const initializeUserRoleAndAppointments = async (userID: string) => {
+    try {
+      // Step 1: Get roleID
+      const roleResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
+      );
+      const roleData = await roleResponse.json();
+
+      if (!roleData.success || roleData.data.length === 0) {
+        console.warn('⚠️ Role ID not found for user');
+        return;
+      }
+
+      const roleID = roleData.data[0].roleID;
+
+      // Step 2: Get role name
+      const roleNameResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
+      );
+      const roleNameData = await roleNameResponse.json();
+
+      if (!roleNameData.success || !roleNameData.data) {
+        console.warn('⚠️ Failed to get role name');
+        return;
+      }
+
+      const role = roleNameData.data.roleName;
+      setRoleName(role);
+      console.log('✅ Role:', role);
+
+      // Step 3: Fetch appointments based on role
+      fetchAppointmentsBasedOnRole(userID, role);
+    } catch (error) {
+      console.error('❌ Error in role initialization:', error);
+    }
+  };
+
+  const fetchAppointmentsBasedOnRole = async (userID: string, role: string) => {
+    setLoading(true);
+    setAppointments([]);
+  
+    try {
+      if (role === 'Patient') {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+        );
+        const data = await res.json();
+  
+        if (data.success && data.data) {
+          const patientID = data.data.patientID;
+          const apptRes = await fetch(
+            `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?PatientID=${patientID}`,
+          );
+          const apptData = await apptRes.json();
+          setAppointments(apptData || []);
+        } else {
+          console.warn('⚠️ Patient data not found.');
+        }
+  
+      } else if (role === 'Doctor') {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorsByUserID?userId=${userID}`,
+        );
+        const data = await res.json();
+  
+        if (data.success && data.data) {
+          const doctorID = data.data.doctorID;
+          const apptRes = await fetch(
+            `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}`,
+          );
+          const apptData = await apptRes.json();
+          setAppointments(apptData || []);
+        } else {
+          console.warn('⚠️ Doctor data not found.');
+        }
+  
+      } else if (
+        role === 'Reception' || 
+        role === 'Medical' || 
+        role === 'LABIncharge' || 
+        role === 'Cash'
+      ) {
+        const unitID = sessionStorage.getItem('unitID');
+        if (!unitID) {
+          console.warn('⚠️ unitID not found in sessionStorage.');
+          return;
+        }
+  
+        let apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}`;
+  
+        if (role === 'Medical') {
+          const statusID = 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396';
+          apiUrl += `&StatusID=${statusID}`;
+        }
+  
+        if (role === 'LABIncharge') {
+          const statusID = 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396';
+          apiUrl += `&StatusID=${statusID}`;
+        }
+  
+        if (role === 'Cash') {
+          const statusID = '5855b16d-1447-4856-b4be-08dd57ac7396';
+          apiUrl += `&StatusID=${statusID}`;
+        }
+  
+        const apptRes = await fetch(apiUrl);
+        const apptData = await apptRes.json();
+        setAppointments(Array.isArray(apptData) ? apptData : []);
+  
+      } else {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment`,
+        );
+        const data = await res.json();
+        setAppointments(Array.isArray(data) ? data : []);
+      }
+  
+    } catch (error) {
+      console.error('❌ Error fetching appointments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  
+  
+  const handleSaveEdit = async () => {
+    if (!selectedAppointment) return;
+  
+    if (!selectedAppointment.appointmentTime) {
+      console.warn('⚠️ appointmentTime is missing');
+      alert('Please select an appointment time.');
+      return;
+    }
+  
+    const loggedInUserID = sessionStorage.getItem("userID");
+  
+    if (!loggedInUserID) {
+      alert("Session expired. Please log in again.");
+      return;
+    }
+  
+    // Convert date + time to 24hr ISO timestamp
+    const convertTo24HourFormat = (time12h: string): string => {
+      const [time, modifier] = time12h.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+  
+      if (modifier.toLowerCase() === 'pm' && hours !== 12) {
+        hours += 12;
+      }
+      if (modifier.toLowerCase() === 'am' && hours === 12) {
+        hours = 0;
+      }
+  
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(hours)}:${pad(minutes)}:00`;
+    };
+  
+    const date = selectedAppointment.appointmentDate; // e.g., "2025-04-14"
+    const time = convertTo24HourFormat(selectedAppointment.appointmentTime); // e.g., "18:00:00"
+    const appointmentDateTimeISO = new Date(`${date}T${time}`).toISOString();
+  
+    const payload = {
+      appointmentID: selectedAppointment.appointmentID,
+      doctorID: selectedAppointment.doctorID,
+      patientID: selectedAppointment.patientID,
+      timeSlotID: selectedAppointment.timeSlotID,
+      appointmentDate: appointmentDateTimeISO,
+      appointmentTime: time, // Now in 24hr format
+      statusID: selectedAppointment.statusID,
+      phoneNumber: selectedAppointment.phoneNumber,
+      notes: selectedAppointment.notes,
+      toWhom: selectedAppointment.toWhom,
+      relationShip: selectedAppointment.relationShip,
+      createdBy: selectedAppointment.createdBy || loggedInUserID,
+      createdOn: selectedAppointment.createdOn,
+      updatedBy: loggedInUserID,
+      updatedOn: new Date().toISOString(),
+      isActive: true,
+    };
+  
+    console.log("📦 Clean Payload sent to API:", payload);
+  
+    try {
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Appointment/${selectedAppointment.appointmentID}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+  
+      if (!response.ok) {
+        throw new Error('Failed to update appointment');
+      }
+  
+      const data = await response.json();
+      console.log('✅ Appointment updated:', data);
+  
+      setIsEditModalOpen(false);
+      fetchAppointmentsBasedOnRole(loggedInUserID, role);
+    } catch (error) {
+      console.error('❌ Error updating appointment:', error);
+    }
+  };
+  
+  
+  
+  
+  
+
+
+
+  const handleBookNow = () => {
+    navigate('/appointment/booking'); // Replace with the actual booking route
+  };
 
   const getStatusColor = (statusName: string): string => {
     switch (statusName) {
@@ -123,6 +353,8 @@ const AppointmentCard: React.FC = () => {
     fetchDoctors();
   }, []);
 
+
+
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
       ...prev,
@@ -157,25 +389,39 @@ const AppointmentCard: React.FC = () => {
   };
 
   const handleEditClick = (appointment: Appointment) => {
-    console.log('Editing Appointment:', appointment);
-    setSelectedAppointment(appointment); // Store the full appointment object
-    setIsEditModalOpen(true); // Open the modal when the appointment is selected
+    console.log('📝 Editing Appointment:', appointment);
+    console.log('🔍 createdBy:', appointment.createdBy); // explicitly check this field
+    setSelectedAppointment(appointment); 
+    setIsEditModalOpen(true); 
   };
+  
 
   const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const doctorID = e.target.value;
-
-    setSelectedDoctorID(doctorID); // Update the selected doctor ID
-    setSelectedDoctor(doctorID); // Ensure this is used in `handleSaveChanges`
-
-    fetchTimeSlots(doctorID); // Fetch available slots when doctor changes
-
+    setSelectedDoctorID(doctorID);
+    setSelectedDoctor(doctorID);
+  
+    const selectedDoctor = doctors.find((doc) => doc.doctorID === doctorID);
+    console.log("👨‍⚕️ Selected Doctor:", selectedDoctor); // for debug
+  
+    const selectedDate = selectedAppointment.appointmentDate;
+    if (selectedDate) {
+      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+      fetchTimeSlots(doctorID, dayOfWeek);
+    }
+  
+    // ✅ Update full doctor info into selectedAppointment
     setSelectedAppointment((prev) => ({
       ...prev,
       doctorID,
-      appointmentTime: '',
+      doctorName: selectedDoctor?.doctorName || '',
+      doctorEmail: selectedDoctor?.doctorEmail || '',
+      doctorPhoneNumber: selectedDoctor?.doctorPhoneNumber || '',
+      appointmentTime: '', // Reset time when doctor changes
     }));
   };
+  
+  
 
   const openEditModal = (appointment) => {
     setSelectedDoctor(appointment.doctorID); // Set default doctor ID
@@ -185,6 +431,7 @@ const AppointmentCard: React.FC = () => {
     setIsEditModalOpen(true); // Open modal
   };
 
+ 
   const generateTimeSlots = (
     fromTime: string,
     toTime: string,
@@ -204,43 +451,36 @@ const AppointmentCard: React.FC = () => {
       const hours = startTime.getHours();
       const minutes = startTime.getMinutes();
       const ampm = hours >= 12 ? 'PM' : 'AM';
-      const formattedHours = hours % 12 || 12; // Convert 24-hour format to 12-hour
+      const formattedHours = hours % 12 || 12;
       const formattedMinutes = minutes.toString().padStart(2, '0');
 
       slots.push(`${formattedHours}:${formattedMinutes} ${ampm}`);
-
-      // Increment by slotDuration
       startTime.setMinutes(startTime.getMinutes() + slotDuration);
     }
 
     return slots;
   };
-
-  const fetchTimeSlots = async (doctorID: string) => {
+ 
+  const fetchTimeSlots = async (doctorID: string, selectedDay: string) => {
     try {
       const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
       );
 
       if (response.data?.success && Array.isArray(response.data.data)) {
-        const currentDay = new Date().toLocaleString('en-US', {
-          weekday: 'long',
-        });
-
-        // Find slot details for the current day
         const slotData = response.data.data.find(
-          (slot) => slot.dayofWeek === currentDay,
+          (slot) => slot.dayofWeek === selectedDay
         );
 
         if (slotData?.fromTime && slotData?.toTime && slotData?.slotDuration) {
           const generatedSlots = generateTimeSlots(
             slotData.fromTime,
             slotData.toTime,
-            slotData.slotDuration,
+            slotData.slotDuration
           );
           setAvailableTimeSlots(generatedSlots);
         } else {
-          console.error('No time slots available for today:', currentDay);
+          console.error('No time slots available for:', selectedDay);
           setAvailableTimeSlots([]);
         }
       } else {
@@ -252,10 +492,38 @@ const AppointmentCard: React.FC = () => {
       setAvailableTimeSlots([]);
     }
   };
-  const handleTimeSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedTimeSlot(e.target.value);
-  };
 
+  
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedDate = e.target.value;
+    const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+    console.log('Selected Day:', dayOfWeek); // 👈 Log day
+  
+    setSelectedAppointment((prev) =>
+      prev ? { ...prev, appointmentDate: selectedDate } : null
+    );
+  
+    if (selectedDoctorID) {
+      fetchTimeSlots(selectedDoctorID, dayOfWeek); // ✅ Call when doctor already selected
+    }
+  };
+  
+  const handleTimeSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = e.target.value;
+    setSelectedTimeSlot(selected);
+  
+    // Also update the appointment time inside selectedAppointment
+    setSelectedAppointment(prev => ({
+      ...prev,
+      appointmentTime: selected,
+    }));
+  
+    console.log("🕒 Selected Time Slot:", selected);
+  };
+  
+  
+
+  
   const handleSaveChanges = () => {
     console.log('Saving changes for appointment:', selectedAppointment);
     // Perform the save logic here
@@ -298,262 +566,324 @@ const AppointmentCard: React.FC = () => {
     }
   };
 
-
   const handleSearch = async () => {
+    if (!selectedDoctorID) {
+      alert('Please select a doctor.');
+      return;
+    }
+
     setLoading(true);
-  
+    setAppointments([]); // Clear previous data
+
     try {
-      const response = await axios.get('https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment', {
-        params: {
-          DoctorID: searchTerm,  // doctor name or ID based on the API requirement
-          StartDate: fromTime,
-          EndDate: toTime,
-        }
-      });
-  
-      setAppointments(response.data);  // assuming the response contains an array of appointments
+      let apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}`;
+
+      if (fromTime && toTime) {
+        apiUrl += `&StartDate=${fromTime}&EndDate=${toTime}`;
+      }
+
+      const response = await fetch(apiUrl);
+      const data = await response.json();
+      setAppointments(data);
     } catch (error) {
       console.error('Error fetching appointments:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleDoctorSelect = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedId = event.target.value;
+    console.log('Selected Doctor ID:', selectedId); // 👈 Log selected doctor ID
+    setSelectedDoctorID(selectedId);
+  };
   
 
   return (
     <div className="p-4">
-      <div className="flex items-center gap-2 mb-4">
-        {/* Search Input */}
-        <input
-          type="text"
-          placeholder="Search Doctor Name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-grow rounded-md border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary"
-        />
-
-        {/* Date Pickers */}
-        <input
-          type="text"
-          placeholder="From Date"
-          value={fromTime ? fromTime.split('T')[0] : ''}
-          onFocus={(e) => (e.target.type = 'date')}
-          onBlur={(e) => { if (!fromTime) e.target.type = 'text'; }}
-          onChange={(e) => setFromTime(e.target.value)}
-          className="flex-grow border border-stroke bg-transparent ml-2 p-2 text-black outline-none focus:border-primary rounded-md"
-        />
-
-        <input
-          type="text"
-          placeholder="To Date"
-          value={toTime ? toTime.split('T')[0] : ''}
-          onFocus={(e) => (e.target.type = 'date')}
-          onBlur={(e) => { if (!toTime) e.target.type = 'text'; }}
-          onChange={(e) => setToTime(e.target.value)}
-          className="flex-grow border border-stroke bg-transparent ml-2 p-2 text-black outline-none focus:border-primary rounded-md"
-        />
-
-        <div className="flex gap-4">
-          <CustomButton onClick={handleSearch}>Search</CustomButton>
-          <button className="px-4 py-2 border border-gray-300 rounded flex items-center gap-2">
-            <CalendarCheck className="w-5 h-5" />
-            Book Now
+      {/* Wrap both in a common column grid */}
+      <div className="grid grid-cols-1 md:grid-cols-1 gap-4 ml-5">
+        <div className="flex items-center gap-x-4 mb-4">
+          {/* Book Now Button */}
+          <button
+            onClick={handleBookNow}
+            className="flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+      hover:from-[#007BFF] hover:to-[#004A99] text-white 
+      transition duration-150 ease-out hover:ease-in 
+      px-4 py-2 rounded-lg"
+          >
+            <CalendarCheck className="w-5 h-5" />{' '}
+            {/* Adjust size for better alignment */}
+            <span>Book</span>
           </button>
+          {/* Doctor Selection */}
+          <select
+            onChange={handleDoctorSelect}
+            value={selectedDoctorID}
+            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+          >
+            <option value="">Select Doctor</option>
+            {doctors.map((doctor) => (
+              <option key={doctor.doctorID} value={doctor.doctorID}>
+                {doctor.doctorName}
+              </option>
+            ))}
+          </select>
+
+          {/* Date Pickers */}
+          <input
+            type="text"
+            placeholder="From Date"
+            value={fromTime ? fromTime.split('T')[0] : ''}
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => {
+              if (!fromTime) e.target.type = 'text';
+            }}
+            onChange={(e) => setFromTime(e.target.value)}
+            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+          />
+
+          <input
+            type="text"
+            placeholder="To Date"
+            value={toTime ? toTime.split('T')[0] : ''}
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => {
+              if (!toTime) e.target.type = 'text';
+            }}
+            onChange={(e) => setToTime(e.target.value)}
+            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+          />
+
+          {/* Buttons */}
+          <CustomButton onClick={handleSearch}>Search</CustomButton>
+
+          <CustomButton
+            onClick={() => {
+              setSelectedDoctorID('');
+              setFromTime('');
+              setToTime('');
+              fetchAppointmentsBasedOnRole(userID, roleName);
+          
+            }}
+            className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
+          >
+            Reset
+          </CustomButton>
         </div>
       </div>
 
- {/* Render Appointment Cards */}
- {loading ? (
+      {/* Render Appointment Cards */}
+
+      {loading ? (
         <p>Loading appointments...</p>
       ) : (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 p-4">
-        {appointments.map((appointment, index) => (
-          <div
-            key={index}
-            className="bg-white p-4 rounded-xl shadow-md border-2 border-blue-100 
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 p-4">
+          {appointments.map((appointment, index) => (
+            <div
+              key={index}
+              className="bg-white p-4 rounded-xl shadow-md border-2 border-blue-100 
         transition-transform transform hover:scale-105 hover:shadow-lg w-[100%]"
-          >
-            {/* First row - Patient Name (Age), Gender Icon, Edit Icon */}
-            <div className="flex justify-between items-center p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors">
-              <div className="flex items-center">
-                {/* Patient Icon */}
-                <FaUser className="mr-2 text-green-700" />
-                <div className="text-md font-bold text-red-600">
-                  {appointment.patientName}
+            >
+              {/* First row - Patient Name (Age), Gender Icon, Edit Icon */}
+              <div className="flex justify-between items-center p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors">
+                <div className="flex items-center">
+                  {/* Patient Image */}
+                  <img
+                    src={patientIcon} // <-- Replace with actual image path or dynamic URL
+                    alt="Patient"
+                    className="w-6 h-6 rounded-full mr-2"
+                  />
+
+                  <div className="text-lg font-bold text-black-600">
+                    {appointment.patientName}
+                  </div>
+
+                  <span className="ml-2 text-sm text-gray-500">
+                    ({calculateAge(appointment.patientDateOfBirth)} years)
+                  </span>
                 </div>
-                <span className="ml-2 text-sm text-gray-500">
-                  ({calculateAge(appointment.patientDateOfBirth)} years)
+
+                <div className="flex items-center">
+                  {/* Gender Icon */}
+                  {appointment.patientGender === 'Male' ? (
+                    <FaMale className="text-blue-500 mr-2" />
+                  ) : (
+                    <FaFemale className="text-pink-500 mr-2" />
+                  )}
+                {/* Edit icon: show if not a Patient, or if statusName === 'Consult Another Doctor' */}
+                {(roleName !== 'Patient' || appointment?.statusID === '71cb1b67-af86-48f0-b4c5-08dd57ac7396') && (
+  <FaEdit
+    className="cursor-pointer text-gray-500 hover:text-blue-500"
+    onClick={() => handleEditClick(appointment)}
+  />
+)}
+
+
+                </div>
+              </div>
+
+              {/* Second row - Phone, Appointment Date, and Time with Icons */}
+              <div className="mt-2 flex items-center justify-between">
+                {/* Phone Icon */}
+                <div className="flex items-center mr-4">
+                  <img
+                    src={PhoneIcon} // <-- Replace with actual image path or dynamic URL
+                    alt="phone"
+                    className="w-5 h-5 mr-2"
+                  />
+                  <div>{appointment.patientPhoneNumber}</div>
+                </div>
+
+                {/* Appointment Date with Icon */}
+                <div className="flex items-center mr-4">
+                  <img
+                    src={CalendarIcon}
+                    alt="calendar"
+                    className="w-7 h-7 mr-2"
+                  />
+
+                  <div>{formatDate(appointment.appointmentDate)}</div>
+                </div>
+
+                {/* Appointment Time with Icon */}
+                <div className="flex items-center">
+                  <img
+                    src={ClockIcon} // <-- Replace with actual image path or dynamic URL
+                    alt="clock"
+                    className="w-5 h-5 mr-2"
+                  />
+                  <div>{formatTime(appointment.appointmentTime)}</div>
+                </div>
+              </div>
+
+              {/* Third row - Doctor Name with Icon */}
+              <div className="mt-2 flex items-center">
+                <div className="flex items-center">
+                  <img
+                    src={DoctorIcon} // <-- Replace with actual image path or dynamic URL
+                    alt="clock"
+                    className="w-5 h-5 mr-2"
+                  />
+                  <div>{appointment.doctorName}</div>
+                </div>
+              </div>
+
+              {/* Appointment Status */}
+              <div className="mt-2 flex justify-between items-center">
+                <span
+                  className="px-2 py-1 rounded font-bold text-sm"
+                  style={{
+                    color: getStatusColor(getStatusInfo(appointment.statusID)),
+                  }}
+                  title={getStatusInfo(appointment.statusID)}
+                >
+                  {getStatusInfo(appointment.statusID)}
                 </span>
-              </div>
-              <div className="flex items-center">
-                {/* Gender Icon */}
-                {appointment.patientGender === 'Male' ? (
-                  <FaMale className="text-blue-500 mr-2" />
-                ) : (
-                  <FaFemale className="text-pink-500 mr-2" />
-                )}
-                {/* Edit Icon */}
-                <FaEdit
-                  className="cursor-pointer text-gray-500 hover:text-blue-500"
-                  onClick={() => handleEditClick(appointment)}
-                />
-              </div>
-            </div>
 
-            {/* Second row - Phone, Appointment Date, and Time with Icons */}
-            <div className="mt-2 flex items-center justify-between">
-              {/* Phone Icon */}
-              <div className="flex items-center mr-4">
-                <FaPhoneAlt className="mr-2 text-red-500" />
-                <div>{appointment.patientPhoneNumber}</div>
+               {/* Change Status button: hide if role is Patient */}
+{roleName !== 'Patient' && (
+  <button
+    onClick={() => toggleDropdown(index)}
+    className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
+  >
+    Change Status
+  </button>
+)}
+              
               </div>
 
-              {/* Appointment Date with Icon */}
-              <div className="flex items-center mr-4">
-                <FaCalendarAlt className="mr-2 text-yellow-500" />
-                <div>{formatDate(appointment.appointmentDate)}</div>
-              </div>
-
-              {/* Appointment Time with Icon */}
-              <div className="flex items-center">
-                <FaClock className="mr-2 text-green-500" />
-                <div>{formatTime(appointment.appointmentTime)}</div>
-              </div>
-            </div>
-
-            {/* Third row - Doctor Name with Icon */}
-            <div className="mt-2 flex items-center">
-              <div className="flex items-center">
-                <FaUserMd className="mr-2 text-purple-500" />
-                <div>{appointment.doctorName}</div>
-              </div>
-            </div>
-
-            {/* Appointment Status */}
-            <div className="mt-2 flex justify-between items-center">
-              <span
-                className="px-2 py-1 rounded font-bold text-sm"
-                style={{
-                  color: getStatusColor(getStatusInfo(appointment.statusID)),
-                }}
-                title={getStatusInfo(appointment.statusID)}
-              >
-                {getStatusInfo(appointment.statusID)}
-              </span>
-
-              <button
-                onClick={() => toggleDropdown(index)}
-                className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
-              >
-                Change Status
-              </button>
-            </div>
-
-            {/* Status Dropdown */}
-            {dropdownVisible[index] && (
-              <select
-                className="w-full rounded-lg mt-1 border border-stroke bg-transparent p-2
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
-                onChange={(e) => {
-                  const selectedStatus = e.target.value;
-                  if (selectedStatus) {
-                    handleStatusChange(
-                      appointment.appointmentID,
-                      selectedStatus,
-                    );
-                  }
-                }}
-              >
-                <option value="">Select Status</option>
-                {statusList.map((status) => (
-                  <option key={status.appLOVID} value={status.appLOVID}>
-                    {status.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        ))}
-
-        {/* Modal Popup */}
-        {isEditModalOpen && selectedAppointment && (
-          <div className="modal-overlay">
-            <div className="modal">
-              <div className="modal-header">
-                <h2>Edit Appointment</h2>
-                <button
-                  className="close-btn"
-                  onClick={() => setIsEditModalOpen(false)}
-                >
-                  ×
-                </button>
-              </div>
-              <div className="modal-body mt-4">
-                {/* Doctor Selection */}
+              {/* Status Dropdown */}
+              {dropdownVisible[index] && (
                 <select
-                  onChange={handleDoctorChange}
-                  value={selectedDoctorID}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary mb-4"
+                  className="w-full rounded-lg mt-1 border border-stroke bg-white dark:bg-form-input p-2 text-black dark:text-white outline-none focus:border-primary focus:outline-none focus:ring-0 dark:focus:border-primary"
+                  style={{ height: '40px' }} // 👈 Add this
+                  onChange={(e) => {
+                    const selectedStatus = e.target.value;
+                    if (selectedStatus) {
+                      handleStatusChange(
+                        appointment.appointmentID,
+                        selectedStatus,
+                      );
+                    }
+                  }}
                 >
-                  <option value="">Select Doctor</option>
-                  {doctors.map((doctor) => (
-                    <option key={doctor.doctorID} value={doctor.doctorID}>
-                      {doctor.doctorName}
+                  <option value="">Select Status</option>
+                  {statusList.map((status) => (
+                    <option key={status.appLOVID} value={status.appLOVID}>
+                      {status.name}
                     </option>
                   ))}
                 </select>
+              )}
+            </div>
+          ))}
 
-                {/* Appointment Date */}
-                <input
-                  type="date"
-                  value={
-                    selectedAppointment.appointmentDate
-                      ? selectedAppointment.appointmentDate.split('T')[0]
-                      : ''
-                  }
-                  onChange={(e) =>
-                    setSelectedAppointment((prev) =>
-                      prev
-                        ? { ...prev, appointmentDate: e.target.value }
-                        : null,
-                    )
-                  }
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary mb-4"
-                />
+          {/* Modal Popup */}
+          {isEditModalOpen && selectedAppointment && (
+            <div className="modal-overlay">
+              <div className="modal">
+                <div className="modal-header">
+                  <h2 className="font-bold text-xl">Edit Appointment</h2>
+                </div>
+                <div className="modal-body mt-4">
+                  {/* Doctor Selection */}
+                  <select
+                    onChange={handleDoctorChange}
+                    value={selectedDoctorID}
+                    className={`${inputFieldClass} mb-4`}
+                  >
+                    <option value="">Select Doctor</option>
+                    {doctors.map((doctor) => (
+                      <option key={doctor.doctorID} value={doctor.doctorID}>
+                        {doctor.doctorName}
+                      </option>
+                    ))}
+                  </select>
 
-                {/* Time Slot */}
-                <select
-                  value={selectedTimeSlot}
-                  onChange={handleTimeSlotChange}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary mb-4"
-                >
-                  <option value="">Select a Time Slot</option>
-                  {availableTimeSlots.map((slot, index) => (
-                    <option key={index} value={slot}>
-                      {slot}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {/* Appointment Date */}
+                  <input
+        type="date"
+        value={
+          selectedAppointment.appointmentDate
+            ? selectedAppointment.appointmentDate.split('T')[0]
+            : ''
+        }
+        onChange={handleDateChange}
+        className={`${inputFieldClass} mb-4`}
+      />
 
-              <div className="modal-footer">
-                <button className="save-btn" onClick={handleSaveChanges}>
-                  Save Changes
-                </button>
-                <button
-                  className="cancel-btn"
-                  onClick={() => setIsEditModalOpen(false)}
-                >
-                  Cancel
-                </button>
+                  {/* Time Slot */}
+                  <select
+                    value={selectedTimeSlot}
+                    onChange={handleTimeSlotChange}
+                    className={`${inputFieldClass} mb-4`}
+                  >
+                    <option value="">Select a Time Slot</option>
+                    {availableTimeSlots.map((slot, index) => (
+                      <option key={index} value={slot}>
+                        {slot}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="modal-footer flex justify-between items-center">
+                  <button
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="bg-gray-600 text-black px-55 ml-4 py-6 rounded shadow-none hover:bg-gray-600"
+                  >
+                    Cancel
+                  </button>
+
+                  <CustomButton onClick={handleSaveEdit}>Save</CustomButton>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <style>
-          {`
+          <style>
+            {`
       
       /* Overlay to make background darker when modal opens */
 .modal-overlay {
@@ -649,9 +979,11 @@ const AppointmentCard: React.FC = () => {
       
       
       `}
-        </style>
-      </div>
-       )}
+          </style>
+        </div>
+      )}
+
+
     </div>
   );
 };

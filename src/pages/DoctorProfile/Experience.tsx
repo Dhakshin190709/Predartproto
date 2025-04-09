@@ -4,6 +4,7 @@ import axios from 'axios';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Calendar } from 'lucide-react';
+import { inputFieldClass } from '../../components/FormStyles';
 
 interface Experience {
   type: string;
@@ -75,36 +76,48 @@ const Experience: React.FC = () => {
   }, []);
 
   const [savedExperience, setSavedExperience] = useState<ExperienceType[]>([]);
-
-useEffect(() => {
-  if (doctorID && specializations.length > 0 && employmentTypes.length > 0) {
-    axios
-      .get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorExprience?doctorId=${doctorID}`,
-      )
-      .then((res) => {
-        console.log('📌 Experience API Response:', res.data);
-
-        if (res.data.data.length > 0) {
-          const experienceData = res.data.data.map((exp) => ({
-            ...exp,
-            specialization:
-              specializations.find((s) => s.appLOVID === exp.specializationID)
-                ?.appLOVID || '',
-            type:
-              employmentTypes.find((w) => w.appLOVID === exp.employmentType)
-                ?.appLOVID || '', 
-          }));
-
-          console.log('📌 Mapped Experience Data:', experienceData);
-          setExperience(experienceData);
-          setSavedExperience(experienceData); // Store fetched experience separately
-        }
-      })
-      .catch((err) => console.error('❌ Error fetching experience:', err));
-  }
-}, [doctorID, specializations, employmentTypes]);
- // ✅ Updated dependency
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+  
+    if (!doctorID) {
+      console.warn('⚠️ doctorID not found in session.');
+      return;
+    }
+  
+    if (!userID) {
+      console.warn('⚠️ userID not found in session.');
+      return;
+    }
+  
+    if (specializations.length > 0 && employmentTypes.length > 0) {
+      axios
+        .get(
+          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorExprience?doctorId=${doctorID}`
+        )
+        .then((res) => {
+          console.log('📌 Experience API Response:', res.data);
+  
+          if (res.data?.data?.length > 0) {
+            const experienceData = res.data.data.map((exp) => ({
+              ...exp,
+              specialization:
+                specializations.find((s) => s.appLOVID === exp.specializationID)
+                  ?.appLOVID || '',
+              type:
+                employmentTypes.find((w) => w.appLOVID === exp.employmentType)
+                  ?.appLOVID || '',
+            }));
+  
+            console.log('📌 Mapped Experience Data:', experienceData);
+            setExperience(experienceData);
+            setSavedExperience(experienceData); // Store fetched experience separately
+          }
+        })
+        .catch((err) => console.error('❌ Error fetching experience:', err));
+    }
+  }, [specializations, employmentTypes]);
+  
 
   const handleExperienceChange = (
     index: number,
@@ -195,25 +208,27 @@ useEffect(() => {
     e.preventDefault();
   
     const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+  
     if (!userID || !doctorID) {
-      alert('User not logged in. Please log in again.');
+      alert('⚠️ User or Doctor ID not found. Please log in again.');
       return;
     }
   
+    // Validate form fields
     const newErrors = experience.map((exp) => {
       const fieldErrors: ExperienceErrors = {};
-      if (!exp.hospitalName?.trim())
-        fieldErrors.hospitalName = 'Hospital name is required.';
+      if (!exp.hospitalName?.trim()) fieldErrors.hospitalName = 'Hospital name is required.';
       if (!exp.joinDate) fieldErrors.joinDate = 'Join date is required.';
       if (!exp.leaveDate) fieldErrors.leaveDate = 'Leave date is required.';
       return fieldErrors;
     });
   
     setExperienceErrors(newErrors);
-    if (newErrors.some((errors) => Object.values(errors).some((msg) => msg)))
-      return;
+    const hasErrors = newErrors.some((errors) => Object.values(errors).some((msg) => msg));
+    if (hasErrors) return;
   
-    // Track saved experiences
+    // Avoid re-submitting existing experience
     const savedExperienceSet = new Set(
       savedExperience.map(
         (exp) =>
@@ -221,16 +236,15 @@ useEffect(() => {
       )
     );
   
-    // Filter new experiences (avoid duplicates & existing records)
     const newExperienceDataArray = experience
       .filter((exp) => {
         const expKey = `${exp.hospitalName.trim()}_${new Date(exp.joinDate).toISOString()}_${new Date(exp.leaveDate).toISOString()}`;
-        return !savedExperienceSet.has(expKey); // Send only new experiences
+        return !savedExperienceSet.has(expKey);
       })
       .map((exp) => ({
         createdBy: userID,
-        isActive: true,
         doctorID: doctorID,
+        isActive: true,
         employmentType: exp.type,
         specializationID: exp.specialization,
         hospitalName: exp.hospitalName.trim(),
@@ -247,13 +261,15 @@ useEffect(() => {
       const response = await axios.post(
         'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorExprience',
         newExperienceDataArray,
-        { headers: { 'Content-Type': 'application/json' } }
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
       );
   
-      if (response.status === 200 || response.status === 201) {
+      if ([200, 201].includes(response.status)) {
         alert('✅ Experience saved successfully!');
         setExperienceErrors([]);
-        setSavedExperience([...savedExperience, ...newExperienceDataArray]); // Update saved state
+        setSavedExperience([...savedExperience, ...newExperienceDataArray]);
       } else {
         console.error('Unexpected response:', response.status);
         alert('❌ Failed to save experience. Please try again.');
@@ -263,6 +279,7 @@ useEffect(() => {
       alert('API error: Unable to save experience.');
     }
   };
+  
   
   
 
@@ -315,9 +332,7 @@ useEffect(() => {
                 onChange={(e) =>
                   handleExperienceChange(index, 'hospitalName', e.target.value)
                 }
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className={inputFieldClass}
               />
               {experienceErrors[index]?.hospitalName && (
                 <span className="text-red-500 text-sm">
@@ -326,9 +341,7 @@ useEffect(() => {
               )}
 
               <select
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
- text-black outline-none focus:border-primary dark:border-form-strokedark 
- dark:bg-form-input dark:text-white dark:focus:border-primary"
+               className={inputFieldClass}
                 value={exp.specialization} // ✅ Bind to experience array
                 onChange={(e) =>
                   handleExperienceChange(
@@ -367,9 +380,7 @@ useEffect(() => {
                     }
                     dateFormat="MM/dd/yyyy"
                     placeholderText="Join Date"
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className={inputFieldClass}
                   />
                   {experienceErrors[index]?.joinDate && (
                     <span className="text-red-500 text-sm">
@@ -393,9 +404,7 @@ useEffect(() => {
                     }
                     dateFormat="MM/dd/yyyy"
                     placeholderText="Leave Date"
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className={inputFieldClass}
                   />
                   {experienceErrors[index]?.leaveDate && (
                     <span className="text-red-500 text-sm">
@@ -415,20 +424,7 @@ useEffect(() => {
               <div></div>
             </div>
 
-            {/* {index > 0 && (
-            <button
-              type="button"
-              onClick={() => {
-                setExperience(experience.filter((_, i) => i !== index));
-                const updatedErrors = { ...experienceErrors };
-                delete updatedErrors[index];
-                setExperienceErrors(updatedErrors);
-              }}
-              className="mt-4 bg-gradient-to-b from-red-700 to-red-500 hover:from-red-500 hover:to-red-700 text-white py-2 px-6 rounded-2xl"
-            >
-              Remove Experience
-            </button>
-          )} */}
+         
           </div>
         ))}
         <div className="flex items-center justify-end gap-1 ">

@@ -32,6 +32,7 @@ import Tables from './pages/Tables';
 import Alerts from './pages/UiElements/Alerts';
 import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
+import LoginLayout from './layout/LoginLayout';
 
 
 
@@ -49,7 +50,7 @@ import Login from './pages/LoginPage';
 
 import BookAppointment from './pages/BookAppointment';
 
-import DoctorFormWizard from './pages/Profile/DoctorFormWizard';
+
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
 import Membership from './pages/Membership';
 import PatientRegistration from './pages/Registration/PatientRegistration';
@@ -83,7 +84,7 @@ import FeedBack from './pages/FeedBack';
 import Offers from './pages/Offers';
 import Chart from './pages/Chart';
 import HomePage from './pages/HomePage';
-import VisitorPass from './pages/VisitorPass';
+
 import AdmissionPage from './pages/AdmissionPage';
 import AdmissionDetails from './pages/AdmissionDetails';
 import RoomBooking from './pages/RoomBooking';
@@ -136,6 +137,7 @@ function App() {
     <Routes>
       {/* Landing Page Layout */}
       <Route element={<LandingPageLayout children={undefined} />}>
+
         <Route
           index
           element={
@@ -169,24 +171,7 @@ function App() {
         />
         
          
-        <Route
-          path="/signup"
-          element={
-            <>
-              <PageTitle title="Signup | CarePoint Pro" />
-              <SignUp />
-            </>
-          }
-        />
-        <Route
-          path="/forgotpassword" 
-          element={
-            <>
-              <PageTitle title="Forgot Password | CarePoint Pro" />
-              <ForgotPassword />
-              </>
-          }
-          />
+       
         <Route
           path="/admissionpage" 
           element={
@@ -208,27 +193,6 @@ function App() {
         
           
 
-        <Route
-          path="/LoginPage"
-          element={
-            <>
-              <PageTitle title="Login page | CarePoint Pro" />
-              <Login />
-            </>
-            
-          }
-        />
-        
-        <Route
-          path="/ResetPassword" 
-          element={
-            <>
-              <PageTitle title="Reset Password | CarePoint Pro" />
-              <ResetPassword />
-            </>
-          }
-        />
-        
         
          
         
@@ -250,9 +214,52 @@ function App() {
         />
       </Route>
 
-   
-     
-      {/* Default Layout */}
+      <Route element={<LoginLayout children={undefined}/>}>
+       
+         
+        <Route
+          path="/signup"
+          element={
+            <>
+              <PageTitle title="Signup | CarePoint Pro" />
+              <SignUp />
+            </>
+          }
+        />
+        <Route
+          path="/forgotpassword" 
+          element={
+            <>
+              <PageTitle title="Forgot Password | CarePoint Pro" />
+              <ForgotPassword />
+              </>
+          }
+          />
+        
+        <Route
+          path="/LoginPage"
+          element={
+            <>
+              <PageTitle title="Login page | CarePoint Pro" />
+              <Login />
+            </>
+            
+          }
+        />
+        
+        <Route
+          path="/ResetPassword" 
+          element={
+            <>
+              <PageTitle title="Reset Password | CarePoint Pro" />
+              <ResetPassword />
+            </>
+          }
+        />
+        
+         </Route>
+         
+        {/* Default Layout */}
       <Route element={<DefaultLayout />}>
         <Route
           path="/dashboard"
@@ -578,15 +585,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/DoctorFormWizard"
-          element={
-            <>
-              <PageTitle title="DoctorFormWizard | CarePoint Pro" />
-              <DoctorFormWizard />
-            </>
-          }
-        />
+        
        
         <Route
           path="/PatientFormWizard"
@@ -606,15 +605,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/visitorplan"
-          element={
-            <>
-              <PageTitle title="VisitorPass | CarePoint Pro" />
-              <VisitorPass />
-            </>
-          }
-        />
+       
         
         
         
@@ -931,8 +922,19 @@ function App() {
           }
         />
       </Route>
+
+
     </Routes>
     </>
 }
 
 export default App;
+
+
+       
+        
+     
+
+       
+  
+      
