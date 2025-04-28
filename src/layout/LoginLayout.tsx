@@ -21,7 +21,7 @@ const LoginLayout = () => {
                 <li><a href="#" className="block py-2 px-3 md:p-0 hover:text-blue-700">Video Consult</a></li>
                 <li><a href="#" className="block py-2 px-3 md:p-0 hover:text-blue-700">Surgeries</a></li>
                 <li><a href="#" className="block py-2 px-3 md:p-0 hover:text-blue-700">Medicines</a></li>
-                <li><Auth /></li>
+             
               </ul>
             </div>
           </div>

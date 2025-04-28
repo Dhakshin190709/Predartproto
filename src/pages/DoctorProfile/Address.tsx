@@ -4,9 +4,9 @@ import 'react-form-wizard-component/dist/style.css';
 
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import axios from 'axios';
+
 import { inputFieldClass } from '../../components/FormStyles';
-import CustomButton from '../../components/CustomButton';
+
 
 interface Address {
   addressID?: string | null;
@@ -20,62 +20,23 @@ interface Address {
   zipCode?: string;
   type?: string; // Optional or required, based on your use case
 }
-const Address: React.FC = () => {
+
+interface AddressProps {
+  addresses: Address[];
+  setAddresses: React.Dispatch<React.SetStateAction<any[]>>;
+  handleAddressSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}
+
+const Address: React.FC<AddressProps> = ({ addresses, setAddresses, handleAddressSubmit }) => {
+ 
+
+
   const [addressTypes, setAddressTypes] = useState([]);
  
-  type AddressError = {
-    addressType?: string;
-    address1?: string;
-    city?: string;
-    zipCode?: string;
-    type?: string;
-  };
-
+ 
   const [errors, setErrors] = useState<AddressError[]>([]);
 
-  const [addresses, setAddresses] = useState([
-    {
-      addressType: 'Work',
-      type: 'Doctor',
-      address1: '', // Required
-      address2: '',
-      city: '', // Required
-      district: '',
-      state: '',
-
-      zipCode: '', // FIXED: Renamed from 'pincode'
-      isActive: true,
-      degreeName: '',
-
-      university: '',
-      location: '',
-      startDate: null, // Added startDate field
-      endDate: null, // Added endDate field
-      isHighestEducation: true,
-    },
-  ]);
-  const addAddress = () => {
-    setAddresses([
-      ...addresses,
-      {
-        addressType: 'TemporaryAddress',
-        type: 'Doctor',
-        address1: '', // Required
-        address2: '',
-        city: '', // Required
-        district: '',
-        state: '',
-        zipCode: '', // Renamed from 'pincode'
-        isActive: true,
-        degreeName: '',
-        university: '',
-        location: '',
-        startDate: null, // Added startDate field
-        endDate: null, // Added endDate field
-        isHighestEducation: true,
-      },
-    ]);
-  };
+ 
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
@@ -125,59 +86,28 @@ const Address: React.FC = () => {
     }
   };
 
-  const handleAddressSubmit = async (): Promise<{
-    
-    isValid: boolean;
-    errors: AddressError[];
-  }> => {
-    const userID = sessionStorage.getItem('userID');
-    event.preventDefault(); // Prevent page refresh
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
-      return { isValid: false, errors: [] };
-    }
-
-    if (!addresses || addresses.length === 0) {
-      alert('No addresses to submit.');
-      return { isValid: false, errors: [] };
-    }
-
-    const newErrors: AddressError[] = addresses.map((address) => ({
-      addressType: !address.addressType ? 'Address type is required.' : '',
-      address1: !address.address1 ? 'Address Line 1 is required.' : '',
-      city: !address.city ? 'City is required.' : '',
-      zipCode: !address.zipCode
-        ? 'ZIP Code is required.'
-        : !/^\d{6}$/.test(address.zipCode)
-          ? 'ZIP Code must be exactly 6 digits.'
-          : '',
-    }));
-
-    setErrors(newErrors); // Set field-specific errors
-
-    const isValid = newErrors.every((error) =>
-      Object.values(error).every((msg) => !msg),
-    );
-    if (!isValid) {
-      console.warn('⚠️ Validation errors:', newErrors);
-      return { isValid: false, errors: newErrors };
-    }
-
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveAddress',
-        addresses.map((address) => ({ ...address, createdBy: userID })),
-      );
-
-      console.log('✅ Addresses saved:', response.data);
-      alert('Addresses saved successfully!');
-      return { isValid: true, errors: [] };
-    } catch (error) {
-      console.error('🚨 API Error:', error);
-      alert('Failed to save addresses.');
-      return { isValid: false, errors: [] };
-    }
-  };
+   const addAddress = () => {
+        setAddresses([
+          ...addresses,
+          {
+            addressType: 'TemporaryAddress',
+            type: 'Doctor',
+            address1: '', // Required
+            address2: '',
+            city: '', // Required
+            district: '',
+            state: '',
+            zipCode: '', // Renamed from 'pincode'
+            isActive: true,
+            degreeName: '',
+            university: '',
+            location: '',
+            startDate: null, // Added startDate field
+            endDate: null, // Added endDate field
+            isHighestEducation: true,
+          },
+        ]);
+      };
 
   const removeAddress = (index: number) => {
     const updatedAddresses = addresses.filter((_, i) => i !== index);
@@ -358,7 +288,7 @@ const Address: React.FC = () => {
       <div className="flex justify-center gap-2">
         
        
-        <CustomButton  type="submit">Submit address</CustomButton>
+        {/* <CustomButton  type="submit">Submit address</CustomButton> */}
       </div>
     </form>
   );

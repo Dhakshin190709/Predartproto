@@ -57,7 +57,7 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
           <ul className="font-medium flex flex-col items-center p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:flex-row md:space-x-8 rtl:space-x-reverse md:mt-0 md:border-0  dark:border-gray-700">
             <li>
               <a
-                href="#"
+                  href="#FindDoctor"
                 className="block py-2 px-3 md:p-0 hover:text-blue-700"
               >
                 Find Doctors
@@ -81,7 +81,15 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
             </li>
             <li>
               <a
-                href="#"
+                href="#LabTest"
+                className="block py-2 px-3 md:p-0 hover:text-blue-700"
+              >
+                Lab Tests
+              </a>
+            </li>
+            <li>
+              <a
+                href="#Medicine"
                 className="block py-2 px-3 md:p-0 hover:text-blue-700"
               >
                 Medicines
@@ -100,7 +108,8 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
   <Outlet />
 </main>
 
-<footer className="bg-[#deeeff] mt-auto">
+<footer className="bg-[#deeeff] mt-auto overflow-hidden">
+
   <div className="container">
     <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto">
       <div className="rounded-lg dark:bg-gray-900 w-full">
@@ -147,6 +156,23 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
         </div>
         </div>
       </div>
+      <style>{`
+        @import url("https://cdn.jsdelivr.net/gh/lykmapipo/themify-icons@0.1.2/css/themify-icons.css");
+
+.cpp__wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  .cpp__container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+
+      `}</style>
     </div>
   );
 };

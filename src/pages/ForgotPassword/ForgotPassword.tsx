@@ -29,7 +29,7 @@ const ForgotPassword: React.FC = () => {
   
   const validateEmailOrPhone = (input: string): string | null => {
     if (!input) {
-      return "Email or mobile number is required.";
+      return "Email is required.";
     }
   
     if (phoneRegex.test(input)) {
@@ -40,7 +40,7 @@ const ForgotPassword: React.FC = () => {
       return null; // Valid email ✅
     }
   
-    return "Enter a valid 10-digit phone number or an email from Gmail, Outlook, Yahoo, etc.";
+    return "Enter a valid email like Gmail, Outlook, Yahoo, etc.";
   };
 
 
@@ -250,19 +250,32 @@ const ForgotPassword: React.FC = () => {
           )}
 
           {isOtpButtonVisible && (
-            <div className="mb-4">
+            <div className="mb-4 flex justify-between">
             <CustomButton 
-  onClick={isOtpOptionChecked ? handleSendOtp : handleSendLink}
-  disabled={!isValidInput}
-  style={{
-    backgroundColor: isValidInput ? '#007bff' : '#ccc',
-    cursor: isValidInput ? 'pointer' : 'not-allowed',
-  }}
->
-  {isOtpOptionChecked ? "Send OTP" : "Send Link"}
-</CustomButton>
-
-            </div>
+              onClick={isOtpOptionChecked ? handleSendOtp : handleSendLink}
+              disabled={!isValidInput}
+              style={{
+                backgroundColor: isValidInput ? '#007bff' : '#ccc',
+                cursor: isValidInput ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {isOtpOptionChecked ? "Send OTP" : "Send Link"}
+            </CustomButton>
+          
+            {/* Cancel Button */}
+            <button
+              type="button"
+              onClick={() => navigate('/LoginPage')} // Navigate to the desired route
+              className="bg-gradient-to-b from-[#004A99]/80 to-[#007BFF]/80 
+              hover:from-[#007BFF]/90 hover:to-[#004A99]/90 
+              text-white transition duration-150 ease-out hover:ease-in 
+              py-2 px-5 rounded-lg shadow-sm opacity-60 hover:opacity-100"
+            >
+              Cancel
+            </button>
+          </div>
+          
+            
           )}
 
           {isOtpOptionChecked && isOtpSent && !isOtpVerified && (

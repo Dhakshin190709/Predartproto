@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
@@ -22,16 +24,18 @@ const Login: React.FC = () => {
 const [rememberMe, setRememberMe] = useState(false);
   const [password, setPassword] = useState<string>('');
   const [passwordError, setPasswordError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
   const [isMobile, setIisMobile] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [loginMessage, setLoginMessage] = useState<string | null>(null);
   const isError = loginMessage?.toLowerCase().includes('failed');
   const [otpError, setOtpError] = useState('');
   const [cooldown, setCooldown] = useState(0);
   const [isResendEnabled, setIsResendEnabled] = useState(true);
-
+  const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleEmailOrMobileChange = (
@@ -206,25 +210,34 @@ const [rememberMe, setRememberMe] = useState(false);
     (!/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(emailOrMobile.trim()) &&
       !/^[0-9]{10}$/.test(emailOrMobile.trim()));
 
+     
       const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
         e?.preventDefault();
+        
+        // Prevent further submissions if already submitting
+        if (isSubmitting) return;
+        
+        setIsSubmitting(true); // Start submission
       
         if (rememberMe) {
-          alert('Your login info will be saved securely by the browser.');
+          toast.info('Your login info will be saved securely by the browser.');
         }
       
         if (!emailOrMobile) {
-          setLoginMessage('Please enter your email or mobile number.');
+          toast.error('Please enter your email or mobile number.');
+          setIsSubmitting(false); // Reset submission state
           return;
         }
       
         if (isOtp && (!otp || otp.some((digit) => digit === ''))) {
-          setLoginMessage('Please enter the complete OTP.');
+          toast.error('Please enter the complete OTP.');
+          setIsSubmitting(false); // Reset submission state
           return;
         }
       
         if (!isOtp && !password) {
-          setLoginMessage('Please enter your password.');
+          toast.error('Please enter your password.');
+          setIsSubmitting(false); // Reset submission state
           return;
         }
       
@@ -273,19 +286,107 @@ const [rememberMe, setRememberMe] = useState(false);
             keysToStore.forEach((key) => {
               const value = responseBody.data?.[key] || '';
               sessionStorage.setItem(key, value);
-              console.log(`${key}:`, value); // Log stored value
+              console.log(`${key}:`, value);
             });
-            navigate('/dashboard');
+      
+             // Ensure unitID is stored if it's part of the response
+  const unitID = responseBody.data?.unitID;
+  if (unitID) {
+    sessionStorage.setItem('unitID', unitID);
+    console.log('unitID from session:', unitID); // Log for debugging
+  }
+            const userID = responseBody.data?.userID;
+            if (userID) {
+              const roleResponse = await fetch(
+                `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`
+              );
+      
+              const roleResponseBody = await roleResponse.json();
+              if (
+                roleResponse.ok &&
+                roleResponseBody.success &&
+                roleResponseBody.data?.length > 0
+              ) {
+                const roleID = roleResponseBody.data[0].roleID;
+                console.log('User Role ID:', roleID);
+                sessionStorage.setItem('roleID', roleID);
+      
+                const roleDetailsResponse = await fetch(
+                  `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`
+                );
+                const roleDetailsResponseBody = await roleDetailsResponse.json();
+      
+                if (
+                  roleDetailsResponse.ok &&
+                  roleDetailsResponseBody.success &&
+                  roleDetailsResponseBody.data
+                ) {
+                  const roleName = roleDetailsResponseBody.data.roleName;
+                  console.log('Role Name:', roleName);
+                  sessionStorage.setItem('roleName', roleName);
+      
+                  if (roleName === 'Patient') {
+                    const patientResponse = await fetch(
+                      `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`
+                    );
+                    const patientResponseBody = await patientResponse.json();
+                    if (
+                      patientResponse.ok &&
+                      patientResponseBody.success &&
+                      patientResponseBody.data
+                    ) {
+                      const patientID = patientResponseBody.data.patientID;
+                      console.log('Patient ID:', patientID);
+                      sessionStorage.setItem('patientID', patientID);
+                    } else {
+                      console.error('Failed to fetch patient details');
+                    }
+                  } else if (roleName === 'Doctor') {
+                    const doctorResponse = await fetch(
+                      `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorsByUserID?userId=${userID}`
+                    );
+                    const doctorResponseBody = await doctorResponse.json();
+                    if (
+                      doctorResponse.ok &&
+                      doctorResponseBody.success &&
+                      doctorResponseBody.data
+                    ) {
+                      const doctorID = doctorResponseBody.data.doctorID;
+                      console.log('Doctor ID:', doctorID);
+                      sessionStorage.setItem('doctorID', doctorID);
+                    } else {
+                      console.error('Failed to fetch doctor details');
+                    }
+                  } else {
+                    console.log('User is neither a Patient nor a Doctor');
+                  }
+                } else {
+                  console.error('Failed to fetch role details or role data is empty');
+                }
+              } else {
+                console.error('Failed to fetch user role ID or role data is empty');
+              }
+            }
+      
+            toast.success(responseBody.message || 'Login successful!');
+            setTimeout(() => {
+              navigate('/dashboard');
+            }, 1000);
           } else {
-            setLoginMessage(
-              responseBody.message || 'Login failed. Please try again.'
-            );
+            toast.error(responseBody.message || 'Login failed. Please try again.');
           }
         } catch (error) {
           console.error('Login Error:', error);
-          setLoginMessage('An error occurred while processing your request.');
+          toast.error('An error occurred while processing your request.');
+        } finally {
+          setIsSubmitting(false); // Reset regardless of success/failure
         }
       };
+      
+      
+      
+      
+      
       
 
   const handleOtpChange = (index: number, value: string) => {
@@ -408,6 +509,12 @@ const [rememberMe, setRememberMe] = useState(false);
       setResendMessage(''); // Clear the success message when the timer ends
     }
   }, [cooldown]);
+
+  useEffect(() => {
+    return () => {
+      setLoginSuccess(false);
+    };
+  }, []);
   return (
     <>
      <div>
@@ -605,7 +712,19 @@ const [rememberMe, setRememberMe] = useState(false);
 
               {/* <div className="mt-9 flex justify-center"> */}
               <div className="mt-4 flex items-center justify-between">
-              <CustomButton type="submit">Login</CustomButton>
+            
+              <CustomButton
+  type="submit"
+  disabled={isSubmitting}
+  style={{
+    pointerEvents: isSubmitting ? 'none' : 'auto',
+    opacity: isSubmitting ? 0.6 : 1,
+  }}
+>
+  {isSubmitting ? 'Logging in...' : 'Login'}
+</CustomButton>
+
+
 
                 <p>
                   Don’t have an account?{' '}
@@ -621,6 +740,7 @@ const [rememberMe, setRememberMe] = useState(false);
                   {loginMessage}
                 </p>
               )}
+                   <ToastContainer position="top-right" autoClose={3000} />
               </form>
             </div>
           </div>

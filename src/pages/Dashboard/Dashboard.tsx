@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import patientIcon from '../../images/icon/Patient profile people (3).svg';
-import PhoneIcon from '../../images/icon/Phone volume solid (2).svg';
-import CalendarIcon from '../../images/icon/calendars.svg';
-import ClockIcon from '../../images/icon/Clock (2).svg';
-import DoctorIcon from '../../images/icon/User doctor (2).svg';
-import { FaMale, FaFemale, FaEdit } from 'react-icons/fa'; // Gender icons
+import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
+import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
+import ClockIcon from '../../images/icon/Clock (1).svg';
+import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
+import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
+import { FaMale, FaFemale, FaEdit, FaGenderless } from 'react-icons/fa'; // Gender icons
 import axios from 'axios';
 
 import CustomButton from '../../components/CustomButton';
@@ -20,6 +21,7 @@ interface Appointment {
   patientPhoneNumber: string;
   appointmentDate: string;
   appointmentTime: string;
+  hospitalName: string;
 }
 
 const AppointmentCard: React.FC = () => {
@@ -39,193 +41,192 @@ const AppointmentCard: React.FC = () => {
   });
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
-const[doctorID,setDoctorID]=useState('');
-const [dropdownVisible, setDropdownVisible] = useState<{
+  const [doctorID, setDoctorID] = useState('');
+  const [dropdownVisible, setDropdownVisible] = useState<{
     [key: number]: boolean;
   }>({});
-  
+
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedStatusID, setSelectedStatusID] = useState('');
+
   const [selectedDoctorID, setSelectedDoctorID] = useState<string>('');
 
   const [doctors, setDoctors] = useState<any[]>([]); // Sample doctors array
-  
+
   const [selectedDoctor, setSelectedDoctor] = useState('');
 
   const [roleName, setRoleName] = useState('');
   const [userID, setUserID] = useState('');
+  const [patients, setPatients] = useState([]);
+  const [selectedPatientID, setSelectedPatientID] = useState('');
 
   useEffect(() => {
-    const user = sessionStorage.getItem('userID');
-    if (!user) {
+    if (roleName && roleName !== 'Patient') {
+      console.log('Calling fetchPatients...');
+      fetchPatients();
+    }
+  }, [roleName]);
+
+  const fetchPatients = async () => {
+    try {
+      const res = await axios.get(
+        'https://predart003-001-site1.anytempurl.com/api/Patient',
+      );
+      console.log('Patient API Response:', res.data);
+      setPatients(res.data.data);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    }
+  };
+
+  useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
       alert('User not logged in.');
       return;
     }
 
-    setUserID(user);
-    initializeUserRoleAndAppointments(user);
+    setUserID(userID); // Store the userID in state
+    initializeUserRoleAndAppointments(userID); // Initialize the role and appointments
   }, []);
 
-  const initializeUserRoleAndAppointments = async (userID: string) => {
+  const initializeUserRoleAndAppointments = () => {
     try {
-      // Step 1: Get roleID
-      const roleResponse = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
-      );
-      const roleData = await roleResponse.json();
+      // Step 1: Get userID and roleName from session storage
+      const userID = sessionStorage.getItem('userID');
+      const role = sessionStorage.getItem('roleName');
 
-      if (!roleData.success || roleData.data.length === 0) {
-        console.warn('⚠️ Role ID not found for user');
+      if (!userID || !role) {
+        console.warn('⚠️ Missing userID or roleName in session storage');
         return;
       }
 
-      const roleID = roleData.data[0].roleID;
-
-      // Step 2: Get role name
-      const roleNameResponse = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
-      );
-      const roleNameData = await roleNameResponse.json();
-
-      if (!roleNameData.success || !roleNameData.data) {
-        console.warn('⚠️ Failed to get role name');
-        return;
-      }
-
-      const role = roleNameData.data.roleName;
+      // Step 2: Set role in state (if needed)
       setRoleName(role);
-      console.log('✅ Role:', role);
+
+      console.log('✅ Retrieved from session - Role:', role);
 
       // Step 3: Fetch appointments based on role
       fetchAppointmentsBasedOnRole(userID, role);
     } catch (error) {
-      console.error('❌ Error in role initialization:', error);
+      console.error('❌ Error initializing from session:', error);
     }
   };
 
   const fetchAppointmentsBasedOnRole = async (userID: string, role: string) => {
     setLoading(true);
-    setAppointments([]);
-  
+    setAppointments([]); // Clear previous appointments
+
     try {
+      let apiUrl = '';
       if (role === 'Patient') {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-        );
-        const data = await res.json();
-  
-        if (data.success && data.data) {
-          const patientID = data.data.patientID;
-          const apptRes = await fetch(
-            `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?PatientID=${patientID}`,
-          );
-          const apptData = await apptRes.json();
-          setAppointments(apptData || []);
-        } else {
-          console.warn('⚠️ Patient data not found.');
+        const patientID = sessionStorage.getItem('patientID');
+        if (!patientID) {
+          console.warn('⚠️ patientID not found in sessionStorage.');
+          return;
         }
-  
+
+        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?PatientID=${patientID}`;
       } else if (role === 'Doctor') {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorsByUserID?userId=${userID}`,
-        );
-        const data = await res.json();
-  
-        if (data.success && data.data) {
-          const doctorID = data.data.doctorID;
-          const apptRes = await fetch(
-            `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}`,
-          );
-          const apptData = await apptRes.json();
-          setAppointments(apptData || []);
-        } else {
-          console.warn('⚠️ Doctor data not found.');
+        const doctorID = sessionStorage.getItem('doctorID');
+        if (!doctorID) {
+          console.warn('⚠️ doctorID not found in sessionStorage.');
+          return;
         }
-  
+
+        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}`;
       } else if (
-        role === 'Reception' || 
-        role === 'Medical' || 
-        role === 'LABIncharge' || 
-        role === 'Cash'
+        ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
       ) {
         const unitID = sessionStorage.getItem('unitID');
         if (!unitID) {
           console.warn('⚠️ unitID not found in sessionStorage.');
           return;
         }
-  
-        let apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}`;
-  
+
+        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}`;
+
         if (role === 'Medical') {
           const statusID = 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396';
           apiUrl += `&StatusID=${statusID}`;
         }
-  
+
         if (role === 'LABIncharge') {
           const statusID = 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396';
           apiUrl += `&StatusID=${statusID}`;
         }
-  
+
         if (role === 'Cash') {
           const statusID = '5855b16d-1447-4856-b4be-08dd57ac7396';
           apiUrl += `&StatusID=${statusID}`;
         }
-  
-        const apptRes = await fetch(apiUrl);
-        const apptData = await apptRes.json();
-        setAppointments(Array.isArray(apptData) ? apptData : []);
-  
       } else {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment`,
-        );
-        const data = await res.json();
-        setAppointments(Array.isArray(data) ? data : []);
+        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment`;
       }
-  
+
+      const apptRes = await fetch(apiUrl);
+      const apptData = await apptRes.json();
+
+      // Ensure the response is valid and an array
+      if (Array.isArray(apptData)) {
+        // Get today's date in local time zone (without the time part)
+        const currentDate = new Date();
+        const todayStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+
+        const filteredAppointments = apptData.filter((appointment: any) => {
+          const appointmentDate = new Date(appointment.appointmentDate);
+          const appointmentDateStr = `${appointmentDate.getFullYear()}-${(appointmentDate.getMonth() + 1).toString().padStart(2, '0')}-${appointmentDate.getDate().toString().padStart(2, '0')}`;
+
+          return appointmentDateStr === todayStr;
+        });
+
+        setAppointments(filteredAppointments);
+      } else {
+        setAppointments([]); // Fallback if data isn't valid
+      }
     } catch (error) {
       console.error('❌ Error fetching appointments:', error);
     } finally {
       setLoading(false);
     }
   };
-  
-  
-  
+
   const handleSaveEdit = async () => {
     if (!selectedAppointment) return;
-  
+
     if (!selectedAppointment.appointmentTime) {
       console.warn('⚠️ appointmentTime is missing');
       alert('Please select an appointment time.');
       return;
     }
-  
-    const loggedInUserID = sessionStorage.getItem("userID");
-  
+
+    const loggedInUserID = sessionStorage.getItem('userID');
+
     if (!loggedInUserID) {
-      alert("Session expired. Please log in again.");
+      alert('Session expired. Please log in again.');
       return;
     }
-  
+
     // Convert date + time to 24hr ISO timestamp
     const convertTo24HourFormat = (time12h: string): string => {
       const [time, modifier] = time12h.split(' ');
       let [hours, minutes] = time.split(':').map(Number);
-  
+
       if (modifier.toLowerCase() === 'pm' && hours !== 12) {
         hours += 12;
       }
       if (modifier.toLowerCase() === 'am' && hours === 12) {
         hours = 0;
       }
-  
+
       const pad = (n: number) => n.toString().padStart(2, '0');
       return `${pad(hours)}:${pad(minutes)}:00`;
     };
-  
+
     const date = selectedAppointment.appointmentDate; // e.g., "2025-04-14"
     const time = convertTo24HourFormat(selectedAppointment.appointmentTime); // e.g., "18:00:00"
     const appointmentDateTimeISO = new Date(`${date}T${time}`).toISOString();
-  
+
     const payload = {
       appointmentID: selectedAppointment.appointmentID,
       doctorID: selectedAppointment.doctorID,
@@ -244,9 +245,9 @@ const [dropdownVisible, setDropdownVisible] = useState<{
       updatedOn: new Date().toISOString(),
       isActive: true,
     };
-  
-    console.log("📦 Clean Payload sent to API:", payload);
-  
+
+    console.log('📦 Clean Payload sent to API:', payload);
+
     try {
       const response = await fetch(
         `https://predart003-001-site1.anytempurl.com/api/Appointment/${selectedAppointment.appointmentID}`,
@@ -256,29 +257,22 @@ const [dropdownVisible, setDropdownVisible] = useState<{
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
-  
+
       if (!response.ok) {
         throw new Error('Failed to update appointment');
       }
-  
+
       const data = await response.json();
       console.log('✅ Appointment updated:', data);
-  
+
       setIsEditModalOpen(false);
       fetchAppointmentsBasedOnRole(loggedInUserID, role);
     } catch (error) {
       console.error('❌ Error updating appointment:', error);
     }
   };
-  
-  
-  
-  
-  
-
-
 
   const handleBookNow = () => {
     navigate('/appointment/booking'); // Replace with the actual booking route
@@ -287,35 +281,35 @@ const [dropdownVisible, setDropdownVisible] = useState<{
   const getStatusColor = (statusName: string): string => {
     switch (statusName) {
       case 'Waiting':
-        return '#FFC107'; // Yellow
+        return '#FFE082'; // Soft Amber
       case 'Waiting for Schedule':
-        return '#FF9800'; // Orange
+        return '#FFCC80'; // Muted Orange
       case 'Waiting for Doctor Schedule':
-        return '#FB8C00'; // Dark Orange
+        return '#FFB74D'; // Slightly Deeper Orange
       case 'Confirmed':
-        return '#4CAF50'; // Green
+        return '#A5D6A7'; // Mellow Green
       case 'Assign to Billing':
-        return '#2196F3'; // Blue
+        return '#90CAF9'; // Soft Blue
       case 'Assign to Medical':
-        return '#03A9F4'; // Light Blue
+        return '#81D4FA'; // Light Aqua Blue
       case 'Assign to Lab':
-        return '#9C27B0'; // Purple
+        return '#BA68C8'; // Light Purple
       case 'Closed':
-        return '#616161'; // Dark Gray
+        return '#BDBDBD'; // Mid Gray
       case 'Rescheduled':
-        return '#795548'; // Brown
+        return '#A1887F'; // Muted Brown
       case 'Cancel':
-        return '#F44336'; // Red
+        return '#EF9A9A'; // Light Red
       case 'Rejected':
-        return '#D32F2F'; // Dark Red
+        return '#E57373'; // Slightly Deeper Red
       case 'Consult Another Doctor':
-        return '#009688'; // Teal
+        return '#4DB6AC'; // Balanced Teal
       case 'Recommend to Admit':
-        return '#E64A19'; // Deep Orange
+        return '#FF8A65'; // Soft Deep Orange
       case 'Doctor Review':
-        return '#673AB7'; // Indigo
+        return '#9575CD'; // Gentle Indigo
       default:
-        return '#9E9E9E'; // Default (Gray)
+        return '#E0E0E0'; // Default Mid-Light Gray
     }
   };
 
@@ -353,8 +347,6 @@ const [dropdownVisible, setDropdownVisible] = useState<{
     fetchDoctors();
   }, []);
 
-
-
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
       ...prev,
@@ -378,8 +370,8 @@ const [dropdownVisible, setDropdownVisible] = useState<{
 
   // Function to format the date to "yyyy-mm-dd"
   const formatDate = (date: string) => {
-    const d = new Date(date);
-    return d.toISOString().split('T')[0]; // Extracts "yyyy-mm-dd" from the date string
+    const [year, month, day] = date.split('T')[0].split('-');
+    return `${year}-${month}-${day}`; // preserves original date without shifting
   };
 
   // Function to format the time to "hh:mm"
@@ -391,25 +383,26 @@ const [dropdownVisible, setDropdownVisible] = useState<{
   const handleEditClick = (appointment: Appointment) => {
     console.log('📝 Editing Appointment:', appointment);
     console.log('🔍 createdBy:', appointment.createdBy); // explicitly check this field
-    setSelectedAppointment(appointment); 
-    setIsEditModalOpen(true); 
+    setSelectedAppointment(appointment);
+    setIsEditModalOpen(true);
   };
-  
 
   const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const doctorID = e.target.value;
     setSelectedDoctorID(doctorID);
     setSelectedDoctor(doctorID);
-  
+
     const selectedDoctor = doctors.find((doc) => doc.doctorID === doctorID);
-    console.log("👨‍⚕️ Selected Doctor:", selectedDoctor); // for debug
-  
+    console.log('👨‍⚕️ Selected Doctor:', selectedDoctor); // for debug
+
     const selectedDate = selectedAppointment.appointmentDate;
     if (selectedDate) {
-      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+      const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', {
+        weekday: 'long',
+      });
       fetchTimeSlots(doctorID, dayOfWeek);
     }
-  
+
     // ✅ Update full doctor info into selectedAppointment
     setSelectedAppointment((prev) => ({
       ...prev,
@@ -420,8 +413,6 @@ const [dropdownVisible, setDropdownVisible] = useState<{
       appointmentTime: '', // Reset time when doctor changes
     }));
   };
-  
-  
 
   const openEditModal = (appointment) => {
     setSelectedDoctor(appointment.doctorID); // Set default doctor ID
@@ -431,7 +422,6 @@ const [dropdownVisible, setDropdownVisible] = useState<{
     setIsEditModalOpen(true); // Open modal
   };
 
- 
   const generateTimeSlots = (
     fromTime: string,
     toTime: string,
@@ -460,23 +450,23 @@ const [dropdownVisible, setDropdownVisible] = useState<{
 
     return slots;
   };
- 
+
   const fetchTimeSlots = async (doctorID: string, selectedDay: string) => {
     try {
       const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
       );
 
       if (response.data?.success && Array.isArray(response.data.data)) {
         const slotData = response.data.data.find(
-          (slot) => slot.dayofWeek === selectedDay
+          (slot) => slot.dayofWeek === selectedDay,
         );
 
         if (slotData?.fromTime && slotData?.toTime && slotData?.slotDuration) {
           const generatedSlots = generateTimeSlots(
             slotData.fromTime,
             slotData.toTime,
-            slotData.slotDuration
+            slotData.slotDuration,
           );
           setAvailableTimeSlots(generatedSlots);
         } else {
@@ -493,37 +483,35 @@ const [dropdownVisible, setDropdownVisible] = useState<{
     }
   };
 
-  
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedDate = e.target.value;
-    const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = new Date(selectedDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+    });
     console.log('Selected Day:', dayOfWeek); // 👈 Log day
-  
+
     setSelectedAppointment((prev) =>
-      prev ? { ...prev, appointmentDate: selectedDate } : null
+      prev ? { ...prev, appointmentDate: selectedDate } : null,
     );
-  
+
     if (selectedDoctorID) {
       fetchTimeSlots(selectedDoctorID, dayOfWeek); // ✅ Call when doctor already selected
     }
   };
-  
+
   const handleTimeSlotChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selected = e.target.value;
     setSelectedTimeSlot(selected);
-  
+
     // Also update the appointment time inside selectedAppointment
-    setSelectedAppointment(prev => ({
+    setSelectedAppointment((prev) => ({
       ...prev,
       appointmentTime: selected,
     }));
-  
-    console.log("🕒 Selected Time Slot:", selected);
-  };
-  
-  
 
-  
+    console.log('🕒 Selected Time Slot:', selected);
+  };
+
   const handleSaveChanges = () => {
     console.log('Saving changes for appointment:', selectedAppointment);
     // Perform the save logic here
@@ -566,25 +554,121 @@ const [dropdownVisible, setDropdownVisible] = useState<{
     }
   };
 
+  const formatLocalDateTime = (date, isEnd = false) => {
+    const d = new Date(date);
+    d.setHours(isEnd ? 23 : 0, isEnd ? 59 : 0, isEnd ? 59 : 0, isEnd ? 999 : 0);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const ss = String(d.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}T${hh}:${min}:${ss}`;
+  };
+
   const handleSearch = async () => {
-    if (!selectedDoctorID) {
-      alert('Please select a doctor.');
+    const isDateFilterApplied = fromTime || toTime;
+
+    // ✅ Validation: To Date must be >= From Date
+    if (fromTime && toTime && new Date(fromTime) > new Date(toTime)) {
+      alert('To Date should be greater than or equal to From Date.');
       return;
+    }
+
+    // ✅ Only validate dropdowns if date filters are not used
+    if (!isDateFilterApplied) {
+      if (roleName === 'Patient' && !selectedDoctorID) {
+        alert('Please select a doctor or use date filters.');
+        return;
+      }
+
+      if (roleName !== 'Patient' && !selectedPatientID) {
+        alert('Please select a patient or use date filters.');
+        return;
+      }
     }
 
     setLoading(true);
     setAppointments([]); // Clear previous data
 
     try {
-      let apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}`;
+      let apiUrl =
+        'https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?';
+      const queryParams = [];
 
-      if (fromTime && toTime) {
-        apiUrl += `&StartDate=${fromTime}&EndDate=${toTime}`;
+      if (roleName !== 'Patient') {
+        const unitID = sessionStorage.getItem('unitID');
+        if (!unitID) {
+          alert('Hospital ID (unitID) is missing. Please login again.');
+          setLoading(false);
+          return;
+        }
+        queryParams.push(`HospitalID=${unitID}`);
       }
 
+      // If the role is 'Doctor', include DoctorID along with unitID
+      if (roleName === 'Doctor') {
+        const doctorID = sessionStorage.getItem('doctorID');
+        if (!doctorID) {
+          alert('Doctor ID is missing. Please login again.');
+          setLoading(false);
+          return;
+        }
+        queryParams.push(`DoctorID=${doctorID}`);
+      }
+      if (roleName === 'Patient') {
+        const patientID = sessionStorage.getItem('patientID');
+        if (!patientID) {
+          alert('Patient ID is missing. Please login again.');
+          setLoading(false);
+          return;
+        }
+        queryParams.push(`PatientID=${patientID}`);
+
+        if (selectedDoctorID) {
+          queryParams.push(`DoctorID=${selectedDoctorID}`);
+        }
+      } else {
+        if (selectedPatientID) {
+          queryParams.push(`PatientID=${selectedPatientID}`);
+        }
+      }
+
+      if (selectedStatusID) {
+        queryParams.push(`StatusID=${selectedStatusID}`);
+      }
+
+      // Format the fromTime and toTime to avoid timezone issues
+      if (fromTime) {
+        const startDate = new Date(fromTime);
+        startDate.setHours(0, 0, 0, 0); // Set to 00:00:00.000
+        const formattedStart = formatLocalDateTime(fromTime);
+
+        queryParams.push(`StartDate=${encodeURIComponent(formattedStart)}`);
+      }
+
+      if (toTime) {
+        const endDate = new Date(toTime);
+        endDate.setHours(23, 59, 59, 999); // Set to 23:59:59.999
+        const formattedEnd = formatLocalDateTime(toTime, true);
+
+        queryParams.push(`EndDate=${encodeURIComponent(formattedEnd)}`);
+      }
+
+      apiUrl += queryParams.join('&');
+      console.log('Final API URL:', apiUrl);
+
       const response = await fetch(apiUrl);
-      const data = await response.json();
-      setAppointments(data);
+      const result = await response.json();
+
+      if (Array.isArray(result)) {
+        setAppointments(result);
+      } else if (result?.data && Array.isArray(result.data)) {
+        setAppointments(result.data);
+      } else {
+        console.error('Unexpected response format:', result);
+        setAppointments([]);
+      }
     } catch (error) {
       console.error('Error fetching appointments:', error);
     } finally {
@@ -597,35 +681,53 @@ const [dropdownVisible, setDropdownVisible] = useState<{
     console.log('Selected Doctor ID:', selectedId); // 👈 Log selected doctor ID
     setSelectedDoctorID(selectedId);
   };
-  
 
   return (
     <div className="p-4">
       {/* Wrap both in a common column grid */}
       <div className="grid grid-cols-1 md:grid-cols-1 gap-4 ml-5">
         <div className="flex items-center gap-x-4 mb-4">
-          {/* Book Now Button */}
-          <button
-            onClick={handleBookNow}
-            className="flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-      hover:from-[#007BFF] hover:to-[#004A99] text-white 
-      transition duration-150 ease-out hover:ease-in 
-      px-4 py-2 rounded-lg"
-          >
-            <CalendarCheck className="w-5 h-5" />{' '}
-            {/* Adjust size for better alignment */}
-            <span>Book</span>
-          </button>
-          {/* Doctor Selection */}
+          {/* Doctor Dropdown (only for Patient) */}
+          {roleName === 'Patient' && (
+            <select
+              onChange={handleDoctorSelect}
+              value={selectedDoctorID}
+              className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            >
+              <option value="">Select Doctor</option>
+              {doctors.map((doctor) => (
+                <option key={doctor.doctorID} value={doctor.doctorID}>
+                  {doctor.doctorName}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Patient Dropdown (for non-Patient roles) */}
+          {roleName !== 'Patient' && (
+            <select
+              onChange={(e) => setSelectedPatientID(e.target.value)}
+              value={selectedPatientID}
+              className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            >
+              <option value="">Select Patient</option>
+              {Array.isArray(patients) &&
+                patients.map((patient) => (
+                  <option key={patient.patientID} value={patient.patientID}>
+                    {patient.patientName}
+                  </option>
+                ))}
+            </select>
+          )}
           <select
-            onChange={handleDoctorSelect}
-            value={selectedDoctorID}
-            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+            value={selectedStatusID}
+            onChange={(e) => setSelectedStatusID(e.target.value)}
+            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           >
-            <option value="">Select Doctor</option>
-            {doctors.map((doctor) => (
-              <option key={doctor.doctorID} value={doctor.doctorID}>
-                {doctor.doctorName}
+            <option value="">-- Select Status --</option>
+            {statusList.map((item) => (
+              <option key={item.appLOVID} value={item.appLOVID}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -640,19 +742,23 @@ const [dropdownVisible, setDropdownVisible] = useState<{
               if (!fromTime) e.target.type = 'text';
             }}
             onChange={(e) => setFromTime(e.target.value)}
-            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
-
           <input
             type="text"
             placeholder="To Date"
             value={toTime ? toTime.split('T')[0] : ''}
-            onFocus={(e) => (e.target.type = 'date')}
+            onFocus={(e) => {
+              e.target.type = 'date';
+              e.target.min = fromTime
+                ? new Date(fromTime).toISOString().split('T')[0]
+                : new Date().toISOString().split('T')[0]; // Set min to From Date if available, else today
+            }}
             onBlur={(e) => {
               if (!toTime) e.target.type = 'text';
             }}
             onChange={(e) => setToTime(e.target.value)}
-            className="rounded-md border border-gray-600 bg-transparent p-2 text-black outline-none focus:border-primary"
+            className="w-[50%] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
 
           {/* Buttons */}
@@ -663,8 +769,8 @@ const [dropdownVisible, setDropdownVisible] = useState<{
               setSelectedDoctorID('');
               setFromTime('');
               setToTime('');
+              setSelectedPatientID('');
               fetchAppointmentsBasedOnRole(userID, roleName);
-          
             }}
             className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
           >
@@ -706,66 +812,88 @@ const [dropdownVisible, setDropdownVisible] = useState<{
 
                 <div className="flex items-center">
                   {/* Gender Icon */}
-                  {appointment.patientGender === 'Male' ? (
+                  {['male', 'm'].includes(
+                    appointment.patientGender?.toLowerCase(),
+                  ) ? (
                     <FaMale className="text-blue-500 mr-2" />
-                  ) : (
+                  ) : ['female', 'f'].includes(
+                      appointment.patientGender?.toLowerCase(),
+                    ) ? (
                     <FaFemale className="text-pink-500 mr-2" />
+                  ) : (
+                    <FaGenderless className="text-gray-500 mr-2" />
                   )}
-                {/* Edit icon: show if not a Patient, or if statusName === 'Consult Another Doctor' */}
-                {(roleName !== 'Patient' || appointment?.statusID === '71cb1b67-af86-48f0-b4c5-08dd57ac7396') && (
-  <FaEdit
-    className="cursor-pointer text-gray-500 hover:text-blue-500"
-    onClick={() => handleEditClick(appointment)}
-  />
-)}
 
-
+                  {/* Edit icon: show if not a Patient, or if statusName === 'Consult Another Doctor' */}
+                  {/* Edit icon logic */}
+                  {((roleName === 'Patient' &&
+                    appointment?.statusID ===
+                      '71cb1b67-af86-48f0-b4c5-08dd57ac7396') ||
+                    roleName === 'Reception' ||
+                    roleName === 'SuperAdmin') && (
+                    <FaEdit
+                      className="cursor-pointer text-gray-500 hover:text-blue-500"
+                      onClick={() => handleEditClick(appointment)}
+                    />
+                  )}
                 </div>
               </div>
 
-              {/* Second row - Phone, Appointment Date, and Time with Icons */}
-              <div className="mt-2 flex items-center justify-between">
-                {/* Phone Icon */}
-                <div className="flex items-center mr-4">
-                  <img
-                    src={PhoneIcon} // <-- Replace with actual image path or dynamic URL
-                    alt="phone"
-                    className="w-5 h-5 mr-2"
-                  />
-                  <div>{appointment.patientPhoneNumber}</div>
+              <div className="mt-2 grid grid-cols-3 gap-4 items-start">
+                {/* Column 1 - Doctor & Phone */}
+                <div className="flex flex-col">
+                  {/* Phone */}
+                  <div className="flex items-center">
+                    <img src={PhoneIcon} alt="phone" className="w-5 h-5 mr-2" />
+                    <div className="truncate max-w-[160px]">
+                      {appointment.patientPhoneNumber}
+                    </div>
+                  </div>
+                  {/* Doctor */}
+                  <div className="flex items-center mb-1">
+                    <img
+                      src={DoctorIcon}
+                      alt="doctor"
+                      className="w-4 h-5 mr-2"
+                    />
+                    <div className="truncate max-w-[160px]">
+                      {appointment.doctorName}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Appointment Date with Icon */}
-                <div className="flex items-center mr-4">
-                  <img
-                    src={CalendarIcon}
-                    alt="calendar"
-                    className="w-7 h-7 mr-2"
-                  />
-
-                  <div>{formatDate(appointment.appointmentDate)}</div>
+                {/* Column 2 - Hospital & Date */}
+                <div className="flex flex-col">
+                  {/* Date */}
+                  <div className="flex items-center">
+                    <img
+                      src={CalendarIcon}
+                      alt="calendar"
+                      className="w-5 h-5"
+                    />
+                    <div>{formatDate(appointment.appointmentDate)}</div>
+                  </div>
+                  {/* Hospital */}
+                  <div className="flex items-center mb-1">
+                    <img
+                      src={HospitalIcon}
+                      alt="hospital"
+                      className="w-5 h-5 mr-2"
+                    />
+                    <div className="truncate max-w-[160px]">
+                      {appointment.hospitalName}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Appointment Time with Icon */}
-                <div className="flex items-center">
-                  <img
-                    src={ClockIcon} // <-- Replace with actual image path or dynamic URL
-                    alt="clock"
-                    className="w-5 h-5 mr-2"
-                  />
-                  <div>{formatTime(appointment.appointmentTime)}</div>
-                </div>
-              </div>
-
-              {/* Third row - Doctor Name with Icon */}
-              <div className="mt-2 flex items-center">
-                <div className="flex items-center">
-                  <img
-                    src={DoctorIcon} // <-- Replace with actual image path or dynamic URL
-                    alt="clock"
-                    className="w-5 h-5 mr-2"
-                  />
-                  <div>{appointment.doctorName}</div>
+                {/* Column 3 - Empty & Time */}
+                <div className="flex flex-col">
+                  <div className="flex items-center">
+                    <img src={ClockIcon} alt="clock" className="w-4 h-5 mr-2" />
+                    <div>{formatTime(appointment.appointmentTime)}</div>
+                  </div>
+                  <div className="h-[24px] mb-1"></div>{' '}
+                  {/* Empty space same height as icon+text */}
                 </div>
               </div>
 
@@ -781,16 +909,15 @@ const [dropdownVisible, setDropdownVisible] = useState<{
                   {getStatusInfo(appointment.statusID)}
                 </span>
 
-               {/* Change Status button: hide if role is Patient */}
-{roleName !== 'Patient' && (
-  <button
-    onClick={() => toggleDropdown(index)}
-    className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
-  >
-    Change Status
-  </button>
-)}
-              
+                {/* Change Status button: hide if role is Patient */}
+                {roleName !== 'Patient' && (
+                  <button
+                    onClick={() => toggleDropdown(index)}
+                    className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
+                  >
+                    Change Status
+                  </button>
+                )}
               </div>
 
               {/* Status Dropdown */}
@@ -843,15 +970,15 @@ const [dropdownVisible, setDropdownVisible] = useState<{
 
                   {/* Appointment Date */}
                   <input
-        type="date"
-        value={
-          selectedAppointment.appointmentDate
-            ? selectedAppointment.appointmentDate.split('T')[0]
-            : ''
-        }
-        onChange={handleDateChange}
-        className={`${inputFieldClass} mb-4`}
-      />
+                    type="date"
+                    value={
+                      selectedAppointment.appointmentDate
+                        ? selectedAppointment.appointmentDate.split('T')[0]
+                        : ''
+                    }
+                    onChange={handleDateChange}
+                    className={`${inputFieldClass} mb-4`}
+                  />
 
                   {/* Time Slot */}
                   <select
@@ -982,8 +1109,6 @@ const [dropdownVisible, setDropdownVisible] = useState<{
           </style>
         </div>
       )}
-
-
     </div>
   );
 };

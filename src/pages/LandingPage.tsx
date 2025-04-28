@@ -11,7 +11,9 @@ import mydoctorImage from '../images/carepointpro/landingpage/mydoctor-app.png';
 import doctorapp from '../images/carepointpro/landingpage/doctor-app.jpeg';
 import Carousel from 'better-react-carousel';
 import { useForm } from 'react-hook-form';
-
+import FindDoctor from './FindDoctor/FindDoctor';
+import Medicine from './Medicines/Medicine';
+import LabTest from './LabTest/LabTest';
 const countries = [
   'Afghanistan',
   'Albania',
@@ -476,7 +478,18 @@ const LandingPage = () => {
             </button>
           </div>
         </div>
+
       </div>
+      <div>
+        <FindDoctor />
+      </div>
+      <div>
+        <Medicine />
+      </div>
+      <div>
+        <LabTest />
+      </div>
+      
       <div className="d-flex items-center justify-center py-20">
         <div className="max-w-screen-xl mx-auto">
           <h2 className="text-black text-center text-4xl">

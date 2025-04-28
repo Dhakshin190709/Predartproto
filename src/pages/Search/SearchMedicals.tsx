@@ -4,7 +4,9 @@ import CustomButton from '../../components/CustomButton';
 const SearchMedicals: React.FC = () => {
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">Search Medicals</h1>
+      <h1 className="text-3xl font-semibold text-black mb-6">
+        Search Medicals
+      </h1>
 
       <form className="flex flex-wrap items-center gap-4">
   {/* Enter Location */}
@@ -62,6 +64,9 @@ const SearchMedicals: React.FC = () => {
         <CustomButton>
       Search
     </CustomButton>
+    <div className=" text-lg mt-10 font-medium text-gray-700 mb-1">
+      <h1>Coming soon</h1>
+    </div>
       </div>
     </div>
   );

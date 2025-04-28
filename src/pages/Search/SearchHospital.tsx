@@ -3,13 +3,13 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { fetchHospitalAPI } from '../../Utils';
-
+import HospitalIcon from '../../images/icon/Hospital solid (2).svg';
 import { useLocation } from 'react-router-dom';
 
 import {
   FaMapMarkerAlt,
   FaEnvelope,
- 
+
   FaDirections,
 } from 'react-icons/fa';
 
@@ -541,7 +541,7 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">
+      <h1 className="text-3xl font-semibold text-black mb-6">
         Search Hospital
       </h1>
       <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -598,73 +598,46 @@ const [selectedHospital, setSelectedHospital] = useState("");
         </div>
       </form>
 
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+      <h1 className="text-2xl font-semibold text-gray-800 mt-4  mb-6">
+       List of Hospital's
+      </h1>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 relative">
   {hospitals.map((hospital, index) => (
     <div
       key={index}
-      className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-100 
-      transition-transform transform hover:scale-105 hover:shadow-lg md:col-span-3"
+      className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-200 relative
+      transition-transform transform hover:scale-105 hover:shadow-lg"
     >
-      {/* First Row: Hospital Name & Type (Left), Email (Center), Directions (Right) */}
-      <div className="grid grid-cols-3 items-center mb-2">
-        <div className="flex items-center">
-          {getHospitalIcon(hospital?.type || '')}
-          <h2 className="ml-2 text-md font-semibold text-blue-800">
-            {hospital.hospitalName} ({hospital.type})
-          </h2>
-        </div>
-        <p className="text-blue-400 text-center">
-          <FaEnvelope className="inline mr-1" />
-          <a href={`mailto:${hospital.email}`} className="hover:underline">
-            {hospital.email}
-          </a>
-        </p>
-        <div className="text-right">
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(hospital.location)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-green-500 hover:underline flex items-center justify-end"
-          >
-            <FaDirections className="mr-1" /> Directions
-          </a>
-        </div>
+      {/* Icon Badge - Top Left */}
+      <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-tl-lg rounded-br-md flex items-center justify-center">
+      <img src={HospitalIcon} alt="hospital" className="w-5 h-5 text-white text-xl " />
       </div>
 
-      {/* Second Row: Location (Left), View More (Center), Book Now (Right) */}
-      <div className="grid grid-cols-3 items-center text-gray-700 mt-2">
-        <div>
-          <FaMapMarkerAlt className="inline mr-1 text-red-500" />
-          {hospital.location ? (
-            <>
-              {showFullAddress[index]
-                ? hospital.location
-                : `${hospital.location.substring(0, 15)}...`}
-              <button
-                className="text-blue-500 ml-2"
-                onClick={() => toggleAddress(index)}
-              >
-                {showFullAddress[index] ? 'View Less' : 'View More'}
-              </button>
-            </>
-          ) : (
-            'Location not available'
-          )}
+      {/* Top Row: Book Button */}
+      <div className="flex justify-end mb-4">
+        <button
+          className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+          onClick={() => handleBookNow(hospital.hospitalID)}
+        >
+          Book Now
+        </button>
+      </div>
+
+      {/* Info Grid: Hospital Name & Type */}
+      <div className="grid grid-cols-2 gap-x-4 text-sm text-gray-800">
+        <div className="flex items-center gap-2">
+        <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
+          <span className="font-medium text-gray-600">Name:</span> {hospital.hospitalName}
         </div>
-        <div></div> {/* Empty div to push "Book Now" to the right */}
-        <div className="text-right">
-          <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-medium py-1.5 px-3 rounded"
-            onClick={() => handleBookNow(hospital.hospitalID)}
-          >
-            Book Now
-          </button>
+        <div className="flex items-center gap-2">
+        <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
+          <span className="font-medium text-gray-600">Type:</span> {hospital.type}
         </div>
       </div>
     </div>
   ))}
 </div>
+
 
 
 
@@ -857,24 +830,18 @@ const [selectedHospital, setSelectedHospital] = useState("");
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 mt-4">
+              <div className="flex justify-between items-center mt-4">
                 {/* Buttons */}
 
                 <button
-                  className="bg-gradient-to-b from-[#B22222] to-[#FF4500] 
-                 hover:from-[#FF4500] hover:to-[#B22222] 
-                 text-white transition duration-150 
-                 ease-out hover:ease-in py-2 px-2 rounded-lg"
+                  className="bg-gray-300 text-black py-2 px-4 rounded shadow-none hover:bg-gray-400"
                   onClick={closeModal}
                 >
                   Close
                 </button>
                 <button
-                  className="bg-gradient-to-b from-[#008000] to-[#00C853] 
-                  hover:from-[#00C853] hover:to-[#008000] 
-                  text-white transition duration-150 
-                  ease-out hover:ease-in py-2 px-2 rounded-lg"
-                >
+                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
+                 >
                   Confirm
                 </button>
               </div>

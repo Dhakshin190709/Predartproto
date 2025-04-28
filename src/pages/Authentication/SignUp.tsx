@@ -3,7 +3,15 @@ import axios from 'axios';
 import MySVG from '../../components/MySvgComponent';
 import CustomButton from '../../components/CustomButton';
 import { inputFieldClass } from '../../components/FormStyles';
-
+import { CheckCircle } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
+import 'react-toastify/dist/ReactToastify.css';
+import {
+  checkEmailAvailability,
+  checkPhoneAvailability,
+  checkUsernameAvailability,
+} from '../Utils/validationUtils';
 
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -14,13 +22,12 @@ const SignUp: React.FC = () => {
     gender: '',
     password: '',
   });
-
- const [errors, setErrors] = useState({
+  const navigate = useNavigate();
+  const [errors, setErrors] = useState({
     name: '',
     email: '',
     phone: '',
   });
-
 
   const [formErrors, setFormErrors] = useState<{
     patientName: string;
@@ -37,6 +44,21 @@ const SignUp: React.FC = () => {
   });
   const [successMessdateOfBirth, setSuccessMessdateOfBirth] = useState('');
   const [patientID, setPatientID] = useState(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null,
+  );
+  const [touchedFields, setTouchedFields] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+
+  const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
+
+  const [validations, setValidations] = useState({
+    nameAvailable: false,
+    phoneAvailable: false,
+    emailAvailable: false,
+  });
 
   const handleFormInputChange = (fieldName: string, value: string) => {
     setFormData((prev) => ({ ...prev, [fieldName]: value }));
@@ -46,58 +68,108 @@ const SignUp: React.FC = () => {
     }));
   };
 
-  const validateField = () => {
-    const name = /^[A-Za-z0-9_. ]{2,50}$/;
+  const validateField = async () => {
+    const namePattern = /^(?![0-9_])[A-Za-z0-9_]{3,50}(?<!_)$/;
 
-
-    const emailFormatPattern =
+    const emailPattern =
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
     const mobilePattern = /^(?!([0-9])\1{9})[6-9][0-9]{9}$/;
-  
-    const newErrors = {
-      name:
-      formData.name && name.test(formData.name)
-        ? ''
-        : 'Username can only contain letters, numbers, underscores, spaces, or dots (2–50 characters).',
-       
-          
-      
-      email:
-        formData.email && emailFormatPattern.test(formData.email)
-          ? ''
-          : 'Enter a valid email address (e.g. example@domain.com).',
-      phone:
-        formData.phone && mobilePattern.test(formData.phone)
-          ? ''
-          : 'Enter a valid 10-digit mobile number starting with 6–9.',
-      gender: formData.gender ? '' : 'Gender is required.',
-      dateOfBirth: (() => {
-        const dob = new Date(formData.dateOfBirth);
-        const today = new Date();
-  
-        if (!formData.dateOfBirth || isNaN(dob.getTime())) {
-          return 'Please enter a valid date of birth.';
-        }
-  
-        if (dob > today) {
-          return 'Date of birth cannot be in the future.';
-        }
-  
-        let age = today.getFullYear() - dob.getFullYear();
-        const m = today.getMonth() - dob.getMonth();
-        const d = today.getDate() - dob.getDate();
-        if (m < 0 || (m === 0 && d < 0)) {
-          age--;
-        }
-  
-        return age < 1 || age > 99 ? 'Age must be between 1 and 99.' : '';
-      })(),
+
+    let newErrors = {
+      name: '',
+      email: '',
+      phone: '',
+      gender: '',
+      dateOfBirth: '',
     };
-  
+
+    // Name validation
+    if (!formData.name) {
+      newErrors.name = 'Please enter name.';
+    } else if (!namePattern.test(formData.name) || formData.name.length < 3) {
+      newErrors.name = 'Name must be at least 3 characters long and valid.';
+    } else {
+      try {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Login/CheckUserNameExist?UserName=${formData.name}`,
+        );
+        const result = await res.json();
+        if (result.success === true) newErrors.name = 'Name already exists.';
+      } catch (err) {
+        console.error('Error checking name duplicate:', err);
+      }
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Please enter email.';
+    } else if (/\s/.test(formData.email)) {
+      // Check for any spaces anywhere in the email
+      newErrors.email = 'Email address should not contain spaces.';
+    } else if (!emailPattern.test(formData.email.trim())) {
+      newErrors.email = 'Please enter a valid email address.';
+    } else {
+      try {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Login/CheckEmailExist?Email=${formData.email.trim()}`,
+        );
+        const result = await res.json();
+        if (result.success === true) newErrors.email = 'Email already exists.';
+      } catch (err) {
+        console.error('Error checking email duplicate:', err);
+      }
+    }
+
+    // Phone validation
+    if (!formData.phone) {
+      newErrors.phone = 'Please enter phone number.';
+    } else if (!mobilePattern.test(formData.phone)) {
+      newErrors.phone = 'Please enter a valid phone number.';
+    } else {
+      try {
+        const res = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Login/CheckMobileExist?Mobile=${formData.phone}`,
+        );
+        const result = await res.json();
+        if (result.success === true)
+          newErrors.phone = 'Mobile number already exists.';
+      } catch (err) {
+        console.error('Error checking phone duplicate:', err);
+      }
+    }
+
+    // Gender validation
+    if (!formData.gender) {
+      newErrors.gender = 'Gender is required.';
+    }
+
+    // Date of Birth validation
+    const dob = new Date(formData.dateOfBirth);
+    const today = new Date();
+
+    if (!formData.dateOfBirth) {
+      newErrors.dateOfBirth = 'Please enter or select Date of Birth';
+    } else if (isNaN(dob.getTime())) {
+      newErrors.dateOfBirth = 'Please enter a valid date of birth.';
+    } else if (dob > today) {
+      newErrors.dateOfBirth = 'Date of birth cannot be in the future.';
+    } else {
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      const d = today.getDate() - dob.getDate();
+      if (m < 0 || (m === 0 && d < 0)) age--;
+
+      if (age < 1 || age > 99) {
+        newErrors.dateOfBirth = 'Age must be between 1 and 99.';
+      }
+    }
+
+    // Final errors set
     setErrors(newErrors);
+
+    // Return true if all errors are empty
     return Object.values(newErrors).every((error) => error === '');
   };
-  
 
   const handleSingleInputChange = (key: string, value: string) => {
     setFormData({ ...formData, [key]: value });
@@ -122,213 +194,312 @@ const SignUp: React.FC = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-  
-    if (!validateField()) return;
-  
+
+    const isValid = await validateField();
+    if (!isValid) return;
+
     const now = new Date().toISOString();
-    const userId = "eb50fd87-2ef9-4d12-fb2e-08dd175f4646";
-  
+    const userId = 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646';
+
     const payload = {
       createdBy: userId,
       createdOn: now,
       updatedBy: userId,
       updatedOn: now,
       isActive: true,
-   
       patientName: formData.name,
       patientDateOfBirth: new Date(formData.dateOfBirth).toISOString(),
       patientGender: formData.gender,
       patientPhoneNumber: formData.phone,
       patientEmail: formData.email,
-    
+      userId:userId,
     };
-  
+
     try {
       const response = await axios.post(
         'https://predart003-001-site1.anytempurl.com/api/Patient/SavePatient',
-        payload
+        payload,
       );
-  
-      if (response.data) {
-        console.log('API Response:', response.data);
-        alert('Patient details saved successfully!');
-  
-        // Reset form
-        setFormData({
-          name: '',
-          dateOfBirth: '',
-          gender: '',
-          phone: '',
-          email: '',
-        });
-  
-        setErrors({});
+
+      const { data } = response;
+
+      if (response.status === 200) {
+        if (data.success === true) {
+          toast.success(data.message || 'User created successfully!');
+          setFormData({
+            name: '',
+            dateOfBirth: '',
+            gender: '',
+            phone: '',
+            email: '',
+          });
+          // ✅ Clear error messages
+          setErrors({});
+
+          // ✅ Reset validation state (hides green ticks)
+          setValidations({
+            nameAvailable: false,
+            phoneAvailable: false,
+            emailAvailable: false, // Add this if you're planning to validate email availability too
+          });
+        } else {
+          toast.error(
+            data.message || 'Something went wrong while creating user.',
+          );
+        }
       } else {
-        alert('Something went wrong with the response.');
+        toast.error('Something went wrong with the response.');
       }
     } catch (error) {
       console.error('Error:', error.response?.data || error.message);
-      alert('Failed to save patient details.');
+      toast.error('Failed to save patient details.');
     }
   };
-  
 
-  
+  const handleUsernameBlur = async () => {
+    setTouchedFields((prev) => ({ ...prev, name: true }));
+    const { success, message } = await checkUsernameAvailability(formData.name);
+
+    if (!success) {
+      setErrors((prev) => ({ ...prev, name: message }));
+      setUsernameAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, name: '' }));
+      setUsernameAvailable(true);
+    }
+  };
+
+  const handleEmailBlur = async () => {
+    const { success, message } = await checkEmailAvailability(formData.email);
+    if (!success) {
+      setErrors((prev) => ({ ...prev, email: message }));
+      setEmailAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, email: '' }));
+      setEmailAvailable(true);
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    const { success, message } = await checkPhoneAvailability(formData.phone);
+    if (!success) {
+      setErrors((prev) => ({ ...prev, phone: message }));
+      setPhoneAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, phone: '' }));
+      setPhoneAvailable(true);
+    }
+  };
 
   return (
     <>
-    <div>
-  <div className="container">
-    <div className="max-w-screen-xl mx-auto h-full">
-      <div className="flex flex-wrap items-center h-full">
-        {/* Left side - show only on xl and up */}
-        <div className="hidden w-full xl:block xl:w-1/2 h-full">
-          <div className="flex flex-col justify-center items-center h-full text-center px-6 py-4">
-            <p className="mb-6 text-md font-sm text-black dark:text-white">
-              Access your health records and appointments securely.
-            </p>
-            <div className="flex justify-center items-center">
-              <MySVG className="w-62 h-72" />
-            </div>
-          </div>
-        </div>
-
-        
-
-          {/* Right Side (Form Section) */}
-          
-              <div className="w-full xl:w-1/2 xl:border-l-2 border-stroke dark:border-strokedark">
-  <div className="w-full p-2 sm:p-4 xl:p-4 xl:pl-20">
-    <h2 className="mb-4 text-2xl font-semibold text-black dark:text-white">
-    Signup to CarePoint Pro
-    </h2>
-              <form className="space-y-4" onSubmit={handleSubmit}>
-                {/* First Row: Name & Email */}
-                <div className="grid grid-cols-1 gap-4">
-                  {/* Name */}
-                  <div>
-                    <input
-                      type="text"
-                     className={inputFieldClass}
-                      value={formData.name}
-                      maxLength={30}
-                      onChange={(e) =>
-                        handleSingleInputChange('name', e.target.value)
-                      }
-                      placeholder="Enter your name"
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 text-sm">{errors.name}</p>
-                    )}
-                  </div>
-
-                  {/* Email */}
-                  <div>
-                    <input
-                      type="email"
-                      className={inputFieldClass}
-                      value={formData.email}
-                      maxLength={30}
-                      onChange={(e) =>
-                        handleSingleInputChange('email', e.target.value)
-                      }
-                      placeholder="Enter your email"
-                    />
-                    {errors.email && (
-                      <p className="text-red-500 text-sm">{errors.email}</p>
-                    )}
+      <div>
+        <div className="container">
+          <div className="max-w-screen-xl mx-auto h-full">
+            <div className="flex flex-wrap items-center h-full">
+              {/* Left side - show only on xl and up */}
+              <div className="hidden w-full xl:block xl:w-1/2 h-full">
+                <div className="flex flex-col justify-center items-center h-full text-center px-6 py-4">
+                  <p className="mb-6 text-md font-sm text-black dark:text-white">
+                    Access your health records and appointments securely.
+                  </p>
+                  <div className="flex justify-center items-center">
+                    <MySVG className="w-62 h-72" />
                   </div>
                 </div>
-
-                {/* Second Row: Phone (One Column) | dateOfBirth & Gender (Nested Two-Column Grid) */}
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Phone */}
-                  <div>
-                    <input
-                      type="tel"
-                      className={inputFieldClass}
-                      value={formData.phone}
-                      onChange={(e) =>
-                        handleSingleInputChange('phone', e.target.value)
-                      }
-                      placeholder="Enter your number"
-                    />
-                    {errors.phone && (
-                      <p className="text-red-500 text-sm">{errors.phone}</p>
-                    )}
-                  </div>
-
-                  {/* dateOfBirth & Gender (Nested Grid inside the second column) */}
-                  <div className="grid grid-cols-1 gap-4">
-                    {/* dateOfBirth */}
-                    <div>
-                      <input
-                        type="date"
-                        name="dateOfBirth"
-                        placeholder="Date of Birth"
-                        value={formData.dateOfBirth || ''}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setFormData((prev) => ({
-                            ...prev,
-                            dateOfBirth: value,
-                          }));
-
-                          // Optional validation example: DOB shouldn't be in the future
-                          if (new Date(value) > new Date()) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              dateOfBirth: 'Date cannot be in the future',
-                            }));
-                          } else {
-                            setErrors((prev) => ({ ...prev, dateOfBirth: '' }));
-                          }
-                        }}
-                        className={inputFieldClass}
-                      />
-                      {errors.dateOfBirth && (
-                        <p className="text-red-500 text-sm mt-1">
-                          {errors.dateOfBirth}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {/* Gender */}
-                  <div>
-                    <select
-                        className={inputFieldClass}
-                      value={formData.gender}
-                      onChange={(e) =>
-                        handleSingleInputChange('gender', e.target.value)
-                      }
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="Male">Male</option>
-                      <option value="Female">Female</option>
-                      <option value="Other">Other</option>
-                    </select>
-                    {errors.gender && (
-                      <p className="text-red-500 text-sm">{errors.gender}</p>
-                    )}
-                  </div>
-                 
-                </div>
-                <div className="mt-8">
-                  <CustomButton type="submit">
-  Create Account
-</CustomButton>
-
               </div>
-              </form>
-             
-              {successMessdateOfBirth && (
-                <p className="mt-4 text-green-500 text-lg">{successMessdateOfBirth}</p>
-              )}
+
+              {/* Right Side (Form Section) */}
+
+              <div className="w-full xl:w-1/2 xl:border-l-2 border-stroke dark:border-strokedark">
+                <div className="w-full p-2 sm:p-4 xl:p-4 xl:pl-20">
+                  <h2 className="mb-4 text-2xl font-semibold text-black dark:text-white">
+                    Signup to CarePoint Pro
+                  </h2>
+                  <form className="space-y-4" onSubmit={handleSubmit}>
+                    {/* First Row: Name & Email */}
+                    <div className="grid grid-cols-1 gap-4">
+                      {/* Name */}
+
+                      <div className="relative">
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={formData.name}
+                          maxLength={20}
+                          onChange={(e) =>
+                            handleSingleInputChange('name', e.target.value)
+                          }
+                          onBlur={handleUsernameBlur}
+                          placeholder="Enter your name"
+                        />
+
+                        {formData.name && !errors.name && (
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                            <CheckCircle className="w-5 h-5" />
+                          </span>
+                        )}
+
+                        {errors.name && (
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.name}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Email */}
+                      <div className="relative">
+                        <input
+                          type="email"
+                          className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 
+         text-black outline-none focus:border-primary dark:border-form-strokedark 
+         dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={formData.email}
+                          onChange={(e) => {
+                            const email = e.target.value;
+                            handleSingleInputChange('email', email);
+                          }}
+                          onBlur={handleEmailBlur} // ✅ Use the actual handler
+                          placeholder="Enter your email"
+                        />
+
+                        {/* ✅ Only show green icon if available and no error */}
+                        {emailAvailable === true &&
+                          formData.email &&
+                          !errors.email && (
+                            <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
+                          )}
+
+                        {/* ❌ Show error only if exists (no icon in that case) */}
+                        {errors.email && (
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.email}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Second Row: Phone (One Column) | dateOfBirth & Gender (Nested Two-Column Grid) */}
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Phone */}
+                      <div className="relative">
+                        <input
+                          type="tel"
+                          className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 
+           text-black outline-none focus:border-primary dark:border-form-strokedark 
+           dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={formData.phone}
+                          onChange={(e) =>
+                            handleSingleInputChange('phone', e.target.value)
+                          }
+                          onBlur={(e) => handlePhoneBlur(e.target.value)} // ✅ Correct usage
+                          placeholder="Enter your number"
+                        />
+
+                        {phoneAvailable && formData.phone && !errors.phone && (
+                          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                            <CheckCircle className="w-5 h-5" />
+                          </span>
+                        )}
+
+                        {errors.phone && (
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.phone}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* dateOfBirth & Gender (Nested Grid inside the second column) */}
+                      <div className="grid grid-cols-1 gap-4">
+                        {/* dateOfBirth */}
+                        <div>
+                          <input
+                            type={formData.dateOfBirth ? 'date' : 'text'}
+                            name="dateOfBirth"
+                            placeholder="Date of Birth"
+                            value={formData.dateOfBirth || ''}
+                            max={new Date().toISOString().split('T')[0]} // ⛔️ Prevent future dates
+                            onFocus={(e) => (e.target.type = 'date')}
+                            onBlur={(e) => {
+                              if (!e.target.value) e.target.type = 'text';
+                            }}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData((prev) => ({
+                                ...prev,
+                                dateOfBirth: value,
+                              }));
+
+                              if (new Date(value) > new Date()) {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  dateOfBirth: 'Date cannot be in the future',
+                                }));
+                              } else {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  dateOfBirth: '',
+                                }));
+                              }
+                            }}
+                            className={inputFieldClass}
+                          />
+
+                          {errors.dateOfBirth && (
+                            <p className="text-red-500 text-sm mt-1">
+                              {errors.dateOfBirth}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Gender */}
+                      <div>
+                        <select
+                          className={inputFieldClass}
+                          value={formData.gender}
+                          onChange={(e) =>
+                            handleSingleInputChange('gender', e.target.value)
+                          }
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {errors.gender && (
+                          <p className="text-red-500 text-sm">
+                            {errors.gender}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+  <div>
+    <CustomButton type="submit">Create Account</CustomButton>
+  </div>
+  <div className="flex justify-end">
+    <button
+      type="button"
+      onClick={() => navigate('/LoginPage')}
+      className="bg-gradient-to-b from-[#004A99]/80 to-[#007BFF]/80 
+                 hover:from-[#007BFF]/90 hover:to-[#004A99]/90 
+                 text-white transition duration-150 ease-out hover:ease-in 
+                 py-2 px-5 rounded-lg shadow-sm opacity-60 hover:opacity-100"
+    >
+      Cancel
+    </button>
+  </div>
+</div>
+
+
+
+                  </form>
+                  <ToastContainer position="top-right" autoClose={3000} />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      </div>
       </div>
     </>
   );

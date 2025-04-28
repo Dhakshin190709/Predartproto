@@ -472,7 +472,7 @@ const handleEdit = (data: RowData) => {
    
  
  {/* Checkbox for Status - Only show in Edit mode */}
- {formData.hospitalID !== "" && (
+ {formMode === "Edit" && (
   <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
     <input
       type="checkbox"
@@ -480,7 +480,7 @@ const handleEdit = (data: RowData) => {
       onChange={(e) => {
         setFormData((prev) => ({
           ...prev,
-          isActive: e.target.checked, // Store as boolean
+          isActive: e.target.checked,
         }));
       }}
       className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
@@ -488,6 +488,8 @@ const handleEdit = (data: RowData) => {
     <span>{formData.isActive ? "Active" : "Inactive"}</span>
   </label>
 )}
+
+
 
 <div>
   <input
@@ -510,10 +512,14 @@ const handleEdit = (data: RowData) => {
   {formData.hospitalID ? "Update" : "Save"}
 </CustomButton>
 
-<CustomButton type="button" onClick={() => setShowForm(false)}>
-  Cancel
-</CustomButton>
 
+<button
+   onClick={() => setShowForm(false)}
+    className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
+>
+ 
+    Cancel
+  </button>
             </div>
           </form>
         </div>
@@ -564,6 +570,7 @@ const handleEdit = (data: RowData) => {
     setFormData({ hospitalID: 0, hospitalType: "", hospitalName: "", hospitalCode: "", createdBy: "" }); // Reset form data
     setIsActive(false); // Reset checkbox state
     setShowForm(true);
+    setFormMode("Add"); // 👈 Add this
   }}
 >
   + Add
@@ -597,10 +604,14 @@ const handleEdit = (data: RowData) => {
   Yes, Delete
 </CustomButton>
 
-<CustomButton onClick={cancelDelete}>
-  Cancel
-</CustomButton>
 
+<button
+    onClick={cancelDelete}
+    className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
+>
+ 
+    Cancel
+  </button>
             </div>
           </div>
         </div>

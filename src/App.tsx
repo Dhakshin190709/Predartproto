@@ -33,7 +33,12 @@ import Alerts from './pages/UiElements/Alerts';
 import Buttons from './pages/UiElements/Buttons';
 import DefaultLayout from './layout/DefaultLayout';
 import LoginLayout from './layout/LoginLayout';
-
+import FindDoctor from './pages/FindDoctor/FindDoctor';
+import Dermatologist from './pages/FindDoctor/Dermatologist';
+import Dentist from './pages/FindDoctor/Dentist';
+import Pediatrician from './pages/FindDoctor/Pediatrician';
+import Medicine from './pages/Medicines/Medicine';
+import LabTest from './pages/LabTest/LabTest';
 
 
 import LandingPageLayout from './layout/LandingPageLayout';
@@ -49,6 +54,7 @@ import TemplateUI from './pages/TemplateUI/TemplateUI';
 import Login from './pages/LoginPage';
 
 import BookAppointment from './pages/BookAppointment';
+import PatientRecord from './pages/PatientRecord';
 
 
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
@@ -108,6 +114,7 @@ import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
 
 import RescheduleModel from './pages/RescheduleModel';
 import UploadedDocument from './pages/UploadedDocument';
+import MyContacts from './pages/MyContacts';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -738,6 +745,15 @@ function App() {
           }
         />
         <Route
+          path="/patientRecord"
+          element={
+            <>
+              <PageTitle title="PatientRecord | CarePoint Pro" />
+              <PatientRecord />
+            </>
+          }
+        />
+        <Route
           path="reports/doctorreport"
           element={
             <>
@@ -814,6 +830,15 @@ function App() {
             <>
               <PageTitle title="Profile | CarePoint Pro" />
                 <Profile />
+            </>
+          }
+        />
+        <Route
+          path="/myContacts"
+          element={
+            <>
+              <PageTitle title="MyContacts | CarePoint Pro" />
+                <MyContacts />
             </>
           }
         />
@@ -912,6 +937,61 @@ function App() {
           }
         /> */}
          
+
+         <Route
+          path="/FindDoctor"
+          element={
+            <>
+              <PageTitle title="FindDoctor | CarePoint Pro" />
+              <FindDoctor />
+            </>
+          }
+        />
+        <Route
+          path="/Dermatologist"
+          element={
+            <>
+              <PageTitle title="Dermatologist | CarePoint Pro" />
+              <Dermatologist />
+            </>
+          }
+        />
+        <Route
+          path="/Dentist"
+          element={
+            <>
+              <PageTitle title="Dentist | CarePoint Pro" />
+              <Dentist />
+            </>
+          }
+        />
+        <Route
+          path="/Pediatrician"
+          element={
+            <>
+              <PageTitle title="Pediatrician | CarePoint Pro" />
+              <Pediatrician />
+            </>
+          }
+        />
+         <Route
+          path="/Medicine"
+          element={
+            <>
+              <PageTitle title="Medicines | CarePoint Pro" />
+              <Medicine />
+            </>
+          }
+        />
+         <Route
+          path="/LabTest"
+          element={
+            <>
+              <PageTitle title="LabTest | CarePoint Pro" />
+              <LabTest />
+            </>
+          }
+        />
         <Route
           path="/calendar" 
           element={
@@ -921,6 +1001,8 @@ function App() {
             </>
           }
         />
+
+
       </Route>
 
 

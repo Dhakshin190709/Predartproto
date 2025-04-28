@@ -73,8 +73,8 @@ const UpcomingAppointments: React.FC = () => {
   }, []);
 
   // Pagination Logic: Show only 3 cards at a time
-  const visibleAppointments = appointments.slice(currentIndex, currentIndex + 3);
-  const showNext = currentIndex + 3 < appointments.length;
+  const visibleAppointments = appointments.slice(currentIndex, currentIndex + 2);
+  const showNext = currentIndex + 2 < appointments.length;
   const showBack = currentIndex > 0;
 
   // Format Date & Time
@@ -93,7 +93,7 @@ const UpcomingAppointments: React.FC = () => {
 </div>
 
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-2">
         {visibleAppointments.length > 0 ? (
           visibleAppointments.map((appointment, index) => {
             const doctor = doctors.find((doc) => doc.doctorID === appointment.doctorID);

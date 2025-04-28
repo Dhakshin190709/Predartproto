@@ -150,7 +150,9 @@ const SearchLab: React.FC = () => {
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">Search Lab</h1>
+      <h1 className="text-3xl font-semibold text-black mb-6">
+        Search Lab
+      </h1>
 
       {/* Search Form */}
       <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -218,83 +220,75 @@ const SearchLab: React.FC = () => {
         {/* Search Button */}
         <div>
          
-
+       
           <CustomButton  onClick={handleSearch}>
       Search
     </CustomButton>
         </div>
       </form>
+      <h1 className="text-2xl font-semibold text-black mt-4  mb-6">List of Lab's</h1>
 
-      {/* Lab Cards */}
-      <div className="grid grid-cols-1 gap-4 mt-4">
-      {filteredLabs.length > 0 ? (
-        filteredLabs.map((lab, index) => {
-          const { icon, color } = getLabIcon(lab.labType);
-          const isExpanded = expandedIndex === index;
 
-          return (
-            <div
-              key={index}
-              className="bg-white p-5 rounded-lg shadow border border-blue-200 transition hover:shadow-lg"
+     {/* Lab Cards */}
+<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+  {filteredLabs.length > 0 ? (
+    filteredLabs.map((lab, index) => {
+      const { icon, color } = getLabIcon(lab.labType);
+      const isExpanded = expandedIndex === index;
+
+      return (
+        <div
+          key={index}
+          className="bg-white p-5 rounded-lg shadow border border-blue-400 relative transition hover:shadow-lg"
+        >
+          {/* Icon Badge - Top Left */}
+          <div className="absolute top-0 left-0 bg-blue-300 w-10 h-10 rounded-br-lg rounded-tl-lg flex items-center justify-center">
+            <span className="text-white text-xl">{icon}</span>
+          </div>
+
+          {/* Info Row */}
+          <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 pl-12"> {/* pl-12 to avoid overlapping the icon */}
+            {/* Lab Name + Code */}
+            <h2 className="text-base font-bold text-gray-800">
+              {lab.labName} ({lab.labCode})
+            </h2>
+
+            {/* Lab Type */}
+            <p className="text-sm font-medium">
+              {lab.labType}
+            </p>
+
+            {/* View More / Less */}
+            <button
+              onClick={() => toggleView(index)}
+              className="text-blue-500 text-sm hover:underline"
             >
-              {/* Uniform Grid Layout */}
-              <div className="grid grid-cols-[50px_1fr_1fr_1fr_1fr_1fr] items-center gap-4">
-                {/* Icon */}
-                <div className="flex justify-center">
-                  <span className="text-2xl" style={{ color }}>
-                    {icon}
-                  </span>
-                </div>
+              {isExpanded ? "View Less" : "View More"}
+            </button>
+          </div>
 
-                {/* Lab Name & Code */}
-                <h2 className="text-lg font-bold text-gray-800 text-center">
-                  {lab.labName} ({lab.labCode})
-                </h2>
-
-                {/* Lab Type */}
-                <p className="text-md font-medium text-center" style={{ color }}>
-                  {lab.labType}
-                </p>
-
-                {/* Location */}
-                <div className="flex items-center justify-center text-gray-700 text-md">
-                  <FaMapMarkerAlt className="text-red-500 mr-1" />
-                  <span>{isExpanded ? "Anna Nagar, Chennai, Tamil Nadu - 600102" : "Anna Nagar, Chennai"}</span>
-                </div>
-
-                {/* Directions */}
-                <a href="#" className="text-green-500 flex items-center justify-center text-md hover:underline">
-                  <FaDirections className="mr-1" /> Directions
-                </a>
-
-                {/* View More / Less */}
-                <button
-                  onClick={() => toggleView(index)}
-                  className="text-blue-500 text-sm hover:underline text-center"
-                >
-                  {isExpanded ? "View Less" : "View More"}
-                </button>
-              </div>
-
-              {/* Expanded Facilities Section */}
-              {isExpanded && (
-                <div className="mt-3 text-gray-600 text-md text-center font-medium">
-                  {lab.labFacilities
-                    .split(",")
-                    .map((id) => {
-                      const facility = labFacilities.find((f) => f.id.toString() === id.trim());
-                      return facility ? facility.name : id;
-                    })
-                    .join(", ")}
-                </div>
-              )}
+          {/* Facilities Section */}
+          {isExpanded && (
+            <div className="mt-3 text-gray-600 text-sm font-medium text-center">
+              {lab.labFacilities
+                .split(",")
+                .map((id) => {
+                  const facility = labFacilities.find(
+                    (f) => f.id.toString() === id.trim()
+                  );
+                  return facility ? facility.name : id;
+                })
+                .join(", ")}
             </div>
-          );
-        })
-      ) : (
-        <p className="text-lg font-semibold text-gray-700">No labs found</p>
-      )}
-    </div>
+          )}
+        </div>
+      );
+    })
+  ) : (
+    <p className="text-lg font-semibold text-gray-700">No labs found</p>
+  )}
+</div>
+
 
 
     </div>

@@ -35,15 +35,17 @@ const PatientFormWizard: React.FC = () => {
     patientDateOfBirth: '',
     patientGender: '',
   });
+
   const [boxes, setBoxes] = useState([
     {
       name: '',
       email: '',
       phoneNumber: '',
       patientDateOfBirth: '',
+      bloodGroup: '',
       height: '',
       weight: '',
-      bloodGroup: '',
+      showDateInput: false,
       errors: {},
     },
   ]);
@@ -80,14 +82,14 @@ const PatientFormWizard: React.FC = () => {
   }
   const [addresses, setAddresses] = useState([
     {
-      addressType: 'Commercial',
+      addressType: '',
       address1: '',
       address2: '',
       city: '',
       district: '',
       state: '',
       zipCode: '',
-      type: 'Doctor', // Default type, can be updated dynamically
+      type: 'patient', // Default type, can be updated dynamically
     },
   ]);
   const [sections, setSections] = useState([
@@ -100,6 +102,7 @@ const PatientFormWizard: React.FC = () => {
   const [patientDetails, setPatientDetails] = useState<any>(null);
 
   const [patientID, setPatientID] = useState(null); // State to store patientID
+  const [inputType, setInputType] = useState<'text' | 'date'>('text');
 
   const [showAddressFields, setShowAddressFields] = useState(false);
 
@@ -109,6 +112,7 @@ const PatientFormWizard: React.FC = () => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
       .then((response) => response.json())
       .then((data) => {
+        console.log('Fetched data:', data); // Check the structure
         const filteredBloodGroups = data.data.filter(
           (item) => item.type === 'Bloodgroup',
         );
@@ -131,6 +135,70 @@ const PatientFormWizard: React.FC = () => {
       .catch((error) => console.error('Error fetching address types:', error));
   }, []);
 
+  useEffect(() => {
+    const fetchFamilyData = async () => {
+      const patientID = sessionStorage.getItem('patientID');
+      try {
+        const response = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetFamily?PatientID=${patientID}`,
+        );
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          const item = result.data;
+          const mappedBox = {
+            name: item.name || '',
+            email: item.email || '',
+            phoneNumber: item.phoneNumber || '',
+            patientDateOfBirth: item.dateOfBirth
+              ? item.dateOfBirth.split('T')[0]
+              : '',
+
+            bloodGroup: item.bloodGroupID || '',
+            height: item.height || '',
+            weight: item.weight || '',
+            showDateInput: false,
+            errors: {},
+          };
+          setBoxes([mappedBox]); // wrap in array since your state expects an array
+        }
+      } catch (error) {
+        console.error('Error fetching family data:', error);
+      }
+    };
+
+    fetchFamilyData();
+  }, []);
+
+  useEffect(() => {
+    const patientID = sessionStorage.getItem('patientID');
+    if (!patientID) return;
+
+    axios
+      .get(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPreferences?PatientID=${patientID}`,
+      )
+      .then((res) => {
+        const data = res.data?.data;
+        if (!data) return;
+
+        const formattedPreferences: Record<string, boolean> = {};
+
+        for (let key in data) {
+          if (typeof data[key] === 'boolean') {
+            // Convert field like "emailNotification" → "emailnotification"
+            const formattedKey = key.toLowerCase().replace(/\s+/g, '');
+            formattedPreferences[formattedKey] = data[key];
+          }
+        }
+
+        setPreferences(formattedPreferences);
+      })
+      .catch((err) => {
+        console.error('Error fetching preferences:', err);
+      });
+  }, []);
+
   const updateAddress = (
     index: number,
     field: keyof Address,
@@ -145,21 +213,14 @@ const PatientFormWizard: React.FC = () => {
     }
   };
 
-  const handleInputChange = (index, fieldName, value) => {
-    setBoxes((prevBoxes) =>
-      prevBoxes.map((box, i) =>
-        i === index
-          ? {
-              ...box,
-              [fieldName]: value,
-              errors: {
-                ...box.errors,
-                [fieldName]: validateField(fieldName, value) || '',
-              },
-            }
-          : box,
-      ),
-    );
+  const handleInputChange = (index, field, value) => {
+    const updatedBoxes = [...boxes];
+    updatedBoxes[index][field] = value;
+    updatedBoxes[index].errors = {
+      ...updatedBoxes[index].errors,
+      [field]: '', // Clear error on change
+    };
+    setBoxes(updatedBoxes);
   };
 
   const handleAddBox = () => {
@@ -182,7 +243,7 @@ const PatientFormWizard: React.FC = () => {
     setAddresses([
       ...addresses,
       {
-        addressType: 'Residential',
+        addressType: '',
         address1: '',
         address2: '',
         city: '',
@@ -261,6 +322,7 @@ const PatientFormWizard: React.FC = () => {
 
     fetchGenderOptions();
   }, []);
+
   // Handle input change for form data
 
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -297,72 +359,6 @@ const PatientFormWizard: React.FC = () => {
   const handleComplete = () => {
     console.log('Form completed!');
     setPopupVisible(true);
-  };
-
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-
-    const updatedBoxes = boxes.map((box) => {
-      const updatedErrors = {};
-      Object.keys(box).forEach((field) => {
-        if (field !== 'errors') {
-          updatedErrors[field] = validateField(field, box[field]);
-        }
-      });
-      return { ...box, errors: updatedErrors };
-    });
-
-    setBoxes(updatedBoxes);
-
-    const hasErrors = updatedBoxes.some((box) =>
-      Object.values(box.errors).some((err) => err),
-    );
-    if (hasErrors) {
-      alert('Please fix the validation errors before submitting.');
-      return;
-    }
-
-    const bloodGroupID = bloodGroups.find(
-      (group) => group.name === boxes[0].bloodGroup,
-    )?.appLOVID;
-
-    const payload = {
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
-      patientsID: patientID, // Ensure this is a valid GUID
-
-      isActive: true, // Add this field if required
-      name: boxes[0].name, // Ensure this is included
-      height: parseFloat(boxes[0].height) || 0, // Default to 0 if empty
-      weight: parseFloat(boxes[0].weight) || 0,
-      dateOfBirth: boxes[0].patientDateOfBirth || new Date().toISOString(), // Ensure date is valid
-      bloodGroupID,
-      email: boxes[0].email || '', // Ensure it is not undefined
-      phoneNumber: boxes[0].phoneNumber || '',
-    };
-
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        alert('Family information saved successfully!');
-      } else {
-        alert('Failed to save family information.');
-      }
-    } catch (error) {
-      console.error('Error saving family information:', error);
-      alert('An error occurred while saving.');
-    }
   };
 
   const [uploadBoxes, setUploadBoxes] = useState([
@@ -427,67 +423,75 @@ const PatientFormWizard: React.FC = () => {
 
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
-    const updatedPreferences = { ...preferences, [name]: checked };
-    setPreferences(updatedPreferences);
-
-    // Clear error when any checkbox is checked
-    if (Object.values(updatedPreferences).some((value) => value)) {
-      setError('');
-    }
+    setPreferences((prev) => ({
+      ...prev,
+      [name]: checked,
+    }));
   };
 
-  const validateField = (name: string, value: string) => {
+  const validateField = (name: string, value: string): string => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today's date
+
+    const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u;
+
     switch (name) {
       case 'patientName':
+      case 'name':
         return !value
           ? 'Name is required.'
-          : /^[A-Za-z0-9_\s]+$/.test(value)
-            ? ''
-            : 'Only letters, numbers, spaces, and underscore (_) are allowed.';
+          : emojiRegex.test(value)
+            ? 'Emojis are not allowed.'
+            : /^[A-Za-z0-9 _]+$/.test(value)
+              ? ''
+              : 'Only letters, numbers, spaces, and underscores are allowed.';
 
       case 'patientEmail':
+      case 'email':
         return !value
           ? 'Email is required.'
-          : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-            ? ''
-            : 'Invalid email format.';
+          : emojiRegex.test(value)
+            ? 'Emojis are not allowed in email.'
+            : /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+              ? ''
+              : 'Invalid email format.';
+
       case 'patientPhoneNumber':
+      case 'phoneNumber':
         return !value
           ? 'Phone number is required.'
-          : /^\d{10}$/.test(value)
-            ? ''
-            : 'Phone must be 10 digits.';
+          : emojiRegex.test(value)
+            ? 'Emojis are not allowed in phone number.'
+            : /^\d{10}$/.test(value)
+              ? ''
+              : 'Phone number must be exactly 10 digits.';
+
       case 'patientDateOfBirth':
-        return !value
-          ? 'Date of Birth is required.'
-          : new Date(value) > new Date()
-            ? 'DOB can’t be in the future.'
-            : '';
+        if (!value) return 'Date of Birth is required.';
+        const dob = new Date(value);
+        dob.setHours(0, 0, 0, 0);
+        return dob >= today
+          ? 'Date of Birth cannot be today or in the future.'
+          : '';
+
       case 'patientGender':
         return !value ? 'Gender is required.' : '';
-      case 'name':
-        return value.trim() ? '' : 'Name is required.';
-      case 'email':
-        return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value)
-          ? ''
-          : "Enter a valid email with one '@' and one '.'";
-      case 'phoneNumber':
-        return /^\d{10}$/.test(value)
-          ? ''
-          : 'Phone number must be exactly 10 digits.';
-      case 'patientDateOfBirth':
-        return new Date(value) <= new Date()
-          ? ''
-          : 'Date of Birth cannot be in the future.';
+
       case 'height':
-        return value && /^\d{1,3}$/.test(value) && parseFloat(value) > 0
+        return value &&
+          /^\d{1,3}$/.test(value) &&
+          parseFloat(value) >= 30 &&
+          parseFloat(value) <= 300
           ? ''
-          : 'Enter a valid height (1-300).';
+          : 'Enter a valid height (30–300 cm).';
 
       case 'weight':
-        return value && /^\d{1,3}$/.test(value) && parseFloat(value) > 0
+        return value &&
+          /^\d{1,3}(\.\d{1,2})?$/.test(value) &&
+          parseFloat(value) >= 10 &&
+          parseFloat(value) <= 200
           ? ''
-          : 'Enter a valid weight (1-200).';
+          : 'Enter a valid weight (10.0–200.0 kg).';
 
       default:
         return '';
@@ -535,6 +539,7 @@ const PatientFormWizard: React.FC = () => {
 
   useEffect(() => {
     const fetchPatientDetails = async () => {
+      const patientID = sessionStorage.getItem('patientID');
       try {
         const userID = sessionStorage.getItem('userID');
         const response = await axios.get(
@@ -546,7 +551,7 @@ const PatientFormWizard: React.FC = () => {
 
         const matchedGender = genderOptions.find(
           (gender) =>
-            gender.name.toLowerCase() === data.patientGender?.toLowerCase(),
+            gender.code.toUpperCase() === data.patientGender?.toUpperCase(),
         );
 
         // ✅ Store patientID into sessionStorage
@@ -575,6 +580,39 @@ const PatientFormWizard: React.FC = () => {
     }
   }, [genderOptions]);
 
+  useEffect(() => {
+    const fetchMedicalInfo = async () => {
+      const patientID = sessionStorage.getItem('patientID');
+      console.log(patientID);
+      try {
+        const response = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetMedicalInformation?PatientID=${patientID}`,
+        );
+        const data = await response.json();
+
+        if (data.success && data.data) {
+          const info = data.data;
+
+          const bloodGroupName =
+            bloodGroups.find((group) => group.appLOVID === info.bloodGroupID)
+              ?.name || '';
+
+          setSections([
+            {
+              height: info.height?.toString() || '',
+              weight: info.weight?.toString() || '',
+              bloodGroup: bloodGroupName,
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching medical info:', error);
+      }
+    };
+
+    fetchMedicalInfo();
+  }, [patientID, bloodGroups]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -587,27 +625,26 @@ const PatientFormWizard: React.FC = () => {
 
       const updatedFormData = {
         ...formData,
-        patientID: formData.patientID || sessionStorage.getItem('patientID'),
+        patientID: formData.patientID || patientID,
         patientDateOfBirth: new Date(formData.patientDateOfBirth).toISOString(),
         userID, // Include userID for reference
-        // Attach patientID if available
-        createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646', // Add createdBy field
+        createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646',
         isActive: true,
+        patientGender: formData.patientGender || '',
+        updatedBy: userID,
       };
 
       console.log('📝 Submitting form with:', updatedFormData);
 
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveBasicDetails',
+      const response = await axios.put(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`,
         updatedFormData,
       );
 
       console.log('✅ SaveBasicDetails Response:', response.data);
 
       if (response.data?.success && response.data?.data) {
-        const patientId = response.data.data;
-        setPatientID(patientId);
-        sessionStorage.setItem('patientID', patientId);
+        const returnedPatientId = response.data.data;
 
         return {
           isValid: true,
@@ -637,6 +674,7 @@ const PatientFormWizard: React.FC = () => {
 
     if (!address.type) errors.type = 'Address type is required';
     if (!address.address1) errors.address1 = 'Address line 1 is required';
+    if (!address.address2) errors.address2 = 'Address line 2 is required';
     if (!address.city) errors.city = 'City is required';
     if (!address.district) errors.district = 'District is required';
     if (!address.state) errors.state = 'State is required';
@@ -656,11 +694,11 @@ const PatientFormWizard: React.FC = () => {
     validateAddress(addresses[index], index);
   };
 
-  // Submit all addresses
   const handleAddressSubmit = async () => {
     const allErrors: { [index: number]: { [field: string]: string } } = {};
 
     const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
 
     if (!patientID) {
       alert('Patient ID is missing. Please save patient details first.');
@@ -670,89 +708,158 @@ const PatientFormWizard: React.FC = () => {
       };
     }
 
-    const addressData = addresses.map((address, index) => {
+    let hasError = false;
+
+    // Regex patterns
+    // Regex patterns
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
+    const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
+    const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/; // <-- Updated line
+
+    for (let index = 0; index < addresses.length; index++) {
+      const address = addresses[index];
       const errors: { [key: string]: string } = {};
-      if (!address.addressType)
-        errors.addressType = 'Address Type is required.';
-      if (!address.address1) errors.address1 = 'Address Line 1 is required.';
-      if (!address.city) errors.city = 'City is required.';
-      if (!address.zipCode) errors.zipCode = 'ZIP Code is required.';
-      if (!address.type) errors.type = 'Type is required.';
+
+      const validateField = (field: string, fieldName: string) => {
+        if (!field || !noOnlySpaces.test(field)) {
+          errors[fieldName] = 'This field is required.';
+        } else if (!noEmojis.test(field)) {
+          errors[fieldName] = 'No emojis allowed.';
+        } else if (!notRepeatedChar.test(field)) {
+          errors[fieldName] =
+            'No repetitive characters (e.g., "aaaaaa", "111111").';
+        } else if (!onlyAlphaNumericAndSpaces.test(field)) {
+          errors[fieldName] =
+            'Only alphanumeric characters and spaces allowed.';
+        }
+      };
+
+      validateField(address.addressType, 'addressType');
+      validateField(address.address1, 'address1');
+      validateField(address.address2, 'address2');
+      validateField(address.city, 'city');
+      validateField(address.district, 'district');
+      validateField(address.state, 'state');
+
+      // ZIP code validation
+      if (!address.zipCode || !/^\d{5,6}$/.test(address.zipCode)) {
+        errors.zipCode = 'ZIP Code must be 5 or 6 digits.';
+      } else if (/^0+$/.test(address.zipCode)) {
+        errors.zipCode = 'ZIP Code cannot be all zeros.';
+      }
 
       if (Object.keys(errors).length > 0) {
         allErrors[index] = errors;
+        hasError = true;
+        continue;
       }
 
-      return {
-        ...address,
-        id: patientID,
+      const addressPayload = {
         createdBy: userID,
+        updatedBy: userID,
+        isActive: true,
+        id: patientID,
+        type: 'Patient',
+        addressType: address.addressType || '',
+        address1: address.address1 || '',
+        address2: address.address2 || '',
+        city: address.city || '',
+        district: address.district || '',
+        state: address.state || '',
+        zipCode: address.zipCode || '',
       };
-    });
+
+      try {
+        await axios.post(
+          'https://predart003-001-site1.anytempurl.com/api/Address',
+          addressPayload,
+        );
+      } catch (error) {
+        console.error(`Failed to save address at index ${index}:`, error);
+        allErrors[index] = { general: 'Failed to save this address.' };
+        hasError = true;
+      }
+    }
 
     setFormErrors(allErrors);
 
-    if (Object.keys(allErrors).length > 0) {
+    if (hasError) {
       return {
         isValid: false,
         errors: allErrors,
       };
     }
 
-    try {
-      await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveAddress',
-        addressData,
-      );
-      alert('Addresses saved successfully!');
-      return {
-        isValid: true,
-        errors: {},
-      };
-    } catch (error) {
-      console.error('Error saving addresses:', error);
-      return {
-        isValid: false,
-        errors: { general: 'Failed to save addresses.' },
-      };
-    }
+    alert('All addresses saved successfully!');
+    return {
+      isValid: true,
+      errors: {},
+    };
   };
 
-  const handleMedicalSubmit = () => {
+  const handleMedicalSubmit = async () => {
     const updatedErrors: { [index: number]: { [field: string]: string } } = {};
-
+    const patientID = sessionStorage.getItem('patientID');
+  
+    // Regex to disallow emojis, special characters, and whitespace
+    const onlyDigits = /^\d+(\.\d+)?$/; // allows numbers and optional decimal
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
+  
     sections.forEach((section, index) => {
       const fieldErrors: { [field: string]: string } = {};
-
-      // Height Validation (must be between 50 - 250)
-      const heightValue = parseFloat(section.height);
-      if (!section.height) {
+  
+      // Height validation
+      if (!section.height || !noOnlySpaces.test(section.height)) {
         fieldErrors.height = 'Height is required.';
-      } else if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
-        fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
+      } else if (!onlyDigits.test(section.height)) {
+        fieldErrors.height = 'Height must contain digits only.';
+      } else if (!noEmojis.test(section.height)) {
+        fieldErrors.height = 'Emojis are not allowed.';
+      } else {
+        const heightValue = parseFloat(section.height);
+        if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
+          fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
+        }
       }
-
-      // Weight Validation (must be between 10 - 200)
-      const weightValue = parseFloat(section.weight);
-      if (!section.weight) {
+  
+      // Weight validation
+      if (!section.weight || !noOnlySpaces.test(section.weight)) {
         fieldErrors.weight = 'Weight is required.';
-      } else if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
-        fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
+      } else if (!onlyDigits.test(section.weight)) {
+        fieldErrors.weight = 'Weight must contain digits only.';
+      } else if (!noEmojis.test(section.weight)) {
+        fieldErrors.weight = 'Emojis are not allowed.';
+      } else {
+        const weightValue = parseFloat(section.weight);
+        if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
+          fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
+        }
       }
-
-      // Blood Group Validation
+  
+      // Blood Group validation
       if (!section.bloodGroup) {
         fieldErrors.bloodGroup = 'Blood Group is required.';
       }
-
+  
       if (Object.keys(fieldErrors).length > 0) {
         updatedErrors[index] = fieldErrors;
       }
     });
-
+  
     setFormErrors(updatedErrors);
-
-    if (Object.keys(updatedErrors).length === 0) {
+  
+    // Stop if any errors
+    if (Object.keys(updatedErrors).length > 0) {
+      return {
+        isValid: false,
+        errors: updatedErrors,
+      };
+    }
+  
+    // If valid, save data
+    try {
       const medicalInfo = {
         patientsID: patientID,
         height: parseFloat(sections[0].height),
@@ -762,22 +869,90 @@ const PatientFormWizard: React.FC = () => {
         )?.appLOVID,
         createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
       };
+  
+      await axios.post(
+        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveMedicalInformation',
+        medicalInfo,
+      );
+  
+      alert('Medical Information saved successfully!');
+      return {
+        isValid: true,
+        errors: {},
+      };
+    } catch (error: any) {
+      alert(
+        error?.response?.data?.message
+          ? `Failed: ${error.response.data.message}`
+          : 'Failed to save Medical Information.',
+      );
+      return {
+        isValid: false,
+        errors: { general: 'Error saving Medical Information' },
+      };
+    }
+  };
+  
 
-      axios
-        .post(
-          'https://predart003-001-site1.anytempurl.com/api/Patient/SaveMedicalInformation',
-          medicalInfo,
-        )
-        .then(() => alert('Medical Information saved successfully!'))
-        .catch((error) => {
-          alert(
-            error.response?.data?.message
-              ? `Failed: ${error.response.data.message}`
-              : 'Failed to save Medical Information.',
-          );
-        });
-    } else {
-      alert('Please fix the errors before submitting.');
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+    const patientID = sessionStorage.getItem('patientID');
+
+    const updatedBoxes = boxes.map((box) => {
+      const updatedErrors = {};
+      Object.keys(box).forEach((field) => {
+        if (field !== 'errors') {
+          updatedErrors[field] = validateField(field, box[field]);
+        }
+      });
+      return { ...box, errors: updatedErrors };
+    });
+
+    setBoxes(updatedBoxes);
+
+    const hasErrors = updatedBoxes.some((box) =>
+      Object.values(box.errors).some((err) => err),
+    );
+    if (hasErrors) {
+      alert('Please fix the validation errors before submitting.');
+      return;
+    }
+
+    const payload = {
+      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+      patientsID: patientID,
+      isActive: true,
+      name: boxes[0].name,
+      height: parseFloat(boxes[0].height) || 0,
+      weight: parseFloat(boxes[0].weight) || 0,
+      dateOfBirth: boxes[0].patientDateOfBirth || new Date().toISOString(),
+      bloodGroupID: boxes[0].bloodGroup, // already the ID now
+      email: boxes[0].email || '',
+      phoneNumber: boxes[0].phoneNumber || '',
+    };
+
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(payload),
+        },
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert('Family information saved successfully!');
+      } else {
+        alert('Failed to save family information.');
+      }
+    } catch (error) {
+      console.error('Error saving family information:', error);
+      alert('An error occurred while saving.');
     }
   };
 
@@ -786,61 +961,85 @@ const PatientFormWizard: React.FC = () => {
     updatedSections[index][field] = value;
     setSections(updatedSections);
 
-    // Clear error message when input is valid
-    const fieldError = formErrors[index] || {};
+    const updatedErrors = { ...formErrors };
+    const fieldError = { ...updatedErrors[index] } || {};
+
     if (
       field === 'height' &&
       /^\d+$/.test(value) &&
       +value >= 50 &&
       +value <= 250
-    )
+    ) {
       delete fieldError.height;
+    }
+
     if (
       field === 'weight' &&
       /^\d+$/.test(value) &&
       +value >= 10 &&
       +value <= 200
-    )
+    ) {
       delete fieldError.weight;
-    if (field === 'bloodGroup' && value) delete fieldError.bloodGroup;
+    }
 
-    setFormErrors({ ...formErrors, [index]: fieldError });
+    if (field === 'bloodGroup' && value.trim() !== '') {
+      delete fieldError.bloodGroup;
+    }
+
+    updatedErrors[index] = fieldError;
+    setFormErrors(updatedErrors);
   };
 
   // Submit the preferences to the API
 
-  const handlePreferencesSubmit = (event) => {
+  const handlePreferencesSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // Validate: Check if at least one checkbox is selected
+    const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
+
     const isAnySelected = Object.values(preferences).some((value) => value);
+
     if (!isAnySelected) {
       setError('Please select at least one preference.');
-      return;
+      return {
+        isValid: false,
+        errors: { preferences: 'Please select at least one preference.' },
+      };
     } else {
-      setError(''); // Clear error if valid
+      setError('');
     }
 
     const preferencesData = {
-      patientsID: patientID, // Example Patient ID
-      ...preferences, // Spread preferences dynamically
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627', // Example creator ID
+      patientsID: patientID,
+      updatedBy: userID,
+      isActive: true,
+      ...preferences,
+      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
     };
 
-    // API call to save preferences
-    axios
-      .post(
+    try {
+      const response = await axios.post(
         'https://predart003-001-site1.anytempurl.com/api/Patient/SavePreferences',
         preferencesData,
-      )
-      .then((response) => {
-        console.log('Preferences saved successfully:', response.data);
-        alert('Preferences saved successfully!');
-      })
-      .catch((error) => {
-        console.error('Error saving preferences:', error);
-        alert('Failed to save preferences.');
-      });
+      );
+
+      console.log('Preferences saved successfully:', response.data);
+      alert('Preferences saved successfully!');
+
+      return {
+        isValid: true,
+        errors: {},
+      };
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      alert('Failed to save preferences.');
+
+      return {
+        isValid: false,
+        errors: { general: 'Failed to save preferences.' },
+      };
+    }
   };
 
   const [currentStep, setCurrentStep] = useState(1); // Track the active step
@@ -852,7 +1051,6 @@ const PatientFormWizard: React.FC = () => {
   const handleStepSubmit = async (
     e: React.FormEvent,
     handleNext: () => void,
-    skipValidation = false,
   ) => {
     e.preventDefault();
 
@@ -870,76 +1068,69 @@ const PatientFormWizard: React.FC = () => {
       };
 
     try {
-      if (!skipValidation) {
-        if (currentStep === 1) {
-          const submitResult = await handleSubmit(e);
-          validationResult = {
-            isValid: submitResult.isValid,
-            errors: { ...submitResult.errors },
-          };
-        } else if (currentStep === 2) {
-          const addressResult = await handleAddressSubmit();
-          validationResult = {
-            isValid: addressResult.isValid,
-            errors: { ...addressResult.errors },
-          };
-        } else if (currentStep === 3) {
-          const medicalResult = await handleMedicalSubmit(e);
-          validationResult = {
-            isValid: medicalResult.isValid,
-            errors: { ...medicalResult.errors },
-          };
-        } else if (currentStep === 4) {
-          const preferencesResult = await handlePreferencesSubmit(e);
-          validationResult = {
-            isValid: preferencesResult.isValid,
-            errors: { ...preferencesResult.errors },
-          };
-        } else if (currentStep === 5) {
-          const formResult = await handleFormSubmit(e);
-          validationResult = {
-            isValid: formResult.isValid,
-            errors: { ...formResult.errors },
-          };
-        }
-      } else {
-        validationResult.isValid = true;
+      if (currentStep === 1) {
+        const submitResult = await handleSubmit(e);
+        validationResult = {
+          isValid: submitResult.isValid,
+          errors: submitResult.errors,
+        };
+      } else if (currentStep === 2) {
+        const addressResult = await handleAddressSubmit();
+        validationResult = {
+          isValid: addressResult.isValid,
+          errors: addressResult.errors,
+        };
+      } else if (currentStep === 3) {
+        const medicalResult = await handleMedicalSubmit(e);
+        validationResult = {
+          isValid: medicalResult.isValid,
+          errors: medicalResult.errors,
+        };
+      } else if (currentStep === 4) {
+        const preferencesResult = await handlePreferencesSubmit(e);
+        validationResult = {
+          isValid: preferencesResult.isValid,
+          errors: preferencesResult.errors,
+        };
+      } else if (currentStep === 5) {
+        const formResult = await handleFormSubmit(e);
+        validationResult = {
+          isValid: formResult.isValid,
+          errors: formResult.errors,
+        };
       }
 
       if (validationResult.isValid) {
-        handleNext();
+        console.log('✅ Validation passed');
+        handleNext(); // Go to next UI step
         setCompletedSteps((prev) => [...prev, currentStep]);
         setCurrentStep((prev) => prev + 1);
       } else {
         console.warn('⚠️ Missing or invalid fields:', validationResult.errors);
         setFormErrors(validationResult.errors);
+
+        // Optional: Scroll to first error field
+        const firstErrorField = Object.keys(validationResult.errors)[0];
+        const el = document.querySelector(`[name="${firstErrorField}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
     } catch (error) {
-      console.error('🚨 Error saving data:', error);
+      console.error('🚨 Error during form submission:', error);
     }
   };
 
   // ✅ Next button template
+
   const nextButtonTemplate = (handleNext: () => void) => (
-    <form onSubmit={(e) => handleStepSubmit(e, handleNext)}>
-  <button
-    type="submit"
-    className={`base-button ${isFormValid ? 'valid' : 'invalid'}`}
-    disabled={!isFormValid}
-  >
-    Next
-  </button>
-
-  <button
-    type="button"
-    className="base-button skip-button valid"
-    onClick={(e) => handleStepSubmit(e, handleNext, true)}
-    style={{ marginLeft: '10px' }}
-  >
-    Skip & Next
-  </button>
-</form>
-
+    <div>
+      <button
+        type="button"
+        className="base-button"
+        onClick={(e) => handleStepSubmit(e, handleNext)}
+      >
+        Next
+      </button>
+    </div>
   );
 
   // ✅ Finish button template
@@ -948,6 +1139,7 @@ const PatientFormWizard: React.FC = () => {
       Finish
     </button>
   );
+
   const [steps, setSteps] = useState<{ label: string }[]>([]);
   useEffect(() => {
     const formSections = ['Basic Details', 'Education', 'Experience', 'Awards'];
@@ -957,6 +1149,44 @@ const PatientFormWizard: React.FC = () => {
     }));
 
     setSteps(generatedSteps);
+  }, []);
+
+  const fetchPatientAddress = async () => {
+    const patientID = sessionStorage.getItem('patientID');
+    if (!patientID) return;
+
+    try {
+      const response = await axios.get(
+        `https://predart003-001-site1.anytempurl.com/api/Address/getaddress?id=${patientID}&Type=Patient`,
+      );
+
+      if (response.data?.success && response.data.data) {
+        const addressData = response.data.data;
+
+        // Wrap the object in an array for your form
+        const formatted = [
+          {
+            addressID: addressData.addressID || '',
+            addressType: addressData.addressType || '',
+            address1: addressData.address1 || '',
+            address2: addressData.address2 || '',
+            city: addressData.city || '',
+            district: addressData.district || '',
+            state: addressData.state || '',
+            zipCode: addressData.zipCode || '',
+            type: addressData.type || '',
+          },
+        ];
+
+        setAddresses(formatted);
+      }
+    } catch (error) {
+      console.error('Failed to fetch address:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatientAddress();
   }, []);
 
   <div className="step-navigation">
@@ -1077,10 +1307,17 @@ const PatientFormWizard: React.FC = () => {
                     <div className="relative">
                       <input
                         ref={dateInputRef}
-                        type="date"
+                        type={inputType}
+                        onFocus={() => setInputType('date')}
+                        onBlur={() => {
+                          if (!formData.patientDateOfBirth) {
+                            setInputType('text');
+                          }
+                        }}
+                        max={new Date().toISOString().split('T')[0]} // disables today and future dates
                         className="custom-date-input w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
                         value={formData.patientDateOfBirth}
                         onChange={(e) =>
                           handleFormInputChange(
@@ -1088,15 +1325,19 @@ const PatientFormWizard: React.FC = () => {
                             e.target.value,
                           )
                         }
-                        placeholder="Enter your date of birth"
+                        placeholder="Date of birth"
                       />
-                     <img
-  src={CalendarIcon}
-  alt="calendar"
-  onClick={() => dateInputRef.current?.showPicker()}
-  className="w-6 h-6 absolute right-1 top-1/2 transform -translate-y-1/2 cursor-pointer"
-  style={{ filter: 'invert(50%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(90%) contrast(90%)' }}
-/>
+
+                      <img
+                        src={CalendarIcon}
+                        alt="calendar"
+                        onClick={() => dateInputRef.current?.showPicker()}
+                        className="w-6 h-6 absolute right-1 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                        style={{
+                          filter:
+                            'invert(50%) sepia(0%) saturate(0%) hue-rotate(180deg) brightness(90%) contrast(90%)',
+                        }}
+                      />
 
                       {formErrors.patientDateOfBirth && (
                         <p className="text-red-500 text-sm mt-1">
@@ -1125,6 +1366,7 @@ const PatientFormWizard: React.FC = () => {
                           </option>
                         ))}
                       </select>
+
                       {formErrors.patientGender && (
                         <p className="text-red-500 text-sm">
                           {formErrors.patientGender}
@@ -1160,20 +1402,16 @@ const PatientFormWizard: React.FC = () => {
                   <div
                     key={index}
                     onClick={() => handleSelectAddress(index)}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
                     {/* Address Type */}
-
                     <div className="flex justify-between items-center mb-4">
                       <select
-                        className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.type}
-                        onChange={(e) =>
-                          updateAddress(index, 'type', e.target.value)
+                        className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        value={address.addressType} // Fix here: ensure it's using address.addressType
+                        onChange={
+                          (e) =>
+                            updateAddress(index, 'addressType', e.target.value) // Update addressType
                         }
                       >
                         <option value="">Select Address Type</option>
@@ -1183,9 +1421,9 @@ const PatientFormWizard: React.FC = () => {
                           </option>
                         ))}
                       </select>
-                      {formErrors[index]?.type && (
+                      {formErrors[index]?.addressType && (
                         <p className="text-red-500 text-sm">
-                          {formErrors[index].type}
+                          {formErrors[index].addressType}
                         </p>
                       )}
                     </div>
@@ -1195,9 +1433,7 @@ const PatientFormWizard: React.FC = () => {
                       <div>
                         <input
                           type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.address1}
                           onChange={(e) =>
                             updateAddress(index, 'address1', e.target.value)
@@ -1213,15 +1449,18 @@ const PatientFormWizard: React.FC = () => {
                       <div>
                         <input
                           type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.address2}
                           onChange={(e) =>
                             updateAddress(index, 'address2', e.target.value)
                           }
                           placeholder="Enter address line 2"
                         />
+                        {formErrors[index]?.address2 && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].address2}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -1230,9 +1469,7 @@ const PatientFormWizard: React.FC = () => {
                       <div>
                         <input
                           type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.city}
                           onChange={(e) =>
                             updateAddress(index, 'city', e.target.value)
@@ -1251,9 +1488,7 @@ const PatientFormWizard: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Enter District"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.district}
                           onChange={(e) =>
                             updateAddress(index, 'district', e.target.value)
@@ -1271,9 +1506,7 @@ const PatientFormWizard: React.FC = () => {
                         <input
                           type="text"
                           placeholder="Enter State"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.state}
                           onChange={(e) =>
                             updateAddress(index, 'state', e.target.value)
@@ -1289,9 +1522,7 @@ const PatientFormWizard: React.FC = () => {
                       <div>
                         <input
                           type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={address.zipCode}
                           onChange={(e) =>
                             updateAddress(index, 'zipCode', e.target.value)
@@ -1311,8 +1542,7 @@ const PatientFormWizard: React.FC = () => {
                 {/* Add New Address */}
                 <div className="flex items-center justify-end gap-1">
                   <div
-                    className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer 
-        bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+                    className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
                     onClick={addAddress}
                   >
                     +
@@ -1439,24 +1669,23 @@ const PatientFormWizard: React.FC = () => {
 
                 <div style={gridStyle}>
                   {checkboxes.map((label, index) => {
-                    // Convert label to lowercased and remove spaces for matching the state property
                     const checkboxName = label
                       .toLowerCase()
                       .replace(/\s+/g, '');
-
                     return (
                       <label key={index} style={itemStyle}>
                         <input
                           type="checkbox"
-                          name={checkboxName} // Use sanitized name
-                          checked={preferences[checkboxName] || false} // Dynamically bind state (default to false if undefined)
-                          onChange={handleCheckboxChange} // Toggle checkbox state
+                          name={checkboxName}
+                          checked={preferences[checkboxName] || false}
+                          onChange={handleCheckboxChange}
                         />
                         {label}
                       </label>
                     );
                   })}
                 </div>
+
                 {error && (
                   <p style={{ color: 'red', marginTop: '8px' }}>{error}</p>
                 )}
@@ -1474,7 +1703,7 @@ const PatientFormWizard: React.FC = () => {
             >
               <form className="space-y-6" onSubmit={handleFormSubmit}>
                 <h2 className="text-lg font-bold text-black-700 text-left">
-                  Family Medical Information
+                  Family Members Information
                 </h2>
 
                 <div>
@@ -1494,7 +1723,7 @@ const PatientFormWizard: React.FC = () => {
                             onChange={(e) =>
                               handleInputChange(index, 'name', e.target.value)
                             }
-                            placeholder="Enter your name"
+                            placeholder="Enter the name"
                           />
 
                           {box.errors.name && (
@@ -1513,7 +1742,7 @@ const PatientFormWizard: React.FC = () => {
                             onChange={(e) =>
                               handleInputChange(index, 'email', e.target.value)
                             }
-                            placeholder="Enter your email"
+                            placeholder="Enter the email"
                           />
                           {box.errors.email && (
                             <p className="text-red-500 text-sm mt-1">
@@ -1535,7 +1764,7 @@ const PatientFormWizard: React.FC = () => {
                                 e.target.value,
                               )
                             }
-                            placeholder="Enter your number"
+                            placeholder="Enter the number"
                           />
                           {box.errors.phoneNumber && (
                             <p className="text-red-500 text-sm mt-1">
@@ -1551,10 +1780,22 @@ const PatientFormWizard: React.FC = () => {
 
                         <div className="col-span-2">
                           <input
-                            type="date"
+                            type={box.showDateInput ? 'date' : 'text'}
+                            onFocus={(e) =>
+                              handleInputChange(index, 'showDateInput', true)
+                            }
+                            onBlur={(e) => {
+                              if (!box.patientDateOfBirth) {
+                                handleInputChange(
+                                  index,
+                                  'showDateInput',
+                                  false,
+                                );
+                              }
+                            }}
                             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.patientDateOfBirth}
                             onChange={(e) =>
                               handleInputChange(
@@ -1563,7 +1804,8 @@ const PatientFormWizard: React.FC = () => {
                                 e.target.value,
                               )
                             }
-                            placeholder="DOB"
+                            placeholder="Date of birth"
+                            max={new Date().toISOString().split('T')[0]} // Disallows future dates and today
                           />
 
                           {box.errors.patientDateOfBirth && (
@@ -1584,11 +1826,14 @@ const PatientFormWizard: React.FC = () => {
                                 e.target.value,
                               )
                             }
-                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
                           >
                             <option value="">Select Blood Group</option>
                             {bloodGroups.map((group) => (
-                              <option key={group.appLOVID} value={group.name}>
+                              <option
+                                key={group.appLOVID}
+                                value={group.appLOVID}
+                              >
                                 {group.name}
                               </option>
                             ))}
@@ -1596,18 +1841,54 @@ const PatientFormWizard: React.FC = () => {
                         </div>
 
                         {/* Height */}
-                        <div className="col-span-1">
+                        <div className="col-span-1 relative">
                           <input
                             type="number"
-                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            className="w-full hide-number-arrows rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.height ?? ''}
                             onChange={(e) => {
                               const val = e.target.value.slice(0, 3); // Limit to 3 digits
                               handleInputChange(index, 'height', val);
                             }}
-                            placeholder="Height cm"
+                            placeholder="Height"
                           />
-
+                          {/* Up/Down controls */}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col justify-center items-center space-y-1">
+                            <button
+                              type="button"
+                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
+                              onClick={() => {
+                                const newVal = Math.min(
+                                  Number(box.weight || 0) + 1,
+                                  999,
+                                ); // max 3 digits
+                                handleInputChange(
+                                  index,
+                                  'weight',
+                                  newVal.toString(),
+                                );
+                              }}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
+                              onClick={() => {
+                                const newVal = Math.max(
+                                  Number(box.weight || 0) - 1,
+                                  0,
+                                ); // prevent going below 0
+                                handleInputChange(
+                                  index,
+                                  'weight',
+                                  newVal.toString(),
+                                );
+                              }}
+                            >
+                              ▼
+                            </button>
+                          </div>
                           {box.errors.height && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.height}
@@ -1616,17 +1897,62 @@ const PatientFormWizard: React.FC = () => {
                         </div>
 
                         {/* Weight */}
-                        <div className="col-span-1">
+                        <div className="col-span-1 relative">
                           <input
-                            type="number"
-                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            type="text" // change to "text" to fully control decimal input
+                            className="w-full hide-number-arrows rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.weight ?? ''}
                             onChange={(e) => {
-                              const val = e.target.value.slice(0, 3); // Limit to 3 digits
-                              handleInputChange(index, 'weight', val);
+                              const val = e.target.value;
+
+                              // Allow numbers like 10, 10.5, 123.45 and prevent characters
+                              const decimalRegex = /^\d{0,3}(\.\d{0,2})?$/;
+
+                              if (val === '' || decimalRegex.test(val)) {
+                                handleInputChange(index, 'weight', val);
+                              }
                             }}
-                            placeholder="Weight kg"
+                            placeholder="Weight"
                           />
+
+                          {/* Up/Down controls */}
+                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col justify-center items-center space-y-1">
+                            <button
+                              type="button"
+                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
+                              onClick={() => {
+                                const newVal = Math.min(
+                                  Number(box.weight || 0) + 1,
+                                  999,
+                                ); // max 3 digits
+                                handleInputChange(
+                                  index,
+                                  'weight',
+                                  newVal.toString(),
+                                );
+                              }}
+                            >
+                              ▲
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
+                              onClick={() => {
+                                const newVal = Math.max(
+                                  Number(box.weight || 0) - 1,
+                                  0,
+                                ); // prevent going below 0
+                                handleInputChange(
+                                  index,
+                                  'weight',
+                                  newVal.toString(),
+                                );
+                              }}
+                            >
+                              ▼
+                            </button>
+                          </div>
+
                           {box.errors.weight && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.weight}
@@ -1874,8 +2200,6 @@ const PatientFormWizard: React.FC = () => {
 
 
       `}</style>
-
-      
         </>
       </div>
     </div>

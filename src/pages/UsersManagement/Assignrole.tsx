@@ -169,70 +169,63 @@ const Assignrole: React.FC = () => {
     };
 
     
-   const handleSaveRoles = async () => {
-  // Ensure at least one role is selected
-  if (selectedRoles.length === 0) {
-    alert("Please select at least one role.");
-    return;
-  }
-
-  // const userID = selectedUser?.userID; 
-  // if (!userID) {
-  //   alert("User not selected.");
-  //   return;
-  // }
-
-  // Retrieve userID from sessionStorage
-  const userID = sessionStorage.getItem("userID");
-  if (!userID) {
-    console.error("User ID not found in session storage.");
-    alert("User not logged in. Please log in again.");
-    return;
-  }
-
-  // Map selectedRoles to match the API's payload structure
-  const roleAssignments = selectedRoles.map((roleID) => ({
-    userID, // User ID of the selected user
-    roleID, // Role ID from selectedRoles
-    createdBy: userID, // Replace with the actual `createdBy` value if dynamic
-  }));
-
-  try {
-    // Send the role assignments to the API
-    const response = await fetch("https://predart003-001-site1.anytempurl.com/api/UserRoles/AssignRoles", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(roleAssignments), // Convert assignments to JSON
-    });
-
-    const result = await response.json();
-
-    // Handle errors if the API response indicates failure
-    if (!response.ok) {
-      console.error("Failed to assign roles:", result.errors || result.message);
-      alert(`Failed to assign roles: ${result.errors || result.message}`);
-      return;
-    }
-
-    // Handle success and update the UI accordingly
-    console.log("Roles assigned successfully:", result);
-    alert("Roles assigned successfully!");
-
-    // Update the row data in the UI for the selected user
-    const updatedRowData = rowData.map((row) =>
-      row.userID === userID ? { ...row, assignRoleStatus: "success" } : row
-    );
-    setRowData([...updatedRowData]);
-    setShowPopup(false); // Close the popup
-  } catch (error) {
-    // Handle any network or unexpected errors
-    console.error("Error during role assignment:", error);
-    alert("Error occurred while assigning roles. Please try again.");
-  }
-};
-
+    const handleSaveRoles = async () => {
+      if (selectedRoles.length === 0) {
+        alert("Please select at least one role.");
+        return;
+      }
+    
+      const userID = selectedUser?.userID;
+      if (!userID) {
+        alert("User not selected.");
+        return;
+      }
+    
+      // Logged-in user ID for audit purposes
+      const createdBy = sessionStorage.getItem("userID");
+      if (!createdBy) {
+        console.error("Logged-in user ID not found in session storage.");
+        alert("User not logged in. Please log in again.");
+        return;
+      }
+    
+      const roleAssignments = selectedRoles.map((roleID) => ({
+        userID,
+        roleID,
+        createdBy,
+      }));
+    
+      try {
+        const response = await fetch("https://predart003-001-site1.anytempurl.com/api/UserRoles/AssignRoles", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(roleAssignments),
+        });
+    
+        const result = await response.json();
+    
+        if (!response.ok) {
+          console.error("Failed to assign roles:", result.errors || result.message);
+          alert(`Failed to assign roles: ${result.errors || result.message}`);
+          return;
+        }
+    
+        console.log("Roles assigned successfully:", result);
+        alert("Roles assigned successfully!");
+    
+        const updatedRowData = rowData.map((row) =>
+          row.userID === userID ? { ...row, assignRoleStatus: "success" } : row
+        );
+        setRowData([...updatedRowData]);
+        setShowPopup(false);
+      } catch (error) {
+        console.error("Error during role assignment:", error);
+        alert("Error occurred while assigning roles. Please try again.");
+      }
+    };
+    
     
     
     
@@ -282,7 +275,7 @@ const Assignrole: React.FC = () => {
         sortable: false,  // Optional: you can disable sorting for the serial number column
         filter: false,    // Optional: you can disable filtering for the serial number column
       },
-    { headerName: 'Tenant Name', field: 'tenantName', sortable: true, filter: true, 
+    { headerName: 'Tenant Name', hide:true ,field: 'tenantName', sortable: true, filter: true, 
       flex: 1, headerClass: 'left-header',
       cellClass: 'text-left',
       cellRenderer: (params) => params.value || "No Tenant Name"  },
@@ -453,8 +446,10 @@ const Assignrole: React.FC = () => {
       {/* Dropdowns for Tenant, Hospitality, and Users */}
       <div className="flex gap-4 mb-4 items-center">
        {/* Tenant Dropdown */}
+{/*        
   <select
   value={selectedTenant || ''}
+ 
   onChange={(e) => setSelectedTenant(e.target.value)}
   className="w-35 rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
   text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -466,10 +461,10 @@ const Assignrole: React.FC = () => {
       {tenant.tenantName}
     </option>
   ))}
-</select>
+</select> */}
 
        
-  <select
+  {/* <select
     id="hospitalType"
     name="hospitalType"
     value={formData.hospitalType}
@@ -485,13 +480,13 @@ const Assignrole: React.FC = () => {
     {hospitalTypes.length > 0 ? (
       hospitalTypes.map((type) => (
         <option key={type.appLOVID} value={type.name}>
-          {type.name} {/* Displaying the name of the hospital */}
+          {type.name} 
         </option>
       ))
     ) : (
       <option value="">No Hospital Types Available</option>
     )}
-  </select>
+  </select> */}
 
   <select
   className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -520,8 +515,21 @@ const Assignrole: React.FC = () => {
     rowData={rowData} // Ensure the updated rowData is passed here
     onGridReady={onGridReady}
     domLayout="autoHeight"
+    gridOptions={{}}
+  
+  pagination={true}
+  paginationPageSize={10} // ✅ Default page size
+  paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+  
+  headerHeight={40}
+  rowHeight={40}
   />
 
+
+ 
+  
+  
+  
 
       </div>
 

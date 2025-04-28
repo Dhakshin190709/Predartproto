@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import patientIcon from '../../images/icon/Patient profile people (3).svg';
+import emailIcon from '../../images/icon/Email.svg';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
+import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
+import axios from 'axios';
 
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 import {
   FaUserAlt,
   FaPhoneAlt,
@@ -13,7 +21,6 @@ import {
   FaMapMarkerAlt,
   FaDirections,
 } from 'react-icons/fa';
-
 
 interface RowData {
   id: number;
@@ -37,6 +44,7 @@ const SearchPatient: React.FC = () => {
   const [formData, setFormData] = useState({
     relationship: '',
     // name: patientName || "",
+    timeSlotID: '',
     phoneNumber: '',
     patientName: '',
     hospital: '',
@@ -57,7 +65,7 @@ const SearchPatient: React.FC = () => {
     date: '',
     time: '',
   });
-  const [slotDuration, setSlotDuration] = useState(10); // Default slot duration, adjust as necessary
+  const [slotDuration, setSlotDuration] = useState(5); // Default slot duration, adjust as necessary
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
@@ -75,8 +83,14 @@ const SearchPatient: React.FC = () => {
   const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
     [],
   );
+const [bookedSlots, setBookedSlots] = useState<
+    { appointmentDate: string; appointmentTime: string }[]
+  >([]);
+  const [patientName, setPatientName] = useState('');
+  const [mobileNo, setMobileNo] = useState('');
+
   const [relationships, setRelationships] = useState([]);
- const [showMore, setShowMore] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
@@ -107,14 +121,14 @@ const SearchPatient: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true); // To manage loading state
 
   const getGenderIcon = (gender: string) => {
-    const lowerGender = gender.toLowerCase();
+    const lowerGender = gender?.toLowerCase();
 
     if (lowerGender === 'male' || lowerGender === 'm') {
-      return <FaMars className="text-blue-500 ml-1" />;
+      return <FaMars className="text-white" />;
     } else if (lowerGender === 'female' || lowerGender === 'f') {
-      return <FaVenus className="text-pink-500 ml-1" />;
+      return <FaVenus className="text-white" />;
     } else {
-      return <FaGenderless className="text-black ml-1" />;
+      return <FaGenderless className="text-white" />;
     }
   };
 
@@ -143,6 +157,43 @@ const SearchPatient: React.FC = () => {
     }
   }, [isModalOpen, selectedPatient]); // Runs every time modal opens with a new patient
 
+  // Define fetchAppointments outside useEffect
+  const fetchAppointments = async () => {
+    const unitID = sessionStorage.getItem('unitID');
+    const doctorID = sessionStorage.getItem('doctorID');
+    const roleName = sessionStorage.getItem('roleName')?.toLowerCase();
+
+    console.log('Role Name:', roleName);
+
+    if (roleName === 'doctor' && unitID && doctorID) {
+      try {
+        const response = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}&DoctorID=${doctorID}`,
+        );
+        const data = await response.json();
+        console.log('Complete Response:', data);
+
+        // Directly use the data as an array since the response is an array
+        if (Array.isArray(data) && data.length > 0) {
+          setPatientData(data); // Set the data as patient data
+        } else {
+          console.error('Appointments array is empty or malformed:', data);
+          setPatientData([]); // Fallback to an empty array if no data or malformed
+        }
+      } catch (error) {
+        console.error('Error fetching doctor appointments:', error);
+        setPatientData([]); // Fallback on error
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  // Call fetchAppointments on mount to fetch initial appointments
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
@@ -151,77 +202,58 @@ const SearchPatient: React.FC = () => {
         );
         const result = await response.json();
 
-        console.log('API Response:', result); // Verify the entire response
+        // Filter only active hospitals
+        const activeHospitals = Array.isArray(result)
+          ? result.filter((hospital) => hospital.isActive)
+          : [];
 
-        // Since the response is already an array:
-        if (Array.isArray(result)) {
-          setHospitals(result); // Set the hospitals directly
-        } else if (Array.isArray(result?.data)) {
-          setHospitals(result.data); // Fallback if data is nested
-        } else {
-          console.error('Invalid hospital data format:', result);
-          setHospitals([]);
-        }
+        setHospitals(activeHospitals);
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
     };
 
+    fetchHospitals();
+  }, []);
+  useEffect(() => {
     const fetchDoctors = async () => {
+      if (!selectedHospitalID) {
+        setFilteredDoctors([]);
+        return;
+      }
+
       try {
         const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor',
+          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`,
         );
         const result = await response.json();
+
         if (result.success && Array.isArray(result.data)) {
           setDoctors(result.data);
+          setFilteredDoctors(result.data); // Directly use the filtered list
         } else {
-          console.error('Invalid doctor data format:', result.data);
+          console.error('Invalid doctor data format:', result);
+          setDoctors([]);
+          setFilteredDoctors([]);
         }
       } catch (error) {
         console.error('Error fetching doctors:', error);
       }
     };
 
-    fetchHospitals();
     fetchDoctors();
-  }, []);
+  }, [selectedHospitalID]);
 
-  useEffect(() => {
-    if (selectedHospitalID) {
-      const filtered = doctors.filter(
-        (doctor) => doctor.hospitalID === selectedHospitalID,
-      );
-      setFilteredDoctors(filtered);
-    } else {
-      setFilteredDoctors([]);
-    }
-  }, [selectedHospitalID, doctors]);
-
-  useEffect(() => {
-    const fetchPatientData = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Patient',
-        );
-        const data = await response.json();
-        if (data?.success && Array.isArray(data.data)) {
-          setPatientData(data.data); // Set the patient data
-        } else {
-          console.error('Unexpected response structure:', data);
-        }
-      } catch (error) {
-        console.error('Error fetching patient data:', error);
-      } finally {
-        setLoading(false); // Set loading to false after the fetch is done
-      }
-    };
-
-    if (patientData.length === 0) {
-      // Fetch only if the data is not already fetched
-      fetchPatientData();
-    }
-  }, [patientData.length]); // Only refetch if patientData is empty
+  // useEffect(() => {
+  //   if (selectedHospitalID) {
+  //     const filtered = doctors.filter(
+  //       (doctor) => doctor.hospitalID === selectedHospitalID,
+  //     );
+  //     setFilteredDoctors(filtered);
+  //   } else {
+  //     setFilteredDoctors([]);
+  //   }
+  // }, [selectedHospitalID, doctors]);
 
   if (loading) {
     return <div>Loading...</div>; // Show loading state while fetching
@@ -254,32 +286,57 @@ const SearchPatient: React.FC = () => {
       return 'Relationship is required.';
     }
 
-    if (!value) {
-      if (['name', 'hospital', 'doctor', 'reason'].includes(name)) {
-        return `${name.charAt(0).toUpperCase() + name.slice(1)} is required.`;
+    if (name === 'name' && !value) error = 'Name is required.';
+    if (name === 'hospital' && !value) error = 'Hospital is required.';
+    if (name === 'doctor' && !value) error = 'Doctor is required.';
+    if (name === 'reason' && !value) error = 'Reason is required.';
+
+    if (name === 'phoneNumber') {
+      if (!value) {
+        error = 'Phone number is required.';
+      } else if (typeof value === 'string' && !/^\d{10}$/.test(value)) {
+        error = 'Phone number must be exactly 10 digits.';
       }
     }
 
-    // Phone Number Validation
-    if (name === 'phoneNumber' && typeof value === 'string') {
-      if (!/^\d{10}$/.test(value)) {
-        return 'Phone number must be exactly 10 digits.';
-      }
-    }
-
-    // Date Validation
+    // Date validation
+    // Date validation
     if (name === 'date') {
-      if (!(value instanceof Date) || isNaN(value.getTime())) {
-        return 'Invalid date.';
+      const dateValue = formData.date;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
+
+      if (!dateValue) {
+        error = 'Date is required.';
+      } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
+        error = 'Invalid date.';
+      } else if (dateValue < today) {
+        error = 'Past dates are not allowed.';
+      } else {
+        error = ''; // Clear error when valid
       }
     }
 
-    // Time Validation
-    // if (name === 'time') {
-    //   if (!(value instanceof Date) || isNaN(value.getTime())) {
-    //     return 'Invalid time.';
-    //   }
-    // }
+    // Time validation
+    if (name === 'time') {
+      console.log('Validating Time:', value, typeof value);
+
+      if (!value || !(value instanceof Date)) {
+        error = 'Time is required.';
+      } else if (isNaN(value.getTime())) {
+        error = 'Invalid time.';
+      } else if (formData.date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const selectedDate = new Date(formData.date);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate.getTime() === today.getTime() && value < new Date()) {
+          error = 'Past time is not allowed for today.';
+        }
+      }
+    }
 
     return error;
   };
@@ -307,76 +364,120 @@ const SearchPatient: React.FC = () => {
         row.toDate.toLowerCase().includes(quickSearchText.toLowerCase()),
     );
   };
+  const convertTo24HourFormat = (time: Date | string): string => {
+    if (!time) return '00:00:00';
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userID = sessionStorage.getItem('userID');
+    const date =
+      typeof time === 'string' ? new Date(`1970-01-01T${time}`) : time;
 
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
-      return;
-    }
-
-    const payload = {
-      createdBy: userID,
-      isActive: true,
-      doctorID: formData.doctor,
-      patientID: selectedPatient?.patientID || '',
-      timeSlotID: formData.timeSlotID,
-      appointmentDate: formData.date
-        ? new Date(formData.date).toISOString().split('T')[0]
-        : null,
-      appointmentTime: formData.time ? `${formData.time}:00` : null,
-      statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-      notes: formData.reason || '',
-      toWhom: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-      relationship: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-      phoneNumber: selectedPhoneNumber?.PhoneNumber || '0000000000',
-    };
-
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Appointment',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (response.ok) {
-        setSuccessMessage('Form submitted successfully!');
-        console.log('Form Submitted:', payload);
-
-        // ✅ Reset form after successful submission
-        setFormData({
-          doctor: '',
-          timeSlotID: '',
-          date: '',
-          time: '',
-          reason: '',
-        });
-
-        setSelectedDoctorID('');
-        setSelectedHospitalID('');
-        setSelectedDate(null);
-        setSelectedTime(null);
-        setErrors({}); // Clear validation errors
-
-        // ✅ Close modal after submission
-        setIsModalOpen(false);
-      } else {
-        const errorData = await response.json();
-        console.error('Submission failed:', errorData);
-        setSuccessMessage('Submission failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during submission:', error);
-      setSuccessMessage('An error occurred. Please try again later.');
-    }
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
   };
+
+   const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+  
+      const userID = sessionStorage.getItem('userID');
+  
+      if (!userID) {
+        toast.error('User not logged in. Please log in again.');
+        return;
+      }
+  
+      const newErrors = {
+      
+        hospital: validateField('hospital', selectedHospitalID),
+      
+        doctor: validateField('doctor', formData.doctor),
+        reason: validateField('reason', formData.reason),
+        date: validateField('date', formData.date),
+        time: validateField('time', formData.time),
+      };
+  
+      setErrors(newErrors);
+  
+      if (Object.values(newErrors).every((error) => error === '')) {
+        try {
+          const patientRes = await fetch(
+            `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+          );
+  
+          if (!patientRes.ok) {
+            throw new Error('Failed to fetch patient ID');
+          }
+  
+          const patientData = await patientRes.json();
+          const patientID = patientData?.data?.patientID;
+  
+          if (!patientID) {
+            toast.error('Patient ID not found for the logged-in user.');
+            return;
+          }
+  
+          const appointmentTimeFormatted = formData.time
+            ? convertTo24HourFormat(formData.time)
+            : '00:00:00';
+  
+          const formatDateYYYYMMDD = (dateString: string) => {
+            const date = new Date(dateString);
+            const year = date.getFullYear();
+            const month = `0${date.getMonth() + 1}`.slice(-2);
+            const day = `0${date.getDate()}`.slice(-2);
+            return `${year}-${month}-${day}`;
+          };
+          console.log('Form Data:', formData);
+          const payload = {
+            createdBy: userID,
+            isActive: true,
+            doctorID: formData.doctor,
+            patientID: patientID,
+            timeSlotID: formData.timeSlotID, // Pass this correctly
+            appointmentDate: formData.date
+              ? formatDateYYYYMMDD(formData.date)
+              : null,
+            appointmentTime: appointmentTimeFormatted,
+            statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+            notes: formData.reason?.trim() || 'No additional notes',
+            toWhom: appointmentType,
+            relationShip: selectedRelationship,
+            phoneNumber: formData.phoneNumber || '',
+          };
+  
+          const response = await fetch(
+            'https://predart003-001-site1.anytempurl.com/api/Appointment',
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(payload),
+            },
+          );
+  
+          const responseData = await response.json();
+  
+          if (response.ok) {
+            const message =
+              responseData?.message || 'Appointment booked successfully!';
+            toast.success(message);
+            console.log('Form Submitted:', payload);
+            resetForm();
+          } else {
+            const message =
+              responseData?.message || 'Submission failed. Please try again.';
+            toast.error(message);
+          }
+        } catch (error) {
+          console.error('Error during submission:', error);
+          toast.error('An error occurred. Please try again later.');
+        }
+      } else {
+        toast.warning('Please fix the highlighted errors before submitting.');
+      }
+    };
 
   // Function to filter doctors based on user input
   const filterDoctors = (text: string) => {
@@ -441,287 +542,388 @@ const SearchPatient: React.FC = () => {
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
 
-  const handleDoctorChange = async (
-    e: React.ChangeEvent<HTMLSelectElement>,
+ 
+   const handleDoctorChange = async (
+     e: React.ChangeEvent<HTMLSelectElement>,
+   ) => {
+     const doctorID = e.target.value;
+     setSelectedDoctorID(doctorID);
+     setFormData((prev) => ({ ...prev, doctor: doctorID }));
+ 
+     if (!doctorID) return;
+ 
+     try {
+       // Fetch the time slots for the selected doctor using the correct API
+       const timeSlotResponse = await fetch(
+         `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+       );
+       const timeSlotData = await timeSlotResponse.json();
+ 
+       console.log('Fetched Time Slot Data:', timeSlotData);
+ 
+       const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+       console.log('Processed Time Slot Data:', data);
+ 
+       const matchedTimeSlots = data.filter(
+         (slot) => String(slot.doctorID) === doctorID,
+       );
+ 
+       console.log('Matched Time Slots:', matchedTimeSlots);
+ 
+       if (matchedTimeSlots.length) {
+         const formattedSlots = matchedTimeSlots.map((slot) => ({
+           timeSlotID: slot.timeSlotID,
+           fromTime: slot.fromTime,
+           toTime: slot.toTime,
+           slotDuration: slot.slotDuration,
+           day: slot.dayofWeek,
+         }));
+ 
+         setAvailableTimeSlots(formattedSlots);
+         console.log('Formatted Slots:', formattedSlots);
+ 
+         if (selectedDate) {
+           handleDateChange(selectedDate, formattedSlots); // Pass updated slots
+         }
+       } else {
+         console.warn('No matching time slots found for this doctor.');
+         setAvailableTimeSlots([]);
+         setGeneratedTimeSlots([]);
+       }
+     } catch (error) {
+       console.error('Error fetching time slots:', error);
+     }
+   };
+
+  const handleDateChange = async (
+    date: Date | null,
+    slots?: TimeSlotType[],
   ) => {
-    const doctorID = e.target.value;
-    setSelectedDoctorID(doctorID);
-    setFormData((prev) => ({ ...prev, doctor: doctorID }));
-
-    if (!doctorID) return;
-
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
-      );
-      const responseData = await response.json();
-      const data = Array.isArray(responseData.data) ? responseData.data : [];
-
-      console.log('Fetched Time Slots Data:', data);
-
-      const matchedTimeSlots = data.filter(
-        (slot) => String(slot.doctorID) === doctorID,
-      );
-
-      if (matchedTimeSlots.length) {
-        console.log('Matched Time Slots:', matchedTimeSlots);
-
-        const formattedSlots = matchedTimeSlots.map((slot) => ({
-          timeSlotID: slot.timeSlotID,
-          fromTime: slot.fromTime,
-          toTime: slot.toTime,
-          slotDuration: slot.slotDuration,
-          day: slot.dayofWeek, // Ensure this matches the API field
-        }));
-
-        setAvailableTimeSlots(formattedSlots);
-        console.log('Formatted Slots:', formattedSlots);
-
-        if (selectedDate) {
-          handleDateChange(selectedDate, formattedSlots); // ✅ Pass updated slots
-        }
-      } else {
-        console.warn('No matching time slots found for this doctor.');
-        setAvailableTimeSlots([]);
-        setGeneratedTimeSlots([]);
-      }
-    } catch (error) {
-      console.error('Error fetching time slots:', error);
-    }
-  };
-
-  const handleDateChange = (date: Date | null, slots?: TimeSlotType[]) => {
     if (!date) return;
+
+    const localDate = formatLocalDate(date); // "YYYY-MM-DD"
+    console.log('Selected Date (Full):', date);
+    console.log('Selected Date (Local):', localDate);
 
     setSelectedDate(date);
     setFormData((prev) => ({ ...prev, date }));
 
     const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
     if (!Array.isArray(timeSlots)) {
-      console.error('Invalid timeSlots:', timeSlots); // Ensure no event is passed
+      console.error('Invalid timeSlots:', timeSlots);
       return;
     }
 
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .trim();
+    console.log('Selected Day:', dayOfWeek);
+
     const matchedDaySlots = timeSlots.filter(
-      (slot) =>
-        slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase().trim(),
+      (slot) => slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase(),
     );
 
     if (matchedDaySlots.length) {
-      matchedDaySlots.forEach(
-        ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-          generateTimeSlots(fromTime, toTime, slotDuration, timeSlotID);
-        },
-      );
-      setFormData((prev) => ({
-        ...prev,
-        timeSlotID: matchedDaySlots[0].timeSlotID,
-      }));
+      console.log('Doctor is available on this date based on their schedule.');
+
+      try {
+        const appointmentResponse = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        );
+        const appointmentData = await appointmentResponse.json();
+        console.log('Raw Appointment Data:', appointmentData);
+
+        const appointmentList = Array.isArray(appointmentData)
+          ? appointmentData
+          : [];
+
+        const bookedSlots = appointmentList.map((appointment: any) => ({
+          appointmentDate: appointment?.appointmentDate,
+          appointmentTime: appointment?.appointmentTime,
+        }));
+
+        console.log('Booked Slots:', bookedSlots);
+
+        // ✅ Generate time slots using the fetched bookedSlots
+        let generated: { time: Date; timeSlotID: number }[] = [];
+
+        matchedDaySlots.forEach(
+          ({ fromTime, toTime, slotDuration, timeSlotID }) => {
+            const slots = generateTimeSlots(
+              fromTime,
+              toTime,
+              slotDuration,
+              timeSlotID,
+              bookedSlots,
+              date,
+            );
+            generated = [...generated, ...slots];
+          },
+        );
+
+        setBookedSlots(bookedSlots); // store after use
+        setGeneratedTimeSlots(generated); // set available slots
+
+        setFormData((prev) => ({
+          ...prev,
+          timeSlotID: matchedDaySlots[0].timeSlotID,
+        }));
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      }
     } else {
-      console.warn(`No time slots found for ${dayOfWeek}`);
+      console.warn(`Doctor is NOT available on ${dayOfWeek}.`);
       setGeneratedTimeSlots([]);
     }
   };
+
   const generateTimeSlots = (
     fromTime: string,
     toTime: string,
     slotDuration: number,
-    timeSlotID: string,
+    timeSlotID: number,
+    bookedSlots: { appointmentDate: string; appointmentTime: string }[],
+    selectedDate: Date,
   ) => {
-    console.log('Generating slots for timeSlotID:', timeSlotID);
+    const fromTime24 = convertTo24HourFormat(fromTime);
+    const toTime24 = convertTo24HourFormat(toTime);
 
-    const slots = [];
-    const today = new Date();
-    const [fromHours, fromMinutes] = fromTime.split(':').map(Number);
-    const [toHours, toMinutes] = toTime.split(':').map(Number);
+    const [fromHours, fromMinutes] = fromTime24.split(':').map(Number);
+    const [toHours, toMinutes] = toTime24.split(':').map(Number);
 
-    let current = new Date(today.setHours(fromHours, fromMinutes, 0, 0));
-    const end = new Date(today.setHours(toHours, toMinutes, 0, 0));
+    const currentSlot = new Date(selectedDate);
+    currentSlot.setHours(fromHours, fromMinutes, 0, 0);
 
-    while (current <= end) {
-      slots.push({ time: new Date(current), timeSlotID });
-      current = new Date(current.getTime() + slotDuration * 60000); // Add slot duration
+    const endSlot = new Date(selectedDate);
+    endSlot.setHours(toHours, toMinutes, 0, 0);
+
+    const availableSlots: { time: Date; timeSlotID: number }[] = [];
+
+    while (currentSlot < endSlot) {
+      const slotTime = new Date(currentSlot); // Clone to avoid mutation
+
+      const isBooked = bookedSlots.some((b) => {
+        const combinedBookedTime = new Date(
+          `${b.appointmentDate.split('T')[0]}T${b.appointmentTime}`,
+        );
+        return combinedBookedTime.getTime() === slotTime.getTime();
+      });
+
+      if (!isBooked) {
+        console.log(
+          `✅ Available Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+        availableSlots.push({ time: new Date(slotTime), timeSlotID });
+      } else {
+        console.log(
+          `⛔ Skipping Booked Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+      }
+
+      currentSlot.setMinutes(currentSlot.getMinutes() + slotDuration);
     }
 
-    setGeneratedTimeSlots(slots); // ✅ Save slots with IDs
+    return availableSlots;
   };
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
-    setSelectedTime(time);
-    setSelectedTimeSlotID(timeSlotID);
+    console.log('Time Selected:', time);
+    console.log('Time Slot ID Selected:', timeSlotID);
 
     setFormData((prev) => ({
       ...prev,
-      time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timeSlotID: timeSlotID, // ✅ Correctly pass timeSlotID
+      time,
+      timeSlotID,
     }));
+    setSelectedTime(time);
+    setSelectedTimeSlotID(timeSlotID);
+
+    const timeError = validateField('time', time);
+    setErrors((prev) => ({ ...prev, time: timeError }));
+  };
+
+  const handleSearch = async () => {
+    if (!patientName && !mobileNo) {
+      // If both fields are empty, reset to doctor's patients
+      fetchAppointments();
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        `https://predart003-001-site1.anytempurl.com/api/Patient`,
+        {
+          params: {
+            PatientName: patientName,
+            MobileNo: mobileNo,
+          },
+        },
+      );
+      console.log('Search Results:', response.data);
+
+      if (response.data?.data?.length > 0) {
+        setPatientData(response.data.data);
+      } else {
+        setPatientData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching patient data:', error);
+      setPatientData([]);
+    }
   };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-      <h1 className="text-2xl font-semibold text-gray-800 mb-6">
-        Search Patient
+      <h1 className="text-3xl font-semibold text-black mb-6">
+        Search Patients
       </h1>
 
       {/* Filters Section (Type, Code, Active) */}
-      <div className="flex flex-col gap-4 mb-4">
-        {/* First Row (Filter) */}
-        <div className="flex gap-4">
+      <div className="flex gap-4 flex-col mb-4">
+        <div className="flex gap-4 items-center">
           <input
             type="text"
-            placeholder="Patient Id"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-            text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+            value={patientName}
+            onChange={(e) => setPatientName(e.target.value)}
+            placeholder="Enter Patient Name"
+            className="w-full md:w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
           <input
             type="text"
-            placeholder="Patient Name"
-            className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-            text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+            value={mobileNo}
+            onChange={(e) => setMobileNo(e.target.value)}
+            placeholder="Enter Mobile Number"
+            className="w-full md:w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
-          <input
-            type="text"
-            placeholder="Mobile Number"
-            className="w-[25%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-            text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          <input
-            type="text"
-            onFocus={(e) => (e.target.type = 'date')}
-            onBlur={(e) => (e.target.type = 'text')}
-            placeholder="From Date"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-        text-black outline-none focus:border-primary dark:border-form-strokedark
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          <input
-            type="text"
-            onFocus={(e) => (e.target.type = 'date')}
-            onBlur={(e) => (e.target.type = 'text')}
-            placeholder="To Date"
-            className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-        text-black outline-none focus:border-primary dark:border-form-strokedark
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-        </div>
-
-        {/* Search Button */}
-        <div className="flex justify-start mt-4">
-          <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">
+          <button
+            onClick={handleSearch}
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg"
+          >
             Search
           </button>
         </div>
       </div>
-      <div className="space-y-6 mt-6">
-  {patientData.length > 0 ? (
-    patientData.map((patient, index) => (
-      <div
-        key={index}
-        className="bg-white p-4 rounded-xl shadow-md border-2 border-blue-100 
-        transition-transform transform hover:scale-105 hover:shadow-lg w-[100%]"
-      >
-        {/* Grid Layout for Perfect Alignment */}
-        <div className="grid grid-cols-4 gap-4 items-center">
-  {/* First Row: Name + Gender | Age | Phone | Email */}
-  <div className="flex items-center gap-2">
-    <FaUserAlt className="text-blue-400 text-lg shrink-0" />
-    <h2 className="text-sm font-semibold text-gray-800">{patient.patientName}</h2>
-    <span className="text-gray-600">{getGenderIcon(patient.patientGender)}</span>
-  </div>
 
-  <div>
-    <span className="text-gray-600 text-sm">{calculateAge(patient.patientDateOfBirth)}</span>
-  </div>
+      <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
+        List of patients
+      </h1>
 
-  <div>
-    <a
-      href={`tel:${patient.patientPhoneNumber}`}
-      className="flex items-center text-gray-700 font-medium hover:text-green-600 transition"
-    >
-      <FaPhoneAlt className="text-green-400 mr-1" />
-      {patient.patientPhoneNumber}
-    </a>
-  </div>
+      <div className="mt-6 w-full">
+        {patientData.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {patientData
+              .filter((patient) => patient && patient.patientName) // basic check
+              .map((patient, index) => {
+                console.log('Rendering patient:', patient);
+                const gender = patient.patientGender?.toLowerCase();
+                const isFemale = gender === 'female' || gender === 'f';
 
-  <div>
-    <a
-      href={`mailto:${patient.patientEmail}`}
-      className="flex items-center text-gray-700 font-medium hover:text-orange-600 transition truncate w-full"
-    >
-      <FaEnvelope className="text-orange-400 mr-1 shrink-0" />
-      <span className="truncate">{patient.patientEmail}</span>
-    </a>
-  </div>
+                const borderColorClass = isFemale
+                  ? 'border-pink-300'
+                  : 'border-blue-300';
+                const bgColorClass = isFemale ? 'bg-pink-200' : 'bg-blue-200';
 
-  {/* Second Row: Directions | Location | View More | Book Now */}
-  <div>
-    <a
-      href="https://www.google.com/maps/search/Anna+nagar,+chennai"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-green-500 hover:underline flex items-center"
-    >
-      <FaDirections className="mr-1" /> Directions
-    </a>
-  </div>
+                return (
+                  <div
+                    key={index}
+                    className={`relative border-2 ${borderColorClass} rounded-xl shadow bg-white overflow-hidden transition-transform transform hover:scale-105 hover:shadow-lg`}
+                  >
+                    {/* Gender Badge */}
+                    <div
+                      className={`absolute top-0 left-0 ${bgColorClass} w-10 h-10 rounded-br-md flex items-center justify-center`}
+                    >
+                      <span className="text-white text-lg">
+                        {getGenderIcon(patient.patientGender)}
+                      </span>
+                    </div>
 
-  <div className="text-gray-700 font-medium flex items-center space-x-2">
-    <FaMapMarkerAlt className="text-red-500 mr-0" />
-    <span>Anna Nagar, Chennai</span>
-  </div>
+                    {/* Top Right: Book Now Button */}
+                    <div className="flex justify-end mt-2 mr-2 ">
+                      <button
+                        className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                        onClick={() => handleBookNow(patient)}
+                      >
+                        Book Now
+                      </button>
+                    </div>
 
-  <div>
-    <button
-      className="text-blue-500 hover:underline"
-      onClick={() => setShowMore(!showMore)}
-    >
-      {showMore ? "View Less" : "View More"}
-    </button>
-  </div>
+                    {/* Second Row: Name | Age */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm font-medium text-gray-800 ml-2">
+                      <div className="flex items-center space-x-1 max-w-full">
+                        <img
+                          src={patientIcon}
+                          alt="Patient"
+                          className="w-5 h-6 rounded-full"
+                        />
+                        <span className="text-black shrink-0">Name:</span>
+                        <span
+                          title={patient.patientName}
+                          className="truncate max-w-[160px] text-black"
+                        >
+                          {patient.patientName}
+                        </span>
+                      </div>
 
-  <div>
-    <button
-      className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition"
-      onClick={() => handleBookNow(patient)}
-    >
-      Book Now
-    </button>
-  </div>
+                      <div className="flex items-center space-x-1 max-w-full">
+                        <img
+                          src={CalendarIcon}
+                          alt="calendar"
+                          className="w-6 h-6"
+                        />
+                        <span className="text-black">Age:</span>
+                        <span className="text-black">
+                          {calculateAge(patient.patientDateOfBirth)}
+                        </span>
+                      </div>
+                    </div>
 
-  {/* Additional content spans full row below */}
-{showMore && (
-  <div className="col-span-4 mt-1 text-gray-600 p-1">
-    Additional patient details can be shown here...
-  </div>
-)}
+                    {/* Third Row: Phone | Email */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 text-sm font-medium text-gray-800 ml-2 mb-4">
+                      <div className="flex items-center space-x-1 max-w-full">
+                        <img src={PhoneIcon} alt="phone" className="w-5 h-5" />
+                        <span className="text-black">Phone:</span>
+                        <a
+                          href={`tel:${patient.patientPhoneNumber}`}
+                          className="text-black hover:underline"
+                        >
+                          {patient.patientPhoneNumber}
+                        </a>
+                      </div>
 
-</div>
-
-
-
-       
-            
+                      <div className="flex items-center space-x-1 max-w-full">
+                        <img
+                          src={emailIcon}
+                          alt="Email"
+                          className="w-5 h-6 rounded-full"
+                        />
+                        <span className="text-black shrink-0">Email:</span>
+                        <a
+                          href={`mailto:${patient.patientEmail}`}
+                          title={patient.patientEmail}
+                          className="text-black hover:underline truncate max-w-[160px]"
+                        >
+                          {patient.patientEmail}
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <p className="text-center text-gray-500">No patients found</p>
+        )}
       </div>
-    ))
-  ) : (
-    <p className="text-center text-gray-500">No patients found</p>
-  )}
-</div>
-
-
-
-
-
-
-
 
       {isModalOpen && selectedPatient && (
         <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-96">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[600px]">
             <h2 className="text-lg font-semibold mb-4">Book Appointment</h2>
             <form onSubmit={handleSubmit}>
               {/* Name & Phone (Non-editable, same row) */}
@@ -813,82 +1015,85 @@ const SearchPatient: React.FC = () => {
 
               {/* Date & Time (Same Row) */}
               <div className="grid grid-cols-2 gap-2 mt-4">
-                <div>
+                <div className="flex">
                   <DatePicker
                     selected={selectedDate}
                     onChange={(date) => handleDateChange(date)}
-                    placeholderText="Select Date"
-                    className={`w-full rounded-lg border border-stroke py-4 pl-6 pr-10 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
+                    placeholderText="Appointment Date"
+                    minDate={new Date()}
+                    className="w-full rounded-lg border border-stroke bg-gray-100 py-4 pl-6 pr-19
+                    text-black outline-none focus:border-primary dark:border-form-strokedark
+                    dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
+                  {/* <img
+                    src={CalendarIcon}
+                    alt="Calendar Icon"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 opacity-70 pointer-events-none"
+                  /> */}
                   {errors.date && (
                     <p className="text-red-500 text-sm">{errors.date}</p>
                   )}
-
-                  {/* Calendar Icon */}
-                  {/* <span
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2"
-                    style={{ color: '#c2c3c4' }}
-                  >
-                    <i className="fas fa-calendar-alt fa-xs"></i>
-                  </span> */}
                 </div>
                 <div>
                   <DatePicker
                     selected={selectedTime}
                     onChange={(time) => {
-                      if (time) {
-                        const matchedSlot = generatedTimeSlots.find(
-                          (slot) =>
-                            slot.time.getHours() === time.getHours() &&
-                            slot.time.getMinutes() === time.getMinutes(),
-                        );
+                      if (!time) return;
 
-                        if (matchedSlot) {
-                          handleTimeSlotSelect(time, matchedSlot.timeSlotID); // ✅ Pass ID on selection
-                        }
+                      const matchedSlot = generatedTimeSlots.find(
+                        (slot) => slot.time.getTime() === time.getTime(),
+                      );
+
+                      console.log('Matched Slot:', matchedSlot);
+
+                      if (matchedSlot) {
+                        handleTimeSlotSelect(time, matchedSlot.timeSlotID);
+                      } else {
+                        setSelectedTime(time);
+
+                        // Only update formData.timeSlotID if matchedSlot is found, otherwise keep it as is
+                        setFormData((prev) => ({
+                          ...prev,
+                          time,
+                          timeSlotID: prev.timeSlotID || '', // Keep existing timeSlotID if it's already set, else clear it
+                        }));
+
+                        const timeError = validateField('time', time);
+                        setErrors((prev) => ({ ...prev, time: timeError }));
                       }
                     }}
                     showTimeSelect
                     showTimeSelectOnly
                     timeIntervals={slotDuration}
                     timeCaption="Time"
-                    dateFormat="h:mm aa"
-                    placeholderText="Select a time"
-                    className="w-full rounded-lg border border-stroke py-4 pl-6 pr-10
-         text-black outline-none focus:border-primary"
+                    dateFormat="HH:mm" // 24-hour format
+                    placeholderText="Appointment Time"
+                    className="w-full rounded-lg border border-stroke bg-gray-100 py-4 pl-6 pr-19
+                    text-black outline-none focus:border-primary dark:border-form-strokedark
+                    dark:bg-form-input dark:text-white dark:focus:border-primary"
                     includeTimes={generatedTimeSlots.map((slot) => slot.time)}
                   />
-
                   {errors.time && (
                     <p className="text-red-500 text-sm mt-1">{errors.time}</p>
                   )}
-                  {/* Timer Icon */}
-                  {/* <span
-                    className="absolute left-35 top-1/2 transform -translate-y-1/2"
-                    style={{ color: '#c2c3c4' }}
-                  >
-                    <i className="fas fa-clock fa-xs"></i>
-                  </span> */}
                 </div>
               </div>
 
               {/* Buttons */}
-              <div className="flex justify-end gap-3 mt-4">
+
+              <div className="flex justify-between items-center mt-4">
+                {/* Cancel Button - Aligned Left */}
                 <button
-                  className="bg-gradient-to-b from-[#B22222] to-[#FF4500] 
-                 hover:from-[#FF4500] hover:to-[#B22222] 
-                 text-white transition duration-150 
-                 ease-out hover:ease-in py-2 px-2 rounded-lg"
                   onClick={() => setIsModalOpen(false)}
+                  className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
                 >
                   Cancel
                 </button>
+
+                {/* Confirm Button - Aligned Right with Blue Gradient */}
                 <button
                   type="submit"
-                  className="bg-gradient-to-b from-[#008000] to-[#00C853] 
-                  hover:from-[#00C853] hover:to-[#008000] 
-                  text-white transition duration-150 
-                  ease-out hover:ease-in py-2 px-2 rounded-lg"
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
                 >
                   Confirm
                 </button>
@@ -897,6 +1102,7 @@ const SearchPatient: React.FC = () => {
           </div>
         </div>
       )}
+        <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

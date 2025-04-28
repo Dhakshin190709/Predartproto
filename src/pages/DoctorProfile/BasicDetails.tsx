@@ -4,11 +4,22 @@ import 'react-form-wizard-component/dist/style.css';
 
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-import axios from 'axios';
-import { inputFieldClass } from '../../components/FormStyles';
-import CustomButton from '../../components/CustomButton';
 
-const BasicDetails: React.FC = () => {
+import { inputFieldClass } from '../../components/FormStyles';
+
+interface BasicDetailsProps {
+  handleRegister: (
+    e: React.FormEvent<HTMLFormElement>,
+  
+    fetchDoctorDetails: () => void,
+    setSuccessMessage: React.Dispatch<React.SetStateAction<string>>
+  ) => void;
+  formData: any,
+  setFormData: React.Dispatch<React.SetStateAction<any>>,
+}
+
+
+const BasicDetails: React.FC<BasicDetailsProps> = ({ handleRegister,setFormData,formData }) => {
   const [hospitals, setHospitals] = useState([]);
   const [genders, setGenders] = useState([]);
   const [qualifications, setQualifications] = useState([]);
@@ -29,20 +40,22 @@ const BasicDetails: React.FC = () => {
   }
 
   const [tenants, setTenants] = useState([]); // State for tenant data
-  const [formData, setFormData] = useState({
-    tenant: '',
-    hospital: '',
-    name: '',
-    email: '',
-    phone: '',
-    aadhaar: '',
-    qualification: '',
-    specialization: '',
-    pan: '',
-    DateOfBirth: '',
-    gender: '',
-  });
-
+  // const [formData, setFormData] = useState({
+  //   tenant: "",
+  //   hospital: "",
+  //   name: "",
+  //   email: "",
+  //   phone: "",
+  //   aadhaar: "",
+  //   qualification: "",
+  //   specialization: "",
+  //   pan: "",
+  //   DateOfBirth: "",
+  //   gender: "",
+  //   doctorID: ""
+  // });
+  
+  
   const [formErrors, setFormErrors] = useState({
     tenant: '',
     hospital: '',
@@ -52,11 +65,11 @@ const BasicDetails: React.FC = () => {
     aadhaar: '',
     qualification: '',
     specialization: '',
-
     pan: '',
     DateOfBirth: '',
-    gender: '',
+    gender: ''
   });
+  
  
   const [hospitalTypes, setHospitalTypes] = useState([]);
   const [validationSummary, setValidationSummary] = useState<string[]>([]);
@@ -183,89 +196,7 @@ const BasicDetails: React.FC = () => {
     }
   };
 
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent page refresh
-
-    const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
-      return { isValid: false, errors: { userID: 'User not logged in.' } };
-    }
-
-    console.log('🚀 Submit button clicked!');
-
-    const requestData = {
-      createdBy: userID,
-      tenantID: formData.tenant,
-      hospitalID: formData.hospital,
-      doctorName: formData.name.trim(),
-      doctorDateOfBirth: formData.DateOfBirth
-        ? `${formData.DateOfBirth}T00:00:00`
-        : null,
-      doctorEmail: formData.email.trim(),
-      doctorPhoneNumber: formData.phone.trim(),
-      doctorGender: formData.gender,
-      qualificationID: formData.qualification,
-      specializationID: formData.specialization,
-      genderID: formData.gender,
-      aadhaarNumber: formData.aadhaar.trim(),
-      panNumber: formData.pan.trim(),
-    };
-
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctor',
-        requestData,
-        { headers: { 'Content-Type': 'application/json' } },
-      );
-
-      console.log('🚀 API Response:', response);
-
-      if (response.status === 200 || response.status === 201) {
-        setSuccessMessage('✅ Doctor registered successfully!');
-
-        const doctorID = response.data?.doctorID;
-        if (doctorID) {
-          console.log(`🎉 Received Doctor ID: ${doctorID}`);
-          sessionStorage.setItem('doctorID', doctorID);
-          fetchDoctorDetails(doctorID);
-        } else {
-          console.warn('⚠️ No doctorID received in API response!');
-        }
-
-        // Reset form after successful submission
-        setFormData({
-          name: '',
-          age: '',
-          gender: '',
-          phone: '',
-          email: '',
-          aadhaar: '',
-          pan: '',
-          qualification: '',
-          specialization: '',
-          tenant: '',
-          hospital: '',
-          DateOfBirth: '',
-          date: null,
-        });
-
-        return { isValid: true, errors: {} }; // ✅ Return success
-      } else {
-        console.error('❌ Unexpected response status:', response.status);
-        return {
-          isValid: false,
-          errors: { response: 'Unexpected response from the server.' },
-        }; // ⚠️ Return failure
-      }
-    } catch (error) {
-      console.error('🚨 Error submitting form:', error);
-      return {
-        isValid: false,
-        errors: { submit: 'Error occurred while registering the doctor.' },
-      }; // 🛑 Return error
-    }
-  };
+ 
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
@@ -301,6 +232,7 @@ const BasicDetails: React.FC = () => {
   }, []);
 
 
+  
   useEffect(() => {
     const fetchDoctorDetails = async () => {
       const userID = sessionStorage.getItem('userID'); // ✔️ Get userID
@@ -322,7 +254,7 @@ const BasicDetails: React.FC = () => {
   
         // ✅ Log to console
         console.log('Doctor ID:', data.doctorID);
-  
+        console.log('Fetched Doctor Data:', data);
         // ✅ Set form data
         setFormData({
           tenant: data.tenantID || '',
@@ -338,7 +270,9 @@ const BasicDetails: React.FC = () => {
             ? data.doctorDateOfBirth.split('T')[0]
             : '',
           gender: data.genderID || '',
-        });
+          doctorID: data.doctorID,
+       });
+       
       } catch (error) {
         console.error('Error fetching doctor details:', error);
       }
@@ -347,22 +281,27 @@ const BasicDetails: React.FC = () => {
     fetchDoctorDetails(); // 👈 Call the function
   }, []);
   
-  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    console.log('Updated formData:', { ...formData, [name]: value });
+    setFormErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: validateField(name, value),
+    }));
+  };
   
 
- // 🔄 Handle input change
- const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-  const { name, value } = e.target;
-  setFormData((prev) => ({ ...prev, [name]: value }));
-
-  setFormErrors((prevErrors) => ({
-    ...prevErrors,
-    [name]: validateField(name, value),  // Call field-specific validation
-  }));
-};
+  function fetchDoctorDetails(): void {
+    throw new Error('Function not implemented.');
+  }
 
   return (
-    <form className="space-y-4" onSubmit={handleRegister}>
+    <form className="space-y-4"  onSubmit={(e) => handleRegister(e, formData, setFormData, fetchDoctorDetails, setSuccessMessage)}
+    >
       {/* User Info */}
 
       {/* Tenant */}
@@ -371,7 +310,7 @@ const BasicDetails: React.FC = () => {
         <div>
           <select
             name="tenant"
-            value={formData.tenant || ''}
+            value={formData.tenant}
             onChange={handleInputChange}
             className={inputFieldClass}
           >
@@ -388,6 +327,7 @@ const BasicDetails: React.FC = () => {
             <p className="text-red-500 text-sm">{formErrors.tenant}</p>
           )}
         </div>
+       
 
         {/* Hospital */}
         <div>
@@ -580,8 +520,8 @@ const BasicDetails: React.FC = () => {
       </div>
       <div className="flex justify-center gap-2">
       
-
-        <CustomButton> Submit</CustomButton>
+{/* 
+        <CustomButton> Submit</CustomButton> */}
       </div>
     </form>
   );

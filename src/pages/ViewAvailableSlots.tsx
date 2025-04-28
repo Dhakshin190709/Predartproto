@@ -324,36 +324,65 @@ const Calendar: React.FC = () => {
       try {
         const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Hospital');
         const result = await response.json();
+    
+        let hospitalData = [];
+    
         if (Array.isArray(result)) {
-          setHospitals(result);
+          hospitalData = result;
         } else if (Array.isArray(result?.data)) {
-          setHospitals(result.data);
+          hospitalData = result.data;
         } else {
           console.error('Invalid hospital data format:', result);
           setHospitals([]);
+          return;
         }
+    
+        // ✅ Filter active hospitals
+        const activeHospitals = hospitalData.filter(hospital => hospital.isActive);
+    
+        // ✅ Set hospitals and pre-select the first one
+        setHospitals(activeHospitals);
+    
+        if (activeHospitals.length > 0) {
+          setSelectedHospitalID(activeHospitals[0].hospitalID);
+        }
+    
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
     };
+    
   
-    const fetchDoctors = async () => {
-      try {
-        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Doctor');
-        const result = await response.json();
-        if (result.success && Array.isArray(result.data)) {
-          setDoctors(result.data);
-        } else {
-          console.error('Invalid doctor data format:', result.data);
-        }
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
-      }
-    };
-  
+   
+    
     fetchHospitals();
-    fetchDoctors();
+    
   }, []);
+  const fetchDoctors = async (hospitalID: string) => {
+    try {
+      const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Doctor');
+      const result = await response.json();
+  
+      if (result.success && Array.isArray(result.data)) {
+        // Filter doctors based on hospitalID
+        const filteredDoctors = result.data.filter(
+          (doctor) => doctor.hospitalID === hospitalID
+        );
+        setDoctors(filteredDoctors);
+      } else {
+        console.error('Invalid doctor data format:', result.data);
+        setDoctors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+      setDoctors([]);
+    }
+  };useEffect(() => {
+    if (selectedHospitalID) {
+      fetchDoctors(selectedHospitalID);
+      setSelectedDoctor(""); // reset selected doctor
+    }
+  }, [selectedHospitalID]);
   
  
    useEffect(() => {
@@ -939,7 +968,8 @@ const Calendar: React.FC = () => {
 
             <form onSubmit={handleSubmit}>
               {/* Appointment Type */}
-              <div className="mb-4 flex justify-center gap-4">
+
+              {/* <div className="mb-4 flex justify-center gap-4">
                 {options.map((option) => (
                   <label
                     key={option.appLOVID}
@@ -948,19 +978,19 @@ const Calendar: React.FC = () => {
                     <input
                       type="radio"
                       name="appointmentType"
-                      value={option.appLOVID} // ✅ Pass ID instead of name
+                      value={option.appLOVID}
                       checked={appointmentType === option.appLOVID}
                       onChange={() => {
-                        setAppointmentType(option.appLOVID); // ✅ Store the ID
-                        handleOptionChange(option); // Pass the entire option for name reference if needed
+                        setAppointmentType(option.appLOVID); 
+                        handleOptionChange(option); 
                       }}
                       className="form-radio text-primary-600"
                     />
                     <span>{option.name}</span>{' '}
-                    {/* Display name, but store ID */}
+                  
                   </label>
                 ))}
-              </div>
+              </div> */}
 
               {/* Name */}
               <div className="mb-4 flex gap-4">
@@ -1044,42 +1074,41 @@ const Calendar: React.FC = () => {
             <div className="mb-4 flex gap-4">
   {/* Hospital Dropdown */}
   <div className="relative w-1/2">
-    <select
-      name="hospital"
-      value={selectedHospitalID}
-      onChange={(e) => setSelectedHospitalID(e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="">Select Hospital</option>
-      {hospitals.map((hospital) => (
-        <option key={hospital.hospitalID} value={hospital.hospitalID}>
-          {hospital.hospitalName}
-        </option>
-      ))}
-    </select>
-  </div>
+  <select
+    name="hospital"
+    value={selectedHospitalID}
+    onChange={(e) => setSelectedHospitalID(e.target.value)}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="">Select Hospital</option>
+    {hospitals.map((hospital) => (
+      <option key={hospital.hospitalID} value={hospital.hospitalID}>
+        {hospital.hospitalName}
+      </option>
+    ))}
+  </select>
+</div>
+
 
   {/* Doctor Dropdown in Modal */}
   <div className="relative w-1/2">
   <select
-  name="doctor"
-  value={selectedDoctor || ""}
-  onChange={handleDoctorChange}
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
->
-  <option value="" disabled selected={!selectedDoctor}>
-    Select a Doctor
-  </option>
-  {doctors.map((doctor) => (
-    <option key={doctor.doctorID} value={doctor.doctorID}>
-      {doctor.doctorName}
+    name="doctor"
+    value={selectedDoctor || ""}
+    onChange={handleDoctorChange}
+    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="" disabled selected={!selectedDoctor}>
+      Select a Doctor
     </option>
-  ))}
-</select>
-
-
-
+    {doctors.map((doctor) => (
+      <option key={doctor.doctorID} value={doctor.doctorID}>
+        {doctor.doctorName}
+      </option>
+    ))}
+  </select>
 </div>
+
 </div>
 
 

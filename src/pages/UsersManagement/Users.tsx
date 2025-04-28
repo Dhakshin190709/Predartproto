@@ -5,28 +5,34 @@ import 'ag-grid-community/styles/ag-grid.css';
 import { Edit } from 'lucide-react';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Eye, EyeOff } from 'lucide-react';
-
+import { CheckCircle } from 'lucide-react';
 import axios from 'axios';
 import CustomButton from '../../components/CustomButton';
+import {
+  checkEmailAvailability,
+  checkPhoneAvailability,
+  checkUsernameAvailability,
+} from '../Utils/validationUtils';
 interface RowData {
   userID: number;
   tenantName: string;
   username: string;
-  mobile: string;
+  phone: string;
   email: string;
   role: string;
   isActive: string;
 }
+
 const Users: React.FC = () => {
   const [apiData, setApiData] = useState([]);
   const [pageSize, setPageSize] = useState(10);
-  const [selectedUnitName, setSelectedUnitName] = useState<string>("N/A");
-  const [selectedUnitID, setSelectedUnitID] = useState(""); // Ensure default state
+  const [selectedUnitName, setSelectedUnitName] = useState<string>('N/A');
+  const [selectedUnitID, setSelectedUnitID] = useState(''); // Ensure default state
 
   const [selectedSecondDropdownValue, setSelectedSecondDropdownValue] =
     useState('');
-    const [showPassword, setShowPassword] = useState(false);
-  const [unitTypes, setUnitTypes] = useState<any[]>([]); 
+  const [showPassword, setShowPassword] = useState(false);
+  const [unitTypes, setUnitTypes] = useState<any[]>([]);
   const [selectedUnitType, setSelectedUnitType] = useState('');
 
   const [selectedSecondItem, setSelectedSecondItem] = useState('');
@@ -51,22 +57,40 @@ const Users: React.FC = () => {
     userID: 0,
     username: '',
     email: '',
-    mobile: '',
+    phone: '',
     isActive: 'Active',
     tenantID: '',
     createdBy: '',
     unittype: '', // Ensure these fields exist
     seconddropdown: '',
-    selectedUnitType: '',
-    selectedSecondItem: '',
-    password: '', // New field
-    userPlan: 'Free', // Default plan
+    selectedUnitType: '', // Updated
+    selectedSecondItem: '', // Updated
+    password: '', 
+    userPlan: 'Free', 
   });
-
+  
+  const [errors, setErrors] = useState({
+    username: '',
+    email: '',
+    phone: '',
+    password: '',
+    tenantName: '',
+    unittype: '',
+    unitID: '',
+    userPlan: '',
+  });
   const formRef = useRef<HTMLDivElement | null>(null);
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(
+    null,
+  );
+  const [touchedFields, setTouchedFields] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
 
+  const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
   const handlePageSizeChange = (
     event: React.ChangeEvent<HTMLSelectElement>,
   ) => {
@@ -78,66 +102,64 @@ const Users: React.FC = () => {
   };
   const fetchHospitalData = async () => {
     try {
-      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Hospital");
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Hospital',
+      );
       const data = await response.json();
-      console.log("Fetched Hospitals:", data);
-  
+      console.log('Fetched Hospitals:', data);
+
       // ✅ Ensure state updates correctly
-      setSecondDropdownData(data);  
-      return data;  
+      setSecondDropdownData(data);
+      return data;
     } catch (error) {
-      console.error("Error fetching hospitals:", error);
+      console.error('Error fetching hospitals:', error);
       return [];
     }
   };
-  
+
   const fetchLaboratoryData = async () => {
     try {
-      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Laboratory");
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Laboratory',
+      );
       const result = await response.json();
-  
+
       // ✅ Check if the response has the correct structure
-      if (Array.isArray(result)) {  
-        console.log("Fetched Laboratory Data:", result);
-        setSecondDropdownData(result);  
-        return result;  
-      } else if (result.success && Array.isArray(result.data)) {  
-        console.log("Fetched Laboratory Data:", result.data);
+      if (Array.isArray(result)) {
+        console.log('Fetched Laboratory Data:', result);
+        setSecondDropdownData(result);
+        return result;
+      } else if (result.success && Array.isArray(result.data)) {
+        console.log('Fetched Laboratory Data:', result.data);
         setSecondDropdownData(result.data);
         return result.data;
       } else {
-        console.error("Unexpected response format:", result);
+        console.error('Unexpected response format:', result);
         return [];
       }
     } catch (error) {
-      console.error("Error fetching laboratory data:", error);
+      console.error('Error fetching laboratory data:', error);
       return [];
     }
   };
   useEffect(() => {
-    console.log("Updated secondDropdownData:", secondDropdownData);
+    console.log('Updated secondDropdownData:', secondDropdownData);
   }, [secondDropdownData]);
-    
-    
- 
 
- 
-  
   // Example: Edit Mode - Prefilled Data
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState(null);
-  
-  
+
   // Fetch Unit Types
   const fetchUnitTypes = async () => {
     try {
       const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=UnitType'
+        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=UnitType',
       );
       const result = await response.json();
-  
-      console.log("Unit Types API Response:", result);
-  
+
+      console.log('Unit Types API Response:', result);
+
       if (result.success && Array.isArray(result.data)) {
         setUnitTypes(result.data);
       } else {
@@ -148,167 +170,184 @@ const Users: React.FC = () => {
       setUnitTypes([]);
     }
   };
-  
+
   useEffect(() => {
     fetchUnitTypes();
   }, []); // Runs once when the component mounts
+
+  // State to store fetched unit names
+
+  const [unitNames, setUnitNames] = useState<Record<string, string>>({});
+
+  const fetchUnitName = async (unitType: string, unitID: string) => {
+    if (!unitID || unitID === 'N/A') {
+      console.warn(`⚠️ Invalid unitID: ${unitID}`);
+      return 'N/A';
+    }
+
+    const normalizedType = unitType?.trim().toLowerCase();
+    console.log('🔍 Checking unitType before API call:', normalizedType);
+    console.log('🔍 Checking unitID before API call:', unitID);
+
+    if (!normalizedType) {
+      console.warn(`⚠️ Missing or invalid unitType: ${unitType}`);
+      return 'N/A';
+    }
+
+    // ✅ Check cached data before making API call
+    if (unitNames[unitID]) {
+      console.log(`✅ Using Cached Name for ${unitID}:`, unitNames[unitID]);
+      return unitNames[unitID];
+    }
+
+    // 🔄 Determine API URL
+    let apiUrl = '';
+    if (normalizedType === 'hospital') {
+      apiUrl = `https://predart003-001-site1.anytempurl.com/api/Hospital/${unitID}`;
+    } else if (normalizedType === 'lab') {
+      apiUrl = `https://predart003-001-site1.anytempurl.com/api/Laboratory/${unitID}`;
+    } else {
+      console.warn(`❌ Invalid unitType provided: ${unitType}`);
+      return 'N/A';
+    }
+
+    console.log(`🔗 Fetching from API: ${apiUrl}`);
+
+    try {
+      const response = await fetch(apiUrl);
+
+      if (!response.ok) {
+        console.error(
+          `⚠️ API Request Failed (${response.status}): ${response.statusText}`,
+        );
+        return 'N/A';
+      }
+
+      const result = await response.json();
+      console.log(`✅ Raw API Response for ${unitID}:`, result);
+
+      let unitName = 'N/A';
+
+      if (!result?.data) {
+        console.warn(`⚠️ No data found for ${unitID}`);
+        return 'N/A';
+      }
+
+      // 🏥 Extract hospital name
+      if (normalizedType === 'hospital' && result.success && result.data) {
+        unitName = result.data.hospitalName?.trim() || 'N/A';
+      }
+      // 🧪 Extract lab name (handling different response formats)
+      else if (normalizedType === 'lab' && result.success) {
+        if (Array.isArray(result.data)) {
+          console.log(`🔎 Searching for Lab ID: ${unitID} in array format`);
+          const matchingLab = result.data.find(
+            (lab) => String(lab.laboratoryID) === String(unitID),
+          );
+          unitName = matchingLab?.labName?.trim() || 'N/A';
+        } else if (
+          typeof result.data === 'object' &&
+          String(result.data.laboratoryID) === String(unitID)
+        ) {
+          console.log(`🧪 Extracting Lab Name from object response`);
+          unitName = result.data.labName?.trim() || 'N/A';
+        } else {
+          console.warn(`⚠️ No matching lab found for ID: ${unitID}`);
+        }
+      }
+
+      console.log(`🏥 Extracted Name for ${unitID}: ${unitName}`);
+
+      // ✅ Update state to cache the name
+      setUnitNames((prev) => ({ ...prev, [unitID]: unitName }));
+
+      return unitName;
+    } catch (error) {
+      console.error(`⚠️ Error fetching ${unitType} name for ${unitID}:`, error);
+      return 'N/A';
+    }
+  };
+
+  const UnitNameRenderer = (params: any) => {
+    const { unitType, unitID } = params.data || {};
+    const [name, setName] = useState('Loading...');
+
+    useEffect(() => {
+      const load = async () => {
+        if (!unitType || !unitID) {
+          setName('N/A');
+          return;
+        }
+        const n = await fetchUnitName(unitType, unitID);
+        setName(n || 'N/A');
+      };
+      load();
+    }, [unitType, unitID]);
+
+    return <span>{name}</span>;
+  };
+
+  const handleUnitTypeChange = (event) => {
+    const unitID = event.target.value;
+    setSelectedUnitID(unitID);
   
-// State to store fetched unit names
-
-const [unitNames, setUnitNames] = useState<Record<string, string>>({});
-
-const fetchUnitName = async (unitType: string, unitID: string) => {
-  if (!unitID || unitID === "N/A") {
-    console.warn(`⚠️ Invalid unitID: ${unitID}`);
-    return "N/A";
-  }
-
-  const normalizedType = unitType?.trim().toLowerCase();
-  console.log("🔍 Checking unitType before API call:", normalizedType);
-  console.log("🔍 Checking unitID before API call:", unitID);
-
-  if (!normalizedType) {
-    console.warn(`⚠️ Missing or invalid unitType: ${unitType}`);
-    return "N/A";
-  }
-
-  // ✅ Check cached data before making API call
-  if (unitNames[unitID]) {
-    console.log(`✅ Using Cached Name for ${unitID}:`, unitNames[unitID]);
-    return unitNames[unitID];
-  }
-
-  // 🔄 Determine API URL
-  let apiUrl = "";
-  if (normalizedType === "hospital") {
-    apiUrl = `https://predart003-001-site1.anytempurl.com/api/Hospital/${unitID}`;
-  } else if (normalizedType === "lab") {
-    apiUrl = `https://predart003-001-site1.anytempurl.com/api/Laboratory/${unitID}`;
-  } else {
-    console.warn(`❌ Invalid unitType provided: ${unitType}`);
-    return "N/A";
-  }
-
-  console.log(`🔗 Fetching from API: ${apiUrl}`);
-
-  try {
-    const response = await fetch(apiUrl);
-    
-    if (!response.ok) {
-      console.error(`⚠️ API Request Failed (${response.status}): ${response.statusText}`);
-      return "N/A";
+    console.log('🔵 Available unitTypes:', unitTypes);
+    console.log('🟡 Selected Unit ID:', unitID);
+  
+    const selectedUnit = unitTypes.find(
+      (unit) => String(unit.appLOVID) === unitID,
+    );
+  
+    if (!selectedUnit) {
+      console.warn('⚠️ No matching unit found for unitID:', unitID);
+      setSelectedUnitType('');
+      // Clear the error for unitType
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        unitType: 'Unit Type is required',
+      }));
+      return;
     }
-
-    const result = await response.json();
-    console.log(`✅ Raw API Response for ${unitID}:`, result);
-
-    let unitName = "N/A";
-
-    if (!result?.data) {
-      console.warn(`⚠️ No data found for ${unitID}`);
-      return "N/A";
+  
+    const normalizedUnitType = selectedUnit.name.trim().toLowerCase();
+    setSelectedUnitType(selectedUnit.name);
+  
+    console.log('🟢 Updated selectedUnitID:', unitID);
+    console.log('🟢 Updated selectedUnitType:', selectedUnit.name);
+    console.log('🔍 Normalized Unit Type:', normalizedUnitType);
+  
+    // Clear the error for unitType after a valid selection
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      unitType: '', // clear unitType error
+    }));
+  
+    if (normalizedUnitType === 'lab') {
+      console.log('🧪 Fetching Lab Data...');
+      fetchLaboratoryData();
+    } else if (normalizedUnitType === 'hospital') {
+      console.log('🏥 Fetching Hospital Data...');
+      fetchHospitalData();
+    } else {
+      console.warn('⚠️ Unknown unit type:', selectedUnit.name);
     }
-
-    // 🏥 Extract hospital name
-    if (normalizedType === "hospital" && result.success && result.data) {
-      unitName = result.data.hospitalName?.trim() || "N/A";
-    }
-    // 🧪 Extract lab name (handling different response formats)
-    else if (normalizedType === "lab" && result.success) {
-      if (Array.isArray(result.data)) {
-        console.log(`🔎 Searching for Lab ID: ${unitID} in array format`);
-        const matchingLab = result.data.find((lab) => String(lab.laboratoryID) === String(unitID));
-        unitName = matchingLab?.labName?.trim() || "N/A";
-      } else if (typeof result.data === "object" && String(result.data.laboratoryID) === String(unitID)) {
-        console.log(`🧪 Extracting Lab Name from object response`);
-        unitName = result.data.labName?.trim() || "N/A";
-      } else {
-        console.warn(`⚠️ No matching lab found for ID: ${unitID}`);
-      }
-    }
-
-    console.log(`🏥 Extracted Name for ${unitID}: ${unitName}`);
-
-    // ✅ Update state to cache the name
-    setUnitNames((prev) => ({ ...prev, [unitID]: unitName }));
-
-    return unitName;
-  } catch (error) {
-    console.error(`⚠️ Error fetching ${unitType} name for ${unitID}:`, error);
-    return "N/A";
-  }
-};
-
-
-
-
-
-
-const UnitNameRenderer = (params: any) => {
-  const { unitType, unitID } = params.data || {};
-  const [name, setName] = useState("Loading...");
-
-  useEffect(() => {
-    const load = async () => {
-      if (!unitType || !unitID) {
-        setName("N/A");
-        return;
-      }
-      const n = await fetchUnitName(unitType, unitID);
-      setName(n || "N/A");
-    };
-    load();
-  }, [unitType, unitID]);
-
-  return <span>{name}</span>;
-};
-
-
-const handleUnitTypeChange = (event) => {
-  const unitID = event.target.value;
-  setSelectedUnitID(unitID);
-
-  console.log("🔵 Available unitTypes:", unitTypes);
-  console.log("🟡 Selected Unit ID:", unitID);
-
-  const selectedUnit = unitTypes.find((unit) => String(unit.appLOVID) === unitID);
-
-  if (!selectedUnit) {
-    console.warn("⚠️ No matching unit found for unitID:", unitID);
-    setSelectedUnitType(""); 
-    return;
-  }
-
-  const normalizedUnitType = selectedUnit.name.trim().toLowerCase();
-  setSelectedUnitType(selectedUnit.name);
-
-  console.log("🟢 Updated selectedUnitID:", unitID);
-  console.log("🟢 Updated selectedUnitType:", selectedUnit.name);
-  console.log("🔍 Normalized Unit Type:", normalizedUnitType);
-
-  if (normalizedUnitType === "lab") {
-    console.log("🧪 Fetching Lab Data...");
-    fetchLaboratoryData();
-  } else if (normalizedUnitType === "hospital") {
-    console.log("🏥 Fetching Hospital Data...");
-    fetchHospitalData();
-  } else {
-    console.warn("⚠️ Unknown unit type:", selectedUnit.name);
-  }
-};
-
+  };
 
 
   useEffect(() => {
-    console.log("🟢 Updated selectedUnitType in useEffect:", selectedUnitType);
+    console.log('🟢 Updated selectedUnitType in useEffect:', selectedUnitType);
   }, [selectedUnitType]);
-  
-  
+
   // Handle Second Dropdown Selection
   const handleSecondItemChange = (e) => {
     setSelectedSecondItem(e.target.value);
-  };
   
+    // Clear the error for unitID when the user selects a valid item
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      unitID: '', // clear unitID error
+    }));
+  };
   // Fetch Data Based on Selected Unit Type
   useEffect(() => {
     if (selectedUnitType === 'Lab') {
@@ -319,9 +358,7 @@ const handleUnitTypeChange = (event) => {
       setSecondDropdownData([]); // Reset if neither Lab nor Hospital
     }
   }, [selectedUnitType]);
-  
-  
- 
+
   // Fetch data on component mount (only once)
   useEffect(() => {
     const fetchData = async () => {
@@ -356,7 +393,7 @@ const handleUnitTypeChange = (event) => {
       .then((response) => response.json())
       .then((data) => {
         console.log('Tenant API Response:', data); // Debugging
-  
+
         if (data.data) {
           setTenants(data.data); // Adjusting if API response contains { data: [...] }
         } else {
@@ -370,7 +407,6 @@ const handleUnitTypeChange = (event) => {
       setSelectedTenant(formData.tenantID);
     }
   }, [formData.userID, formData.tenantID]);
-    
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -421,8 +457,8 @@ const handleUnitTypeChange = (event) => {
       : []), // Only add this column if isSuperAdmin is true
 
     {
-      headerName: 'Mobile No',
-      field: 'mobile',
+      headerName: 'phone No',
+      field: 'phone',
       sortable: true,
       filter: true,
       flex: 1.3,
@@ -451,8 +487,7 @@ const handleUnitTypeChange = (event) => {
         return value ? value : 'N/A';
       },
     },
-    
-   
+
     {
       headerName: 'Unit Name',
       field: 'unitName',
@@ -574,7 +609,7 @@ const handleUnitTypeChange = (event) => {
       userID: 0,
       username: '',
       email: '',
-      mobile: '',
+      phone: '',
       isActive: 'Active',
       tenantID: '',
       createdBy: '',
@@ -630,7 +665,7 @@ const handleUnitTypeChange = (event) => {
     setShowConfirmation(false);
     setDeleteRowId(null);
   };
- 
+
   const handleStatusChange = async (userID: number, currentStatus: boolean) => {
     try {
       // Toggle the isActive status
@@ -688,92 +723,89 @@ const handleUnitTypeChange = (event) => {
 
   const handleEdit = async (userID: number) => {
     if (!Array.isArray(rowData)) return;
-
+  
     const selectedRow = rowData.find((item) => item.userID === userID);
     if (!selectedRow) return;
-
-    console.log("🟢 Selected Row Data:", selectedRow);
-    console.log("✅ Unit Type from API:", selectedRow.unitType);
-    console.log("✅ Unit ID from API:", selectedRow.unitID);
-
+  
+    console.log('🟢 Selected Row Data:', selectedRow);
+    console.log('✅ Unit Type from API:', selectedRow.unitType);
+    console.log('✅ Unit ID from API:', selectedRow.unitID);
+  
     const formData = {
-        userID: selectedRow.userID,
-        username: selectedRow.username ?? '',
-        email: selectedRow.email ?? '',
-        mobile: selectedRow.mobile ?? '',
-        isActive: selectedRow.isActive ? 'Active' : 'Inactive',
-        tenantID: selectedRow.tenantID ?? '',
-        createdBy: selectedRow.createdBy ?? '',
-        password: '',
-        userPlan: selectedRow.userPlan ?? 'Free',
+      userID: selectedRow.userID,
+      username: selectedRow.username ?? '',
+      email: selectedRow.email ?? '',
+      phone: selectedRow.phone ?? '',
+      isActive: selectedRow.isActive ? 'Active' : 'Inactive',
+      tenantID: selectedRow.tenantID ?? '',
+      createdBy: selectedRow.createdBy ?? '',
+      password: selectedRow.password ?? '', // Include password from selectedRow
+      userPlan: selectedRow.userPlan ?? 'Free',
     };
-
-    console.log("🟢 Form Data before setting state:", formData);
-
+  
+    console.log('🟢 Form Data before setting state:', formData);
+  
     setFormData(formData);
-    setSelectedUnitID(selectedRow.unitID);  // ✅ Setting Unit ID
-    setSelectedUnitType(selectedRow.unitType);  // ✅ Setting Unit Type
-
-    console.log("🔄 Updated selectedUnitID:", selectedRow.unitID);
-    console.log("🔄 Updated selectedUnitType:", selectedRow.unitType);
-
+    setSelectedUnitID(selectedRow.unitID); // ✅ Setting Unit ID
+    setSelectedUnitType(selectedRow.unitType); // ✅ Setting Unit Type
+  
+    console.log('🔄 Updated selectedUnitID:', selectedRow.unitID);
+    console.log('🔄 Updated selectedUnitType:', selectedRow.unitType);
+  
     let fetchedData = [];
-    if (selectedRow.unitType === "Lab") {
-        fetchedData = await fetchLaboratoryData();
-    } else if (selectedRow.unitType === "Hospital") {
-        fetchedData = await fetchHospitalData();
+    if (selectedRow.unitType === 'Lab') {
+      fetchedData = await fetchLaboratoryData();
+    } else if (selectedRow.unitType === 'Hospital') {
+      fetchedData = await fetchHospitalData();
     }
-
-    console.log("🟢 Fetched Data for", selectedRow.unitType, ":", fetchedData);
-
-    let selectedUnitID = selectedRow.unitID || "";
-    let selectedUnitName = "N/A";
-
+  
+    console.log('🟢 Fetched Data for', selectedRow.unitType, ':', fetchedData);
+  
+    let selectedUnitID = selectedRow.unitID || '';
+    let selectedUnitName = 'N/A';
+  
     if (!selectedUnitID) {
-        console.warn("⚠️ selectedRow.unitID is missing, unable to set hospital/lab.");
+      console.warn(
+        '⚠️ selectedRow.unitID is missing, unable to set hospital/lab.',
+      );
     }
-
+  
     const selectedItem = fetchedData.find((item) =>
-        selectedRow.unitType === "Hospital"
-            ? item.hospitalID === selectedUnitID
-            : item.laboratoryID === selectedUnitID
+      selectedRow.unitType === 'Hospital'
+        ? item.hospitalID === selectedUnitID
+        : item.laboratoryID === selectedUnitID,
     );
-
+  
     if (selectedItem) {
-        selectedUnitID =
-            selectedRow.unitType === "Hospital" ? selectedItem.hospitalID : selectedItem.laboratoryID;
-
-        selectedUnitName =
-            selectedRow.unitType === "Hospital" ? selectedItem.hospitalName : selectedItem.labName;
-
-        console.log(`✅ Setting Selected Unit ID:`, selectedUnitID);
-        console.log(`✅ Setting Unit Name:`, selectedUnitName);
+      selectedUnitID =
+        selectedRow.unitType === 'Hospital'
+          ? selectedItem.hospitalID
+          : selectedItem.laboratoryID;
+  
+      selectedUnitName =
+        selectedRow.unitType === 'Hospital'
+          ? selectedItem.hospitalName
+          : selectedItem.labName;
+  
+      console.log(`✅ Setting Selected Unit ID:`, selectedUnitID);
+      console.log(`✅ Setting Unit Name:`, selectedUnitName);
     } else {
-        console.warn(`⚠️ No matching ${selectedRow.unitType} found for ID:`, selectedUnitID);
+      console.warn(
+        `⚠️ No matching ${selectedRow.unitType} found for ID:`,
+        selectedUnitID,
+      );
     }
-
-    setSelectedSecondItem(selectedUnitID);  
+  
+    setSelectedSecondItem(selectedUnitID);
     setSelectedUnitName(selectedUnitName);
     setShowForm(true);
-};
+  };
+  
 
-// 🛠️ Track `selectedUnitID` and `selectedUnitType` changes
-useEffect(() => {
-  console.log("🛠️ selectedUnitID changed:", selectedUnitID);
-}, [selectedUnitID]);
-
-
-
-
-
-  
-  
-  
-  
-  
-  
-  
-  
+  // 🛠️ Track `selectedUnitID` and `selectedUnitType` changes
+  useEffect(() => {
+    console.log('🛠️ selectedUnitID changed:', selectedUnitID);
+  }, [selectedUnitID]);
 
   const handleSave = () => {
     const updatedData = rowData.map((item) =>
@@ -782,7 +814,7 @@ useEffect(() => {
             ...item,
             username: formData.username,
             email: formData.email,
-            mobile: formData.mobile,
+            phone: formData.phone,
             isActive: formData.isActive === 'Active', // Convert to boolean
             tenantID: formData.tenantID,
             userPlan: formData.userPlan,
@@ -852,6 +884,52 @@ useEffect(() => {
     fetchUserRoles();
   }, []);
 
+  const validateFormFields = () => {
+    const newErrors: { [key: string]: string } = {};
+
+    console.log('Validating form fields...');
+    console.log("Selected Unit Type:", selectedUnitType);
+    console.log("Selected Unit ID:", selectedSecondItem);
+
+    if (!(formData.username || '').trim()) {
+      newErrors.username = 'Username is required';
+    }
+
+    if (!(formData.email || '').trim()) {
+      newErrors.email = 'Email is required';
+    }
+
+    if (!(formData.phone || '').trim()) {
+      newErrors.phone = 'Phone number is required';
+    }
+
+    if (!(formData.password || '').trim()) {
+      newErrors.password = 'Password is required';
+    }
+
+    if (!(formData.userPlan || '').trim()) {
+      newErrors.plan = 'Plan is required';
+    }
+
+    // Check the selectedUnitType and selectedSecondItem directly from state
+    if (!(selectedUnitType || '').trim()) {
+      newErrors.unitType = 'Unit Type is required';
+    }
+
+    if (!(selectedSecondItem || '').trim()) {
+      newErrors.unitID = 'Unit ID is required';
+    }
+
+    setErrors(newErrors);
+
+    console.log('Errors:', newErrors);
+
+    return Object.keys(newErrors).length === 0;
+};
+
+  
+  
+
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     const userID = sessionStorage.getItem('userID');
@@ -867,63 +945,77 @@ useEffect(() => {
       alert('Please select a tenant before submitting.');
       return;
     }
+    if (validateFormFields()) {
+      console.log('Form is valid. Submitting...');
 
-    const isActiveBoolean = formData.isActive === 'Active';
-    const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
-    const url = 'https://predart003-001-site1.anytempurl.com/api/User';
+      const isActiveBoolean = formData.isActive === 'Active';
+      const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
+      const url = 'https://predart003-001-site1.anytempurl.com/api/User';
 
-    const body = JSON.stringify({
-      userID: formData.userID !== 0 ? formData.userID : undefined,
-      username: formData.username.trim(),
-      email: formData.email.trim(),
-      mobile: formData.mobile.trim(),
-      password: formData.password.trim() || 'DefaultPassword',
-      isActive: isActiveBoolean,
-      tenantID: selectedTenant,  // 🔹 Ensure tenant ID is passed
-      unitType: selectedUnitType,
-      unitID: selectedSecondItem,
-      createdBy: userID,
-      userPlan: formData.userPlan || 'Free',
-    });
-
-    console.log('Final Payload:', body); // Debugging
-
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body,
+      const body = JSON.stringify({
+        userID: formData.userID !== 0 ? formData.userID : undefined,
+        username: formData.username.trim(),
+        email: formData.email.trim(),
+        phone: formData.phone.trim(),
+        password: formData.password.trim() || 'DefaultPassword',
+        isActive: isActiveBoolean,
+        tenantID: selectedTenant,
+        unitType: selectedUnitType,
+        unitID: selectedSecondItem || null,
+        user: userID,
+        createdBy: userID,
+        userPlan: formData.userPlan || 'Free',
       });
 
-      const data = await response.json();
-      console.log('Response Status:', response.status);
-      console.log('API Full Response:', data);
+      console.log('Final Payload:', body); // Debugging
 
-      if (response.ok) {
-        console.log('User added/updated successfully.');
-        setShowForm(false);
-        setFormData({
-          userID: 0,
-          username: '',
-          email: '',
-          mobile: '',
-          isActive: 'Active',
-          tenantID: '',
-          createdBy: '',
-          password: '',
-          userPlan: 'Free',
+      try {
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body,
         });
-        setSelectedTenant(""); // Reset selection
-      } else {
-        console.error('API Error:', data.errors || data.message);
-        alert('Error: ' + JSON.stringify(data.errors || data.message));
-      }
-    } catch (error) {
-      console.error('Network Error:', error);
-      alert('An unexpected error occurred. Please try again later.');
-    }
-};
 
+        const data = await response.json();
+        console.log('Response Status:', response.status);
+        console.log('API Full Response:', data);
+
+        if (response.ok) {
+          console.log('User added/updated successfully.');
+          setShowForm(false);
+          setFormData({
+            userID: 0,
+            username: '',
+            email: '',
+            phone: '',
+            isActive: 'Active',
+            tenantID: '',
+            createdBy: '',
+            password: '',
+            userPlan: 'Free',
+          });
+          setSelectedTenant('');
+        } else {
+          let errorMessage = 'An error occurred. Please try again.';
+          if (data.errors) {
+            errorMessage = Object.keys(data.errors)
+              .map((key) => `${key}: ${data.errors[key].join(', ')}`)
+              .join(', ');
+          } else if (data.message) {
+            errorMessage = data.message;
+          }
+          console.error('API Error:', errorMessage);
+          alert(errorMessage);
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+        alert('An unexpected error occurred. Please try again later.');
+      }
+    } else {
+      console.log('Form has validation errors.');
+      return;
+    }
+  };
 
   const handleFilterSearch = () => {
     const filtered = apiData.filter((item) => {
@@ -953,6 +1045,58 @@ useEffect(() => {
     gridColumnApi.current = params.columnApi;
 
     params.api.sizeColumnsToFit(); // Auto-fit columns
+  };
+  const handleUsernameBlur = async () => {
+    setTouchedFields((prev) => ({ ...prev, username: true }));
+    const { success, message } = await checkUsernameAvailability(
+      formData.username,
+    );
+
+    if (!success) {
+      setErrors((prev) => ({ ...prev, username: message }));
+      setUsernameAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, username: '' }));
+      setUsernameAvailable(true);
+    }
+  };
+
+  const handleEmailBlur = async () => {
+    const { success, message } = await checkEmailAvailability(formData.email);
+    if (!success) {
+      setErrors((prev) => ({ ...prev, email: message }));
+      setEmailAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, email: '' }));
+      setEmailAvailable(true);
+    }
+  };
+
+  const handlePhoneBlur = async () => {
+    const { success, message } = await checkPhoneAvailability(formData.phone);
+    if (!success) {
+      setErrors((prev) => ({ ...prev, phone: message }));
+      setPhoneAvailable(false);
+    } else {
+      setErrors((prev) => ({ ...prev, phone: '' }));
+      setPhoneAvailable(true);
+    }
+  };
+
+  const handleSingleInputChange = (field: string, value: string) => {
+    // Update form data
+    setFormData({ ...formData, [field]: value });
+
+    // Validate the field immediately
+    const newErrors = { ...errors }; // Copy previous errors
+
+    // Check if the field is valid and clear error if valid
+    if (value.trim()) {
+      newErrors[field] = ''; // Clear error if valid
+    }
+
+    // Update the errors state with the cleared or unchanged errors
+    setErrors(newErrors);
   };
 
   return (
@@ -1005,91 +1149,125 @@ useEffect(() => {
             className="flex flex-wrap gap-4 items-center justify-between"
           >
             <div className="grid grid-cols-4 gap-4 mb-2">
-            <select
-  disabled={formData.userID !== 0} // Disable in edit mode
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+              <select
+                disabled={formData.userID !== 0} // Disable in edit mode
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
-  value={selectedTenant} // Ensure controlled component
-  onChange={(e) => setSelectedTenant(e.target.value)} // Update state
->
-  <option value="">
-    {formData.userID !== 0 && selectedTenant
-      ? tenants.find((t) => t.tenantID == selectedTenant)?.tenantName || 'No Tenant Selected'
-      : 'Select Tenant'}
-  </option>
+                value={selectedTenant} // Ensure controlled component
+                onChange={(e) => setSelectedTenant(e.target.value)} // Update state
+              >
+                <option value="">
+                  {formData.userID !== 0 && selectedTenant
+                    ? tenants.find((t) => t.tenantID == selectedTenant)
+                        ?.tenantName || 'No Tenant Selected'
+                    : 'Select Tenant'}
+                </option>
 
-  {formData.userID === 0 &&
-    tenants.map((tenant) => (
-      <option key={tenant.tenantID} value={tenant.tenantID}>
-        {tenant.tenantName}
-      </option>
-    ))}
-</select>
-
-
-
-
+                {formData.userID === 0 &&
+                  tenants.map((tenant) => (
+                    <option key={tenant.tenantID} value={tenant.tenantID}>
+                      {tenant.tenantName}
+                    </option>
+                  ))}
+              </select>
 
               {/* Username */}
-              <input
-                type="text"
-                value={formData.username}
-                onChange={(e) =>
-                  setFormData({ ...formData, username: e.target.value })
-                }
-                placeholder="User Name"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.username}
+                  maxLength={25}
+                  onChange={(e) =>
+                    handleSingleInputChange('username', e.target.value)
+                  }
+                  onBlur={handleUsernameBlur}
+                  placeholder="User Name"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
+                />
+                {usernameAvailable && formData.username && !errors.username && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                    <CheckCircle className="w-5 h-5" />
+                  </span>
+                )}
+                {errors.username && (
+                  <p className="text-red-500 text-sm mt-1">{errors.username}</p>
+                )}
+              </div>
 
               {/* Email */}
-              <input
-                type="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                placeholder="Email"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-              />
+              <div className="relative">
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={(e) =>
+                    handleSingleInputChange('email', e.target.value)
+                  }
+                  onBlur={handleEmailBlur}
+                  placeholder="Email"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                />
+                {emailAvailable && formData.email && !errors.email && (
+                  <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
+                )}
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
+              </div>
 
-              {/* Mobile */}
-              <input
-                type="text"
-                value={formData.mobile}
-                onChange={(e) =>
-                  setFormData({ ...formData, mobile: e.target.value })
-                }
-                placeholder="Mobile"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-              />
+              {/* phone */}
+              <div className="relative">
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    handleSingleInputChange('phone', e.target.value)
+                  }
+                  onBlur={() => handlePhoneBlur()}
+                  placeholder="phone"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                />
+                {phoneAvailable && formData.phone && !errors.phone && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                    <CheckCircle className="w-5 h-5" />
+                  </span>
+                )}
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                )}
+              </div>
             </div>
 
             {/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
             <div className="grid grid-cols-4 gap-4 mb-2">
-             
-             {/* Password (Only Show in Add Mode) */}
-{formData.userID === 0 && (
-  <div className="relative w-full">
-    <input
-      type={showPassword ? 'text' : 'password'}
-      name="password"
-      value={formData.password}
-      onChange={handleInputChange}
-      placeholder="Password"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-12 text-black outline-none focus:border-primary"
-    />
-    <span
-      onClick={() => setShowPassword(!showPassword)}
-      className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500"
-    >
-      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-    </span>
-  </div>
-)}
+              {/* Password (Only Show in Add Mode) */}
+              {formData.userID === 0 && (
+                <div className="relative w-full">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    name="password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    placeholder="Password"
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-12 text-black outline-none focus:border-primary"
+                  />
+                  <span
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500"
+                  >
+                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </span>
+                  {errors.password && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.password}
+                    </p>
+                  )}
+                </div>
+              )}
 
-  
               {/* Status (Only Show in Edit Mode) */}
               {formData.userID !== 0 && (
                 <select
@@ -1100,8 +1278,8 @@ useEffect(() => {
                     handleStatusChange(formData.userID, newStatus === 'Active');
                   }}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
                   <option value="Active">Active</option>
                   <option value="Inactive">Inactive</option>
@@ -1128,57 +1306,61 @@ useEffect(() => {
                 <option value="Diamond">Diamond</option>
                 <option value="Platinum">Platinum</option>
               </select>
-
-              <div>
+              {errors.userPlan && (
+                <p className="text-red-500 text-sm mt-1">{errors.userPlan}</p>
+              )}
+<div>
   {/* First Dropdown: Unit Type */}
   <select
-     key={selectedUnitID}
-    value={selectedUnitID} 
-    onChange={handleUnitTypeChange}
+    key={selectedUnitID}
+    value={selectedUnitType}
+    onChange={handleUnitTypeChange} // Update the state and clear error
     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
->
-    <option value="" disabled>Select Unit Type</option>
+  >
+    <option value="" disabled>
+      Select Unit Type
+    </option>
     {unitTypes.map((unit) => (
-        <option key={unit.appLOVID} value={String(unit.appLOVID)}>
-            {unit.name}
-        </option>
+      <option key={unit.appLOVID} value={String(unit.appLOVID)}>
+        {unit.name}
+      </option>
     ))}
-</select>
-
-
-
-
-
+  </select>
+  {errors.unitType && (
+    <p className="text-red-500 text-sm mt-1">{errors.unitType}</p>
+  )}
 </div>
-
 {/* Second Dropdown: Lab or Hospital */}
 {selectedUnitType && (
- <select
- value={selectedSecondItem} // Ensure this holds the ID, not name
- onChange={(e) => setSelectedSecondItem(e.target.value)}
- className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
->
- <option value="" disabled>
-   {selectedUnitType === "Lab" ? "Select Lab" : "Select Hospital"}
- </option>
- {secondDropdownData.length > 0 ? (
-   secondDropdownData.map((item) => (
-     <option
-       key={selectedUnitType === "Lab" ? item.laboratoryID : item.hospitalID}
-       value={selectedUnitType === "Lab" ? item.laboratoryID : item.hospitalID} // Use ID as value
-     >
-       {selectedUnitType === "Lab" ? item.labName : item.hospitalName} {/* Display only name */}
-     </option>
-   ))
- ) : (
-   <option disabled>No Data Available</option>
- )}
-</select>
+  <div>
+    <select
+      value={selectedSecondItem}
+      onChange={handleSecondItemChange}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="" disabled>
+        {selectedUnitType === 'Lab' ? 'Select Lab' : 'Select Hospital'}
+      </option>
+      {secondDropdownData.length > 0 ? (
+        secondDropdownData.map((item) => (
+          <option
+            key={selectedUnitType === 'Lab' ? item.laboratoryID : item.hospitalID}
+            value={selectedUnitType === 'Lab' ? item.laboratoryID : item.hospitalID}
+          >
+            {selectedUnitType === 'Lab' ? item.labName : item.hospitalName}
+          </option>
+        ))
+      ) : (
+        <option disabled>No Data Available</option>
+      )}
+    </select>
 
+    {/* Display error directly below the second dropdown */}
+    {errors.unitID && (
+      <p className="text-red-500 text-sm mt-1">{errors.unitID}</p>
+    )}
+  </div>
 )}
-
-
-
 
 
 
@@ -1199,7 +1381,6 @@ useEffect(() => {
           </form>
         </div>
       )}
-
 
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
         <div className="relative">

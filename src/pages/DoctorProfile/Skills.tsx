@@ -7,8 +7,11 @@ type SkillForm = {
   monthsOfExperience: string;
   description: string;
 };
+type SkillsProps = {
+  handleSkillSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+};
 
-const Skills: React.FC = () => {
+const Skills: React.FC<SkillsProps> = ({ handleSkillSubmit }) => {
    const [doctorID,setDoctorID]=useState([]);
 
   const [specializations, setSpecializations] = useState<
@@ -176,71 +179,10 @@ const Skills: React.FC = () => {
     );
   };
 
-  const handleSkillSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  
-    if (!validateSkills()) {
-      console.error('🚨 Validation failed.');
-      return;
-    }
-  
-    const userID = sessionStorage.getItem('userID');
-    const doctorID = sessionStorage.getItem('doctorID');
-  
-    if (!userID || !doctorID) {
-      alert('User or Doctor not logged in. Please log in again.');
-      return;
-    }
-  
-    // Filter out already existing skills
-    const newSkills = skills.filter(
-      (skill) => !existingSkills.includes(skill.skill)
-    );
-  
-    if (newSkills.length === 0) {
-      alert('No new skills to submit.');
-      return;
-    }
-  
-    const apiSkillsData = newSkills.map((skill) => ({
-      createdBy: userID,
-      doctorID: doctorID,
-      skillMasterID: skill.skill,
-      yearOfExperience: skill.yearsOfExperience,
-      monthOfExperience: skill.monthsOfExperience,
-      description: skill.description.trim(),
-    }));
-  
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorSkill',
-        apiSkillsData,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-  
-      if ([200, 201].includes(response.status)) {
-        console.log('✅ Skill Data Saved Successfully:', response.data);
-        alert('✅ New skills added successfully!');
-  
-        // Update existingSkills with newly submitted skills
-        setExistingSkills((prev) => [
-          ...prev,
-          ...newSkills.map((s) => s.skill),
-        ]);
-      } else {
-        console.error('❌ Unexpected response status:', response.status);
-      }
-    } catch (error: any) {
-      console.error(
-        '🚨 Error submitting skill details:',
-        error?.response?.data || error.message
-      );
-    }
-  };
-  
+ 
 
   return (
-    <form className="space-y-6">
+    <form className="space-y-6" onSubmit={handleSkillSubmit}>
       <h2 className="text-lg font-bold text-black-700 text-left">Skills</h2>
 
       {skills.map((skill, index) => (
@@ -357,7 +299,7 @@ const Skills: React.FC = () => {
         <span className="text-sm font-medium pr-5 text-black-600">Add</span>
       </div>
       {/* ✅ Add and Submit Buttons */}
-      <div className="flex justify-center space-x-4">
+      {/* <div className="flex justify-center space-x-4">
         <button
           type="button"
           onClick={handleSkillSubmit}
@@ -368,7 +310,7 @@ const Skills: React.FC = () => {
         >
           Submit
         </button>
-      </div>
+      </div> */}
     </form>
   );
 };

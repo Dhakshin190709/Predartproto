@@ -394,10 +394,11 @@ const handleSearch = () => {
   
       // Update state with the new status
       const updatedData = rowData.map((item) =>
-        item.guidID === params.data.guidID
+        item.tenantID === params.data.tenantID // use the correct key here
           ? { ...item, isActive: updatedStatus ? "Active" : "Inactive" }
           : item
       );
+      
   
       setRowData(updatedData);
       setFilteredData(updatedData);

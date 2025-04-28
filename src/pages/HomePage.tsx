@@ -9,19 +9,19 @@ import UpcomingAppointments from '../components/Charts/upcomingAppointment';
 const HomePage: React.FC = () => {
   return (
     <div className="dashboard-container p-5">
-      <div>
+      <div className='ml-5'>
         <UpcomingAppointments />
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 ml-9">
         {/* Row 1: ChartOne & ChartTwo (Increase ChartTwo Height) */}
         <div className="w-full flex">
           <div className="w-full p-3 bg-white rounded-lg shadow-md">
             <ChartOne />
           </div>
         </div>
-        <div className="w-full flex">
+        <div className="w-full flex mr-10">
           <div className="w-full min-h-[400px] p-3 bg-white rounded-lg shadow-md">
             <ChartTwo />
           </div>
@@ -40,10 +40,10 @@ const HomePage: React.FC = () => {
         </div>
 
         {/* Row 3: QuickAccess (All Boxes Same Size) */}
-        <div className="col-span-1 md:col-span-2 flex">
-          <div className="w-full p-3 bg-white rounded-lg shadow-md">
+        <div className="col-span-1 md:col-span-2 flex ml-12 mr-6">
+         
             <QuickAccess />
-          </div>
+        
         </div>
       </div>
     </div>

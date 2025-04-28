@@ -1,10 +1,7 @@
 import React from "react";
 
-interface ButtonProps {
-  onClick?: () => void;
-  className?: string;
+interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   children: React.ReactNode;
-  type?: "button" | "submit" | "reset" |"cancel" |"confirm";
 }
 
 const CustomButton: React.FC<ButtonProps> = ({
@@ -12,6 +9,7 @@ const CustomButton: React.FC<ButtonProps> = ({
   className = "",
   children,
   type = "button",
+  ...rest
 }) => {
   return (
     <button
@@ -21,6 +19,7 @@ const CustomButton: React.FC<ButtonProps> = ({
         hover:from-[#007BFF] hover:to-[#004A99] text-white 
         transition duration-150 ease-out hover:ease-in 
         py-2 px-5 rounded-lg ${className}`}
+      {...rest} // includes disabled, aria attributes, etc.
     >
       {children}
     </button>

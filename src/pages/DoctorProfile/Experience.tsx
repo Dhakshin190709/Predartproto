@@ -5,7 +5,9 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { Calendar } from 'lucide-react';
 import { inputFieldClass } from '../../components/FormStyles';
-
+interface ExperienceProps {
+  handleExperienceSubmit: (e: React.FormEvent) => Promise<void>; // Adjusted type
+}
 interface Experience {
   type: string;
   hospitalName: string;
@@ -24,7 +26,7 @@ interface Specialization {
   name: string;
 }
 
-const Experience: React.FC = () => {
+const Experience = ({ handleExperienceSubmit }: ExperienceProps) => {
   const [experience, setExperience] = useState<Experience[]>([
     {
       type: '',
@@ -204,87 +206,13 @@ const Experience: React.FC = () => {
     setExperienceErrors(errors);
   };
 
-  const handleExperienceSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
   
-    const userID = sessionStorage.getItem('userID');
-    const doctorID = sessionStorage.getItem('doctorID');
-  
-    if (!userID || !doctorID) {
-      alert('⚠️ User or Doctor ID not found. Please log in again.');
-      return;
-    }
-  
-    // Validate form fields
-    const newErrors = experience.map((exp) => {
-      const fieldErrors: ExperienceErrors = {};
-      if (!exp.hospitalName?.trim()) fieldErrors.hospitalName = 'Hospital name is required.';
-      if (!exp.joinDate) fieldErrors.joinDate = 'Join date is required.';
-      if (!exp.leaveDate) fieldErrors.leaveDate = 'Leave date is required.';
-      return fieldErrors;
-    });
-  
-    setExperienceErrors(newErrors);
-    const hasErrors = newErrors.some((errors) => Object.values(errors).some((msg) => msg));
-    if (hasErrors) return;
-  
-    // Avoid re-submitting existing experience
-    const savedExperienceSet = new Set(
-      savedExperience.map(
-        (exp) =>
-          `${exp.hospitalName.trim()}_${new Date(exp.joinDate).toISOString()}_${new Date(exp.leaveDate).toISOString()}`
-      )
-    );
-  
-    const newExperienceDataArray = experience
-      .filter((exp) => {
-        const expKey = `${exp.hospitalName.trim()}_${new Date(exp.joinDate).toISOString()}_${new Date(exp.leaveDate).toISOString()}`;
-        return !savedExperienceSet.has(expKey);
-      })
-      .map((exp) => ({
-        createdBy: userID,
-        doctorID: doctorID,
-        isActive: true,
-        employmentType: exp.type,
-        specializationID: exp.specialization,
-        hospitalName: exp.hospitalName.trim(),
-        joinDate: new Date(exp.joinDate).toISOString(),
-        leaveDate: new Date(exp.leaveDate).toISOString(),
-      }));
-  
-    if (newExperienceDataArray.length === 0) {
-      alert('✅ No new experience to save.');
-      return;
-    }
-  
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorExprience',
-        newExperienceDataArray,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
-      );
-  
-      if ([200, 201].includes(response.status)) {
-        alert('✅ Experience saved successfully!');
-        setExperienceErrors([]);
-        setSavedExperience([...savedExperience, ...newExperienceDataArray]);
-      } else {
-        console.error('Unexpected response:', response.status);
-        alert('❌ Failed to save experience. Please try again.');
-      }
-    } catch (error: any) {
-      console.error('🚨 API error:', error.response?.data || error.message);
-      alert('API error: Unable to save experience.');
-    }
-  };
   
   
   
 
   return (
-    <form className="space-y-6">
+    <form className="space-y-6" onSubmit={handleExperienceSubmit}>
       {/* Doctor Experience Section */}
       <h2 className="text-lg font-bold text-black-700 text-left">
         Doctor Experience
@@ -450,15 +378,15 @@ const Experience: React.FC = () => {
           {/* Non-clickable Text */}
           <span className="text-sm font-medium text-black-600">Add</span>
         </div>
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <button
             type="button"
-            onClick={handleExperienceSubmit}
+       
             className="bg-gradient-to-b from-blue-700 to-blue-500 hover:from-blue-500 hover:to-blue-700 text-white py-2 px-6 rounded-2xl"
           >
             Submit
           </button>
-        </div>
+        </div> */}
       </div>
     </form>
   );

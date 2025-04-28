@@ -1,12 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+// Define the types for the props
+interface LanguageProps {
+  handleSubmit: (e: React.FormEvent) => void; 
+  forms: { 
+    id: number; 
+    language: string; 
+    abilities: { read: boolean; write: boolean; speak: boolean }; 
+    isNew: boolean; 
+  }[]; 
+  setForms: React.Dispatch<React.SetStateAction<{ 
+    id: number; 
+    language: string; 
+    abilities: { read: boolean; write: boolean; speak: boolean }; 
+    isNew: boolean; 
+  }[]>>; 
+}
 
-const Language: React.FC = () => {
+const Language: React.FC<LanguageProps> = ({ handleSubmit, forms, setForms }) => {
   const [doctorID, setDoctorID] = useState("");
   const [languageOptions, setLanguageOptions] = useState<{ appLOVID: string; name: string }[]>([]);
-  const [forms, setForms] = useState<any[]>([
-    { id: Date.now(), language: '', abilities: { read: false, write: false, speak: false }, isNew: true }
-  ]);
+  
   const [loading, setLoading] = useState(false);
 
   // Fetch language options when component loads (without waiting for doctorID)
@@ -94,47 +108,7 @@ const Language: React.FC = () => {
     setForms(updated);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
   
-    const userID = sessionStorage.getItem('userID');
-    const doctorID = sessionStorage.getItem('doctorID');
-  
-    if (!doctorID) {
-      alert('⚠️ Doctor ID not found in session. Cannot submit.');
-      return;
-    }
-  
-    if (!userID) {
-      alert('⚠️ User not logged in. Please log in again.');
-      return;
-    }
-  
-    const payload = forms.map((form) => ({
-      createdBy: userID,
-      id: doctorID,
-      type: 'doctor',
-      languageMasterID: form.language,
-      ...form.abilities,
-    }));
-  
-    console.log('🚀 Submitting Payload:', payload);
-  
-    try {
-      const { status } = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveLanguage',
-        payload,
-        { headers: { 'Content-Type': 'application/json' } }
-      );
-  
-      if ([200, 201].includes(status)) {
-        alert('✅ Languages saved successfully!');
-      }
-    } catch (err) {
-      console.error('❌ Error saving languages:', err);
-      alert('❌ Failed to save languages.');
-    }
-  };
   
 
   return (
@@ -196,9 +170,9 @@ const Language: React.FC = () => {
           </div>
 
           <div className="flex justify-center gap-2">
-            <button type="submit" className="px-6 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600">
+            {/* <button type="submit" className="px-6 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600">
               Save
-            </button>
+            </button> */}
           </div>
         </>
       )}

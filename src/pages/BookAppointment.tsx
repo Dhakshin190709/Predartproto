@@ -4,9 +4,12 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
 import CustomButton from '../components/CustomButton';
-import CalendarIcon from "../../src/images/icon/calendar.svg";
-import ClockIcon from "../../images/icon/Clock.png";
+import CalendarIcon from '../../src/images/icon/calendar.svg';
+import ClockIcon from '../../images/icon/Clock.png';
 
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -16,7 +19,7 @@ const BookAppointment = () => {
   const [formData, setFormData] = useState({
     name: '',
     relationship: '',
-
+    timeSlotID: '',
     phoneNumber: '',
     hospital: '',
     doctor: '',
@@ -41,9 +44,17 @@ const BookAppointment = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<Date | null>(null);
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
+  const [appointmentType, setAppointmentType] = useState(null);
   const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string>('');
-  
-  
+  const [options, setOptions] = useState<AppLOVOption[]>([]);
+  const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
+  const [bookedSlots, setBookedSlots] = useState<
+    { appointmentDate: string; appointmentTime: string }[]
+  >([]);
+
+  const [isSelf, setIsSelf] = useState(false);
+  const [isOthers, setIsOthers] = useState(false);
+
   const [doctorID, setDoctorID] = useState('');
 
   const handleTimeChange = (time: Date | null) => {
@@ -71,7 +82,7 @@ const BookAppointment = () => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
   const [selectedHospital, setSelectedHospital] = useState('');
-  const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
+  // Initialize it with a default value or fetch it if necessary.
 
   const [doctorSearchText, setDoctorSearchText] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
@@ -123,54 +134,60 @@ const BookAppointment = () => {
         );
         const result = await response.json();
 
-        console.log('API Response:', result); // Verify the entire response
+        let hospitalData = [];
 
-        // Since the response is already an array:
         if (Array.isArray(result)) {
-          setHospitals(result); // Set the hospitals directly
+          hospitalData = result;
         } else if (Array.isArray(result?.data)) {
-          setHospitals(result.data); // Fallback if data is nested
+          hospitalData = result.data;
         } else {
           console.error('Invalid hospital data format:', result);
           setHospitals([]);
+          return;
         }
+
+        const activeHospitals = hospitalData.filter(
+          (hospital) => hospital.isActive,
+        );
+
+        setHospitals(activeHospitals);
+
+        // ❌ Don’t prefill hospital
+        // setSelectedHospitalID(activeHospitals[0]?.hospitalID);
+        // ❌ Don’t fetch doctors yet
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
     };
 
-    const fetchDoctors = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor',
-        );
-        const result = await response.json();
-        if (result.success && Array.isArray(result.data)) {
-          setDoctors(result.data);
-        } else {
-          console.error('Invalid doctor data format:', result.data);
-        }
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
-      }
-    };
-
     fetchHospitals();
-    fetchDoctors();
   }, []);
 
-  useEffect(() => {
-    if (selectedHospitalID) {
-      const filtered = doctors.filter(
-        (doctor) => doctor.hospitalID === selectedHospitalID,
+  const fetchDoctors = async (hospitalId: string) => {
+    try {
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor?HospitalID=${hospitalId}`,
       );
-      setFilteredDoctors(filtered);
-    } else {
-      setFilteredDoctors([]);
-    }
-  }, [selectedHospitalID, doctors]);
+      const result = await response.json();
 
-  const [options, setOptions] = useState<AppLOVOption[]>([]);
+      if (result.success && Array.isArray(result.data)) {
+        setDoctors(result.data);
+      } else {
+        console.error('Invalid doctor data format:', result.data);
+        setDoctors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  const [roleName, setRoleName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedRole = sessionStorage.getItem('roleName');
+    setRoleName(storedRole);
+    console.log('Retrieved role:', storedRole);
+  }, []);
 
   useEffect(() => {
     const fetchOptions = async () => {
@@ -188,6 +205,39 @@ const BookAppointment = () => {
     fetchOptions();
   }, []);
 
+  useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    const roleName = sessionStorage.getItem('roleName');
+
+    if (userID && roleName !== 'Reception') {
+      fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            const name = data.data.patientName || '';
+            const phoneNumber = data.data.patientPhoneNumber || '';
+
+            // Save it separately
+            setPatientData({ name, phoneNumber });
+
+            // Initialize formData if needed
+            setFormData((prev) => ({
+              ...prev,
+              name,
+              phoneNumber,
+            }));
+          } else {
+            console.warn('⚠️ Failed to fetch patient data');
+          }
+        })
+        .catch((err) => {
+          console.error('❌ Error fetching patient data:', err);
+        });
+    }
+  }, []);
+
   const handleOptionChange = (selectedOption: AppLOVOption) => {
     setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
     console.log(
@@ -202,7 +252,7 @@ const BookAppointment = () => {
 
     // Conditional validation for 'Others' appointment type
     if (appointmentType === 'Others' && name === 'relationship' && !value) {
-      return 'Relationship is required.'; // ✅ Shows error if not selected
+      return 'Relationship is required.';
     }
 
     if (name === 'name' && !value) error = 'Name is required.';
@@ -219,50 +269,43 @@ const BookAppointment = () => {
     }
 
     // Date validation
-   // Date validation
-if (name === 'date') {
-  const dateValue = formData.date;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
+    // Date validation
+    if (name === 'date') {
+      const dateValue = formData.date;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
 
-  if (!dateValue) {
-    error = 'Date is required.';
-  } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
-    error = 'Invalid date.';
-  } else if (dateValue < today) {
-    error = 'Past dates are not allowed.';
-  } else {
-    error = ''; // Clear error when valid
-  }
-}
-
+      if (!dateValue) {
+        error = 'Date is required.';
+      } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
+        error = 'Invalid date.';
+      } else if (dateValue < today) {
+        error = 'Past dates are not allowed.';
+      } else {
+        error = ''; // Clear error when valid
+      }
+    }
 
     // Time validation
     if (name === 'time') {
-      const selectedDate = formData.date; // assuming this is the selected date
-      const selectedTime = value as Date;
-      const now = new Date();
-    
-      if (!value) {
+      console.log('Validating Time:', value, typeof value);
+
+      if (!value || !(value instanceof Date)) {
         error = 'Time is required.';
-      } else if (selectedTime instanceof Date && isNaN(selectedTime.getTime())) {
+      } else if (isNaN(value.getTime())) {
         error = 'Invalid time.';
-      } else if (selectedDate) {
-        const selectedDateOnly = new Date(selectedDate);
-        selectedDateOnly.setHours(0, 0, 0, 0);
-    
+      } else if (formData.date) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-    
-        if (selectedDateOnly.getTime() === today.getTime()) {
-          // If the selected date is today, validate that time is now or in the future
-          if (selectedTime < now) {
-            error = 'Past time is not allowed for today.';
-          }
+
+        const selectedDate = new Date(formData.date);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate.getTime() === today.getTime() && value < new Date()) {
+          error = 'Past time is not allowed for today.';
         }
       }
     }
-    
 
     return error;
   };
@@ -359,72 +402,80 @@ if (name === 'date') {
     }));
   };
 
+  const convertTo24HourFormat = (time: Date | string): string => {
+    if (!time) return '00:00:00';
 
-  const convertTo24HourFormat = (timeStr: string): string => {
-    const [time, modifier] = timeStr.trim().split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
-  
-    if (modifier === 'PM' && hours < 12) hours += 12;
-    if (modifier === 'AM' && hours === 12) hours = 0;
-  
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    const date =
+      typeof time === 'string' ? new Date(`1970-01-01T${time}`) : time;
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
   };
-
-  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const userID = sessionStorage.getItem('userID');
+
     if (!userID) {
-      alert('User not logged in. Please log in again.');
+      toast.error('User not logged in. Please log in again.');
       return;
     }
-  
-    // Validate all fields before submitting
+
     const newErrors = {
       name: validateField('name', formData.name),
-      relationship: validateField('relationship', formData.relationship),
+      relationship: validateField('relationship', selectedRelationship),
+      hospital: validateField('hospital', selectedHospitalID),
       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
       doctor: validateField('doctor', formData.doctor),
       reason: validateField('reason', formData.reason),
       date: validateField('date', formData.date),
       time: validateField('time', formData.time),
     };
-  
+
     setErrors(newErrors);
-  
+
     if (Object.values(newErrors).every((error) => error === '')) {
       try {
-        // Fetch patientID using userID
         const patientRes = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
         );
-  
+
         if (!patientRes.ok) {
           throw new Error('Failed to fetch patient ID');
         }
-  
+
         const patientData = await patientRes.json();
         const patientID = patientData?.data?.patientID;
-  
+
         if (!patientID) {
-          alert('Patient ID not found for the logged-in user.');
+          toast.error('Patient ID not found for the logged-in user.');
           return;
         }
-  
+
         const appointmentTimeFormatted = formData.time
           ? convertTo24HourFormat(formData.time)
           : '00:00:00';
-  
+
+        const formatDateYYYYMMDD = (dateString: string) => {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = `0${date.getMonth() + 1}`.slice(-2);
+          const day = `0${date.getDate()}`.slice(-2);
+          return `${year}-${month}-${day}`;
+        };
+        console.log('Form Data:', formData);
         const payload = {
           createdBy: userID,
           isActive: true,
           doctorID: formData.doctor,
           patientID: patientID,
-          timeSlotID: formData.timeSlotID,
+          timeSlotID: formData.timeSlotID, // Pass this correctly
           appointmentDate: formData.date
-            ? new Date(formData.date).toISOString().split('T')[0]
+            ? formatDateYYYYMMDD(formData.date)
             : null,
           appointmentTime: appointmentTimeFormatted,
           statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
@@ -433,7 +484,7 @@ if (name === 'date') {
           relationShip: selectedRelationship,
           phoneNumber: formData.phoneNumber || '',
         };
-  
+
         const response = await fetch(
           'https://predart003-001-site1.anytempurl.com/api/Appointment',
           {
@@ -442,29 +493,31 @@ if (name === 'date') {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(payload),
-          }
+          },
         );
-  
+
+        const responseData = await response.json();
+
         if (response.ok) {
-          setSuccessMessage('Form submitted successfully!');
+          const message =
+            responseData?.message || 'Appointment booked successfully!';
+          toast.success(message);
           console.log('Form Submitted:', payload);
-  
-          // ✅ Reset the form
           resetForm();
         } else {
-          const errorData = await response.json();
-          console.error('Submission failed:', errorData);
-          setSuccessMessage('Submission failed. Please try again.');
+          const message =
+            responseData?.message || 'Submission failed. Please try again.';
+          toast.error(message);
         }
       } catch (error) {
         console.error('Error during submission:', error);
-        setSuccessMessage('An error occurred. Please try again later.');
+        toast.error('An error occurred. Please try again later.');
       }
     } else {
-      setSuccessMessage('');
+      toast.warning('Please fix the highlighted errors before submitting.');
     }
   };
-  
+
   // ✅ Helper function to reset the form completely
   const resetForm = () => {
     setFormData({
@@ -485,10 +538,20 @@ if (name === 'date') {
     setSelectedTime(null);
     setErrors({});
   };
-  
-  
-  
-  
+
+  const handleHospitalChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const hospitalId = event.target.value;
+    setSelectedHospitalID(hospitalId);
+    setSelectedDoctorID(''); // clear doctor selection
+
+    if (hospitalId) {
+      await fetchDoctors(hospitalId);
+    } else {
+      setDoctors([]);
+    }
+  };
 
   const [selectedRelationship, setSelectedRelationship] = useState('');
 
@@ -502,34 +565,37 @@ if (name === 'date') {
     if (!doctorID) return;
 
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
+      // Fetch the time slots for the selected doctor using the correct API
+      const timeSlotResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
       );
-      const responseData = await response.json();
-      const data = Array.isArray(responseData.data) ? responseData.data : [];
+      const timeSlotData = await timeSlotResponse.json();
 
-      console.log('Fetched Time Slots Data:', data);
+      console.log('Fetched Time Slot Data:', timeSlotData);
+
+      const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+      console.log('Processed Time Slot Data:', data);
 
       const matchedTimeSlots = data.filter(
         (slot) => String(slot.doctorID) === doctorID,
       );
 
-      if (matchedTimeSlots.length) {
-        console.log('Matched Time Slots:', matchedTimeSlots);
+      console.log('Matched Time Slots:', matchedTimeSlots);
 
+      if (matchedTimeSlots.length) {
         const formattedSlots = matchedTimeSlots.map((slot) => ({
           timeSlotID: slot.timeSlotID,
           fromTime: slot.fromTime,
           toTime: slot.toTime,
           slotDuration: slot.slotDuration,
-          day: slot.dayofWeek, // Ensure this matches the API field
+          day: slot.dayofWeek,
         }));
 
         setAvailableTimeSlots(formattedSlots);
         console.log('Formatted Slots:', formattedSlots);
 
         if (selectedDate) {
-          handleDateChange(selectedDate, formattedSlots); // ✅ Pass updated slots
+          handleDateChange(selectedDate, formattedSlots); // Pass updated slots
         }
       } else {
         console.warn('No matching time slots found for this doctor.');
@@ -541,36 +607,84 @@ if (name === 'date') {
     }
   };
 
-  const handleDateChange = (date: Date | null, slots?: TimeSlotType[]) => {
+  const handleDateChange = async (
+    date: Date | null,
+    slots?: TimeSlotType[],
+  ) => {
     if (!date) return;
+
+    const localDate = formatLocalDate(date); // "YYYY-MM-DD"
+    console.log('Selected Date (Full):', date);
+    console.log('Selected Date (Local):', localDate);
 
     setSelectedDate(date);
     setFormData((prev) => ({ ...prev, date }));
 
     const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
     if (!Array.isArray(timeSlots)) {
-      console.error('Invalid timeSlots:', timeSlots); // Ensure no event is passed
+      console.error('Invalid timeSlots:', timeSlots);
       return;
     }
 
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .trim();
+    console.log('Selected Day:', dayOfWeek);
+
     const matchedDaySlots = timeSlots.filter(
-      (slot) =>
-        slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase().trim(),
+      (slot) => slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase(),
     );
 
     if (matchedDaySlots.length) {
-      matchedDaySlots.forEach(
-        ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-          generateTimeSlots(fromTime, toTime, slotDuration, timeSlotID);
-        },
-      );
-      setFormData((prev) => ({
-        ...prev,
-        timeSlotID: matchedDaySlots[0].timeSlotID,
-      }));
+      console.log('Doctor is available on this date based on their schedule.');
+
+      try {
+        const appointmentResponse = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        );
+        const appointmentData = await appointmentResponse.json();
+        console.log('Raw Appointment Data:', appointmentData);
+
+        const appointmentList = Array.isArray(appointmentData)
+          ? appointmentData
+          : [];
+
+        const bookedSlots = appointmentList.map((appointment: any) => ({
+          appointmentDate: appointment?.appointmentDate,
+          appointmentTime: appointment?.appointmentTime,
+        }));
+
+        console.log('Booked Slots:', bookedSlots);
+
+        // ✅ Generate time slots using the fetched bookedSlots
+        let generated: { time: Date; timeSlotID: number }[] = [];
+
+        matchedDaySlots.forEach(
+          ({ fromTime, toTime, slotDuration, timeSlotID }) => {
+            const slots = generateTimeSlots(
+              fromTime,
+              toTime,
+              slotDuration,
+              timeSlotID,
+              bookedSlots,
+              date,
+            );
+            generated = [...generated, ...slots];
+          },
+        );
+
+        setBookedSlots(bookedSlots); // store after use
+        setGeneratedTimeSlots(generated); // set available slots
+
+        setFormData((prev) => ({
+          ...prev,
+          timeSlotID: matchedDaySlots[0].timeSlotID,
+        }));
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      }
     } else {
-      console.warn(`No time slots found for ${dayOfWeek}`);
+      console.warn(`Doctor is NOT available on ${dayOfWeek}.`);
       setGeneratedTimeSlots([]);
     }
   };
@@ -579,141 +693,199 @@ if (name === 'date') {
     fromTime: string,
     toTime: string,
     slotDuration: number,
-    timeSlotID: string
+    timeSlotID: number,
+    bookedSlots: { appointmentDate: string; appointmentTime: string }[],
+    selectedDate: Date,
   ) => {
-    console.log('Generating slots for timeSlotID:', timeSlotID);
-  
-    const slots = [];
-    const [fromHours, fromMinutes] = fromTime.split(':').map(Number);
-    const [toHours, toMinutes] = toTime.split(':').map(Number);
-  
-    const now = new Date(); // Current time
-    const selectedDateCopy = new Date(selectedDate!); // Copy to avoid mutation
-    selectedDateCopy.setHours(0, 0, 0, 0);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-  
-    let currentSlot = new Date(selectedDate!); // Start at the selected date
+    const fromTime24 = convertTo24HourFormat(fromTime);
+    const toTime24 = convertTo24HourFormat(toTime);
+
+    const [fromHours, fromMinutes] = fromTime24.split(':').map(Number);
+    const [toHours, toMinutes] = toTime24.split(':').map(Number);
+
+    const currentSlot = new Date(selectedDate);
     currentSlot.setHours(fromHours, fromMinutes, 0, 0);
-  
-    const endSlot = new Date(selectedDate!);
+
+    const endSlot = new Date(selectedDate);
     endSlot.setHours(toHours, toMinutes, 0, 0);
-  
-    while (currentSlot <= endSlot) {
-      // Allow slot if selectedDate is not today OR slot is in future
-      if (
-        selectedDateCopy.getTime() !== today.getTime() ||
-        currentSlot.getTime() >= now.getTime()
-      ) {
-        slots.push({ time: new Date(currentSlot), timeSlotID });
+
+    const availableSlots: { time: Date; timeSlotID: number }[] = [];
+
+    while (currentSlot < endSlot) {
+      const slotTime = new Date(currentSlot); // Clone to avoid mutation
+
+      const isBooked = bookedSlots.some((b) => {
+        const combinedBookedTime = new Date(
+          `${b.appointmentDate.split('T')[0]}T${b.appointmentTime}`,
+        );
+        return combinedBookedTime.getTime() === slotTime.getTime();
+      });
+
+      if (!isBooked) {
+        console.log(
+          `✅ Available Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+        availableSlots.push({ time: new Date(slotTime), timeSlotID });
+      } else {
+        console.log(
+          `⛔ Skipping Booked Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
       }
-  
-      currentSlot = new Date(currentSlot.getTime() + slotDuration * 60000);
+
+      currentSlot.setMinutes(currentSlot.getMinutes() + slotDuration);
     }
-  
-    setGeneratedTimeSlots(slots);
+
+    return availableSlots;
   };
-  
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-  
+  const formattedTime =
+    formData.time instanceof Date
+      ? formData.time.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : formData.time;
+
+  useEffect(() => {
+    console.log('Form Data Updated:', formData);
+  }, [formData]);
+
+  useEffect(() => {
+    console.log('Selected Time Slot ID:', selectedTimeSlotID);
+  }, [selectedTimeSlotID]);
+
   useEffect(() => {
     const selectedOption = options.find(
       (opt) => opt.appLOVID === appointmentType,
     );
 
     if (selectedOption?.name === 'Self') {
+      setIsSelf(true);
+      setIsOthers(false);
+
       setFormData((prev) => ({
         ...prev,
-        relationship: selectedOption.appLOVID, // ✅ Set relationship as Self's appLOVID
+        name: patientData.name, // ✅ refill from stored patient data
+        phoneNumber: patientData.phoneNumber,
+        relationship: selectedOption.appLOVID,
       }));
       setSelectedRelationship(selectedOption.appLOVID);
-    }
-  }, [appointmentType]);
+    } else if (selectedOption?.name === 'Others') {
+      setIsSelf(false);
+      setIsOthers(true);
 
+      setFormData((prev) => ({
+        ...prev,
+        name: '',
+        phoneNumber: '',
+        relationship: '',
+      }));
+      setSelectedRelationship('');
+    } else {
+      setIsSelf(false);
+      setIsOthers(false);
+    }
+  }, [appointmentType, options, patientData]);
 
   useEffect(() => {
     if (!appointmentType && options.length > 0) {
-      const defaultOption = options.find(opt => opt.name === 'Self');
+      const defaultOption = options.find((opt) => opt.name === 'Self');
       if (defaultOption) {
         setAppointmentType(defaultOption.appLOVID);
         handleOptionChange(defaultOption); // optional
       }
     }
   }, [options]);
-  
+
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
-    setSelectedTime(time);
-    setSelectedTimeSlotID(timeSlotID);
+    console.log('Time Selected:', time);
+    console.log('Time Slot ID Selected:', timeSlotID);
 
     setFormData((prev) => ({
       ...prev,
-      time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timeSlotID: timeSlotID, // ✅ Correctly pass timeSlotID
+      time,
+      timeSlotID,
     }));
+    setSelectedTime(time);
+    setSelectedTimeSlotID(timeSlotID);
+
+    const timeError = validateField('time', time);
+    setErrors((prev) => ({ ...prev, time: timeError }));
   };
 
   return (
-    <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+    <div className="dark:border-strokedark dark:bg-boxdark">
       {/* Right Section */}
       <div className="w-full border-stroke dark:border-strokedark">
-        <div className="w-full p-0 sm:p-4 xl:p-6">
+        <div className="w-full p-0 sm:px-4 xl:px-6">
           {' '}
           {/* Reduced padding */}
           <h2 className="mt-0 mb-3 text-2xl font-semibold text-black dark:text-white sm:text-title-xl2">
             Book Appointment
           </h2>
-          <form>
+          <form className="w-full px-0 sm:px-0 xl:px-0 py-4">
             {/* Appointment Type */}
-            <div className="mb-4 flex justify-center gap-4">
-              {options.map((option) => (
-                <label
-                  key={option.appLOVID}
-                  className="flex items-center space-x-2"
-                >
-                  <input
-                    type="radio"
-                    name="appointmentType"
-                    value={option.appLOVID} // ✅ Pass ID instead of name
-                    checked={appointmentType === option.appLOVID}
-                    onChange={() => {
-                      setAppointmentType(option.appLOVID); // ✅ Store the ID
-                      handleOptionChange(option); // Pass the entire option for name reference if needed
-                    }}
-                    className="form-radio text-primary-600 w-5 h-4"
-                  />
-                  <span>{option.name}</span> {/* Display name, but store ID */}
-                </label>
-              ))}
+            <div className="flex justify-center mt-4 mb-6">
+              <div className="flex rounded-full border-2 border-blue-300 overflow-hidden">
+                {options.map((option) => (
+                  <label
+                    key={option.appLOVID}
+                    className={`px-6 py-2 cursor-pointer font-semibold text-center transition-all duration-300
+        ${appointmentType === option.appLOVID ? 'bg-blue-500 text-white' : 'bg-gray-500 text-black'}`}
+                  >
+                    <input
+                      type="radio"
+                      name="appointmentType"
+                      value={option.appLOVID}
+                      checked={appointmentType === option.appLOVID}
+                      onChange={() => {
+                        setAppointmentType(option.appLOVID);
+                        handleOptionChange(option);
+                      }}
+                      className="hidden"
+                    />
+                    {option.name}
+                  </label>
+                ))}
+              </div>
             </div>
 
             {/* Name */}
             <div className="mb-4 flex gap-4">
-              <div className="relative w-1/2">
+              <div className="relative w-full sm:w-1/2">
                 <input
                   type="text"
                   name="name"
                   maxLength={30}
-                  placeholder="Name"
+                  placeholder={isOthers ? 'Enter your Name' : 'Name'}
                   value={formData.name}
                   onChange={handleInputChange}
-                  // disabled={appointmentType === 'Self'}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-           text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  disabled={isSelf && roleName !== 'Reception'}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
                 {errors.name && (
                   <p className="text-red-500 text-sm">{errors.name}</p>
                 )}
               </div>
-              <div className="relative w-1/2">
+
+              {/* Phone Number */}
+              <div className="relative w-full sm:w-1/2">
                 <input
                   type="text"
                   name="phoneNumber"
                   maxLength={10}
-                  placeholder="Phone Number"
+                  placeholder={isOthers ? 'Enter your number' : 'Phone Number'}
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
+                  disabled={isSelf && roleName !== 'Reception'}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
                 {errors.phoneNumber && (
@@ -721,6 +893,7 @@ if (name === 'date') {
                 )}
               </div>
             </div>
+
             {/* Relationship (for Others) */}
             {appointmentType ===
               options.find((opt) => opt.name === 'Others')?.appLOVID && (
@@ -732,10 +905,10 @@ if (name === 'date') {
                     value={selectedRelationship || ''}
                     onChange={(e) => {
                       const value = e.target.value;
-                      setSelectedRelationship(value);
+                      setSelectedRelationship(value); // Updates selectedRelationship
                       setFormData((prev) => ({
                         ...prev,
-                        relationship: value,
+                        relationship: value, // Updates formData.relationship
                       }));
                     }}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -766,13 +939,12 @@ if (name === 'date') {
             )}
 
             {/* Hospital Dropdown */}
-            <div className="mb-4 flex gap-4">
+            <div className="mb-4 flex flex-col sm:flex-row gap-4">
               {/* Hospital Dropdown */}
-              <div className="relative w-1/2">
+              <div className="relative w-full sm:w-1/2">
                 <select
-                  name="hospital"
                   value={selectedHospitalID}
-                  onChange={(e) => setSelectedHospitalID(e.target.value)}
+                  onChange={handleHospitalChange}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
                   <option value="">Select Hospital</option>
@@ -785,13 +957,14 @@ if (name === 'date') {
                     </option>
                   ))}
                 </select>
+
                 {errors.hospital && (
                   <p className="text-red-500 text-sm">{errors.hospital}</p>
                 )}
               </div>
 
               {/* Doctor Dropdown */}
-              <div className="relative w-1/2">
+              <div className="relative w-full sm:w-1/2">
                 <select
                   name="doctor"
                   value={selectedDoctorID}
@@ -799,16 +972,17 @@ if (name === 'date') {
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
                   <option value="">Select Doctor</option>
-                  {filteredDoctors.length > 0 ? (
-                    filteredDoctors.map((doctor) => (
-                      <option key={doctor.doctorID} value={doctor.doctorID}>
-                        {doctor.doctorName}
-                      </option>
-                    ))
-                  ) : (
-                    <option disabled>No doctors available</option>
-                  )}
+                  {doctors.length > 0
+                    ? doctors.map((doctor) => (
+                        <option key={doctor.doctorID} value={doctor.doctorID}>
+                          {doctor.doctorName}
+                        </option>
+                      ))
+                    : selectedHospitalID && (
+                        <option disabled>No doctors available</option>
+                      )}
                 </select>
+
                 {errors.doctor && (
                   <p className="text-red-500 text-sm">{errors.doctor}</p>
                 )}
@@ -830,84 +1004,84 @@ if (name === 'date') {
                 <p className="text-red-500 text-sm">{errors.reason}</p>
               )}
             </div>
+            <div className="mb-4 flex flex-col sm:flex-row md:flex-wrap gap-4">
+              {/* Appointment Date */}
+              <div className="w-full sm:w-1/2 md:w-1/4 relative">
+                <div className="relative flex items-center rounded-lg border border-stroke px-4 py-2 focus-within:border-primary">
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={(date) => handleDateChange(date)}
+                    placeholderText="Appointment Date"
+                    minDate={new Date()}
+                    className="w-full bg-transparent outline-none py-2 text-black placeholder:text-gray-400 pr-8"
+                  />
+                  <img
+                    src={CalendarIcon}
+                    alt="Calendar Icon"
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 opacity-70 pointer-events-none"
+                  />
+                </div>
 
-            <div className="mb-4 flex flex-wrap gap-4">
-  {/* Date Picker */}
-  <div className="relative w-1/4">
-  <DatePicker
-    selected={selectedDate}
-    onChange={(date) => handleDateChange(date)}
-    placeholderText="Select Date"
-    className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${
-      errors.date ? 'border-red-500' : ''
-    }`}
-  />
-  {errors.date && <p className="text-red-500 text-sm mt-1">{errors.date}</p>}
+                {errors.date && (
+                  <p className="text-red-500 text-sm mt-1">{errors.date}</p>
+                )}
+              </div>
 
-  {/* Image Calendar Icon */}
-  <span
-    className="absolute right-8 top-1/2 transform -translate-y-1/2"
-  >
-    <img
-      src={CalendarIcon} // 👈 Replace with your image path
-      alt="Calendar Icon"
-      className="w-5 h-6 opacity-70"
-    />
-  </span>
-</div>
+              {/* Appointment Time */}
+              <div className="w-full sm:w-1/2 md:w-1/4 relative">
+                <div className="relative flex items-center rounded-lg border border-stroke px-4 py-2 focus-within:border-primary">
+                  <DatePicker
+                    selected={selectedTime}
+                    onChange={(time) => {
+                      if (!time) return;
 
+                      const matchedSlot = generatedTimeSlots.find(
+                        (slot) => slot.time.getTime() === time.getTime(),
+                      );
 
-  {/* Time Picker */}
-  <div className="relative w-1/4">
-    <DatePicker
-      selected={selectedTime}
-      onChange={(time) => {
-        if (time) {
-          const matchedSlot = generatedTimeSlots.find(
-            (slot) =>
-              slot.time.getHours() === time.getHours() &&
-              slot.time.getMinutes() === time.getMinutes()
-          );
-          if (matchedSlot) {
-            handleTimeSlotSelect(time, matchedSlot.timeSlotID);
-          }
-        }
-      }}
-      showTimeSelect
-      showTimeSelectOnly
-      timeIntervals={slotDuration}
-      timeCaption="Time"
-      dateFormat="h:mm aa"
-      placeholderText="Select a time"
-      className="w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary"
-      includeTimes={generatedTimeSlots.map((slot) => slot.time)}
-    />
-    {errors.time && <p className="text-red-500 text-sm mt-1">{errors.time}</p>}
+                      console.log('Matched Slot:', matchedSlot);
 
-    {/* Timer Icon */}
-    <span
-      className="absolute right-8 top-1/2 transform -translate-y-1/2"
-      style={{ color: '#c2c3c4' }}
-    >
-      <i className="fas fa-clock fa-sm"></i>
-    </span>
-  </div>
+                      if (matchedSlot) {
+                        handleTimeSlotSelect(time, matchedSlot.timeSlotID);
+                      } else {
+                        setSelectedTime(time);
 
-  {/* Column 3 (Submit Button) */}
-  
+                        // Only update formData.timeSlotID if matchedSlot is found, otherwise keep it as is
+                        setFormData((prev) => ({
+                          ...prev,
+                          time,
+                          timeSlotID: prev.timeSlotID || '', // Keep existing timeSlotID if it's already set, else clear it
+                        }));
 
-  {/* Column 4 (Empty Space) */}
-  <div className="relative w-1/4"></div>
-</div>
+                        const timeError = validateField('time', time);
+                        setErrors((prev) => ({ ...prev, time: timeError }));
+                      }
+                    }}
+                    showTimeSelect
+                    showTimeSelectOnly
+                    timeIntervals={slotDuration}
+                    timeCaption="Time"
+                    dateFormat="HH:mm" // 24-hour format
+                    placeholderText="Appointment Time"
+                    className="w-full bg-transparent outline-none py-2 text-black placeholder:text-gray-400 pr-8"
+                    includeTimes={generatedTimeSlots.map((slot) => slot.time)}
+                  />
 
+                  <i className="fas fa-clock text-gray-500 absolute right-4 top-1/2 transform -translate-y-1/2 text-sm w-4 h-4 pointer-events-none"></i>
+                </div>
 
-           
+                {errors.time && (
+                  <p className="text-red-500 text-sm mt-1">{errors.time}</p>
+                )}
+              </div>
+            </div>
           </form>
-          <div className="relative w-1/4 flex items-center justify-start">
-  <CustomButton onClick={handleSubmit}>
-      Book Now
-    </CustomButton>
-  </div>
+          <div className="w-full px-0 sm:px-0 xl:px-0 flex justify-start">
+            <div className="w-full sm:w-1/2 md:w-1/4">
+              <CustomButton onClick={handleSubmit}>Book Now</CustomButton>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </div>
+          </div>
         </div>
       </div>
     </div>

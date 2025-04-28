@@ -2,11 +2,20 @@ import React, { useState, useEffect, useRef } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
-
-import { FaStethoscope, FaMapMarkerAlt, FaDirections,FaPhoneAlt,FaHospital } from "react-icons/fa";
+import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
+import {
+  FaStethoscope,
+  FaUserMd,
+  FaMapMarkerAlt,
+  FaDirections,
+  FaPhoneAlt,
+  FaHospital,
+} from 'react-icons/fa';
 import { fetchSpecializations } from '../../Utils';
 import CustomButton from '../../components/CustomButton';
-
+import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
+import SpecializationIcon from '../../images/icon/Health doctor medical medicine box box.svg';
+import axios from 'axios';
 interface Doctor {
   doctorID: string;
   doctorName: string;
@@ -22,18 +31,20 @@ interface Hospital {
 }
 
 const SearchDoctors: React.FC = () => {
-  
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [doctorData, setDoctorData] = useState([]);
-  
-  
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+const [options, setOptions] = useState<AppLOVOption[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
   const [selectedHospital, setSelectedHospital] = useState('');
   const [specializations, setSpecializations] = useState<{
     [key: string]: string;
   }>({});
-  const [selectedHospitalID, setSelectedHospitalID] = useState("");
-    const [selectedDoctorID, setSelectedDoctorID] = useState("");
+  const [selectedHospitalID, setSelectedHospitalID] = useState('');
+  const [selectedDoctorID, setSelectedDoctorID] = useState('');
   const [hospitals, setHospitals] = useState([]);
   const [slotDuration, setSlotDuration] = useState(10); // Default slot duration, adjust as necessary
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
@@ -45,7 +56,7 @@ const SearchDoctors: React.FC = () => {
   const [searchText, setSearchText] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
   const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
-
+  const [isSelf, setIsSelf] = useState(false);
   const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
 
   const [doctorSearchText, setDoctorSearchText] = useState('');
@@ -57,6 +68,8 @@ const SearchDoctors: React.FC = () => {
   const [showPopup, setShowPopup] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [hospitalID, setHospitalID] = useState('');
+    const [relationships, setRelationships] = useState([]);
+    const [isOthers, setIsOthers] = useState(false);
   const [doctorID, setDoctorID] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
@@ -85,36 +98,60 @@ const SearchDoctors: React.FC = () => {
     time: '',
   });
   useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/Doctor")
+    fetch('https://predart003-001-site1.anytempurl.com/api/Doctor')
       .then((response) => response.json())
       .then((data) => {
         setDoctorData(data.data);
         setFilteredDoctors(data.data); // Initially show all doctors
         setLoading(false);
       })
-      .catch((error) => console.error("Error fetching doctor data:", error));
+      .catch((error) => console.error('Error fetching doctor data:', error));
 
     fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          const hospitalMap = data.reduce(
+          const activeHospitals = data.filter((hospital) => hospital.isActive); // ✅ filter active only
+
+          const hospitalMap = activeHospitals.reduce(
             (acc, hospital) => {
               acc[hospital.hospitalID] = hospital.hospitalName;
               return acc;
             },
             {} as { [key: string]: string },
           );
+
           setHospitals(hospitalMap);
         }
       })
       .catch((error) => console.error('Error fetching hospitals:', error));
-
-     
-      
-      
   }, []);
 
+
+   const fetchRelationships = async () => {
+      try {
+        const response = await fetch(
+          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
+        );
+        const result = await response.json();
+  
+        console.log('API Response:', result); // Check the response structure
+  
+        if (Array.isArray(result.data)) {
+          setRelationships(result.data); // Set the fetched relationships
+        } else {
+          console.error('Invalid relationship data format:', result.data);
+          setRelationships([]);
+        }
+      } catch (error) {
+        console.error('Error fetching relationships:', error);
+      }
+    };
+  
+    // Fetch on component mount
+    useEffect(() => {
+      fetchRelationships();
+    }, []);
   useEffect(() => {
     const getSpecializations = async () => {
       const specMap = await fetchSpecializations();
@@ -124,7 +161,6 @@ const SearchDoctors: React.FC = () => {
     getSpecializations();
   }, []);
 
-  
   useEffect(() => {
     if (selectedHospital) {
       setFilteredDoctors(
@@ -134,6 +170,35 @@ const SearchDoctors: React.FC = () => {
       setFilteredDoctors(doctorData);
     }
   }, [selectedHospital, doctorData]);
+
+  const convertTo24HourFormat = (time: Date | string): string => {
+    if (!time) return '00:00:00';
+
+    const date =
+      typeof time === 'string' ? new Date(`1970-01-01T${time}`) : time;
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  };
+  
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await axios.get(
+          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
+        );
+        console.log('API Response:', response.data);
+        setOptions(response.data?.data ?? []);
+      } catch (error) {
+        console.error('Error fetching options:', error);
+      }
+    };
+
+    fetchOptions();
+  }, []);
 
   // Open popup and set doctor details
   const handleBookNow = (doctor: Doctor) => {
@@ -154,17 +219,19 @@ const SearchDoctors: React.FC = () => {
             'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
           );
           const responseData = await response.json();
-          const data = Array.isArray(responseData.data) ? responseData.data : [];
-    
+          const data = Array.isArray(responseData.data)
+            ? responseData.data
+            : [];
+
           console.log('Fetched Time Slots Data:', data);
-    
+
           const matchedTimeSlots = data.filter(
             (slot) => String(slot.doctorID) === selectedDoctorID,
           );
-    
+
           if (matchedTimeSlots.length) {
             console.log('Matched Time Slots:', matchedTimeSlots);
-    
+
             const formattedSlots = matchedTimeSlots.map((slot) => ({
               timeSlotID: slot.timeSlotID,
               fromTime: slot.fromTime,
@@ -172,10 +239,10 @@ const SearchDoctors: React.FC = () => {
               slotDuration: slot.slotDuration,
               day: slot.dayofWeek, // Ensure this matches the API field
             }));
-    
+
             setAvailableTimeSlots(formattedSlots);
             console.log('Formatted Slots:', formattedSlots);
-    
+
             // Optionally, if a date is selected, update slots for that date:
             if (selectedDate) {
               handleDateChange(selectedDate, formattedSlots);
@@ -192,7 +259,6 @@ const SearchDoctors: React.FC = () => {
       fetchTimeSlots();
     }
   }, [selectedDoctorID]); // Run whenever selectedDoctorID changes
-  
 
   const handleDateChange = (date: Date | null, slots?: TimeSlotType[]) => {
     if (!date) return;
@@ -232,25 +298,53 @@ const SearchDoctors: React.FC = () => {
     fromTime: string,
     toTime: string,
     slotDuration: number,
-    timeSlotID: string,
+    timeSlotID: number,
+    bookedSlots: { appointmentDate: string; appointmentTime: string }[],
+    selectedDate: Date,
   ) => {
-    console.log('Generating slots for timeSlotID:', timeSlotID);
+    const fromTime24 = convertTo24HourFormat(fromTime);
+    const toTime24 = convertTo24HourFormat(toTime);
 
-    const slots = [];
-    const today = new Date();
-    const [fromHours, fromMinutes] = fromTime.split(':').map(Number);
-    const [toHours, toMinutes] = toTime.split(':').map(Number);
+    const [fromHours, fromMinutes] = fromTime24.split(':').map(Number);
+    const [toHours, toMinutes] = toTime24.split(':').map(Number);
 
-    let current = new Date(today.setHours(fromHours, fromMinutes, 0, 0));
-    const end = new Date(today.setHours(toHours, toMinutes, 0, 0));
+    const currentSlot = new Date(selectedDate);
+    currentSlot.setHours(fromHours, fromMinutes, 0, 0);
 
-    while (current <= end) {
-      slots.push({ time: new Date(current), timeSlotID });
-      current = new Date(current.getTime() + slotDuration * 60000); // Add slot duration
+    const endSlot = new Date(selectedDate);
+    endSlot.setHours(toHours, toMinutes, 0, 0);
+
+    const availableSlots: { time: Date; timeSlotID: number }[] = [];
+
+    while (currentSlot < endSlot) {
+      const slotTime = new Date(currentSlot); // Clone to avoid mutation
+
+      const isBooked = bookedSlots.some((b) => {
+        const combinedBookedTime = new Date(
+          `${b.appointmentDate.split('T')[0]}T${b.appointmentTime}`,
+        );
+        return combinedBookedTime.getTime() === slotTime.getTime();
+      });
+
+      if (!isBooked) {
+        console.log(
+          `✅ Available Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+        availableSlots.push({ time: new Date(slotTime), timeSlotID });
+      } else {
+        console.log(
+          `⛔ Skipping Booked Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+      }
+
+      currentSlot.setMinutes(currentSlot.getMinutes() + slotDuration);
     }
 
-    setGeneratedTimeSlots(slots); // ✅ Save slots with IDs
+    return availableSlots;
   };
+
+
+
   const filterHospitals = (text: string) => {
     setSearchText(text);
     setFilteredHospitals(
@@ -272,7 +366,7 @@ const SearchDoctors: React.FC = () => {
     setShowDoctorDropdown(true);
   };
 
-  const handleInputChange = (
+ const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
@@ -299,6 +393,41 @@ const SearchDoctors: React.FC = () => {
     // Validate the field
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
+
+   const [selectedRelationship, setSelectedRelationship] = useState('');
+
+    useEffect(() => {
+       const selectedOption = options.find(
+         (opt) => opt.appLOVID === appointmentType,
+       );
+   
+       if (selectedOption?.name === 'Self') {
+         setIsSelf(true);
+         setIsOthers(false);
+   
+         setFormData((prev) => ({
+           ...prev,
+           name: patientData.name, // ✅ refill from stored patient data
+           phoneNumber: patientData.phoneNumber,
+           relationship: selectedOption.appLOVID,
+         }));
+         setSelectedRelationship(selectedOption.appLOVID);
+       } else if (selectedOption?.name === 'Others') {
+         setIsSelf(false);
+         setIsOthers(true);
+   
+         setFormData((prev) => ({
+           ...prev,
+           name: '',
+           phoneNumber: '',
+           relationship: '',
+         }));
+         setSelectedRelationship('');
+       } else {
+         setIsSelf(false);
+         setIsOthers(false);
+       }
+     }, [appointmentType, options, patientData]);
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     setSelectedTime(time);
     setSelectedTimeSlotID(timeSlotID);
@@ -309,19 +438,22 @@ const SearchDoctors: React.FC = () => {
       timeSlotID: timeSlotID, // ✅ Correctly pass timeSlotID
     }));
   };
+
   const validateField = (name: string, value: string | Date | null): string => {
     let error = '';
-  
+
     // Conditional validation for 'Others' appointment type
     if (appointmentType === 'Others' && name === 'relationship' && !value) {
       return 'Relationship is required.'; // ✅ Shows error if not selected
     }
-  
+
     if (name === 'name' && !value) error = 'Name is required.';
     if (name === 'hospital' && !value) error = 'Hospital is required.';
     // if (name === 'doctor' && !value) error = 'Doctor is required.';
+    if (name === 'doctor' && !selectedDoctorID) error = 'Doctor is required.';
+
     if (name === 'reason' && !value) error = 'Reason is required.';
-  
+
     if (name === 'phoneNumber') {
       if (!value) {
         error = 'Phone number is required.';
@@ -329,7 +461,7 @@ const SearchDoctors: React.FC = () => {
         error = 'Phone number must be exactly 10 digits.';
       }
     }
-  
+
     // Date validation
     if (name === 'date') {
       const dateValue = formData.date; // Use formData.date for consistency
@@ -341,8 +473,7 @@ const SearchDoctors: React.FC = () => {
         error = ''; // Clear error when valid
       }
     }
-    
-  
+
     // Time validation
     if (name === 'time') {
       if (!value) {
@@ -351,87 +482,137 @@ const SearchDoctors: React.FC = () => {
         error = 'Invalid time.';
       }
     }
-  
+
     return error;
   };
-  
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userID = sessionStorage.getItem('userID');
-  
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
-      return;
-    }
-  
-    const payload = {
-      createdBy: userID,
-      isActive: true,
-      doctorID: selectedDoctorID, // Use the doctor ID from the popup (preselected)
-      patientID: "1e3b8a00-d9c7-453d-aa97-005281e76f80",
-      timeSlotID: formData.timeSlotID,
-      appointmentDate: formData.date
-        ? new Date(formData.date).toLocaleDateString('en-CA')
-        : null,
-      appointmentTime: formData.time ? `${formData.time}:00` : null,
-      statusID: "f79e15f9-61ec-41ba-9b62-289025f6a2a8",
-      notes: notes || '', // Use the notes entered in the popup textarea
-      toWhom: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-      relationship: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-      phoneNumber: formData.phoneNumber || '',
-    };
-  
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Appointment',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        }
-      );
-  
-      if (response.ok) {
-        setSuccessMessage('Form submitted successfully!');
-        console.log('Form Submitted:', payload);
-        
-        // Reset only the popup form fields, without affecting other states
-        setFormData((prev) => ({
-           ...prev,
-           name: '',
-           phoneNumber: '',
-           timeSlotID: '',
-           date: '',
-           time: '',
-           doctor: ''
-        }));
-        setNotes('');
-          // Close the modal
-          setTimeout(() => {
-            setShowPopup(false);
-          }, 500);
-      } else {
-        const errorData = await response.json();
-        console.error('Submission failed:', errorData);
-        setSuccessMessage('Submission failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during submission:', error);
-      setSuccessMessage('An error occurred. Please try again later.');
-    }
+ const handleSubmit = async (e: React.FormEvent) => {
+     e.preventDefault();
+ 
+     const userID = sessionStorage.getItem('userID');
+ 
+     if (!userID) {
+       toast.error('User not logged in. Please log in again.');
+       return;
+     }
+ 
+     const newErrors = {
+       name: validateField('name', formData.name),
+       relationship: validateField('relationship', selectedRelationship),
+       hospital: validateField('hospital', selectedHospitalID),
+       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
+       doctor: validateField('doctor', formData.doctor),
+       reason: validateField('reason', formData.reason),
+       date: validateField('date', formData.date),
+       time: validateField('time', formData.time),
+     };
+ 
+     setErrors(newErrors);
+ 
+     if (Object.values(newErrors).every((error) => error === '')) {
+       try {
+         const patientRes = await fetch(
+           `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+         );
+ 
+         if (!patientRes.ok) {
+           throw new Error('Failed to fetch patient ID');
+         }
+ 
+         const patientData = await patientRes.json();
+         const patientID = patientData?.data?.patientID;
+ 
+         if (!patientID) {
+           toast.error('Patient ID not found for the logged-in user.');
+           return;
+         }
+ 
+         const appointmentTimeFormatted = formData.time
+           ? convertTo24HourFormat(formData.time)
+           : '00:00:00';
+ 
+         const formatDateYYYYMMDD = (dateString: string) => {
+           const date = new Date(dateString);
+           const year = date.getFullYear();
+           const month = `0${date.getMonth() + 1}`.slice(-2);
+           const day = `0${date.getDate()}`.slice(-2);
+           return `${year}-${month}-${day}`;
+         };
+         console.log('Form Data:', formData);
+         const payload = {
+           createdBy: userID,
+           isActive: true,
+           doctorID: formData.doctor,
+           patientID: patientID,
+           timeSlotID: formData.timeSlotID, // Pass this correctly
+           appointmentDate: formData.date
+             ? formatDateYYYYMMDD(formData.date)
+             : null,
+           appointmentTime: appointmentTimeFormatted,
+           statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+           notes: formData.reason?.trim() || 'No additional notes',
+           toWhom: appointmentType,
+           relationShip: selectedRelationship,
+           phoneNumber: formData.phoneNumber || '',
+         };
+ 
+         const response = await fetch(
+           'https://predart003-001-site1.anytempurl.com/api/Appointment',
+           {
+             method: 'POST',
+             headers: {
+               'Content-Type': 'application/json',
+             },
+             body: JSON.stringify(payload),
+           },
+         );
+ 
+         const responseData = await response.json();
+ 
+         if (response.ok) {
+           const message =
+             responseData?.message || 'Appointment booked successfully!';
+           toast.success(message);
+           console.log('Form Submitted:', payload);
+           resetForm();
+         } else {
+           const message =
+             responseData?.message || 'Submission failed. Please try again.';
+           toast.error(message);
+         }
+       } catch (error) {
+         console.error('Error during submission:', error);
+         toast.error('An error occurred. Please try again later.');
+       }
+     } else {
+       toast.warning('Please fix the highlighted errors before submitting.');
+     }
+   };
+
+
+  const handleOptionChange = (selectedOption: AppLOVOption) => {
+    setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
+    console.log(
+      `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
+    );
   };
+   useEffect(() => {
+      if (!appointmentType && options.length > 0) {
+        const defaultOption = options.find((opt) => opt.name === 'Self');
+        if (defaultOption) {
+          setAppointmentType(defaultOption.appLOVID);
+          handleOptionChange(defaultOption); // optional
+        }
+      }
+    }, [options]);
   
-
-
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
-      <div className="p-6 bg-white rounded-md shadow-md">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-6">
-          Search Doctor
-        </h1>
+      <div className="p-2 bg-white rounded-md">
+      <h1 className="text-3xl font-semibold text-black mb-6">
+        Search Doctor
+      </h1>
+        
         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           <div>
             <input
@@ -442,15 +623,7 @@ const SearchDoctors: React.FC = () => {
               placeholder="Enter Doctor Name"
             />
           </div>
-          <div>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-            text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-              placeholder="Enter Doctor ID"
-            />
-          </div>
+
           <div>
             <select
               className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
@@ -482,23 +655,17 @@ const SearchDoctors: React.FC = () => {
               ))}
             </select>
           </div>
+
           <div>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-              placeholder="Enter Location"
-            />
-          </div>
-          <div>
-          <CustomButton>
-     Search
-    </CustomButton>
+            <CustomButton>Search</CustomButton>
           </div>
         </form>
-      </div>
 
+      </div>
+      <h1 className="text-2xl p-2 font-semibold text-black mb-6 mt-4">
+    
+        List of Doctor's
+      </h1>
       <DoctorCard
         doctorData={filteredDoctors}
         loading={loading}
@@ -512,183 +679,245 @@ const SearchDoctors: React.FC = () => {
           <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
             <h2 className="text-xl font-semibold mb-4">Book Appointment</h2>
             <form onSubmit={handleSubmit}>
-            <div className="mb-4 flex gap-4">
-                  <div className="relative w-1/2">
+               {/* Appointment Type */}
+            <div className="flex justify-center mt-4 mb-6">
+              <div className="flex rounded-full border-2 border-blue-300 overflow-hidden">
+                {options.map((option) => (
+                  <label
+                    key={option.appLOVID}
+                    className={`px-6 py-2 cursor-pointer font-semibold text-center transition-all duration-300
+        ${appointmentType === option.appLOVID ? 'bg-blue-500 text-white' : 'bg-gray-500 text-black'}`}
+                  >
                     <input
-                      type="text"
-                      name="name"
-                      maxLength={30}
-                      placeholder="Name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      // disabled={appointmentType === 'Self'}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                      type="radio"
+                      name="appointmentType"
+                      value={option.appLOVID}
+                      checked={appointmentType === option.appLOVID}
+                      onChange={() => {
+                        setAppointmentType(option.appLOVID);
+                        handleOptionChange(option);
+                      }}
+                      className="hidden"
+                    />
+                    {option.name}
+                  </label>
+                ))}
+              </div>
+            </div>
+              <div className="mb-4 flex gap-4">
+                <div className="relative w-1/2">
+                  <input
+                    type="text"
+                    name="name"
+                    maxLength={30}
+                    placeholder="Name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    // disabled={appointmentType === 'Self'}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
            text-black outline-none focus:border-primary dark:border-form-strokedark
             dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    />
-                    {errors.name && (
-                      <p className="text-red-500 text-sm">{errors.name}</p>
-                    )}
-                  </div>
-                  <div className="relative w-1/2">
+                  />
+                  {errors.name && (
+                    <p className="text-red-500 text-sm">{errors.name}</p>
+                  )}
+                </div>
+                <div className="relative w-1/2">
                   <input
-        type="text"
-        name="phoneNumber"
-        maxLength={10}
-        placeholder="Phone Number"
-        value={formData.phoneNumber}
-        onChange={handleInputChange}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-       {errors.phoneNumber && (
-                      <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
+                    type="text"
+                    name="phoneNumber"
+                    maxLength={10}
+                    placeholder="Phone Number"
+                    value={formData.phoneNumber}
+                    onChange={handleInputChange}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  />
+                  {errors.phoneNumber && (
+                    <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
+                  )}
+                </div>
+              </div>
+
+                {/* Relationship (for Others) */}
+            {appointmentType ===
+              options.find((opt) => opt.name === 'Others')?.appLOVID && (
+              <div className="mb-4">
+                <div className="relative">
+                  {/* Relationship Dropdown */}
+                  <select
+                    name="relationship"
+                    value={selectedRelationship || ''}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedRelationship(value); // Updates selectedRelationship
+                      setFormData((prev) => ({
+                        ...prev,
+                        relationship: value, // Updates formData.relationship
+                      }));
+                    }}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Relationship</option>
+                    {relationships.length > 0 ? (
+                      relationships.map((relation) => (
+                        <option
+                          key={relation.appLOVID}
+                          value={relation.appLOVID}
+                        >
+                          {relation.name}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No relationships available</option>
                     )}
-      </div>
-      </div>
-            <div className="mb-4 flex gap-4">
-              <div className="relative w-1/2">
-                <select
-                  value={hospitalID}
-                  onChange={(e) => setHospitalID(e.target.value)}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 
+                  </select>
+                </div>
+
+                {/* Error Message */}
+                {errors.relationship && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {errors.relationship}
+                  </p>
+                )}
+              </div>
+            )}
+
+              <div className="mb-4 flex gap-4">
+                <div className="relative w-1/2">
+                  <select
+                    value={hospitalID}
+                    onChange={(e) => setHospitalID(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 
                   pl-6 pr-10 text-black outline-none focus:border-primary
                    dark:border-form-strokedark dark:bg-form-input dark:text-white
                     dark:focus:border-primary"
-                >
-                  {Object.entries(hospitals).map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
+                  >
+                    {Object.entries(hospitals).map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative w-1/2">
+                  <select
+                    name="doctor"
+                    value={selectedDoctorID}
+                    // Make sure this updates selectedDoctorID accordingly if the user changes the selection manually
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Doctor</option>
+                    {filteredDoctors.length > 0 ? (
+                      filteredDoctors.map((doctor) => (
+                        <option key={doctor.doctorID} value={doctor.doctorID}>
+                          {doctor.doctorName}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No doctors available</option>
+                    )}
+                  </select>
+                  {errors.doctor && (
+                    <p className="text-red-500 text-sm">{errors.doctor}</p>
+                  )}
+                </div>
               </div>
 
-              <div className="relative w-1/2">
-  <select
-    name="doctor"
-    value={selectedDoctorID}
-    // Make sure this updates selectedDoctorID accordingly if the user changes the selection manually
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="">Select Doctor</option>
-    {filteredDoctors.length > 0 ? (
-      filteredDoctors.map((doctor) => (
-        <option key={doctor.doctorID} value={doctor.doctorID}>
-          {doctor.doctorName}
-        </option>
-      ))
-    ) : (
-      <option disabled>No doctors available</option>
-    )}
-  </select>
-  {errors.doctor && (
-    <p className="text-red-500 text-sm">{errors.doctor}</p>
-  )}
-</div>
+              <div className="mb-4 flex gap-4">
+                {/* Date Picker */}
+                <div className="relative w-1/2">
+                  <DatePicker
+                    selected={selectedDate}
+                    onChange={(date) => handleDateChange(date)}
+                    placeholderText="Select Date"
+                    minDate={new Date()} // Disable past dates
+                    className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
+                  />
 
-            </div>
+                  {errors.date && (
+                    <p className="text-red-500 text-sm mt-1">{errors.date}</p>
+                  )}
+                  {/* Calendar Icon */}
+                  <span
+                    className="absolute right-4 top-1/2 transform -translate-y-1/2"
+                    style={{ color: '#c2c3c4' }}
+                  >
+                    <i className="fas fa-calendar-alt fa-xs"></i>
+                  </span>
+                </div>
 
-            <div className="mb-4 flex gap-4">
-              {/* Date Picker */}
-              <div className="relative w-1/2">
-                <DatePicker
-                  selected={selectedDate}
-                  onChange={(date) => handleDateChange(date)}
-                  placeholderText="Select Date"
-                  className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
-                />
-                {errors.date && (
-                  <p className="text-red-500 text-sm">{errors.date}</p>
-                )}
+                {/* Time Picker */}
+                <div className="relative w-1/2">
+                  <DatePicker
+                    selected={selectedTime}
+                    onChange={(time) => {
+                      if (time) {
+                        const matchedSlot = generatedTimeSlots.find(
+                          (slot) =>
+                            slot.time.getHours() === time.getHours() &&
+                            slot.time.getMinutes() === time.getMinutes(),
+                        );
 
-                {errors.date && (
-                  <p className="text-red-500 text-sm mt-1">{errors.date}</p>
-                )}
-                {/* Calendar Icon */}
-                <span
-                  className="absolute right-4 top-1/2 transform -translate-y-1/2"
-                  style={{ color: '#c2c3c4' }}
-                >
-                  <i className="fas fa-calendar-alt fa-xs"></i>
-                </span>
-              </div>
-
-              {/* Time Picker */}
-              <div className="relative w-1/2">
-                <DatePicker
-                  selected={selectedTime}
-                  onChange={(time) => {
-                    if (time) {
-                      const matchedSlot = generatedTimeSlots.find(
-                        (slot) =>
-                          slot.time.getHours() === time.getHours() &&
-                          slot.time.getMinutes() === time.getMinutes(),
-                      );
-
-                      if (matchedSlot) {
-                        handleTimeSlotSelect(time, matchedSlot.timeSlotID); // ✅ Pass ID on selection
+                        if (matchedSlot) {
+                          handleTimeSlotSelect(time, matchedSlot.timeSlotID); // ✅ Pass ID on selection
+                        }
                       }
-                    }
-                  }}
-                  showTimeSelect
-                  showTimeSelectOnly
-                  timeIntervals={slotDuration}
-                  timeCaption="Time"
-                  dateFormat="h:mm aa"
-                  placeholderText="Select a time"
-                  className="w-full rounded-lg border border-stroke py-4 pl-4 pr-12
+                    }}
+                    showTimeSelect
+                    showTimeSelectOnly
+                    timeIntervals={slotDuration}
+                    timeCaption="Time"
+                    dateFormat="h:mm aa"
+                    placeholderText="Select a time"
+                    className="w-full rounded-lg border border-stroke py-4 pl-4 pr-12
                text-black outline-none focus:border-primary"
-                  includeTimes={generatedTimeSlots.map((slot) => slot.time)}
-                />
+                    includeTimes={generatedTimeSlots.map((slot) => slot.time)}
+                  />
 
-                {errors.time && (
-                  <p className="text-red-500 text-sm mt-1">{errors.time}</p>
-                )}
-                {/* Timer Icon */}
-                <span
-                  className="absolute left-52 top-1/2 transform -translate-y-1/2"
-                  style={{ color: '#c2c3c4' }}
-                >
-                  <i className="fas fa-clock fa-xs"></i>
-                </span>
+                  {errors.time && (
+                    <p className="text-red-500 text-sm mt-1">{errors.time}</p>
+                  )}
+                  {/* Timer Icon */}
+                  <span
+                    className="absolute left-50 top-1/2 transform -translate-y-1/2"
+                    style={{ color: '#c2c3c4' }}
+                  >
+                    <i className="fas fa-clock fa-xs"></i>
+                  </span>
+                </div>
               </div>
-            </div>
 
-            
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-             className="w-full rounded-lg border border-stroke bg-transparent py-4 
-                  pl-6 pr-10 text-black outline-none focus:border-primary
-                   dark:border-form-strokedark dark:bg-form-input dark:text-white
-                    dark:focus:border-primary"
-              rows={3}
-            ></textarea>
+              <textarea
+                value={notes}
+                placeholder="Enter description"
+                onChange={(e) => setNotes(e.target.value)}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 
+    pl-6 pr-10 text-black outline-none focus:border-primary
+    dark:border-form-strokedark dark:bg-form-input dark:text-white
+    dark:focus:border-primary"
+                rows={3}
+              />
+              {errors.reason && (
+                <p className="text-red-500 text-sm mt-1">{errors.reason}</p>
+              )}
 
-<div className="flex justify-end gap-3 mt-4">
-              <button
-                onClick={() => setShowPopup(false)}
-                className="bg-gradient-to-b from-[#B22222] to-[#FF4500] 
-                 hover:from-[#FF4500] hover:to-[#B22222] 
-                 text-white transition duration-150 
-                 ease-out hover:ease-in py-2 px-2 rounded-lg"
-              >
-                Cancel
-              </button>
-              <button 
-              type="submit"
-              className="bg-gradient-to-b from-[#008000] to-[#00C853] 
-              hover:from-[#00C853] hover:to-[#008000] 
-              text-white transition duration-150 
-              ease-out hover:ease-in py-2 px-2 rounded-lg">
-              Confirm
-              </button>
-            </div>
+              <div className="flex justify-between items-center mt-4">
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
+                >
+                  Cancel
+                </button>
 
-        </form>
-               
-              
-              
+                <button
+                  type="submit"
+                  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
+                >
+                  Confirm
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -696,102 +925,98 @@ const SearchDoctors: React.FC = () => {
   );
 };
 
-const DoctorCard = ({ doctorData, loading, specializations,hospitals, onBookNow }) => {
+const DoctorCard = ({
+  doctorData,
+  loading,
+  specializations,
+  hospitals,
+  onBookNow,
+}) => {
   const [showMore, setShowMore] = useState(false);
 
   return (
-    <div className="grid grid-cols-1 gap-4 mt-6">
-    {loading ? (
-      <p>Loading...</p>
-    ) : (
-      doctorData.map((doctor) => {
-        const specializationName =
-          doctor.specializationID && specializations[String(doctor.specializationID).trim()]
-            ? specializations[String(doctor.specializationID).trim()]
-            : "Unknown";
-  
-        return (
-          <div
-            key={doctor.doctorID}
-           className="bg-white p-4 rounded-xl shadow-md border-2 border-blue-100 
-        transition-transform transform hover:scale-105 hover:shadow-lg w-full">
-            {/* Line 1: Doctor Specialization | Hospital Name */}
-            <div className="flex items-center w-full">
-  {/* Doctor Name & Specialization - Left Aligned */}
-  <div className="w-1/3 flex items-center">
-  <FaStethoscope className="mr-2 text-blue-500" />
-  <span className="font-bold text-gray-800 truncate">
-    {doctor.doctorName} ({specializationName})
-  </span>
-</div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+       {loading ? (
+    <div className="col-span-full text-center py-10">
+      <p className="text-lg font-medium text-blue-500">Loading...</p>
+    </div>
+  ) : (
+        doctorData.map((doctor) => {
+          const specializationName =
+            doctor.specializationID &&
+            specializations[String(doctor.specializationID).trim()]
+              ? specializations[String(doctor.specializationID).trim()]
+              : 'Unknown';
 
-{/* Extra Spacing Between Specialization and Hospital Name */}
-<div className="w-1/3"></div> {/* Empty div for spacing */}
+          const hospitalName = hospitals[doctor.hospitalID] || 'Unknown';
 
-{/* Hospital Name - Center Aligned, Fixed Width to Align Properly */}
-<div className="w-1/3 flex items-center justify-start text-orange-500 font-medium min-w-[200px] ml-8">
-  <FaHospital className="mr-2 text-orange-400 flex-shrink-0" />
-  <span className="truncate">{hospitals[doctor.hospitalID] || "Unknown"}</span>
-</div>
-
-
-
-  {/* Directions - Right Aligned */}
-  <div className="w-1/3 flex justify-end">
-    <a
-      href="https://www.google.com/maps/search/Anna+nagar,+chennai"
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-green-500 hover:underline flex items-center"
-    >
-      <FaDirections className="mr-1" /> Directions
-    </a>
-  </div>
-</div>
-
-
-
-
-
-  
-            {/* Line 2: Location | View More | Directions | Book Now */}
-            <div className="flex items-center justify-between mt-2">
-              <div className="flex items-center space-x-2">
-                <p className="flex items-center text-gray-700 font-medium truncate">
-                  <FaMapMarkerAlt className="text-red-500 mr-2" /> Anna Nagar, Chennai
-                </p>
-                <button
-                  className="text-blue-500 hover:underline"
-                  onClick={() => setShowMore(!showMore)}
-                >
-                  {showMore ? "View Less" : "View More"}
-                </button>
+          return (
+            <div
+              key={doctor.doctorID}
+              className="relative border-2 border-blue-300 rounded-xl shadow bg-white transition-transform transform hover:scale-105 hover:shadow-lg"
+            >
+              {/* Profile Icon Badge */}
+              <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-br-md rounded-tl-lg flex items-center justify-center">
+                <FaUserMd className="text-gray-500 text-md" />
               </div>
-              <div className="flex items-center space-x-4">
-              
-                <button
-                  className="bg-blue-500 text-white px-3 py-1 rounded"
-                  onClick={() => onBookNow(doctor)}
-                >
-                  Book Now
-                </button>
+
+              {/* Content Padding */}
+              <div className="p-4 space-y-3">
+                {/* Book Button */}
+                <div className="flex justify-end">
+                  <button
+                    className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                    onClick={() => onBookNow(doctor)}
+                  >
+                    <span>Book Now</span>
+                  </button>
+                </div>
+
+                {/* Name & Specialization in one row - aligned on same line */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
+                  {/* Doctor Name */}
+                  <div className="flex items-center gap-2 max-w-full">
+                    <img src={DoctorIcon} alt="doctor" className="w-4 h-5" />
+                    <span
+                      className="text-black truncate"
+                      title={`Name: ${doctor.doctorName}`} // tooltip on hover
+                    >
+                      <span className="text-black">Name:</span>
+                      {doctor.doctorName}
+                    </span>
+                  </div>
+
+                  {/* Specialization */}
+                  <div className="flex items-center gap-2 max-w-full">
+                    <img
+                      src={SpecializationIcon}
+                      alt="specialization"
+                      className="w-5 h-5"
+                    />
+                    <span
+                      className="text-black truncate"
+                      title={`Specialization: ${specializationName}`}
+                    >
+                      <span className="text-black">Specialization:</span>
+                      {specializationName}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Hospital */}
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
+                  <span className="text-black">
+                    <span className="text-black">Hospital:</span>{' '}
+                    {hospitalName}
+                  </span>
+                </div>
               </div>
             </div>
-  
-            {/* Show More Section */}
-            {showMore && (
-              <div className="mt-3 text-gray-600 truncate">
-                Additional patient details can be shown here...
-              </div>
-            )}
-          </div>
-        );
-      })
-    )}
-  </div>
-  
-  
-  
+          );
+        })
+      )}
+    </div>
   );
 };
 

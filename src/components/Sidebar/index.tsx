@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Logo from '../../images/logo/image.png';
 import { NavLink } from 'react-router-dom';
-import { FaChevronDown, FaChevronUp } from 'react-icons/fa';
+import { FaCcMastercard, FaChevronDown, FaChevronUp, FaMagic } from 'react-icons/fa';
 
 import {
   FaCog,FaUsers,FaFileAlt,FaUserCircle,FaHome,FaBell,FaUser,FaFolder,FaPills,FaSearch,FaUserCheck,
@@ -39,7 +39,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
     // route: '/manage-availability',
     route: '/dashboard',
   },
-  PatientRecord: { icon: <FaUsers />, route: '/dashboard' ,},
+  PatientRecord: { icon: <FaUsers />, route: '/patientRecord' ,},
   'CheckIN/OUT': { icon: <FaUserCheck />, route: '/dashboard' },
   Payment: { icon: <FaCashRegister />, route: '/dashboard' },
   Medical: { icon: <FaFileMedical />, route: '/dashboard' },
@@ -58,6 +58,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Lab: { icon: <FaFlask />, route: '/search/lab' },
   LabProfile: { icon: <FaFlask />, route: '/LabProfile' },
   UploadedDocument: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
+  LOVMasters: { icon: <FaMagic />, route: '/Masters/LovMasters' },
   DoctorProfile: { icon: <FaUserMd />, route: '/doctorProfile' },
   PatientProfile: { icon: <FaUserInjured />, route: '/patientFormWizard' },
   HospitalRegister: { icon: <FaBuilding />, route: '/hospital' },

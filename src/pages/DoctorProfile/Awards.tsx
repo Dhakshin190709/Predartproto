@@ -7,10 +7,11 @@ interface Award {
   year: string;
   description: string;
 }
-
+interface AwardsProps {
+  handleAwardSubmit: (e: React.FormEvent) => Promise<void>;
+}
 type FormErrors = { [key: string]: string };
-
-const Awards: React.FC = () => {
+const Awards: React.FC<AwardsProps> = ({ handleAwardSubmit }) => {
    const [doctorID,setDoctorID]=useState([]);
   const [awards, setAwards] = useState<Award[]>([{ awardName: '', year: '', description: '' }]);
   const [existingAwards, setExistingAwards] = useState<Award[]>([]); // ✅ Track existing awards
@@ -74,77 +75,7 @@ const Awards: React.FC = () => {
         existing.description.trim().toLowerCase() === newAward.description.trim().toLowerCase()
     );
 
-    const handleAwardSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
     
-      const userID = sessionStorage.getItem('userID');
-      const doctorID = sessionStorage.getItem('doctorID');
-    
-      if (!userID || !doctorID) {
-        alert('🚨 User not logged in. Please log in again.');
-        return;
-      }
-    
-      let isValid = true;
-      const errors: FormErrors = {};
-    
-      // 🔍 Filter out existing (duplicate) awards
-      const newAwards = awards.filter((award) => !isDuplicate(award));
-    
-      if (newAwards.length === 0) {
-        alert('🚫 No new awards to submit. Already submitted awards will not be saved again.');
-        return;
-      }
-    
-      const apiAwardsData = newAwards.map((award, index) => {
-        const fieldPrefix = `award_${index}`;
-        const year = award.year ? String(award.year).trim() : '';
-    
-        if (!award.awardName.trim()) {
-          errors[`${fieldPrefix}_awardName`] = 'Award name is required.';
-          isValid = false;
-        }
-    
-        if (!year || !/^\d{4}$/.test(year)) {
-          errors[`${fieldPrefix}_year`] = 'Enter a valid 4-digit year.';
-          isValid = false;
-        }
-    
-        if (!award.description.trim() || award.description.trim().length < 10) {
-          errors[`${fieldPrefix}_description`] = 'Description must be at least 10 characters long.';
-          isValid = false;
-        }
-    
-        return {
-          createdBy: userID,
-          doctorID: doctorID,
-          awardName: award.awardName.trim(),
-          awardYear: year,
-          description: award.description.trim(),
-        };
-      });
-    
-      setFormErrors(errors);
-    
-      if (!isValid) return;
-    
-      try {
-        const response = await axios.post(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorAward',
-          apiAwardsData,
-          { headers: { 'Content-Type': 'application/json' } }
-        );
-    
-        if (response.status === 200 || response.status === 201) {
-          alert('✅ New awards saved successfully!');
-          setExistingAwards([...existingAwards, ...newAwards]); // 🔥 Add newly saved awards to existing list
-        } else {
-          console.error('❌ Unexpected response status:', response.status);
-        }
-      } catch (error: any) {
-        console.error('🚨 Error saving awards:', error?.response?.data || error.message);
-      }
-    };
     
 
   return (
@@ -201,7 +132,7 @@ const Awards: React.FC = () => {
                     Add
                   </span>
                 </div>
-      <div className="flex justify-center gap-2">
+      {/* <div className="flex justify-center gap-2">
         
        <button
           type="submit"
@@ -212,7 +143,7 @@ const Awards: React.FC = () => {
         >
           Submit
         </button> 
-      </div>
+      </div> */}
     </form>
   );
 };
