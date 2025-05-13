@@ -48,7 +48,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   VisitorPass: { icon: <FaIdBadge />, route: '/visitorplan' },
   Reports: { icon: <FaFileAlt />, route: '#' },
   Subscriptions: { icon: <FaCreditCard />, route: '/subscription' },
-  DocumentUpload: { icon: <FaCloudUploadAlt />, route: '/doctorProfile' },
+  DocumentUpload: { icon: <FaCloudUploadAlt />, route: '/DocumentUpload' },
   UserManagement: { icon: <FaUsersCog />, route: '#' },
   Events: { icon: <FaCalendarCheck />, route: '#' },
   Offers: { icon: <FaTag />, route: '/offers' },
@@ -57,10 +57,10 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Tenant: { icon: <FaBuilding />, route: '/tenant' },
   Lab: { icon: <FaFlask />, route: '/search/lab' },
   LabProfile: { icon: <FaFlask />, route: '/LabProfile' },
-  UploadedDocument: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
+  //UploadedDocument: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
   LOVMasters: { icon: <FaMagic />, route: '/Masters/LovMasters' },
-  DoctorProfile: { icon: <FaUserMd />, route: '/doctorProfile' },
-  PatientProfile: { icon: <FaUserInjured />, route: '/patientFormWizard' },
+  DoctorProfile: { icon: <FaUserMd />, route: '/DoctorProfile' },
+  PatientProfile: { icon: <FaUserInjured />, route: '/PatientProfile' },
   HospitalRegister: { icon: <FaBuilding />, route: '/hospital' },
   // Submenus
   Booking: { icon: <FaClipboardList />, route: '/appointment/booking' },
@@ -76,6 +76,9 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
   PatientHistory: { icon: <FaUser />, route: '/history/patienthistory' },
+  ConsolidatedReport: { icon: <FaFileMedical />, route: '/consolidatedReport' },
+  MISReport: { icon: <FaFileExport />, route: '/MISReport' },
+ 
   AppointmentHistory: {
     icon: <FaClipboardCheck />,
     route: '/history/appointmenthistory',

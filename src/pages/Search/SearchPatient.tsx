@@ -7,6 +7,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
 import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -83,11 +84,12 @@ const SearchPatient: React.FC = () => {
   const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
     [],
   );
-const [bookedSlots, setBookedSlots] = useState<
+  const [bookedSlots, setBookedSlots] = useState<
     { appointmentDate: string; appointmentTime: string }[]
   >([]);
   const [patientName, setPatientName] = useState('');
   const [mobileNo, setMobileNo] = useState('');
+  const navigate = useNavigate();
 
   const [relationships, setRelationships] = useState([]);
   const [showMore, setShowMore] = useState(false);
@@ -137,9 +139,15 @@ const [bookedSlots, setBookedSlots] = useState<
       console.error('Patient details are missing!');
       return;
     }
+
+    // Store patient info in sessionStorage
+    sessionStorage.setItem('patientID', patient.patientID);
+    sessionStorage.setItem('patientPhoneNumber', patient.patientPhoneNumber);
+
     setSelectedPatient(patient);
     setIsModalOpen(true);
   };
+
   useEffect(() => {
     if (isModalOpen && selectedPatient) {
       setFormData({
@@ -157,48 +165,36 @@ const [bookedSlots, setBookedSlots] = useState<
     }
   }, [isModalOpen, selectedPatient]); // Runs every time modal opens with a new patient
 
-  // Define fetchAppointments outside useEffect
-  const fetchAppointments = async () => {
-    const unitID = sessionStorage.getItem('unitID');
-    const doctorID = sessionStorage.getItem('doctorID');
-    const roleName = sessionStorage.getItem('roleName')?.toLowerCase();
+  const fetchPatients = async () => {
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Patient',
+      );
+      const result = await response.json();
 
-    console.log('Role Name:', roleName);
-
-    if (roleName === 'doctor' && unitID && doctorID) {
-      try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}&DoctorID=${doctorID}`,
-        );
-        const data = await response.json();
-        console.log('Complete Response:', data);
-
-        // Directly use the data as an array since the response is an array
-        if (Array.isArray(data) && data.length > 0) {
-          setPatientData(data); // Set the data as patient data
-        } else {
-          console.error('Appointments array is empty or malformed:', data);
-          setPatientData([]); // Fallback to an empty array if no data or malformed
-        }
-      } catch (error) {
-        console.error('Error fetching doctor appointments:', error);
-        setPatientData([]); // Fallback on error
-      } finally {
-        setLoading(false);
+      if (result.success && Array.isArray(result.data)) {
+        setPatientData(result.data);
+      } else {
+        console.error('Invalid data format:', result);
+        setPatientData([]); // ✅ corrected
       }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+      setPatientData([]); // ✅ corrected
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Call fetchAppointments on mount to fetch initial appointments
   useEffect(() => {
-    fetchAppointments();
+    fetchPatients();
   }, []);
 
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
         const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital',
+          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
         );
         const result = await response.json();
 
@@ -377,107 +373,106 @@ const [bookedSlots, setBookedSlots] = useState<
     });
   };
 
-   const handleSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-  
-      const userID = sessionStorage.getItem('userID');
-  
-      if (!userID) {
-        toast.error('User not logged in. Please log in again.');
-        return;
-      }
-  
-      const newErrors = {
-      
-        hospital: validateField('hospital', selectedHospitalID),
-      
-        doctor: validateField('doctor', formData.doctor),
-        reason: validateField('reason', formData.reason),
-        date: validateField('date', formData.date),
-        time: validateField('time', formData.time),
-      };
-  
-      setErrors(newErrors);
-  
-      if (Object.values(newErrors).every((error) => error === '')) {
-        try {
-          const patientRes = await fetch(
-            `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-          );
-  
-          if (!patientRes.ok) {
-            throw new Error('Failed to fetch patient ID');
-          }
-  
-          const patientData = await patientRes.json();
-          const patientID = patientData?.data?.patientID;
-  
-          if (!patientID) {
-            toast.error('Patient ID not found for the logged-in user.');
-            return;
-          }
-  
-          const appointmentTimeFormatted = formData.time
-            ? convertTo24HourFormat(formData.time)
-            : '00:00:00';
-  
-          const formatDateYYYYMMDD = (dateString: string) => {
-            const date = new Date(dateString);
-            const year = date.getFullYear();
-            const month = `0${date.getMonth() + 1}`.slice(-2);
-            const day = `0${date.getDate()}`.slice(-2);
-            return `${year}-${month}-${day}`;
-          };
-          console.log('Form Data:', formData);
-          const payload = {
-            createdBy: userID,
-            isActive: true,
-            doctorID: formData.doctor,
-            patientID: patientID,
-            timeSlotID: formData.timeSlotID, // Pass this correctly
-            appointmentDate: formData.date
-              ? formatDateYYYYMMDD(formData.date)
-              : null,
-            appointmentTime: appointmentTimeFormatted,
-            statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-            notes: formData.reason?.trim() || 'No additional notes',
-            toWhom: appointmentType,
-            relationShip: selectedRelationship,
-            phoneNumber: formData.phoneNumber || '',
-          };
-  
-          const response = await fetch(
-            'https://predart003-001-site1.anytempurl.com/api/Appointment',
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify(payload),
-            },
-          );
-  
-          const responseData = await response.json();
-  
-          if (response.ok) {
-            const message =
-              responseData?.message || 'Appointment booked successfully!';
-            toast.success(message);
-            console.log('Form Submitted:', payload);
-            resetForm();
-          } else {
-            const message =
-              responseData?.message || 'Submission failed. Please try again.';
-            toast.error(message);
-          }
-        } catch (error) {
-          console.error('Error during submission:', error);
-          toast.error('An error occurred. Please try again later.');
-        }
-      } else {
-        toast.warning('Please fix the highlighted errors before submitting.');
-      }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
+    const phoneNumber = sessionStorage.getItem('patientPhoneNumber');
+
+    if (!userID || !patientID) {
+      toast.error('User or Patient not logged in. Please log in again.');
+      return;
+    }
+
+    const newErrors = {
+      hospital: validateField('hospital', selectedHospitalID),
+      doctor: validateField('doctor', formData.doctor),
+      reason: validateField('reason', formData.reason),
+      date: validateField('date', formData.date),
+      time: validateField('time', formData.time),
     };
+
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).every((error) => error === '')) {
+      try {
+        const appointmentTimeFormatted = formData.time
+          ? convertTo24HourFormat(formData.time)
+          : '00:00:00';
+
+        const formatDateYYYYMMDD = (dateString: string) => {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = `0${date.getMonth() + 1}`.slice(-2);
+          const day = `0${date.getDate()}`.slice(-2);
+          return `${year}-${month}-${day}`;
+        };
+
+        const payload = {
+          createdBy: userID,
+          isActive: true,
+          doctorID: formData.doctor,
+          patientID: patientID,
+          timeSlotID: formData.timeSlotID,
+          appointmentDate: formData.date
+            ? formatDateYYYYMMDD(formData.date)
+            : null,
+          appointmentTime: appointmentTimeFormatted,
+          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+          notes: formData.reason?.trim() || 'No additional notes',
+          toWhom: 'ae34b43e-74cf-4328-7794-08dd561d6477',
+          relationShip: 'ae34b43e-74cf-4328-7794-08dd561d6477',
+          phoneNumber: phoneNumber, // ✅ Use stored phone number here
+        };
+
+        const response = await fetch(
+          'https://predart003-001-site1.anytempurl.com/api/Appointment',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          const message =
+            responseData?.message || 'Appointment booked successfully!';
+          toast.success(message);
+          resetForm(); // Reset form after successful submission
+          setIsModalOpen(false);
+        } else {
+          const message =
+            responseData?.message || 'Submission failed. Please try again.';
+          toast.error(message);
+        }
+      } catch (error) {
+        console.error('Error during submission:', error);
+        toast.error('An error occurred. Please try again later.');
+      }
+    } else {
+      toast.warning('Please fix the highlighted errors before submitting.');
+    }
+  };
+
+  // Assuming you have a resetForm function that resets the form state
+  const resetForm = () => {
+    setFormData({
+      doctor: '',
+      reason: '',
+      date: '',
+      time: '',
+      phoneNumber: '',
+      // Add other fields as necessary
+    });
+
+    setSelectedHospitalID(''); // Reset hospital dropdown
+    setErrors({}); // Clear any validation errors
+  };
 
   // Function to filter doctors based on user input
   const filterDoctors = (text: string) => {
@@ -542,58 +537,57 @@ const [bookedSlots, setBookedSlots] = useState<
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
 
- 
-   const handleDoctorChange = async (
-     e: React.ChangeEvent<HTMLSelectElement>,
-   ) => {
-     const doctorID = e.target.value;
-     setSelectedDoctorID(doctorID);
-     setFormData((prev) => ({ ...prev, doctor: doctorID }));
- 
-     if (!doctorID) return;
- 
-     try {
-       // Fetch the time slots for the selected doctor using the correct API
-       const timeSlotResponse = await fetch(
-         `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-       );
-       const timeSlotData = await timeSlotResponse.json();
- 
-       console.log('Fetched Time Slot Data:', timeSlotData);
- 
-       const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
-       console.log('Processed Time Slot Data:', data);
- 
-       const matchedTimeSlots = data.filter(
-         (slot) => String(slot.doctorID) === doctorID,
-       );
- 
-       console.log('Matched Time Slots:', matchedTimeSlots);
- 
-       if (matchedTimeSlots.length) {
-         const formattedSlots = matchedTimeSlots.map((slot) => ({
-           timeSlotID: slot.timeSlotID,
-           fromTime: slot.fromTime,
-           toTime: slot.toTime,
-           slotDuration: slot.slotDuration,
-           day: slot.dayofWeek,
-         }));
- 
-         setAvailableTimeSlots(formattedSlots);
-         console.log('Formatted Slots:', formattedSlots);
- 
-         if (selectedDate) {
-           handleDateChange(selectedDate, formattedSlots); // Pass updated slots
-         }
-       } else {
-         console.warn('No matching time slots found for this doctor.');
-         setAvailableTimeSlots([]);
-         setGeneratedTimeSlots([]);
-       }
-     } catch (error) {
-       console.error('Error fetching time slots:', error);
-     }
-   };
+  const handleDoctorChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const doctorID = e.target.value;
+    setSelectedDoctorID(doctorID);
+    setFormData((prev) => ({ ...prev, doctor: doctorID }));
+
+    if (!doctorID) return;
+
+    try {
+      // Fetch the time slots for the selected doctor using the correct API
+      const timeSlotResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+      );
+      const timeSlotData = await timeSlotResponse.json();
+
+      console.log('Fetched Time Slot Data:', timeSlotData);
+
+      const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+      console.log('Processed Time Slot Data:', data);
+
+      const matchedTimeSlots = data.filter(
+        (slot) => String(slot.doctorID) === doctorID,
+      );
+
+      console.log('Matched Time Slots:', matchedTimeSlots);
+
+      if (matchedTimeSlots.length) {
+        const formattedSlots = matchedTimeSlots.map((slot) => ({
+          timeSlotID: slot.timeSlotID,
+          fromTime: slot.fromTime,
+          toTime: slot.toTime,
+          slotDuration: slot.slotDuration,
+          day: slot.dayofWeek,
+        }));
+
+        setAvailableTimeSlots(formattedSlots);
+        console.log('Formatted Slots:', formattedSlots);
+
+        if (selectedDate) {
+          handleDateChange(selectedDate, formattedSlots); // Pass updated slots
+        }
+      } else {
+        console.warn('No matching time slots found for this doctor.');
+        setAvailableTimeSlots([]);
+        setGeneratedTimeSlots([]);
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
+    }
+  };
 
   const handleDateChange = async (
     date: Date | null,
@@ -750,11 +744,9 @@ const [bookedSlots, setBookedSlots] = useState<
 
   const handleSearch = async () => {
     if (!patientName && !mobileNo) {
-      // If both fields are empty, reset to doctor's patients
-      fetchAppointments();
+      toast.warning('Please enter any one field.');
       return;
     }
-
     try {
       const response = await axios.get(
         `https://predart003-001-site1.anytempurl.com/api/Patient`,
@@ -776,6 +768,12 @@ const [bookedSlots, setBookedSlots] = useState<
       console.error('Error fetching patient data:', error);
       setPatientData([]);
     }
+  };
+
+  const handleReset = () => {
+    setPatientName('');
+    setMobileNo('');
+    fetchPatients();
   };
 
   return (
@@ -807,6 +805,14 @@ const [bookedSlots, setBookedSlots] = useState<
           >
             Search
           </button>
+
+          <button
+            onClick={handleReset}
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg
+          border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
+          >
+            Reset
+          </button>
         </div>
       </div>
 
@@ -820,7 +826,6 @@ const [bookedSlots, setBookedSlots] = useState<
             {patientData
               .filter((patient) => patient && patient.patientName) // basic check
               .map((patient, index) => {
-                console.log('Rendering patient:', patient);
                 const gender = patient.patientGender?.toLowerCase();
                 const isFemale = gender === 'female' || gender === 'f';
 
@@ -888,12 +893,9 @@ const [bookedSlots, setBookedSlots] = useState<
                       <div className="flex items-center space-x-1 max-w-full">
                         <img src={PhoneIcon} alt="phone" className="w-5 h-5" />
                         <span className="text-black">Phone:</span>
-                        <a
-                          href={`tel:${patient.patientPhoneNumber}`}
-                          className="text-black hover:underline"
-                        >
+                        <span className="text-black">
                           {patient.patientPhoneNumber}
-                        </a>
+                        </span>
                       </div>
 
                       <div className="flex items-center space-x-1 max-w-full">
@@ -911,6 +913,21 @@ const [bookedSlots, setBookedSlots] = useState<
                           {patient.patientEmail}
                         </a>
                       </div>
+                    </div>
+                    <div className="flex justify-end mb-2 mr-2">
+                      <button
+                        onClick={() =>
+                          navigate('/ProfilePatient', {
+                            state: {
+                              patientID: patient.patientID,
+                              patientName: patient.patientName,
+                            },
+                          })
+                        }
+                        className="text-blue-600 hover:underline text-sm font-semibold"
+                      >
+                        View More Profile Info
+                      </button>
                     </div>
                   </div>
                 );
@@ -1102,7 +1119,8 @@ const [bookedSlots, setBookedSlots] = useState<
           </div>
         </div>
       )}
-        <ToastContainer position="top-right" autoClose={3000} />
+
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

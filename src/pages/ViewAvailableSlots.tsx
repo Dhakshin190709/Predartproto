@@ -1,4 +1,4 @@
-import React, { useState, useEffect,useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
@@ -7,7 +7,9 @@ import 'react-datepicker/dist/react-datepicker.css';
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
-
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -36,79 +38,59 @@ const doctors = [
 
 const Calendar: React.FC = () => {
   const [selectedDoctorID, setSelectedDoctorID] = useState(null);
-  const [selectedDoctor, setSelectedDoctor] = useState("");
-    const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
-      const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
   const [selectedHospitalID, setSelectedHospitalID] = useState(null);
   const [selectedRelationship, setSelectedRelationship] = useState('');
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [appointmentType, setAppointmentType] = useState('');
   const [relationships, setRelationships] = useState([]);
-   const [successMessage, setSuccessMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
-      [],
-    );
+    [],
+  );
+  const [selectedOutsideDoctor, setSelectedOutsideDoctor] = useState('');
 
-  
-    
-      const [doctorSearchText, setDoctorSearchText] = useState('');
-    const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
-    const [searchText, setSearchText] = useState('');
-    const [filteredDoctors, setFilteredDoctors] = useState<string[]>([]);
-    const [hospitals, setHospitals] = useState([]);
-     const [showSuggestions, setShowSuggestions] = useState(false);
+  const [doctorSearchText, setDoctorSearchText] = useState('');
+  const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [filteredDoctors, setFilteredDoctors] = useState<string[]>([]);
+  const [hospitals, setHospitals] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [timeInterval, setTimeInterval] = useState<number>(10); // Default 10 min
   const [availableTimeRange, setAvailableTimeRange] = useState<{
     fromTime: Date | null;
     toTime: Date | null;
   }>({ fromTime: null, toTime: null });
-   const [formData, setFormData] = useState({
-      name: '',
-      relationship: '',
-  
-      phoneNumber: '',
-      hospital: '',
-      doctor: '',
-      reason: '',
-      date: null as Date | null,
-      time: null as Date | null,
-    });
-   const [errors, setErrors] = useState({
-      name: '',
-      relationship: '',
-  
-      hospital: '',
-      phoneNumber: '',
-      doctor: '',
-      reason: '',
-      date: '',
-      time: '',
-    });
-  const initialEvents: Event[] = [
-    {
-      title: 'Appointment with Dr. Smith',
-      start: new Date('2024-11-24T05:00:00'), // Use ISO 8601 format
-      end: new Date('2024-11-24T05:15:00'),
-      status: 'Booked',
-      doctor: 'Dr. Smith',
-      patient: 'John Doe',
-      patientId: 'P001',
-    },
-    {
-      title: 'Appointment with Dr. Smith',
-      start: new Date(2024, 10, 24, 9, 0),
-      end: new Date(2024, 10, 24, 9, 15),
-      status: 'Booked',
-      doctor: 'Dr. Smith',
-      patient: 'John Doe',
-      patientId: 'P002',
-    },
-  ];
+  const [formData, setFormData] = useState({
+    name: '',
+    relationship: '',
 
-  const [events, setEvents] = useState<Event[]>(initialEvents);
+    phoneNumber: '',
+    hospital: '',
+    doctor: '',
+    reason: '',
+    date: null as Date | null,
+    time: null as Date | null,
+  });
+  const [errors, setErrors] = useState({
+    name: '',
+    relationship: '',
+
+    hospital: '',
+    phoneNumber: '',
+    doctor: '',
+    reason: '',
+    date: '',
+    time: '',
+  });
+  
+
+  const [events, setEvents] = useState<Event[]>();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
+  const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [currentDate, setCurrentDate] = useState(moment()); // Manage the current date for custom toolbar
@@ -117,7 +99,8 @@ const Calendar: React.FC = () => {
   const [selectedPatientId, setSelectedPatientId] = useState<string>('');
   const [showMessage, setShowMessage] = useState<string | null>(null); // State for custom alert message
   // Default to 15 minutes interval
-  
+const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string | null>(null);
+
   const [doctors, setDoctors] = useState([]);
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [doctorAvailability, setDoctorAvailability] = useState([]);
@@ -138,56 +121,57 @@ const Calendar: React.FC = () => {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    if (selectedDoctorID) {
+      // Instead of simulating an event, you could call the fetch logic directly:
+      const fetchTimeSlots = async () => {
+        try {
+          const response = await fetch(
+            'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
+          );
+          const responseData = await response.json();
+          const data = Array.isArray(responseData.data)
+            ? responseData.data
+            : [];
+
+          console.log('Fetched Time Slots Data:', data);
+
+          const matchedTimeSlots = data.filter(
+            (slot) => String(slot.doctorID) === selectedDoctorID,
+          );
+
+          if (matchedTimeSlots.length) {
+            console.log('Matched Time Slots:', matchedTimeSlots);
+
+            const formattedSlots = matchedTimeSlots.map((slot) => ({
+              timeSlotID: slot.timeSlotID,
+              fromTime: slot.fromTime,
+              toTime: slot.toTime,
+              slotDuration: slot.slotDuration,
+              day: slot.dayofWeek, // Ensure this matches the API field
+            }));
+
+            setAvailableTimeSlots(formattedSlots);
+            console.log('Formatted Slots:', formattedSlots);
+
+            // Optionally, if a date is selected, update slots for that date:
+            if (selectedDate) {
+              handleDateChange(selectedDate, formattedSlots);
+            }
+          } else {
+            console.warn('No matching time slots found for this doctor.');
+            setAvailableTimeSlots([]);
+            setGeneratedTimeSlots([]);
+          }
+        } catch (error) {
+          console.error('Error fetching time slots:', error);
+        }
+      };
+      fetchTimeSlots();
+    }
+  }, [selectedDoctorID]);
 
   useEffect(() => {
-      if (selectedDoctorID) {
-        // Instead of simulating an event, you could call the fetch logic directly:
-        const fetchTimeSlots = async () => {
-          try {
-            const response = await fetch(
-              'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
-            );
-            const responseData = await response.json();
-            const data = Array.isArray(responseData.data) ? responseData.data : [];
-      
-            console.log('Fetched Time Slots Data:', data);
-      
-            const matchedTimeSlots = data.filter(
-              (slot) => String(slot.doctorID) === selectedDoctorID,
-            );
-      
-            if (matchedTimeSlots.length) {
-              console.log('Matched Time Slots:', matchedTimeSlots);
-      
-              const formattedSlots = matchedTimeSlots.map((slot) => ({
-                timeSlotID: slot.timeSlotID,
-                fromTime: slot.fromTime,
-                toTime: slot.toTime,
-                slotDuration: slot.slotDuration,
-                day: slot.dayofWeek, // Ensure this matches the API field
-              }));
-      
-              setAvailableTimeSlots(formattedSlots);
-              console.log('Formatted Slots:', formattedSlots);
-      
-              // Optionally, if a date is selected, update slots for that date:
-              if (selectedDate) {
-                handleDateChange(selectedDate, formattedSlots);
-              }
-            } else {
-              console.warn('No matching time slots found for this doctor.');
-              setAvailableTimeSlots([]);
-              setGeneratedTimeSlots([]);
-            }
-          } catch (error) {
-            console.error('Error fetching time slots:', error);
-          }
-        };
-        fetchTimeSlots();
-      }
-    }, [selectedDoctorID]);
-
- useEffect(() => {
     const selectedOption = options.find(
       (opt) => opt.appLOVID === appointmentType,
     );
@@ -201,32 +185,30 @@ const Calendar: React.FC = () => {
     }
   }, [appointmentType]);
 
-
   const fetchRelationships = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-        );
-        const result = await response.json();
-  
-        console.log('API Response:', result); // Check the response structure
-  
-        if (Array.isArray(result.data)) {
-          setRelationships(result.data); // Set the fetched relationships
-        } else {
-          console.error('Invalid relationship data format:', result.data);
-          setRelationships([]);
-        }
-      } catch (error) {
-        console.error('Error fetching relationships:', error);
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
+      );
+      const result = await response.json();
+
+      console.log('API Response:', result); // Check the response structure
+
+      if (Array.isArray(result.data)) {
+        setRelationships(result.data); // Set the fetched relationships
+      } else {
+        console.error('Invalid relationship data format:', result.data);
+        setRelationships([]);
       }
-    };
-  
-    // Fetch on component mount
-    useEffect(() => {
-      fetchRelationships();
-    }, []);
-  
+    } catch (error) {
+      console.error('Error fetching relationships:', error);
+    }
+  };
+
+  // Fetch on component mount
+  useEffect(() => {
+    fetchRelationships();
+  }, []);
 
   const validateField = (name: string, value: string | Date | null): string => {
     let error = '';
@@ -274,22 +256,66 @@ const Calendar: React.FC = () => {
   };
 
 
-  // Function to handle the selection of an empty slot
-  const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
-    setSelectedEvent({
-      title: '',
-      start,
-      end,
-      status: 'Pending',
-      doctor: '',
-      patient: '',
-      patientId: '',
-    }); // Clear existing selections
-    setSelectedDoctor(''); // Reset doctor dropdown
-    setPatientName(''); // Reset patient name input
-    setShowAddModal(true); // Open modal to add new appointment
-  };
 
+const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+  // Get the current date and check if the selected date is in the past
+  const currentDate = new Date();
+  if (start < currentDate) {
+    // If selected date is in the past, show a toast message
+    toast.error('Please select date and time in the future');
+    return; // Stop further execution
+  }
+
+  setSelectedEvent({
+    title: '',
+    start,
+    end,
+    status: 'Pending',
+    doctor: '',
+    patient: '',
+    patientId: '',
+  });
+
+  setSelectedDoctor('');
+  setPatientName('');
+  setShowAddModal(true);
+
+  const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const selectedDayName = daysOfWeek[start.getDay()];
+  const selectedTime = start.toTimeString().slice(0, 5); // HH:MM
+
+  console.log('Selected Day:', selectedDayName);
+  console.log('Selected Time:', selectedTime);
+
+  // Find the slot that matches the selected day and time
+  const matchedSlot = doctorAvailability.find((slot) => {
+    // Convert the slot's fromTime to 'HH:MM' format for comparison
+    const slotFromTime = slot.fromTime.slice(0, 5); // '09:00'
+
+    // Compare the selected time with the slot's fromTime
+    return (
+      slot.dayofWeek === selectedDayName &&
+      selectedTime >= slotFromTime &&  // Start time should be after or equal to the selected time
+      selectedTime < slot.toTime &&   // Ensure the selected time is less than the slot's end time
+      slot.doctorID === selectedDoctor
+    );
+  });
+
+  if (matchedSlot) {
+    console.log('Matched Slot Details:', matchedSlot);
+    setSelectedTimeSlotID(matchedSlot.timeSlotID); // ✅ You now pass only selected day's slotID
+    setSelectedDate(selectedDayName); // Set selected day along with the timeSlotID (use setSelectedDate here)
+  } else {
+    console.warn('No matching time slot found for the selected time.');
+    setSelectedTimeSlotID(null);
+    setSelectedDate(''); // Reset the selected day if no match is found
+  }
+};
+
+
+
+
+  
   // Handle event click to edit the event
   const handleEventClick = (event: Event) => {
     setSelectedEvent(event);
@@ -298,35 +324,38 @@ const Calendar: React.FC = () => {
   };
 
   // Function to validate and handle time change for the selected event
- 
- 
 
   const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const doctorID = e.target.value;
-    setSelectedDoctor(doctorID); // ✅ Update selectedDoctor state
-    setFormData((prev) => ({ ...prev, doctor: doctorID })); // ✅ Ensure doctorID is updated in formData
-  
-    // Find the associated hospital for the selected doctor
-    const selectedDoctorDetails = doctors.find((doctor) => doctor.doctorID === doctorID);
-    if (selectedDoctorDetails) {
-      setSelectedHospitalID(selectedDoctorDetails.hospitalID || ""); // ✅ Auto-set hospital
-    }
-  
-    console.log("Selected Doctor ID:", doctorID);
-    fetchDoctorTimeSlots(doctorID);
-  };
-  
-  
-  
-  
+  const doctorID = e.target.value;
+  setSelectedOutsideDoctor(doctorID);
+
+  // Also update formData so that modal shows the correct doctor (for read-only)
+  setFormData((prev) => ({ ...prev, doctor: doctorID }));
+
+  // Find the selected doctor details
+  const selectedDoctorDetails = doctors.find(
+    (doctor) => doctor.doctorID === doctorID,
+  );
+
+  // If a valid doctor is selected, update hospital ID
+  if (selectedDoctorDetails) {
+    setSelectedHospitalID(selectedDoctorDetails.hospitalID || '');
+  }
+
+  // Fetch and log doctor time slots with timeslotID
+  fetchDoctorTimeSlots(doctorID);
+};
+
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Hospital');
+        const response = await fetch(
+          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
+        );
         const result = await response.json();
-    
+
         let hospitalData = [];
-    
+
         if (Array.isArray(result)) {
           hospitalData = result;
         } else if (Array.isArray(result?.data)) {
@@ -336,37 +365,37 @@ const Calendar: React.FC = () => {
           setHospitals([]);
           return;
         }
-    
+
         // ✅ Filter active hospitals
-        const activeHospitals = hospitalData.filter(hospital => hospital.isActive);
-    
+        const activeHospitals = hospitalData.filter(
+          (hospital) => hospital.isActive,
+        );
+
         // ✅ Set hospitals and pre-select the first one
         setHospitals(activeHospitals);
-    
+
         if (activeHospitals.length > 0) {
           setSelectedHospitalID(activeHospitals[0].hospitalID);
         }
-    
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
     };
-    
-  
-   
-    
+
     fetchHospitals();
-    
   }, []);
+
   const fetchDoctors = async (hospitalID: string) => {
     try {
-      const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Doctor');
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Doctor',
+      );
       const result = await response.json();
-  
+
       if (result.success && Array.isArray(result.data)) {
         // Filter doctors based on hospitalID
         const filteredDoctors = result.data.filter(
-          (doctor) => doctor.hospitalID === hospitalID
+          (doctor) => doctor.hospitalID === hospitalID,
         );
         setDoctors(filteredDoctors);
       } else {
@@ -377,26 +406,28 @@ const Calendar: React.FC = () => {
       console.error('Error fetching doctors:', error);
       setDoctors([]);
     }
-  };useEffect(() => {
+  };
+
+
+  useEffect(() => {
     if (selectedHospitalID) {
       fetchDoctors(selectedHospitalID);
-      setSelectedDoctor(""); // reset selected doctor
+      setSelectedDoctor(''); // reset selected doctor
     }
   }, [selectedHospitalID]);
-  
- 
-   useEffect(() => {
-     if (selectedHospitalID) {
-       const filtered = doctors.filter(
-         (doctor) => doctor.hospitalID === selectedHospitalID,
-       );
-       setFilteredDoctors(filtered);
-     } else {
-       setFilteredDoctors([]);
-     }
-   }, [selectedHospitalID, doctors]);
- 
-   const filterHospitals = (text: string) => {
+
+  useEffect(() => {
+    if (selectedHospitalID) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.hospitalID === selectedHospitalID,
+      );
+      setFilteredDoctors(filtered);
+    } else {
+      setFilteredDoctors([]);
+    }
+  }, [selectedHospitalID, doctors]);
+
+  const filterHospitals = (text: string) => {
     setSearchText(text);
     setFilteredHospitals(
       hospitalList.filter((hospital) =>
@@ -416,45 +447,46 @@ const Calendar: React.FC = () => {
     );
     setShowDoctorDropdown(true);
   };
+
   const fetchDoctorAvailability = async (doctorID: string) => {
     if (!doctorID) return;
-  
+
     try {
       const response = await fetch(
         `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
       );
       const result = await response.json();
-  
+
       if (result.success && Array.isArray(result.data)) {
         setDoctorAvailability(result.data);
-  
+
         // Log available time slots with their timeSlotID
-        console.log("Available Time Slots for Doctor:", result.data);
-  
+        console.log('Available Time Slots for Doctor:', result.data);
+
         result.data.forEach((slot) => {
-          console.log(`TimeSlot ID: ${slot.timeSlotID}, Time: ${slot.startTime} - ${slot.endTime}`);
+          console.log(
+            `TimeSlot ID: ${slot.timeSlotID}, Time: ${slot.startTime} - ${slot.endTime}`,
+          );
         });
-  
+
         // Find the slot duration for the selected day
         const selectedDayOfWeek = selectedDate?.getDay();
         const availability = result.data.find(
-          (slot) => slot.dayofWeek === selectedDayOfWeek
+          (slot) => slot.dayofWeek === selectedDayOfWeek,
         );
-  
+
         if (availability && availability.slotDuration) {
           setTimeInterval(availability.slotDuration);
         }
       } else {
-        console.error("Invalid doctor availability format:", result.data);
+        console.error('Invalid doctor availability format:', result.data);
         setDoctorAvailability([]);
       }
     } catch (error) {
-      console.error("Error fetching doctor availability:", error);
+      console.error('Error fetching doctor availability:', error);
       setDoctorAvailability([]);
     }
   };
-  
-
 
   const getAvailableTimeRange = () => {
     return {
@@ -509,254 +541,277 @@ const Calendar: React.FC = () => {
     return slots;
   };
 
-  const fetchDoctorTimeSlots = async (doctorID: string) => {
-    if (!doctorID) return;
+const fetchDoctorTimeSlots = async (doctorID: string) => {
+  if (!doctorID) return;
 
-    try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-      );
-      const result = await response.json();
+  try {
+    const response = await fetch(
+      `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
+    );
+    const result = await response.json();
 
-      if (
-        result.success &&
-        Array.isArray(result.data) &&
-        result.data.length > 0
-      ) {
-        let fromTime: Date | null = null;
-        let toTime: Date | null = null;
-        let slotDuration = result.data[0]?.slotDuration || 10; // Default 10 min
+    console.log('API Response:', result); // Log entire response for debugging
 
-        result.data.forEach((slot) => {
-          const slotFromTime = new Date(`1970-01-01T${slot.fromTime}`);
-          const slotToTime = new Date(`1970-01-01T${slot.toTime}`);
+    if (
+      result.success &&
+      Array.isArray(result.data) &&
+      result.data.length > 0
+    ) {
+      let fromTime: Date | null = null;
+      let toTime: Date | null = null;
+      let slotDuration = result.data[0]?.slotDuration || 10; // Default 10 min
 
-          if (!fromTime || slotFromTime < fromTime) fromTime = slotFromTime;
-          if (!toTime || slotToTime > toTime) toTime = slotToTime;
-        });
+      // Iterate over the available time slots
+      result.data.forEach((slot) => {
+        console.log('Slot:', slot); // Log the entire slot object
 
-        setTimeInterval(slotDuration);
-        setAvailableTimeRange({ fromTime, toTime });
-      } else {
-        console.error('No valid slots found for this doctor.');
-        setTimeInterval(10);
-        setAvailableTimeRange({
-          fromTime: new Date('1970-01-01T00:00:00'), // Default 12 AM
-          toTime: new Date('1970-01-01T23:50:00'), // Default 11:50 PM
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching doctor time slots:', error);
+        // Ensure that timeSlotID exists and is being accessed correctly
+        if (slot.timeSlotID) {
+          console.log('TimeslotID:', slot.timeSlotID); // Log timeslotID for debugging
+        } else {
+          console.warn('Missing timeSlotID in slot:', slot); // Warn if timeSlotID is missing
+        }
+
+        const slotFromTime = new Date(`1970-01-01T${slot.fromTime}`);
+        const slotToTime = new Date(`1970-01-01T${slot.toTime}`);
+
+        if (!fromTime || slotFromTime < fromTime) fromTime = slotFromTime;
+        if (!toTime || slotToTime > toTime) toTime = slotToTime;
+      });
+
+      setTimeInterval(slotDuration);
+      setAvailableTimeRange({ fromTime, toTime });
+    } else {
+      console.error('No valid slots found for this doctor.');
       setTimeInterval(10);
       setAvailableTimeRange({
-        fromTime: new Date('1970-01-01T00:00:00'),
-        toTime: new Date('1970-01-01T23:50:00'),
+        fromTime: new Date('1970-01-01T00:00:00'), // Default 12 AM
+        toTime: new Date('1970-01-01T23:50:00'), // Default 11:50 PM
       });
     }
-  };
+  } catch (error) {
+    console.error('Error fetching doctor time slots:', error);
+    setTimeInterval(10);
+    setAvailableTimeRange({
+      fromTime: new Date('1970-01-01T00:00:00'),
+      toTime: new Date('1970-01-01T23:50:00'),
+    });
+  }
+};
+
+
 
   // Function to handle start time changes
   const handleStartTimeChange = (date: Date | null) => {
     if (date && selectedEvent) {
       const now = new Date();
-  
+
       // Prevent selecting past dates/times
       if (date < now) {
-        setShowMessage("You cannot select a past time. Please select a future time.");
+        setShowMessage(
+          'You cannot select a past time. Please select a future time.',
+        );
         return;
       }
       setShowMessage(null);
-  
+
       // Preserve original date but update time
       const updatedStartTime = new Date(selectedEvent.start);
       updatedStartTime.setFullYear(date.getFullYear());
       updatedStartTime.setMonth(date.getMonth());
       updatedStartTime.setDate(date.getDate());
-      updatedStartTime.setHours(date.getHours(), date.getMinutes(), date.getSeconds(), 0);
-  
+      updatedStartTime.setHours(
+        date.getHours(),
+        date.getMinutes(),
+        date.getSeconds(),
+        0,
+      );
+
       // Adjust end time based on the new start time
       const updatedEndTime = new Date(
-        updatedStartTime.getTime() + (selectedEvent.end.getTime() - selectedEvent.start.getTime())
+        updatedStartTime.getTime() +
+          (selectedEvent.end.getTime() - selectedEvent.start.getTime()),
       );
-  
+
       // Update the selected event
       const updatedEvent = {
         ...selectedEvent,
         start: updatedStartTime,
         end: updatedEndTime,
       };
-  
+
       // Update state with the new event details
       setSelectedEvent(updatedEvent);
-      setEvents(events.map(event =>
-        event.start === selectedEvent.start && event.doctor === selectedEvent.doctor
-          ? updatedEvent
-          : event
-      ));
-  
+      setEvents(
+        events.map((event) =>
+          event.start === selectedEvent.start &&
+          event.doctor === selectedEvent.doctor
+            ? updatedEvent
+            : event,
+        ),
+      );
+
       // Ensure the formData is updated with the selected date and time
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        date: updatedStartTime.toISOString().split("T")[0], // YYYY-MM-DD
-        time: updatedStartTime.toTimeString().split(" ")[0], // HH:MM:SS
+        date: updatedStartTime.toISOString().split('T')[0], // YYYY-MM-DD
+        time: updatedStartTime.toTimeString().split(' ')[0], // HH:MM:SS
       }));
     }
   };
-  
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const userID = sessionStorage.getItem("userID");
-  
+    const userID = sessionStorage.getItem('userID');
+
     if (!userID) {
-      alert("User not logged in. Please log in again.");
+      alert('User not logged in. Please log in again.');
       return;
     }
-  
-    const appointmentDate = formData.date || selectedEvent.start.toISOString().split("T")[0];
-    console.log("Selected Appointment Date:", appointmentDate);
-  
-    const appointmentDay = new Date(appointmentDate).toLocaleDateString("en-US", { weekday: "long" });
-    console.log("Converted Appointment Day:", appointmentDay);
-  
-    const selectedSlot = doctorAvailability.find((slot) => slot.dayofWeek === appointmentDay);
-  
-    console.log("Selected Slot:", selectedSlot);
-  
+
+    const appointmentDate =
+      formData.date || selectedEvent.start.toISOString().split('T')[0];
+    console.log('Selected Appointment Date:', appointmentDate);
+
+    const appointmentDay = new Date(appointmentDate).toLocaleDateString(
+      'en-US',
+      { weekday: 'long' },
+    );
+    console.log('Converted Appointment Day:', appointmentDay);
+
+   const selectedSlot = doctorAvailability.find(
+  (slot) => slot.dayofWeek.toLowerCase() === appointmentDay.toLowerCase(),
+);
+
+    console.log('Selected Slot:', selectedSlot);
+
     if (!selectedSlot) {
-      alert("No available timeslot found for the selected date.");
+      alert('No available timeslot found for the selected date.');
       return;
     }
-  
+
     const payload = {
       createdBy: userID,
       isActive: true,
       doctorID: formData.doctor || selectedDoctor,
-      patientID: "1e3b8a00-d9c7-453d-aa97-005281e76f80",
+      patientID: '1e3b8a00-d9c7-453d-aa97-005281e76f80',
       timeSlotID: selectedSlot.timeSlotID,
       appointmentDate,
-      appointmentTime: formData.time || selectedEvent.start.toTimeString().split(" ")[0],
-      statusID: "f79e15f9-61ec-41ba-9b62-289025f6a2a8",
-      notes: formData.reason || "",
+      appointmentTime:
+        formData.time || selectedEvent.start.toTimeString().split(' ')[0],
+      statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+      notes: formData.reason || '',
       toWhom: appointmentType,
       relationship: selectedRelationship,
-      phoneNumber: formData.phoneNumber || "",
+      phoneNumber: formData.phoneNumber || '',
     };
-  
+
     try {
       const response = await fetch(
-        "https://predart003-001-site1.anytempurl.com/api/Appointment",
+        'https://predart003-001-site1.anytempurl.com/api/Appointment',
         {
-          method: "POST",
+          method: 'POST',
           headers: {
-            "Content-Type": "application/json",
+            'Content-Type': 'application/json',
           },
           body: JSON.stringify(payload),
-        }
+        },
       );
-  
+
       if (response.ok) {
-        setSuccessMessage("Form submitted successfully!");
-        console.log("Form Submitted:", payload);
-  
+        setSuccessMessage('Form submitted successfully!');
+        console.log('Form Submitted:', payload);
+
         // ✅ Reset form fields
         setFormData({
-          doctor: "",
-          date: "",
-          time: "",
-          reason: "",
-          phoneNumber: "",
+          doctor: '',
+          date: '',
+          time: '',
+          reason: '',
+          phoneNumber: '',
         });
-  
+
         // ✅ Reset other states
-        setSelectedDoctor("");
-        setSelectedHospitalID("");
-        setSelectedRelationship("");
-        setAppointmentType("");
-  
+        setSelectedDoctor('');
+        setSelectedHospitalID('');
+        setSelectedRelationship('');
+        setAppointmentType('');
+
         // ✅ Close the form (if using a modal)
         setShowAddModal(false);
       } else {
         const errorData = await response.json();
-        console.error("Submission failed:", errorData);
-        setSuccessMessage("Submission failed. Please try again.");
+        console.error('Submission failed:', errorData);
+        setSuccessMessage('Submission failed. Please try again.');
       }
     } catch (error) {
-      console.error("Error during submission:", error);
-      setSuccessMessage("An error occurred. Please try again later.");
+      console.error('Error during submission:', error);
+      setSuccessMessage('An error occurred. Please try again later.');
     }
   };
-  
-  
-  
-  
 
-  
-   const handleInputChange = (
-      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-    ) => {
-      const { name, value } = e.target;
-      setFormData({ ...formData, [name]: value });
-  
-      if (name === 'relationship' && value.length > 0) {
-        setShowSuggestions(true);
-        setFilteredRelationships(
-          relationships.filter((relation) =>
-            relation.toLowerCase().includes(value.toLowerCase()),
-          ),
-        );
-      } else {
-        setShowSuggestions(false);
-      }
-  
-      if (name === 'hospital') {
-        filterHospitals(value);
-      }
-      if (name === 'doctor') {
-        filterDoctors(value);
-      }
-  
-      // Validate the field
-      setErrors({ ...errors, [name]: validateField(name, value) });
-    };
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
 
-    const handleSuggestionClick = (suggestion: string) => {
-      setFormData((prevData) => ({
-        ...prevData,
-        relationship: suggestion,
-      }));
+    if (name === 'relationship' && value.length > 0) {
+      setShowSuggestions(true);
+      setFilteredRelationships(
+        relationships.filter((relation) =>
+          relation.toLowerCase().includes(value.toLowerCase()),
+        ),
+      );
+    } else {
       setShowSuggestions(false);
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        relationship: '',
-      }));
-    };
-    
-    
-      useEffect(() => {
-        const fetchOptions = async () => {
-          try {
-            const response = await axios.get(
-              'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-            );
-            console.log('API Response:', response.data);
-            setOptions(response.data?.data ?? []);
-          } catch (error) {
-            console.error('Error fetching options:', error);
-          }
-        };
-    
-        fetchOptions();
-      }, []);
-    
-      const handleOptionChange = (selectedOption: AppLOVOption) => {
-        setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
-        console.log(
-          `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
+    }
+
+    if (name === 'hospital') {
+      filterHospitals(value);
+    }
+    if (name === 'doctor') {
+      filterDoctors(value);
+    }
+
+    // Validate the field
+    setErrors({ ...errors, [name]: validateField(name, value) });
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      relationship: suggestion,
+    }));
+    setShowSuggestions(false);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      relationship: '',
+    }));
+  };
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await axios.get(
+          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
         );
-      };
+        console.log('API Response:', response.data);
+        setOptions(response.data?.data ?? []);
+      } catch (error) {
+        console.error('Error fetching options:', error);
+      }
+    };
 
+    fetchOptions();
+  }, []);
 
- 
+  const handleOptionChange = (selectedOption: AppLOVOption) => {
+    setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
+    console.log(
+      `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
+    );
+  };
 
   // Function to handle the cancellation of an appointment
   const handleCancelAppointment = () => {
@@ -816,22 +871,21 @@ const Calendar: React.FC = () => {
         <div className="flex items-center justify-between w-full px-4">
           {/* Left Dropdown */}
           <div className="flex items-center space-x-2">
-  <label className="text-black">Doctor:</label>
-  <select
-    value={selectedDoctor}
-    onChange={handleDoctorChange}
-    className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="">Select a Doctor</option>
-    {doctors.map((doctor) => (
-      <option key={doctor.doctorID} value={doctor.doctorID}>
-        {doctor.doctorName}
-      </option>
-    ))}
-  </select>
-</div>
-
-
+            <label className="text-black">Doctor:</label>
+            <select
+              name="outsideDoctor"
+              value={selectedOutsideDoctor} // ✅ Bind the value
+              onChange={handleDoctorChange} // ✅ Your existing handler
+              className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            >
+              <option value="">Select a Doctor</option>
+              {doctors.map((doctor) => (
+                <option key={doctor.doctorID} value={doctor.doctorID}>
+                  {doctor.doctorName}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* center Dropdown */}
           <div className="flex items-center">
@@ -906,24 +960,60 @@ const Calendar: React.FC = () => {
   };
   const { fromTime, toTime } = getAvailableTimeRange();
   // Handle Date Selection Change
- const handleDateChange = (date: Date | null) => {
+  const handleDateChange = (date: Date | null) => {
   if (!date) return;
 
-  console.log("Selected Date:", date);
-  console.log("Formatted Date:", date.toISOString().split("T")[0]);
-  console.log("Formatted Time:", date.toTimeString().split(" ")[0]); // HH:MM:SS format
+  console.log('Selected Date:', date);
+  const formattedDate = date.toISOString().split('T')[0]; // YYYY-MM-DD
+  const formattedTime = date.toTimeString().split(' ')[0]; // HH:MM:SS
+  const selectedDay = date.toLocaleDateString('en-US', { weekday: 'long' }); // e.g., "Monday"
+
+  console.log('Formatted Date:', formattedDate);
+  console.log('Formatted Time:', formattedTime);
+  console.log('Day of Week:', selectedDay);
+
+  // Match against availableTimeSlots
+  const matchedSlot = availableTimeSlots.find(
+    (slot) => slot.day.toLowerCase() === selectedDay.toLowerCase()
+  );
+
+  if (matchedSlot) {
+    console.log('Matched Slot Info:');
+    console.log('Day:', matchedSlot.day);
+    console.log('From Time:', matchedSlot.fromTime);
+    console.log('To Time:', matchedSlot.toTime);
+    console.log('Slot Duration:', matchedSlot.slotDuration);
+    console.log('TimeSlot ID:', matchedSlot.timeSlotID);
+  } else {
+    console.warn('No slot found for this day');
+  }
 
   setSelectedDate(date);
 
   setFormData((prev) => ({
     ...prev,
-    date: date.toISOString().split("T")[0], // YYYY-MM-DD
-    time: date.toTimeString().split(" ")[0], // HH:MM:SS
+    date: formattedDate,
+    time: formattedTime,
   }));
 };
 
-  
+ const [patients, setPatients] = useState([]);
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await axios.get(
+          'https://predart003-001-site1.anytempurl.com/api/Patient',
+        );
 
+        const activePatients = response.data.data.filter((p) => p.isActive);
+        setPatients(activePatients);
+      } catch (error) {
+        console.error('Failed to fetch patients', error);
+      }
+    };
+
+    fetchPatients();
+  }, []);
   return (
     <div className="h-screen flex justify-center items-center bg-gray-100">
       <div className="w-full max-w-full lg:h-full">
@@ -967,50 +1057,39 @@ const Calendar: React.FC = () => {
             </h2>
 
             <form onSubmit={handleSubmit}>
-              {/* Appointment Type */}
-
-              {/* <div className="mb-4 flex justify-center gap-4">
-                {options.map((option) => (
-                  <label
-                    key={option.appLOVID}
-                    className="flex items-center space-x-2"
-                  >
-                    <input
-                      type="radio"
-                      name="appointmentType"
-                      value={option.appLOVID}
-                      checked={appointmentType === option.appLOVID}
-                      onChange={() => {
-                        setAppointmentType(option.appLOVID); 
-                        handleOptionChange(option); 
-                      }}
-                      className="form-radio text-primary-600"
-                    />
-                    <span>{option.name}</span>{' '}
-                  
-                  </label>
-                ))}
-              </div> */}
-
+             
               {/* Name */}
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
-                  <input
-                    type="text"
-                    name="name"
-                    maxLength={30}
-                    placeholder="Name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    // disabled={appointmentType === 'Self'}
+                  <select
+                    name="patientID"
+                    value={formData.patientID}
+                    onChange={(e) => {
+                      const selectedID = e.target.value;
+                      const selectedPatient = patients.find(
+                        (p) => p.patientID === selectedID,
+                      );
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        patientID: selectedID,
+                        name: selectedPatient?.patientName || '',
+                        phoneNumber: selectedPatient?.patientPhoneNumber || '',
+                      }));
+                    }}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-           text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
-                  {errors.name && (
-                    <p className="text-red-500 text-sm">{errors.name}</p>
-                  )}
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.patientID} value={patient.patientID}>
+                        {patient.patientName}
+                      </option>
+                    ))}
+                  </select>
                 </div>
+
                 <div className="relative w-1/2">
                   <input
                     type="text"
@@ -1018,7 +1097,7 @@ const Calendar: React.FC = () => {
                     maxLength={10}
                     placeholder="Phone Number"
                     value={formData.phoneNumber}
-                    onChange={handleInputChange}
+                    readOnly
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
                   {errors.phoneNumber && (
@@ -1026,6 +1105,7 @@ const Calendar: React.FC = () => {
                   )}
                 </div>
               </div>
+
               {/* Relationship (for Others) */}
               {appointmentType ===
                 options.find((opt) => opt.name === 'Others')?.appLOVID && (
@@ -1071,46 +1151,45 @@ const Calendar: React.FC = () => {
               )}
 
               {/* Hospital Dropdown */}
-            <div className="mb-4 flex gap-4">
-  {/* Hospital Dropdown */}
-  <div className="relative w-1/2">
-  <select
-    name="hospital"
-    value={selectedHospitalID}
-    onChange={(e) => setSelectedHospitalID(e.target.value)}
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="">Select Hospital</option>
-    {hospitals.map((hospital) => (
-      <option key={hospital.hospitalID} value={hospital.hospitalID}>
-        {hospital.hospitalName}
-      </option>
-    ))}
-  </select>
-</div>
+              <div className="mb-4 flex gap-4">
+                {/* Hospital Dropdown */}
+                <div className="relative w-1/2">
+                  <select
+                    name="hospital"
+                    disabled
+                    value={selectedHospitalID}
+                    onChange={(e) => setSelectedHospitalID(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Hospital</option>
+                    {hospitals.map((hospital) => (
+                      <option
+                        key={hospital.hospitalID}
+                        value={hospital.hospitalID}
+                      >
+                        {hospital.hospitalName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-
-  {/* Doctor Dropdown in Modal */}
-  <div className="relative w-1/2">
-  <select
-    name="doctor"
-    value={selectedDoctor || ""}
-    onChange={handleDoctorChange}
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="" disabled selected={!selectedDoctor}>
-      Select a Doctor
-    </option>
-    {doctors.map((doctor) => (
-      <option key={doctor.doctorID} value={doctor.doctorID}>
-        {doctor.doctorName}
-      </option>
-    ))}
-  </select>
-</div>
-
-</div>
-
+                {/* Doctor Dropdown in Modal */}
+                <div className="relative w-1/2">
+                  <select
+                    name="doctor"
+                    value={formData.doctor || ''}
+                    disabled // 👈 Make it read-only
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select a Doctor</option>
+                    {doctors.map((doctor) => (
+                      <option key={doctor.doctorID} value={doctor.doctorID}>
+                        {doctor.doctorName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
               {/* Reason */}
               <div className="mb-4">
@@ -1129,7 +1208,6 @@ const Calendar: React.FC = () => {
               </div>
               {/* Start Time (date and time picker) */}
               <div className="mb-2.5 block font-medium text-black dark:text-white">
-               
                 <DatePicker
                   selected={selectedEvent ? selectedEvent.start : new Date()}
                   onChange={handleDateChange}
@@ -1153,7 +1231,7 @@ const Calendar: React.FC = () => {
                   Close
                 </button>
                 <button
-                type='submit'
+                  type="submit"
                   className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
                  hover:from-[#007BFF] hover:to-[#004A99] text-white
                   transition duration-150 ease-out hover:ease-in rounded-lg px-5 py-2 mt-2 w-fit text-center"
@@ -1166,103 +1244,13 @@ const Calendar: React.FC = () => {
         </div>
       )}
 
-      {/* Modal for editing event */}
-      {showEditModal && selectedEvent && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-10">
-          <div className="bg-white p-4 rounded-lg shadow-lg w-[300px]">
-            <h2 className="mb-2.5 text-2xl font-bold text-black dark:text-white">
-              Edit Appointment
-            </h2>
-
-            {/* Display Custom Alert Message */}
-            {showMessage && (
-              <div className="text-red-500 text-sm mt-2">{showMessage}</div>
-            )}
-
-            <div className="mb-2.5 block font-medium text-black dark:text-white">
-              <label>Start Time</label>
-              <DatePicker
-                selected={selectedEvent.start}
-                onChange={(date) => handleStartTimeChange(date!)}
-                showTimeSelect
-                dateFormat="Pp"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-stroke-dark dark:bg-transparent dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
-              />
-            </div>
-
-            <div className="mb-2.5 block font-medium text-black dark:text-white">
-  <label>Doctor</label>
-  <select
-    value={selectedDoctor} // ✅ This should store the doctor ID
-    onChange={handleDoctorChange} // Handle doctor change
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-stroke-dark dark:bg-transparent dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
-  >
-    <option value="">Select a Doctor</option>
-    {doctors.map((doctor) => (
-      <option key={doctor.id} value={doctor.id}> {/* ✅ Store ID as value */}
-        {doctor.name}
-      </option>
-    ))}
-  </select>
-</div>
-
-            <div className="mt-4 flex justify-between">
-              <button
-                className="bg-gray-500 text-black py-1 px-3 rounded-md"
-                onClick={() => setShowEditModal(false)}
-              >
-                Close
-              </button>
-              <button
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-                onClick={() => setShowEditModal(false)} // Save logic can be added here
-              >
-                Save
-              </button>
-            </div>
-
-            {/* Cancel Appointment Button */}
-            <div className="mt-4 flex justify-center">
-              <button
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-                onClick={handleCancelAppointment}
-              >
-                Cancel Appointment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Confirmation Modal */}
-      {showCancelConfirmation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-20">
-          <div className="bg-white p-4 rounded-lg shadow-lg w-[300px]">
-            <h2 className="text-xl font-semibold">Confirm Cancellation</h2>
-            <p className="mt-4 text-center">
-              Are you sure you want to cancel the appointment with{' '}
-              {selectedEvent?.doctor}?
-            </p>
-            <div className="mt-4 flex justify-between">
-              <button
-                className="bg-gray-500 text-black py-1 px-3 rounded-md"
-                onClick={cancelCancel}
-              >
-                No
-              </button>
-              <button
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in rounded px-5 py-2 mt-2 w-fit text-center"
-                onClick={confirmCancel}
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ToastContainer
+              position="top-right"
+              autoClose={3000}
+              style={{ zIndex: 9999 }}
+            />
     </div>
   );
-
 };
 
 export default Calendar;

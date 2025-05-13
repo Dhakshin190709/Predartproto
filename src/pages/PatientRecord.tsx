@@ -44,7 +44,9 @@ const ProfileSection: React.FC = () => {
   const [isSearchPerformed, setIsSearchPerformed] = useState(false);
   const patientArray = Array.isArray(patientData) ? patientData : [patientData];
   const [selectedPatientID, setSelectedPatientID] = useState(null);
-
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMessage, setModalMessage] = useState('');
+  
   const [patientID, setPatientID] = useState<string | null>(null);
   const doctorID = sessionStorage.getItem('doctorID');
 
@@ -253,9 +255,12 @@ const ProfileSection: React.FC = () => {
       field: 'view',
       cellRenderer: (params: any) => (
         <a
-          href={`/appointment-details/${params.data.id}`} // adjust to your actual route
-          target="_blank"
-          rel="noopener noreferrer"
+          href="#"
+          onClick={(e) => {
+            e.preventDefault(); // Prevents navigation
+            setModalMessage('Development in progress');
+            setIsModalOpen(true); // Opens the modal
+          }}
           className="text-blue-600 underline"
         >
           View
@@ -263,6 +268,7 @@ const ProfileSection: React.FC = () => {
       ),
       width: 100,
     },
+    
   ]}
 />
 
@@ -441,6 +447,11 @@ const ProfileSection: React.FC = () => {
                   cellRenderer: (params: any) => (
                     <a
                       href={params.value}
+                      onClick={(e) => {
+                        e.preventDefault(); // Prevents navigation
+                        setModalMessage('Development in progress');
+                        setIsModalOpen(true); // Opens the modal
+                      }}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-blue-600 underline"
@@ -450,6 +461,9 @@ const ProfileSection: React.FC = () => {
                   ),
                   width: 120,
                 },
+
+               
+                
               ]}
             />
           </div>
@@ -514,6 +528,11 @@ const ProfileSection: React.FC = () => {
                       <a
                         href={params.value}
                         target="_blank"
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevents navigation
+                          setModalMessage('Development in progress');
+                          setIsModalOpen(true); // Opens the modal
+                        }}
                         rel="noopener noreferrer"
                         className="text-blue-600 underline"
                       >
@@ -534,9 +553,10 @@ const ProfileSection: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    // Check if both fields are empty
+   
+  
     if (!selectedPatient.trim() && !mobileNumber.trim()) {
-      // If both fields are empty, do nothing
+      toast.warn('Please enter any one field'); 
       return;
     }
 
@@ -581,6 +601,10 @@ const ProfileSection: React.FC = () => {
   };
 
   return (
+    <div className="p-4 space-y-4">
+    <h1 className="text-3xl font-semibold text-black mb-6">
+      Patient Record
+    </h1>
     <div className="h-screen flex flex-col">
       {/* Top Search Bar */}
       {roleName === 'Doctor' && !selectedPatientID && (
@@ -618,8 +642,8 @@ const ProfileSection: React.FC = () => {
               setIsSearchPerformed(false); // Reset search performed state
               setSelectedPatientID(null); // Reset selected patient ID (if any)
             }}
-            className="opacity-60 hover:opacity-100 border py-3 w-[10%] border-gray-300 flex items-center gap-2"
-           
+            className="opacity-60 hover:opacity-100 border py-3 w-[10%] border-gray-300 flex justify-center items-center gap-2"
+
            
           
           >
@@ -884,6 +908,67 @@ const ProfileSection: React.FC = () => {
           </>
         )}
       </div>
+      {isModalOpen && (
+  <div className="modal-overlay">
+    <div className="modal">
+      <div className="modal-header">
+        
+      </div>
+      <div className="modal-body">
+        <p>{modalMessage}</p>
+      </div>
+      <div className="modal-footer">
+        <button
+          onClick={() => setIsModalOpen(false)}
+          className="bg-blue-600 text-white px-4 py-2 rounded-md"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+ <style>
+      {`
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        }
+
+        .modal {
+          background: white;
+          padding: 20px;
+          border-radius: 10px;
+          width: 400px;
+          box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 20px;
+        }
+
+        .modal-body p {
+          font-size: 16px;
+        }
+      `}
+    </style>
+    </div>
     </div>
   );
 };

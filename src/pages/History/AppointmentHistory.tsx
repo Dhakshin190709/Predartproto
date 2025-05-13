@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { FaClipboardList  } from 'react-icons/fa';
+import { FaClipboardList } from 'react-icons/fa';
 import CustomButton from '../../components/CustomButton';
 import patientIcon from '../../images/icon/Patient profile people (3).svg';
 import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
@@ -54,7 +54,16 @@ const AppointmentHistoryPage: React.FC = () => {
     useState<Appointment | null>(null);
   const [isTrackingModalOpen, setIsTrackingModalOpen] =
     useState<boolean>(false);
-
+  const calculateAge = (dateOfBirth) => {
+    const birthDate = new Date(dateOfBirth);
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const month = today.getMonth() - birthDate.getMonth();
+    if (month < 0 || (month === 0 && today.getDate() < birthDate.getDate())) {
+      return age - 1;
+    }
+    return age;
+  };
   useEffect(() => {
     const roleNameRaw = sessionStorage.getItem('roleName');
     const roleName = roleNameRaw?.toLowerCase();
@@ -70,6 +79,8 @@ const AppointmentHistoryPage: React.FC = () => {
       console.log('Doctor ID:', doctorID);
     } else if (roleName === 'reception') {
       console.log('Unit ID:', unitID);
+    } else if (roleName === 'hostitaladmin') {
+      console.log('Hospital Admin Unit ID:', unitID);
     }
 
     let appointmentURL =
@@ -77,10 +88,10 @@ const AppointmentHistoryPage: React.FC = () => {
 
     if (roleName === 'patient' && patientID) {
       appointmentURL += `?PatientID=${patientID}`;
-    } else if (roleName === 'doctor' && doctorID) {
-      appointmentURL += `?DoctorID=${doctorID}`;
-    } else if (roleName === 'reception' && unitID) {
-      appointmentURL += `?UnitID=${unitID}`;
+    } else if (roleName === 'doctor' && doctorID && unitID) {
+      appointmentURL += `?DoctorID=${doctorID}&UnitID=${unitID}`;
+    } else if (roleName === 'hostitaladmin' && unitID) {
+      appointmentURL += `?HospitalID=${unitID}`;
     }
 
     const fetchData = async () => {
@@ -90,7 +101,6 @@ const AppointmentHistoryPage: React.FC = () => {
           ? response.data
           : [];
 
-        // Redundant but safe fallback
         if (roleName === 'patient' && patientID) {
           appointmentsData = appointmentsData.filter(
             (appointment) => appointment.patientID === patientID,
@@ -103,9 +113,12 @@ const AppointmentHistoryPage: React.FC = () => {
           appointmentsData = appointmentsData.filter(
             (appointment) => appointment.hospitalID === unitID,
           );
+        } else if (roleName === 'hostitaladmin' && unitID) {
+          appointmentsData = appointmentsData.filter(
+            (appointment) => appointment.hospitalID === unitID,
+          );
         }
 
-        // Directly set the appointments (without additional patient/doctor mapping)
         setAppointments(appointmentsData);
         setFilteredAppointments(appointmentsData);
       } catch (error) {
@@ -133,13 +146,13 @@ const AppointmentHistoryPage: React.FC = () => {
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const term = e.target.value.toLowerCase();
     setSearchTerm(term);
-    setFilteredAppointments(
-      appointments.filter(
-        (appointment) =>
-          appointment.patientName?.toLowerCase().includes(term) ||
-          appointment.doctorName?.toLowerCase().includes(term),
-      ),
-    );
+    // // setFilteredAppointments(
+    // //   appointments.filter(
+    // //     (appointment) =>
+    // //       appointment.patientName?.toLowerCase().includes(term) ||
+    // //       appointment.doctorName?.toLowerCase().includes(term),
+    //   ),
+    // );
   };
 
   const handleTracking = async (appointment: Appointment) => {
@@ -201,6 +214,10 @@ const AppointmentHistoryPage: React.FC = () => {
   };
 
   return (
+    <div className="p-2">
+    <h1 className="text-3xl font-semibold text-black mb-6">
+   Appointment History
+  </h1>
     <div className="p-4">
       <input
         type="text"
@@ -217,15 +234,25 @@ const AppointmentHistoryPage: React.FC = () => {
             key={index}
             className="p-4 rounded-lg shadow-md bg-white border border-blue-300"
           >
-            <div className="flex items-center gap-2">
-              <img
-                src={patientIcon} // <-- Replace with actual image path or dynamic URL
-                alt="Patient"
-                className="w-6 h-6 rounded-full ml-3"
-              />
-              <span className="text-black font-semibold">
-                {appointment.patientName}
-              </span>
+            <div className="mt-2 flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <img
+                  src={patientIcon} // <-- Replace with actual image path or dynamic URL
+                  alt="Patient"
+                  className="w-6 h-6 rounded-full ml-3"
+                />
+                <span className="text-black font-semibold">
+                  {appointment.patientName}
+                </span>
+                <span className="text-black font-semibold">
+                  ({appointment.patientGender})
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-black ml-4 font-semibold">
+                  Age: {calculateAge(appointment.patientDateOfBirth)}
+                </span>
+              </div>
             </div>
 
             <div className="mt-2 flex items-center gap-2">
@@ -267,7 +294,7 @@ const AppointmentHistoryPage: React.FC = () => {
                 onClick={() => handleTracking(appointment)}
                 className="px-3 py-1 ml-2 bg-blue-400 text-white rounded-md hover:bg-blue-500 flex items-center gap-2"
               >
-                <FaClipboardList  />
+                <FaClipboardList />
                 Tracking
               </button>
             </div>
@@ -334,6 +361,7 @@ const AppointmentHistoryPage: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

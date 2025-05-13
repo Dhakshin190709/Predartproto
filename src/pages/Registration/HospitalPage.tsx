@@ -38,7 +38,7 @@ const Hospital: React.FC = () => {
   });
   
 const [formMode, setFormMode] = useState(""); 
-  const apiBaseUrl = 'https://predart003-001-site1.anytempurl.com/api/Hospital'; 
+  const apiBaseUrl = 'https://predart003-001-site1.anytempurl.com/api/Hospital/List'; 
 
   const gridApi = useRef<any>(null);
   const gridColumnApi = useRef<any>(null);
@@ -48,7 +48,7 @@ const [formMode, setFormMode] = useState("");
 
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
+    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
       .then((response) => {
         if (!response.ok) {
           throw new Error('Network response was not ok');

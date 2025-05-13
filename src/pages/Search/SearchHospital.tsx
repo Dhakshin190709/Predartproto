@@ -5,13 +5,11 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { fetchHospitalAPI } from '../../Utils';
 import HospitalIcon from '../../images/icon/Hospital solid (2).svg';
 import { useLocation } from 'react-router-dom';
-
-import {
-  FaMapMarkerAlt,
-  FaEnvelope,
-
-  FaDirections,
-} from 'react-icons/fa';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import axios from 'axios';
+import { FaMapMarkerAlt, FaEnvelope, FaDirections } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 
 import {
   FaLandmark,
@@ -22,7 +20,10 @@ import {
   FaPlusSquare,
 } from 'react-icons/fa';
 import CustomButton from '../../components/CustomButton';
-
+interface AppLOVOption {
+  appLOVID: string;
+  name: string;
+}
 
 const getHospitalIcon = (type) => {
   if (!type) return <FaHospitalUser className="text-gray-500 text-2xl" />; // Default icon for undefined type
@@ -48,6 +49,8 @@ const HospitalCards = () => {
     name: '',
     relationship: '',
     hospitalType: '',
+    hospitalName: '',
+
     phoneNumber: '',
     hospital: '',
     doctor: '',
@@ -74,47 +77,52 @@ const HospitalCards = () => {
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
   const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string>('');
   const location = useLocation();
- 
+  const today = new Date();
+  // State declaration
   const [hospitals, setHospitals] = useState([]);
-const [selectedHospital, setSelectedHospital] = useState("");
-
+  const [selectedRelationship, setSelectedRelationship] = useState('');
+  const [selectedHospital, setSelectedHospital] = useState('');
+  const [hospitalResults, setHospitalResults] = useState([]);
+  const [isSelf, setIsSelf] = useState(false);
+  const [isOthers, setIsOthers] = useState(false);
   const queryParams = new URLSearchParams(location.search);
   const hospitalNameFromQuery = queryParams.get('hospital');
   const [hospitalTypes, setHospitalTypes] = useState([]);
- 
- 
-
+  const [options, setOptions] = useState<AppLOVOption[]>([]);
+  const [bookedSlots, setBookedSlots] = useState<
+    { appointmentDate: string; appointmentTime: string }[]
+  >([]);
+  const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
+    [],
+  );
   const [showFullAddress, setShowFullAddress] = useState({});
-
-  
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
   const [showModal, setShowModal] = useState(false);
+const navigate = useNavigate();
 
   const [selectedHospitalID, setSelectedHospitalID] = useState(null);
- 
- 
+
   const [relationships, setRelationships] = useState([]);
 
   const [searchText, setSearchText] = useState('');
-  
+
   const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
-  
+
   const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
 
   const [doctorSearchText, setDoctorSearchText] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
   const [filteredDoctors, setFilteredDoctors] = useState<string[]>([]);
- 
+
   const [successMessage, setSuccessMessage] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLUListElement>(null);
   const doctorDropdownRef = useRef<HTMLUListElement>(null);
 
- 
   const [doctors, setDoctors] = useState([]); // Ensure default state is an array
-
-
 
   const [selectedDoctorID, setSelectedDoctorID] = useState(null);
   const [appointmentData, setAppointmentData] = useState({
@@ -125,6 +133,13 @@ const [selectedHospital, setSelectedHospital] = useState("");
     appointmentDate: '',
   });
 
+  const [roleName, setRoleName] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedRole = sessionStorage.getItem('roleName');
+    setRoleName(storedRole);
+    console.log('Retrieved role:', storedRole);
+  }, []);
   //fetch hp from utils
   useEffect(() => {
     const getHospitalTypes = async () => {
@@ -134,10 +149,82 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
     getHospitalTypes();
   }, []);
-  
-  
-  
-  
+
+  const handleOptionChange = (selectedOption: AppLOVOption) => {
+    setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
+    console.log(
+      `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
+    );
+  };
+
+  const fetchRelationships = async () => {
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
+      );
+      const result = await response.json();
+
+      console.log('API Response:', result); // Check the response structure
+
+      if (Array.isArray(result.data)) {
+        setRelationships(result.data); // Set the fetched relationships
+      } else {
+        console.error('Invalid relationship data format:', result.data);
+        setRelationships([]);
+      }
+    } catch (error) {
+      console.error('Error fetching relationships:', error);
+    }
+  };
+
+  // Fetch on component mount
+  useEffect(() => {
+    fetchRelationships();
+  }, []);
+
+  useEffect(() => {
+    const fetchOptions = async () => {
+      try {
+        const response = await axios.get(
+          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
+        );
+        console.log('API Response:', response.data);
+        setOptions(response.data?.data ?? []);
+      } catch (error) {
+        console.error('Error fetching options:', error);
+      }
+    };
+
+    fetchOptions();
+  }, []);
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    if (name === 'relationship' && value.length > 0) {
+      setShowSuggestions(true);
+      setFilteredRelationships(
+        relationships.filter((relation) =>
+          relation.toLowerCase().includes(value.toLowerCase()),
+        ),
+      );
+    } else {
+      setShowSuggestions(false);
+    }
+
+    if (name === 'hospital') {
+      filterHospitals(value);
+    }
+    if (name === 'doctor') {
+      filterDoctors(value);
+    }
+
+    // Validate the field
+    setErrors({ ...errors, [name]: validateField(name, value) });
+  };
 
   const fetchDoctors = async () => {
     try {
@@ -169,38 +256,46 @@ const [selectedHospital, setSelectedHospital] = useState("");
     }
   }, [hospitals, hospitalNameFromQuery]);
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Hospital');
-        const result = await response.json();
-  
-        console.log('API Response:', result); // Verify response format
-  
-        if (Array.isArray(result)) {
-          const hospitalData = result.map((hospital) => ({
-            hospitalID: hospital.hospitalID || '', // ✅ Add hospitalID
-            hospitalName: hospital.hospitalName || 'Unknown Hospital',
-            type: hospital.hospitalType || 'Unknown Type',
-            location: 'Anna Nagar, Chennai', // Hardcoded location
-            email: hospital.email || 'hp@gmail.com', // Hardcoded email
-            is24x7: hospital.hospitalType?.toLowerCase() === '24/7',
-          }));
-          setHospitals(hospitalData);
-        } else {
-          console.error('Invalid hospital data format:', result);
-          setHospitals([]);
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-        setHospitals([]);
+  const fetchHospitals = async () => {
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
+      );
+      const result = await response.json();
+
+      console.log('API Response:', result); // Verify response format
+
+      if (Array.isArray(result)) {
+        // Map the data without any trimming
+        const hospitalData = result.map((hospital) => ({
+          hospitalID: hospital.hospitalID || '',
+          hospitalName: hospital.hospitalName || 'Unknown Hospital', // No trimming here
+          hospitalType: hospital.hospitalType || 'Unknown Type', // No trimming here
+        }));
+        setHospitals(hospitalData); // Set hospitals data to state
+      } else {
+        console.error('Invalid hospital data format:', result);
+        setHospitals([]); // Set empty data if format is invalid
       }
-    };
-  
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+      setHospitals([]); // Set empty data if fetch fails
+    }
+  };
+
+  useEffect(() => {
     fetchHospitals();
   }, []);
-  
 
+  useEffect(() => {
+    if (!appointmentType && options.length > 0) {
+      const defaultOption = options.find((opt) => opt.name === 'Self');
+      if (defaultOption) {
+        setAppointmentType(defaultOption.appLOVID);
+        handleOptionChange(defaultOption); // optional
+      }
+    }
+  }, [options]);
 
   useEffect(() => {
     if (selectedHospitalID) {
@@ -225,7 +320,7 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
     // Conditional validation for 'Others' appointment type
     if (appointmentType === 'Others' && name === 'relationship' && !value) {
-      return 'Relationship is required.'; // ✅ Shows error if not selected
+      return 'Relationship is required.';
     }
 
     if (name === 'name' && !value) error = 'Name is required.';
@@ -242,12 +337,18 @@ const [selectedHospital, setSelectedHospital] = useState("");
     }
 
     // Date validation
+    // Date validation
     if (name === 'date') {
-      const dateValue = formData.date; // Use formData.date for consistency
+      const dateValue = formData.date;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
+
       if (!dateValue) {
         error = 'Date is required.';
       } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
         error = 'Invalid date.';
+      } else if (dateValue < today) {
+        error = 'Past dates are not allowed.';
       } else {
         error = ''; // Clear error when valid
       }
@@ -255,10 +356,22 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
     // Time validation
     if (name === 'time') {
-      if (!value) {
+      console.log('Validating Time:', value, typeof value);
+
+      if (!value || !(value instanceof Date)) {
         error = 'Time is required.';
-      } else if (value instanceof Date && isNaN(value.getTime())) {
+      } else if (isNaN(value.getTime())) {
         error = 'Invalid time.';
+      } else if (formData.date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const selectedDate = new Date(formData.date);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate.getTime() === today.getTime() && value < new Date()) {
+          error = 'Past time is not allowed for today.';
+        }
       }
     }
 
@@ -285,38 +398,21 @@ const [selectedHospital, setSelectedHospital] = useState("");
     );
     setShowDoctorDropdown(true);
   };
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
-  ) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-
-   
-
-    if (name === 'hospital') {
-      filterHospitals(value);
-    }
-    if (name === 'doctor') {
-      filterDoctors(value);
-    }
-
-    // Validate the field
-    setErrors({ ...errors, [name]: validateField(name, value) });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     const userID = sessionStorage.getItem('userID');
 
     if (!userID) {
-      alert('User not logged in. Please log in again.');
+      toast.error('User not logged in. Please log in again.');
       return;
     }
 
-    // Validate all fields before submitting
     const newErrors = {
       name: validateField('name', formData.name),
-      
+      relationship: validateField('relationship', selectedRelationship),
+      hospital: validateField('hospital', selectedHospitalID),
       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
       doctor: validateField('doctor', formData.doctor),
       reason: validateField('reason', formData.reason),
@@ -327,24 +423,52 @@ const [selectedHospital, setSelectedHospital] = useState("");
     setErrors(newErrors);
 
     if (Object.values(newErrors).every((error) => error === '')) {
-      const payload = {
-        createdBy: userID,
-        isActive: true,
-        doctorID: formData.doctor,
-        patientID: '1e3b8a00-d9c7-453d-aa97-005281e76f80',
-        timeSlotID: formData.timeSlotID,
-        appointmentDate: formData.date
-          ? new Date(formData.date).toLocaleDateString('en-CA')
-          : null,
-        appointmentTime: formData.time ? `${formData.time}:00` : null,
-        statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-        notes: formData.reason || '',
-        toWhom: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-        relationship: 'ae34b43e-74cf-4328-7794-08dd561d6477',
-        phoneNumber: formData.phoneNumber || '',
-      };
-
       try {
+        const patientRes = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+        );
+
+        if (!patientRes.ok) {
+          throw new Error('Failed to fetch patient ID');
+        }
+
+        const patientData = await patientRes.json();
+        const patientID = patientData?.data?.patientID;
+
+        if (!patientID) {
+          toast.error('Patient ID not found for the logged-in user.');
+          return;
+        }
+
+        const appointmentTimeFormatted = formData.time
+          ? convertTo24HourFormat(formData.time)
+          : '00:00:00';
+
+        const formatDateYYYYMMDD = (dateString: string) => {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = `0${date.getMonth() + 1}`.slice(-2);
+          const day = `0${date.getDate()}`.slice(-2);
+          return `${year}-${month}-${day}`;
+        };
+        console.log('Form Data:', formData);
+        const payload = {
+          createdBy: userID,
+          isActive: true,
+          doctorID: formData.doctor,
+          patientID: patientID,
+          timeSlotID: formData.timeSlotID, // Pass this correctly
+          appointmentDate: formData.date
+            ? formatDateYYYYMMDD(formData.date)
+            : null,
+          appointmentTime: appointmentTimeFormatted,
+          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+          notes: formData.reason?.trim() || 'No additional notes',
+          toWhom: appointmentType,
+          relationShip: selectedRelationship,
+          phoneNumber: formData.phoneNumber || '',
+        };
+
         const response = await fetch(
           'https://predart003-001-site1.anytempurl.com/api/Appointment',
           {
@@ -356,52 +480,93 @@ const [selectedHospital, setSelectedHospital] = useState("");
           },
         );
 
+        const responseData = await response.json();
+
         if (response.ok) {
-          setSuccessMessage('Form submitted successfully!');
+          const message =
+            responseData?.message || 'Appointment booked successfully!';
+          toast.success(message);
           console.log('Form Submitted:', payload);
-
-          // Reset form fields after successful submission
-          setFormData({
-            name: '',
-            relationship: '',
-            phoneNumber: '',
-            doctor: '',
-            reason: '',
-            date: null,
-            time: '', // ✅ Ensure this resets correctly
-            timeSlotID: '',
-          });
-          setSelectedTime(null); 
-
-          setSelectedDate(null);
-          setErrors({});
-
-          // Close the modal
-          setTimeout(() => {
-            setShowModal(false);
-          }, 500); // Delay slightly for better UX
+          resetForm();
+          setShowModal(false);
         } else {
-          const errorData = await response.json();
-          console.error('Submission failed:', errorData);
-          setSuccessMessage('Submission failed. Please try again.');
+          const message =
+            responseData?.message || 'Submission failed. Please try again.';
+          toast.error(message);
         }
       } catch (error) {
         console.error('Error during submission:', error);
-        setSuccessMessage('An error occurred. Please try again later.');
+        toast.error('An error occurred. Please try again later.');
       }
     } else {
-      setSuccessMessage('');
+      toast.warning('Please fix the highlighted errors before submitting.');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      relationship: '',
+      phoneNumber: '',
+      doctor: '',
+      reason: '',
+      date: '',
+      time: '',
+      timeSlotID: '',
+    });
+    setSelectedRelationship('');
+    setAppointmentType('');
+    setSelectedHospitalID('');
+    setSelectedDoctorID('');
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setErrors({});
+  };
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Trim values directly here and check if they are non-empty
+    const hospitalName = formData.hospitalName.trim();
+    const hospitalType = formData.hospitalType.trim();
+
+    // If both fields are empty, show a warning
+    if (!hospitalName && !hospitalType) {
+      toast.warning('Please select or enter at least one field to search.');
+      return;
+    }
+
+    // Construct the query string dynamically
+    const queryParams = new URLSearchParams();
+    if (hospitalName) queryParams.append('hospitalName', hospitalName); // If hospitalName is not empty
+    if (hospitalType) queryParams.append('hospitalType', hospitalType); // If hospitalType is not empty
+
+    try {
+      const res = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Hospital?${queryParams.toString()}`,
+      );
+
+      if (!res.ok) {
+        toast.error('Failed to fetch hospital data.');
+        return;
+      }
+
+      const data = await res.json();
+      console.log('Search Results:', data);
+      setHospitals(data); // Set the fetched hospital data
+    } catch (err) {
+      console.error(err);
+      toast.error('Something went wrong while searching.');
     }
   };
 
   // ✅ Handle Book Now
 
- const handleBookNow = (hospitalID: string) => {
-  setSelectedHospitalID(hospitalID);
-  fetchDoctors(hospitalID); // ✅ Use hospitalID instead of undefined hospitalName
-  setShowModal(true);
-};
-
+  const handleBookNow = (hospitalID: string) => {
+    setSelectedHospitalID(hospitalID);
+    fetchDoctors(hospitalID); // ✅ Use hospitalID instead of undefined hospitalName
+    setShowModal(true);
+  };
 
   const closeModal = () => {
     setShowModal(false);
@@ -421,73 +586,16 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
     setFormData((prev) => ({
       ...prev,
-      time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timeSlotID: timeSlotID, // ✅ Correctly pass timeSlotID
+      time, // ✅ Keep time as Date
+      timeSlotID,
     }));
   };
 
-  const handleDateChange = (date: Date | null, slots?: TimeSlotType[]) => {
-    if (!date) return;
-
-    // Fix: Convert to local timezone by setting time to noon
-    const localDate = new Date(date);
-    localDate.setHours(12, 0, 0, 0); // Avoid timezone shifts
-
-    setSelectedDate(localDate);
-    setFormData((prev) => ({ ...prev, date: localDate }));
-
-    const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
-    if (!Array.isArray(timeSlots)) {
-      console.error('Invalid timeSlots:', timeSlots);
-      return;
-    }
-
-    const dayOfWeek = localDate.toLocaleDateString('en-US', {
-      weekday: 'long',
-    });
-    const matchedDaySlots = timeSlots.filter(
-      (slot) =>
-        slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase().trim(),
-    );
-
-    if (matchedDaySlots.length) {
-      matchedDaySlots.forEach(
-        ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-          generateTimeSlots(fromTime, toTime, slotDuration, timeSlotID);
-        },
-      );
-      setFormData((prev) => ({
-        ...prev,
-        timeSlotID: matchedDaySlots[0].timeSlotID,
-      }));
-    } else {
-      console.warn(`No time slots found for ${dayOfWeek}`);
-      setGeneratedTimeSlots([]);
-    }
-  };
-
-  const generateTimeSlots = (
-    fromTime: string,
-    toTime: string,
-    slotDuration: number,
-    timeSlotID: string,
-  ) => {
-    console.log('Generating slots for timeSlotID:', timeSlotID);
-
-    const slots = [];
-    const today = new Date();
-    const [fromHours, fromMinutes] = fromTime.split(':').map(Number);
-    const [toHours, toMinutes] = toTime.split(':').map(Number);
-
-    let current = new Date(today.setHours(fromHours, fromMinutes, 0, 0));
-    const end = new Date(today.setHours(toHours, toMinutes, 0, 0));
-
-    while (current <= end) {
-      slots.push({ time: new Date(current), timeSlotID });
-      current = new Date(current.getTime() + slotDuration * 60000); // Add slot duration
-    }
-
-    setGeneratedTimeSlots(slots); // ✅ Save slots with IDs
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   };
 
   const handleDoctorChange = async (
@@ -500,34 +608,37 @@ const [selectedHospital, setSelectedHospital] = useState("");
     if (!doctorID) return;
 
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
+      // Fetch the time slots for the selected doctor using the correct API
+      const timeSlotResponse = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
       );
-      const responseData = await response.json();
-      const data = Array.isArray(responseData.data) ? responseData.data : [];
+      const timeSlotData = await timeSlotResponse.json();
 
-      console.log('Fetched Time Slots Data:', data);
+      console.log('Fetched Time Slot Data:', timeSlotData);
+
+      const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+      console.log('Processed Time Slot Data:', data);
 
       const matchedTimeSlots = data.filter(
         (slot) => String(slot.doctorID) === doctorID,
       );
 
-      if (matchedTimeSlots.length) {
-        console.log('Matched Time Slots:', matchedTimeSlots);
+      console.log('Matched Time Slots:', matchedTimeSlots);
 
+      if (matchedTimeSlots.length) {
         const formattedSlots = matchedTimeSlots.map((slot) => ({
           timeSlotID: slot.timeSlotID,
           fromTime: slot.fromTime,
           toTime: slot.toTime,
           slotDuration: slot.slotDuration,
-          day: slot.dayofWeek, // Ensure this matches the API field
+          day: slot.dayofWeek,
         }));
 
         setAvailableTimeSlots(formattedSlots);
         console.log('Formatted Slots:', formattedSlots);
 
         if (selectedDate) {
-          handleDateChange(selectedDate, formattedSlots); // ✅ Pass updated slots
+          handleDateChange(selectedDate, formattedSlots); // Pass updated slots
         }
       } else {
         console.warn('No matching time slots found for this doctor.');
@@ -539,124 +650,378 @@ const [selectedHospital, setSelectedHospital] = useState("");
     }
   };
 
+  const handleDateChange = async (
+    date: Date | null,
+    slots?: TimeSlotType[],
+  ) => {
+    if (!date) return;
+
+    const localDate = formatLocalDate(date); // "YYYY-MM-DD"
+    console.log('Selected Date (Full):', date);
+    console.log('Selected Date (Local):', localDate);
+
+    setSelectedDate(date);
+    setFormData((prev) => ({ ...prev, date }));
+
+    const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
+    if (!Array.isArray(timeSlots)) {
+      console.error('Invalid timeSlots:', timeSlots);
+      return;
+    }
+
+    const dayOfWeek = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .trim();
+    console.log('Selected Day:', dayOfWeek);
+
+    const matchedDaySlots = timeSlots.filter(
+      (slot) => slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase(),
+    );
+
+    if (matchedDaySlots.length) {
+      console.log('Doctor is available on this date based on their schedule.');
+
+      try {
+        const appointmentResponse = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        );
+        const appointmentData = await appointmentResponse.json();
+        console.log('Raw Appointment Data:', appointmentData);
+
+        const appointmentList = Array.isArray(appointmentData)
+          ? appointmentData
+          : [];
+
+        const bookedSlots = appointmentList.map((appointment: any) => ({
+          appointmentDate: appointment?.appointmentDate,
+          appointmentTime: appointment?.appointmentTime,
+        }));
+
+        console.log('Booked Slots:', bookedSlots);
+
+        // ✅ Generate time slots using the fetched bookedSlots
+        let generated: { time: Date; timeSlotID: number }[] = [];
+
+        matchedDaySlots.forEach(
+          ({ fromTime, toTime, slotDuration, timeSlotID }) => {
+            const slots = generateTimeSlots(
+              fromTime,
+              toTime,
+              slotDuration,
+              timeSlotID,
+              bookedSlots,
+              date,
+            );
+            generated = [...generated, ...slots];
+          },
+        );
+
+        setBookedSlots(bookedSlots); // store after use
+        setGeneratedTimeSlots(generated); // set available slots
+
+        setFormData((prev) => ({
+          ...prev,
+          timeSlotID: matchedDaySlots[0].timeSlotID,
+        }));
+      } catch (error) {
+        console.error('Error fetching appointments:', error);
+      }
+    } else {
+      console.warn(`Doctor is NOT available on ${dayOfWeek}.`);
+      setGeneratedTimeSlots([]);
+    }
+  };
+
+  const generateTimeSlots = (
+    fromTime: string,
+    toTime: string,
+    slotDuration: number,
+    timeSlotID: number,
+    bookedSlots: { appointmentDate: string; appointmentTime: string }[],
+    selectedDate: Date,
+  ) => {
+    const fromTime24 = convertTo24HourFormat(fromTime);
+    const toTime24 = convertTo24HourFormat(toTime);
+
+    const [fromHours, fromMinutes] = fromTime24.split(':').map(Number);
+    const [toHours, toMinutes] = toTime24.split(':').map(Number);
+
+    const currentSlot = new Date(selectedDate);
+    currentSlot.setHours(fromHours, fromMinutes, 0, 0);
+
+    const endSlot = new Date(selectedDate);
+    endSlot.setHours(toHours, toMinutes, 0, 0);
+
+    const availableSlots: { time: Date; timeSlotID: number }[] = [];
+
+    while (currentSlot < endSlot) {
+      const slotTime = new Date(currentSlot); // Clone to avoid mutation
+
+      const isBooked = bookedSlots.some((b) => {
+        const combinedBookedTime = new Date(
+          `${b.appointmentDate.split('T')[0]}T${b.appointmentTime}`,
+        );
+        return combinedBookedTime.getTime() === slotTime.getTime();
+      });
+
+      if (!isBooked) {
+        console.log(
+          `✅ Available Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+        availableSlots.push({ time: new Date(slotTime), timeSlotID });
+      } else {
+        console.log(
+          `⛔ Skipping Booked Slot: ${slotTime.toTimeString().slice(0, 5)}`,
+        );
+      }
+
+      currentSlot.setMinutes(currentSlot.getMinutes() + slotDuration);
+    }
+
+    return availableSlots;
+  };
+
+  const convertTo24HourFormat = (time: Date | string): string => {
+    if (!time) return '00:00:00';
+
+    const date =
+      typeof time === 'string' ? new Date(`1970-01-01T${time}`) : time;
+
+    return date.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+  };
+
+  const handleReset = () => {
+    setFormData({ hospitalName: '', hospitalType: '' });
+    fetchHospitals(); // Re-fetch all hospitals
+  };
+  useEffect(() => {
+    const selectedOption = options.find(
+      (opt) => opt.appLOVID === appointmentType,
+    );
+
+    if (selectedOption?.name === 'Self') {
+      setIsSelf(true);
+      setIsOthers(false);
+
+      setFormData((prev) => ({
+        ...prev,
+        name: patientData.name, // ✅ refill from stored patient data
+        phoneNumber: patientData.phoneNumber,
+        relationship: selectedOption.appLOVID,
+      }));
+      setSelectedRelationship(selectedOption.appLOVID);
+    } else if (selectedOption?.name === 'Others') {
+      setIsSelf(false);
+      setIsOthers(true);
+
+      setFormData((prev) => ({
+        ...prev,
+        name: '',
+        phoneNumber: '',
+        relationship: '',
+      }));
+      setSelectedRelationship('');
+    } else {
+      setIsSelf(false);
+      setIsOthers(false);
+    }
+  }, [appointmentType, options, patientData]);
+
+  useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    const roleName = sessionStorage.getItem('roleName');
+
+    if (userID && roleName !== 'Reception') {
+      fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            const name = data.data.patientName || '';
+            const phoneNumber = data.data.patientPhoneNumber || '';
+
+            // Save it separately
+            setPatientData({ name, phoneNumber });
+
+            // Initialize formData if needed
+            setFormData((prev) => ({
+              ...prev,
+              name,
+              phoneNumber,
+            }));
+          } else {
+            console.warn('⚠️ Failed to fetch patient data');
+          }
+        })
+        .catch((err) => {
+          console.error('❌ Error fetching patient data:', err);
+        });
+    }
+  }, []);
+
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
       <h1 className="text-3xl font-semibold text-black mb-6">
         Search Hospital
       </h1>
-      <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <input
-          type="text"
-          id="location"
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-          placeholder="Enter Location"
-        />
+      <form
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+        onSubmit={handleSearch}
+      >
         <input
           type="text"
           id="hospitalName"
+          value={formData.hospitalName}
+          onChange={(e) =>
+            setFormData({ ...formData, hospitalName: e.target.value })
+          }
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-              text-black outline-none focus:border-primary dark:border-form-strokedark
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
           placeholder="Enter Hospital Name"
         />
- <select
-  id="hospitalType"
-  name="hospitalType"
-  value={formData.hospitalType}
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
-  onChange={(e) => setFormData({ ...formData, hospitalType: e.target.value })}
-  required
->
-  <option value="">Hospital Type</option>
-  {hospitalTypes.length > 0 ? (
-    hospitalTypes.map((type) => (
-      <option key={type.id} value={type.name}>
-        {type.name}
-      </option>
-    ))
-  ) : (
-    <option value="">No Hospital Types Available</option>
-  )}
-</select>
 
+        <select
+          id="hospitalType"
+          name="hospitalType"
+          value={formData.hospitalType}
+          onChange={(e) =>
+            setFormData({ ...formData, hospitalType: e.target.value })
+          }
+          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="">Hospital Type</option>
+          {hospitalTypes.length > 0 ? (
+            hospitalTypes.map((type) => (
+              <option key={type.id} value={type.name}>
+                {type.name}
+              </option>
+            ))
+          ) : (
+            <option value="">No Hospital Types Available</option>
+          )}
+        </select>
 
+        <div className="flex items-center gap-4 mt-4">
+          <CustomButton type="submit">Search</CustomButton>
 
-
-
-
-
-      
-    
-        <div className="flex justify-start mt-4">
-        <CustomButton>
-     Search
-    </CustomButton>
+          <CustomButton
+            onClick={handleReset}
+            className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
+          >
+            Reset
+          </CustomButton>
         </div>
       </form>
 
       <h1 className="text-2xl font-semibold text-gray-800 mt-4  mb-6">
-       List of Hospital's
+        List of Hospital's
       </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 relative">
-  {hospitals.map((hospital, index) => (
-    <div
-      key={index}
-      className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-200 relative
-      transition-transform transform hover:scale-105 hover:shadow-lg"
-    >
-      {/* Icon Badge - Top Left */}
-      <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-tl-lg rounded-br-md flex items-center justify-center">
-      <img src={HospitalIcon} alt="hospital" className="w-5 h-5 text-white text-xl " />
-      </div>
+        {hospitals.length > 0 ? (
+          hospitals.map((hospital, index) => (
+            <div
+              key={index}
+              className="bg-white p-6 rounded-xl shadow-md border-2 border-blue-200 relative
+        transition-transform transform hover:scale-105 hover:shadow-lg"
+            >
+              {/* Icon Badge - Top Left */}
+              <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-tl-lg rounded-br-md flex items-center justify-center">
+                <img
+                  src={HospitalIcon}
+                  alt="hospital"
+                  className="w-5 h-5 text-white text-xl "
+                />
+              </div>
 
-      {/* Top Row: Book Button */}
-      <div className="flex justify-end mb-4">
-        <button
-          className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-          onClick={() => handleBookNow(hospital.hospitalID)}
-        >
-          Book Now
-        </button>
-      </div>
+              {/* Top Row: Book Button */}
+              <div className="flex justify-end mb-4">
+                <button
+                  className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                  onClick={() => handleBookNow(hospital.hospitalID)}
+                >
+                  Book Now
+                </button>
+              </div>
 
-      {/* Info Grid: Hospital Name & Type */}
-      <div className="grid grid-cols-2 gap-x-4 text-sm text-gray-800">
-        <div className="flex items-center gap-2">
-        <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
-          <span className="font-medium text-gray-600">Name:</span> {hospital.hospitalName}
-        </div>
-        <div className="flex items-center gap-2">
-        <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
-          <span className="font-medium text-gray-600">Type:</span> {hospital.type}
-        </div>
-      </div>
-    </div>
-  ))}
+              {/* Info Grid: Hospital Name & Type */}
+              <div className="grid grid-cols-2 gap-x-4 text-sm text-gray-800">
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
+                  <span className="font-medium text-gray-600">Name:</span>{' '}
+                  {hospital.hospitalName}
+                </div>
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
+                  <span className="font-medium text-gray-600">Type:</span>{' '}
+                  {hospital.hospitalType}
+                </div>
+              </div>
+            <div className="flex justify-end mb-2 mr-2">
+  <button
+    onClick={() =>
+      navigate("/ProfileHospital", {
+        state: {
+          hospitalID: hospital.hospitalID,
+          hospitalName: hospital.hospitalName,
+        },
+      })
+    }
+    className="text-blue-600 hover:underline text-sm font-semibold"
+  >
+    View More Profile Info
+  </button>
 </div>
 
-
-
-
-
-
-
-
-
-
+            </div>
+          ))
+        ) : (
+          <div className="col-span-1 text-center text-gray-600">
+            <p>No hospital data found</p>
+          </div>
+        )}
+      </div>
 
       {/* Booking Modal */}
       {showModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg w-96">
+        <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex justify-center items-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[600px]">
             <h2 className="text-xl font-semibold mb-4">Book Appointment</h2>
 
             {/* ✅ Pre-selected hospital dropdown with changeable selection */}
             <form onSubmit={handleSubmit}>
               {/* Appointment Type */}
+              <div className="flex justify-center mt-4 mb-6">
+                <div className="flex rounded-full border-2 border-blue-300 overflow-hidden">
+                  {options.map((option) => (
+                    <label
+                      key={option.appLOVID}
+                      className={`px-6 py-2 cursor-pointer font-semibold text-center transition-all duration-300
+        ${appointmentType === option.appLOVID ? 'bg-blue-500 text-white' : 'bg-gray-500 text-black'}`}
+                    >
+                      <input
+                        type="radio"
+                        name="appointmentType"
+                        value={option.appLOVID}
+                        checked={appointmentType === option.appLOVID}
+                        onChange={() => {
+                          setAppointmentType(option.appLOVID);
+                          handleOptionChange(option);
+                        }}
+                        className="hidden"
+                      />
+                      {option.name}
+                    </label>
+                  ))}
+                </div>
+              </div>
 
               {/* Name */}
               <div className="mb-4 flex gap-4">
@@ -665,13 +1030,13 @@ const [selectedHospital, setSelectedHospital] = useState("");
                     type="text"
                     name="name"
                     maxLength={30}
-                    placeholder="Name"
+                    placeholder={isOthers ? 'Enter your Name' : 'Name'}
                     value={formData.name}
                     onChange={handleInputChange}
-                    // disabled={appointmentType === 'Self'}
+                    disabled={isSelf && roleName !== 'Reception'}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-                 text-black outline-none focus:border-primary dark:border-form-strokedark
-                  dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  text-black outline-none focus:border-primary dark:border-form-strokedark
+                   dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
                   {errors.name && (
                     <p className="text-red-500 text-sm">{errors.name}</p>
@@ -682,9 +1047,12 @@ const [selectedHospital, setSelectedHospital] = useState("");
                     type="text"
                     name="phoneNumber"
                     maxLength={10}
-                    placeholder="Phone Number"
+                    placeholder={
+                      isOthers ? 'Enter your number' : 'Phone Number'
+                    }
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
+                    disabled={isSelf && roleName !== 'Reception'}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
                   {errors.phoneNumber && (
@@ -692,13 +1060,56 @@ const [selectedHospital, setSelectedHospital] = useState("");
                   )}
                 </div>
               </div>
+              {/* Relationship (for Others) */}
+              {appointmentType ===
+                options.find((opt) => opt.name === 'Others')?.appLOVID && (
+                <div className="mb-4">
+                  <div className="relative">
+                    {/* Relationship Dropdown */}
+                    <select
+                      name="relationship"
+                      value={selectedRelationship || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedRelationship(value); // Updates selectedRelationship
+                        setFormData((prev) => ({
+                          ...prev,
+                          relationship: value, // Updates formData.relationship
+                        }));
+                      }}
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="">Select Relationship</option>
+                      {relationships.length > 0 ? (
+                        relationships.map((relation) => (
+                          <option
+                            key={relation.appLOVID}
+                            value={relation.appLOVID}
+                          >
+                            {relation.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No relationships available</option>
+                      )}
+                    </select>
+                  </div>
 
+                  {/* Error Message */}
+                  {errors.relationship && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.relationship}
+                    </p>
+                  )}
+                </div>
+              )}
               {/* Hospital Dropdown */}
               <div className="mb-4 flex gap-4">
                 {/* Hospital Dropdown */}
                 <div className="relative w-1/2">
                   <select
                     name="hospital"
+                    disabled
                     value={selectedHospitalID}
                     onChange={(e) => setSelectedHospitalID(e.target.value)}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -764,69 +1175,64 @@ const [selectedHospital, setSelectedHospital] = useState("");
 
               <div className="mb-4 flex gap-4">
                 {/* Date Picker */}
-                <div className="relative w-1/2">
-                  <DatePicker
-                    selected={selectedDate}
-                    onChange={(date) => handleDateChange(date)}
-                    placeholderText="Select Date"
-                    className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
-                  />
-                  {errors.date && (
-                    <p className="text-red-500 text-sm">{errors.date}</p>
-                  )}
-
+                <div className="w-1/2">
+                  <div className="relative">
+                    <DatePicker
+                      selected={selectedDate}
+                      onChange={(date) => handleDateChange(date)}
+                      placeholderText="Appointment Date"
+                      minDate={new Date()}
+                      className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-20 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
+                    />
+                    {/* Calendar Icon */}
+                    <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                      <i className="fas fa-calendar-alt fa-xs"></i>
+                    </span>
+                  </div>
                   {errors.date && (
                     <p className="text-red-500 text-sm mt-1">{errors.date}</p>
                   )}
-                  {/* Calendar Icon */}
-                  <span
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2"
-                    style={{ color: '#c2c3c4' }}
-                  >
-                    <i className="fas fa-calendar-alt fa-xs"></i>
-                  </span>
                 </div>
 
                 {/* Time Picker */}
-                <div className="relative w-1/2">
-                <DatePicker
-  selected={selectedTime} // ✅ Ensure this is updated when resetting
-  onChange={(time) => {
-    if (time) {
-      const matchedSlot = generatedTimeSlots.find(
-        (slot) =>
-          slot.time.getHours() === time.getHours() &&
-          slot.time.getMinutes() === time.getMinutes(),
-      );
+                <div className="w-1/2">
+                  <div className="relative">
+                    <DatePicker
+                      selected={selectedTime}
+                      onChange={(time) => {
+                        if (!time) return;
 
-      if (matchedSlot) {
-        handleTimeSlotSelect(time, matchedSlot.timeSlotID); // ✅ Pass ID on selection
-      }
+                        const matchedSlot = generatedTimeSlots.find(
+                          (slot) => slot.time.getTime() === time.getTime(),
+                        );
 
-      setSelectedTime(time); // ✅ Update state with selected time
-    }
-  }}
-  showTimeSelect
-  showTimeSelectOnly
-  timeIntervals={slotDuration}
-  timeCaption="Time"
-  dateFormat="h:mm aa"
-  placeholderText="Select a time"
-  className="w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary"
-  includeTimes={generatedTimeSlots.map((slot) => slot.time)}
-/>
-
-
+                        if (matchedSlot) {
+                          handleTimeSlotSelect(time, matchedSlot.timeSlotID);
+                        } else {
+                          setSelectedTime(time);
+                          setFormData((prev) => ({
+                            ...prev,
+                            time,
+                            timeSlotID: prev.timeSlotID || '',
+                          }));
+                          const timeError = validateField('time', time);
+                          setErrors((prev) => ({ ...prev, time: timeError }));
+                        }
+                      }}
+                      showTimeSelect
+                      showTimeSelectOnly
+                      timeIntervals={slotDuration}
+                      timeCaption="Time"
+                      dateFormat="HH:mm"
+                      placeholderText="Appointment Time"
+                      className="w-full rounded-lg border border-stroke py-4 pl-4 pr-20 text-black outline-none focus:border-primary"
+                      includeTimes={generatedTimeSlots.map((slot) => slot.time)}
+                    />
+                    <i className="fas fa-clock text-gray-500 absolute right-4 top-1/2 transform -translate-y-1/2 text-sm pointer-events-none"></i>
+                  </div>
                   {errors.time && (
                     <p className="text-red-500 text-sm mt-1">{errors.time}</p>
                   )}
-                  {/* Timer Icon */}
-                  <span
-                    className="absolute left-35 top-1/2 transform -translate-y-1/2"
-                    style={{ color: '#c2c3c4' }}
-                  >
-                    <i className="fas fa-clock fa-xs"></i>
-                  </span>
                 </div>
               </div>
 
@@ -839,9 +1245,7 @@ const [selectedHospital, setSelectedHospital] = useState("");
                 >
                   Close
                 </button>
-                <button
-                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
-                 >
+                <button className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg">
                   Confirm
                 </button>
               </div>
@@ -849,6 +1253,8 @@ const [selectedHospital, setSelectedHospital] = useState("");
           </div>
         </div>
       )}
+
+      <ToastContainer position="top-right" autoClose={3000} />
     </div>
   );
 };

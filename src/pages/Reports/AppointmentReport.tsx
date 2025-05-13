@@ -1,70 +1,88 @@
-import React, { useState ,useEffect} from "react";
-import { AgGridReact } from "ag-grid-react";
-
+import React, { useState, useEffect } from 'react';
+import { AgGridReact } from 'ag-grid-react';
+import { saveAs } from 'file-saver';
+import * as XLSX from 'xlsx';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 import axios from 'axios';
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-alpine.css";
-import Modal from "react-modal"; // Ensure you have installed react-modal
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
+import autoTable from 'jspdf-autotable';
+
+
+
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import Modal from 'react-modal'; // Ensure you have installed react-modal
 import {
   FaSearch,
   FaFileDownload,
   FaFileExcel,
   FaFileWord,
+  FaFileCsv,
   FaFilePdf,
-} from "react-icons/fa";
+} from 'react-icons/fa';
+import CustomButton from '../../components/CustomButton';
 
 const AppointmentReport: React.FC = () => {
-  const [hospitalName, setHospitalName] = useState<string>("");
+  const [hospitalName, setHospitalName] = useState<string>('');
   const [doctors, setDoctors] = useState([]);
   const [selectedDoctorID, setSelectedDoctorID] = useState('');
   const [hospitals, setHospitals] = useState([]);
   const [selectedHospitalID, setSelectedHospitalID] = useState('');
-  const [patientId, setPatientId] = useState<string>("");
-  const [name, setName] = useState<string>("");
-  const [phoneNumber, setPhoneNumber] = useState<string>("");
-  const [appointmentName, setAppointmentName] = useState<string>("");
-  const [date, setDate] = useState<string>("");
+  const [patientId, setPatientId] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [phoneNumber, setPhoneNumber] = useState<string>('');
+  const [appointmentName, setAppointmentName] = useState<string>('');
+  const [date, setDate] = useState<string>('');
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusOptions, setStatusOptions] = useState([]);
-  const [quickSearchText, setQuickSearchText] = useState(""); // Global search state
-   const [filterFromDate, setFilterFromDate] = useState('');
-   const [statusMapping, setStatusMapping] = useState({});
-   const [toWhomMapping, setToWhomMapping] = useState({});
+  const [quickSearchText, setQuickSearchText] = useState(''); // Global search state
+  const [filterFromDate, setFilterFromDate] = useState('');
+  const [statusMapping, setStatusMapping] = useState({});
+  const [toWhomMapping, setToWhomMapping] = useState({});
+  const [exportData, setExportData] = useState<any[]>([]);
+  const [filterToDate, setFilterToDate] = useState('');
+  const [selectedFields, setSelectedFields] = useState([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [statusID, setStatusID] = useState('');
 
-  ;
-const [filterToDate, setFilterToDate] = useState('');
-
-const [appointments, setAppointments] = useState<any[]>([]);
-   const [statusID, setStatusID] = useState('');
-   
   const [rowData, setRowData] = useState<any[]>([]); // Sample appointment data
-  const doctorID = sessionStorage.getItem('doctorID'); 
+  const doctorID = sessionStorage.getItem('doctorID');
 
   const handleSearch = async () => {
-    const role = sessionStorage.getItem('roleName');
+    const role = sessionStorage.getItem('roleName')?.toLowerCase();
+
     const storedUnitID = sessionStorage.getItem('unitID');
     const storedDoctorID = sessionStorage.getItem('doctorID');
-  
+
     const hospitalID = role === 'Doctor' ? storedUnitID : selectedHospitalID;
     const doctorID = role === 'Doctor' ? storedDoctorID : selectedDoctorID;
-  
-    let baseUrl = "https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport?";
+
+    let baseUrl =
+      'https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport?';
     let queryParams = [];
-  
+
     // Always push HospitalID if available
     if (hospitalID) {
       queryParams.push(`HospitalID=${hospitalID}`);
     }
-  
+
     // Add DoctorID if present
     if (doctorID) {
       queryParams.push(`DoctorID=${doctorID}`);
     }
-  
+
     // Check if all filters are filled
-    const hasFullFilter = hospitalID && doctorID && selectedStatus && filterFromDate && filterToDate;
-  
+    const hasFullFilter =
+      hospitalID &&
+      doctorID &&
+      selectedStatus &&
+      filterFromDate &&
+      filterToDate;
+
     if (hasFullFilter) {
       queryParams.push(`StatusID=${selectedStatus}`);
       queryParams.push(`StartDate=${filterFromDate}`);
@@ -74,7 +92,7 @@ const [appointments, setAppointments] = useState<any[]>([]);
       if (selectedStatus) {
         queryParams.push(`StatusID=${selectedStatus}`);
       }
-  
+
       if (filterFromDate && filterToDate) {
         queryParams.push(`StartDate=${filterFromDate}`);
         queryParams.push(`EndDate=${filterToDate}`);
@@ -82,96 +100,223 @@ const [appointments, setAppointments] = useState<any[]>([]);
         queryParams.push(`StartDate=${filterFromDate}`);
       }
     }
-  
-    const url = baseUrl + queryParams.join("&");
-  
+
+    let hasAnyFilter = false;
+
+    if (role === 'doctor') {
+      hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
+    } else if (role === 'reception') {
+      hasAnyFilter =
+        !!selectedStatus ||
+        !!filterFromDate ||
+        !!filterToDate ||
+        !!doctorID ;
+       
+    } else if (role === 'hostitaladmin') {
+      hasAnyFilter =
+        !!selectedStatus ||
+        !!filterFromDate ||
+        !!filterToDate ||
+        !!doctorID ;
+      
+    } else {
+      hasAnyFilter =
+        !!selectedStatus ||
+        !!filterFromDate ||
+        !!filterToDate ||
+        !!doctorID ||
+        !!hospitalID;
+    }
+    
+    if (!hasAnyFilter) {
+      toast.warning('Please select at least one filter before searching.');
+      return;
+    }
+    const url = baseUrl + queryParams.join('&');
+
     try {
       const response = await fetch(url);
       const data = await response.json();
-      console.log("Search Results:", data);
+      console.log('Search Results:', data);
       setRowData(data);
     } catch (error) {
-      console.error("Error fetching appointment report:", error);
+      console.error('Error fetching appointment report:', error);
     }
+  };
+
+  const handleReset = () => {
+    const role = sessionStorage.getItem('roleName')?.toLowerCase();
+  
+    setSelectedStatus('');
+    setFilterFromDate('');
+    setFilterToDate('');
+    setSelectedDoctorID('');
+  
+    // Only reset hospital if it's not prefilled/disabled
+    const isHospitalPrefilled = !!sessionStorage.getItem('unitID');
+    if (!isHospitalPrefilled) {
+      setSelectedHospitalID('');
+    }
+  
+    setRowData([]);
+    fetchAppointmentReport();
   };
   
   
   
-  
-  
-  
-  
-
   const applyGlobalSearch = (data: any[]) => {
     if (!quickSearchText.trim()) return data;
-  
+
     const lowerSearch = quickSearchText.toLowerCase();
-  
+
     return data.filter((item) => {
       return Object.entries(item).some(([key, value]) => {
         let displayValue = String(value);
-  
+
         // Special handling for statusID
-        if (key === "statusID") {
-          displayValue = statusMapping[value] || "Unknown";
+        if (key === 'statusID') {
+          displayValue = statusMapping[value] || 'Unknown';
         }
-  
+
         // Special handling for appointmentDate
-        if (key === "appointmentDate" && value) {
+        if (key === 'appointmentDate' && value) {
           const date = new Date(value);
           displayValue = date.toLocaleDateString('en-GB');
         }
-  
+
         // Special handling for toWhom
-        if (key === "toWhom") {
-          displayValue = toWhomMapping[value] || "Unknown";
+        if (key === 'toWhom') {
+          displayValue = toWhomMapping[value] || 'Unknown';
         }
-  
+
         return displayValue.toLowerCase().includes(lowerSearch);
       });
     });
   };
-  
-  
 
-  const handleDownload = (format: string) => {
-    alert(`Downloading report in ${format} format...`);
-    setIsModalVisible(false); // Close modal after selection
+  const handleDownload = (format: string, data: any[]) => {
+    if (!data || data.length === 0) {
+      alert('No data available to download.');
+      return;
+    }
+  
+    const selectedFields = [
+      'doctorName',
+      'doctorEmail',
+      'doctorPhoneNumber',
+      'patientName',
+      'patientGender',
+      'patientDateOfBirth',
+      'patientEmail',
+      'patientPhoneNumber',
+      'hospitalName'
+    ];
+  
+    const filteredData = data.map(item => {
+      const filteredItem: any = {};
+      selectedFields.forEach(key => {
+        filteredItem[key] = item[key] || '';
+      });
+      return filteredItem;
+    });
+  
+    switch (format) {
+      case 'Excel':
+        const ws = XLSX.utils.json_to_sheet(filteredData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        saveAs(new Blob([excelBuffer], { type: 'application/octet-stream' }), 'data.xlsx');
+        break;
+  
+      case 'CSV':
+        const csvSheet = XLSX.utils.json_to_sheet(filteredData);
+        const csvOutput = XLSX.utils.sheet_to_csv(csvSheet);
+        saveAs(new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' }), 'data.csv');
+        break;
+  
+        case 'PDF':
+          const doc = new jsPDF({
+            orientation: 'landscape',
+            unit: 'pt',
+            format: 'A4',
+          });
+        
+          autoTable(doc, {
+            head: [selectedFields],
+            body: filteredData.map(row => selectedFields.map(key => row[key] ?? '')),
+            columnStyles: selectedFields.reduce((styles, key, index) => {
+              styles[index] = { cellWidth: 'auto' }; // or a number like 70
+              return styles;
+            }, {} as Record<number, { cellWidth: string | number }>),
+            styles: {
+              fontSize: 8,
+              cellPadding: 3,
+            },
+            headStyles: {
+              fillColor: [22, 160, 133],
+              textColor: 255,
+              fontStyle: 'bold',
+            },
+          });
+        
+          doc.save('data.pdf');
+          break;
+        
+        
+        
+        
+      
+  
+      default:
+        alert('Unsupported format');
+    }
+  
+    setIsModalVisible(false);
   };
+  
+  
+  
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await fetch('https://predart003-001-site1.anytempurl.com/api/Hospital');
+        const response = await fetch(
+          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
+        );
         const data = await response.json();
-  
+
         // Filter only active hospitals
-        const activeHospitals = data.filter((hospital) => hospital.isActive === true);
-  
+        const activeHospitals = data.filter(
+          (hospital) => hospital.isActive === true,
+        );
+
         setHospitals(activeHospitals);
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
     };
-  
+
     fetchHospitals();
   }, []);
-  
+
   useEffect(() => {
     const fetchDoctors = async () => {
       if (!selectedHospitalID) return; // Wait until hospital is selected
-  
+
       try {
         const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`
+          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`,
         );
         const result = await response.json();
-  
+
         if (result?.success && Array.isArray(result.data)) {
           // Filter only active doctors
-          const activeDoctors = result.data.filter((doctor) => doctor.isActive === true);
+          const activeDoctors = result.data.filter(
+            (doctor) => doctor.isActive === true,
+          );
           setDoctors(activeDoctors);
         } else {
           console.error('Unexpected doctor data format:', result);
@@ -180,10 +325,10 @@ const [appointments, setAppointments] = useState<any[]>([]);
         console.error('Error fetching doctors:', error);
       }
     };
-  
+
     fetchDoctors();
   }, [selectedHospitalID]); // Runs when hospital selection changes
-  
+
   const [isDoctorLoggedIn, setIsDoctorLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -201,210 +346,285 @@ const [appointments, setAppointments] = useState<any[]>([]);
       }
     } else if (role === 'Reception') {
       if (unitID) setSelectedHospitalID(unitID);
+    } else if (role === 'HostitalAdmin') {
+      if (unitID) setSelectedHospitalID(unitID);
     }
   }, []);
   
-  
 
-const allColumns = [
-  {
-    headerName: 'S.No',
-    valueGetter: (params: any) => params.node.rowIndex + 1,
-    width: '80',
-    headerClass: 'text-left',
-    cellClass: 'left',
-    sortable: false,
-    filter: false,
-  },
-  {
-    headerName: "Appointment Date",
-    field: "appointmentDate",
-    sortable: true,
-    filter: true,
-    valueFormatter: (params: any) => {
-      const date = new Date(params.value);
-      return date.toLocaleDateString('en-GB');
-    },
+  const allColumns = [
+    {
+      headerName: 'S.No',
+      valueGetter: (params: any) => params.node.rowIndex + 1,
+      width: 80, // Small fixed width
+      resizable: false,
+      headerClass: 'text-left',
+      cellClass: 'left',
+      sortable: false,
+      filter: false,
     
-  },
-  { headerName: "Patient Name", field: "patientName", sortable: true, filter: true },
-
-  // Doctor Name column (conditionally rendered below)
-
-  { headerName: "To Whom", field: "toWhom", sortable: true, filter: true, 
-    valueGetter: (params: any) => toWhomMapping[params.data.toWhom] || 'Unknown' 
-  },
-  { headerName: "Reason", field: "notes", sortable: true, filter: true },
-  {
-    headerName: "Status",
-    field: "statusID",
-    sortable: true,
-    filter: true,
-    valueGetter: (params: any) => statusMapping[params.data.statusID] || 'Unknown'
-  }
-];
-
-// Dynamically add Doctor Name if role is Reception
-const columns = [...allColumns];
-if (roleName === 'Reception') {
-  columns.splice(3, 0, { headerName: "Doctor Name", field: "doctorName", sortable: true, filter: true });
-}
-
-
- 
-  useEffect(() => {
-    if (doctorID) {
-      // Fetch data from AppointmentReport API using the doctorID
-      axios.get(`https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport?DoctorID=${doctorID}`)
-        .then(response => {
-          // Set the fetched data into rowData state
-          console.log("Appointment rowData:", response.data);
-
-          setRowData(response.data);
-        })
-        .catch(error => {
-          console.error("Error fetching appointment data:", error);
-        });
-
-      // Fetch status data from AppLOV API (AppointmentStauts)
-      axios
-    .get('https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts')
-    .then(response => {
-      const data = response.data?.data || [];
-
-      // For dropdown binding
-      setStatusOptions(data);
-
-      // Optional: mapping by ID (if needed elsewhere)
-      const statusMap = data.reduce((acc: any, item: any) => {
-        acc[item.appLOVID] = item.name;
-        return acc;
-      }, {});
-      setStatusMapping(statusMap);
-    })
-    .catch(error => {
-      console.error("Error fetching status data:", error);
-    });
-      // Fetch toWhom data from AppLOV API
-      axios.get('https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom')
-        .then(response => {
-          const toWhomMap = response.data.data.reduce((acc: any, item: any) => {
-            acc[item.appLOVID] = item.name; // Map appLOVID to name
-            return acc;
-          }, {});
-          setToWhomMapping(toWhomMap);
-        })
-        .catch(error => {
-          console.error("Error fetching toWhom data:", error);
-        });
-    }
-  }, [doctorID]);
+    },
+    {
+      headerName: 'Appointment Date',
+      field: 'appointmentDate',
+      width: 180, // Small fixed width
+      resizable: false,
+      sortable: true,
+      filter: true,
+      valueFormatter: (params: any) => {
+        const date = new Date(params.value);
+        return date.toLocaleDateString('en-GB');
+      },
+    },
+    {
+      headerName: 'Patient Name',
+      field: 'patientName',
+     
+      width: 300,
+      resizable: false,
+      sortable: true,
+      filter: true,
+    },
+    // Doctor Name will be inserted conditionally below
+    {
+      headerName: 'To Whom',
+      field: 'toWhom',
+      width: 140,
+      resizable: false,
+      sortable: true,
+      filter: true,
+      valueGetter: (params: any) =>
+        toWhomMapping[params.data.toWhom] || 'Unknown',
+    },
+    {
+      headerName: 'Status',
+      field: 'statusID',
+      width: 300,
+      resizable: false,
+      sortable: true,
+      filter: true,
+      valueGetter: (params: any) =>
+        statusMapping[params.data.statusID] || 'Unknown',
+    },
+    {
+      headerName: 'Reason',
+      field: 'notes',
+      width: 600,
+      resizable: true,
+      sortable: true,
+      filter: true,
+    },
+  ];
   
+  // Dynamically add Doctor Name if role is Reception or HospitalAdmin
+  const columns = [...allColumns];
+  if (roleName === 'Reception' || roleName === 'HostitalAdmin') {
+    columns.splice(3, 0, {
+      headerName: 'Doctor Name',
+      field: 'doctorName',
+     
+      width: 300,
+      resizable: false,
+      sortable: true,
+      filter: true,
+    });
+  }
+  
+
+
+
+
+useEffect(() => {
+  fetchStatusOptions();
+  fetchToWhomOptions();
+}, []);
+
+
+const fetchAppointmentReport = async () => {
+  const role = sessionStorage.getItem('roleName');
+  const doctorID = sessionStorage.getItem('doctorID');
+  const unitID = sessionStorage.getItem('unitID');
+
+  let url = 'https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport';
+
+  // Build query params based on role
+  const params = new URLSearchParams();
+  if (role === 'Doctor' && doctorID && unitID) {
+    params.append('DoctorID', doctorID);
+    params.append('HospitalID', unitID);
+  } else if ((role === 'Reception' || role === 'HostitalAdmin') && unitID) {
+    params.append('HospitalID', unitID);
+  }
+
+  try {
+    const response = await axios.get(`${url}?${params.toString()}`);
+    console.log('Appointment rowData:', response.data);
+    setRowData(response.data);
+  } catch (error) {
+    console.error('Error fetching appointment data:', error);
+  }
+};
+
+useEffect(() => {
+  fetchAppointmentReport();
+}, []);
+
+useEffect(() => {
+  setExportData(rowData); // Whenever rowData updates, update exportData
+}, [rowData]);
+
+const fetchStatusOptions = async () => {
+  try {
+    const response = await axios.get(
+      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts',
+    );
+    const data = response.data?.data || [];
+    setStatusOptions(data);
+
+    const statusMap = data.reduce((acc: any, item: any) => {
+      acc[item.appLOVID] = item.name;
+      return acc;
+    }, {});
+    setStatusMapping(statusMap);
+  } catch (error) {
+    console.error('Error fetching status data:', error);
+  }
+};
+
+const fetchToWhomOptions = async () => {
+  try {
+    const response = await axios.get(
+      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
+    );
+    const toWhomMap = response.data.data.reduce((acc: any, item: any) => {
+      acc[item.appLOVID] = item.name;
+      return acc;
+    }, {});
+    setToWhomMapping(toWhomMap);
+  } catch (error) {
+    console.error('Error fetching toWhom data:', error);
+  }
+};
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-    <h1 className="text-3xl font-semibold text-black mb-6">Appointment Report</h1>
-{/* Filters Section */}
+      <h1 className="text-3xl font-semibold text-black mb-6">
+        Appointment Report
+      </h1>
+      {/* Filters Section */}
       <div className="grid grid-cols-2 gap-6 mb-4">
-  {/* Row 1 - Hospital and Doctor Name */}
-  <div className="w-full">
-    
-      <select
-        value={selectedHospitalID}
-        onChange={(e) => setSelectedHospitalID(e.target.value)}
-        disabled={!!sessionStorage.getItem('unitID')}
-        className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black focus:outline-none focus:border-primary"
-      >
-        <option value="">-- Select Hospital --</option>
-        {hospitals.map((hospital) => (
-          <option key={hospital.hospitalID} value={hospital.hospitalID}>
-            {hospital.hospitalName}
-          </option>
-        ))}
-      </select>
-    </div>
+        {/* Row 1 - Hospital and Doctor Name */}
+        <div className="w-full">
+          <select
+            value={selectedHospitalID}
+            onChange={(e) => setSelectedHospitalID(e.target.value)}
+            disabled={!!sessionStorage.getItem('unitID')}
+            className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black focus:outline-none focus:border-primary"
+          >
+            <option value="">-- Select Hospital --</option>
+            {hospitals.map((hospital) => (
+              <option key={hospital.hospitalID} value={hospital.hospitalID}>
+                {hospital.hospitalName}
+              </option>
+            ))}
+          </select>
+        </div>
 
-    <div className="w-full">
-     
-    <select
-  value={selectedDoctorID}
-  onChange={(e) => setSelectedDoctorID(e.target.value)}
-  disabled={isDoctorLoggedIn}
-  className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black focus:outline-none focus:border-primary"
->
-  <option value="">-- Select Doctor --</option>
-  {doctors.map((doctor) => (
-    <option key={doctor.doctorID} value={doctor.doctorID}>
-      {doctor.doctorName}
-    </option>
-  ))}
-</select>
+        <div className="w-full">
+          <select
+            value={selectedDoctorID}
+            onChange={(e) => setSelectedDoctorID(e.target.value)}
+            disabled={isDoctorLoggedIn}
+            className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black focus:outline-none focus:border-primary"
+          >
+            <option value="">-- Select Doctor --</option>
+            {doctors.map((doctor) => (
+              <option key={doctor.doctorID} value={doctor.doctorID}>
+                {doctor.doctorName}
+              </option>
+            ))}
+          </select>
+        </div>
 
-    </div>
+        {/* Row 2 - From and To Date in first column */}
+        <div className="flex gap-4 col-span-1">
+          <input
+            type="text"
+            value={filterFromDate}
+            placeholder="From Date"
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => (e.target.type = filterFromDate ? 'date' : 'text')}
+            onChange={(e) => setFilterFromDate(e.target.value)}
+            className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+          />
 
-  {/* Row 2 - From and To Date in first column */}
-  <div className="flex gap-4 col-span-1">
-  <input
-    type="text"
-    value={filterFromDate}
-    placeholder="From Date"
-    onFocus={(e) => (e.target.type = 'date')}
-    onBlur={(e) => (e.target.type = filterFromDate ? 'date' : 'text')}
-    onChange={(e) => setFilterFromDate(e.target.value)}
-    className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
+          <input
+            type="text"
+            value={filterToDate}
+            placeholder="To Date"
+            min={filterFromDate}
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => (e.target.type = filterToDate ? 'date' : 'text')}
+            onChange={(e) => setFilterToDate(e.target.value)}
+            className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+          />
+        </div>
 
-  <input
-    type="text"
-    value={filterToDate}
-    placeholder="To Date"
-    min={filterFromDate}  
-    onFocus={(e) => (e.target.type = 'date')}
-    onBlur={(e) => (e.target.type = filterToDate ? 'date' : 'text')}
-    onChange={(e) => setFilterToDate(e.target.value)}
-    className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
-</div>
+        <div className="w-full">
+          <select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value)}
+            className=" w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+          >
+            <option value="">Select Status</option>
+            {statusOptions.map((status) => (
+              <option key={status.appLOVID} value={status.appLOVID}>
+                {status.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-
- <div className="w-full">
- <select value={selectedStatus} onChange={(e) => setSelectedStatus(e.target.value)} className=" w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-    >
-  <option value="">Select Status</option>
-  {statusOptions.map((status) => (
-    <option key={status.appLOVID} value={status.appLOVID}>
-      {status.name}
-    </option>
-  ))}
-</select>
- </div>
-
-
-
-</div>
-{/* Buttons in second column */}
-<div className="flex gap-4">
+      {/* Buttons in second column */}
+      <div className="flex flex-wrap items-center gap-4 mt-4">
+  {/* Search Button */}
   <button
-    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-    hover:from-[#007BFF] hover:to-[#004A99] text-white 
-    transition duration-150 ease-out hover:ease-in 
-    px-3 py-2 rounded-lg" 
+    type="button"
     onClick={handleSearch}
+    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+      hover:from-[#007BFF] hover:to-[#004A99] text-white 
+      transition duration-150 ease-out hover:ease-in 
+      px-4 py-2 rounded-lg"
   >
     <FaSearch />
     <span className="ml-2">Search</span>
   </button>
 
+  {/* Reset Button */}
+  <CustomButton
+    onClick={handleReset}
+    className="flex items-center border border-gray-300 
+      opacity-80 hover:opacity-100 px-4 py-2 rounded-lg gap-2"
+  >
+    Reset
+  </CustomButton>
+
+  {/* Download Button */}
   <button
-    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-    hover:from-[#007BFF] hover:to-[#004A99] text-white 
-    transition duration-150 ease-out hover:ease-in 
-    px-3 py-2 rounded-lg" 
+    type="button"
     onClick={() => setIsModalVisible(true)}
+    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+      hover:from-[#007BFF] hover:to-[#004A99] text-white 
+      transition duration-150 ease-out hover:ease-in 
+      px-4 py-2 rounded-lg"
   >
     <FaFileDownload />
     <span className="ml-2">Download</span>
   </button>
+
+  {/* Toast Container */}
+  <ToastContainer position="top-right" autoClose={3000} />
 </div>
 
 
@@ -450,64 +670,63 @@ if (roleName === 'Reception') {
       {/* AG Grid Table */}
       <div
         className="ag-theme-alpine mt-6 w-full"
-        style={{ height: "400px", width: "100%" }}
+        style={{ height: '400px', width: '100%' }}
       >
-       <AgGridReact
-  rowData={applyGlobalSearch(rowData)}
-  columnDefs={columns}
-  domLayout='autoHeight'
-  pagination={true}
-  paginationPageSize={10}
-  enableFilter={true}
-  enableSorting={true}
-  suppressMovableColumns={true}
-/>
-
-
-
+        <AgGridReact
+          rowData={applyGlobalSearch(rowData)}
+          columnDefs={columns}
+          paginationPageSizeSelector={[5, 10, 20, 50, 100]}
+          domLayout="autoHeight"
+          pagination={true}
+          paginationPageSize={10}
+          enableFilter={true}
+          enableSorting={true}
+          suppressMovableColumns={true}
+        />
       </div>
 
       {/* Modal for Download Format */}
       <Modal
-        isOpen={isModalVisible}
-        onRequestClose={() => setIsModalVisible(false)}
-        className="bg-white w-full max-w-sm mx-auto rounded-lg p-6 shadow-lg"
-        overlayClassName="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center"
-        ariaHideApp={false}
-      >
-        <h2 className="text-lg font-semibold mb-4 text-gray-800">
-          Select Download Format
-        </h2>
-        <div className="space-y-4">
-          <button
-            className="flex items-center w-full text-green-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-            onClick={() => handleDownload("Excel")}
-          >
-            <FaFileExcel className="mr-3" />
-            Excel
-          </button>
-          <button
-            className="flex items-center w-full text-blue-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-            onClick={() => handleDownload("Word")}
-          >
-            <FaFileWord className="mr-3" />
-            Word
-          </button>
-          <button
-            className="flex items-center w-full text-red-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-            onClick={() => handleDownload("PDF")}
-          >
-            <FaFilePdf className="mr-3" />
-            PDF
-          </button>
-        </div>
-        <button
-          className="mt-4 w-full text-gray-700 font-medium px-4 py-2 border rounded-lg hover:bg-gray-100"
-          onClick={() => setIsModalVisible(false)}
-        >
-          Cancel
-        </button>
-      </Modal>
+  isOpen={isModalVisible}
+  onRequestClose={() => setIsModalVisible(false)}
+  className="bg-white w-full max-w-sm mx-auto rounded-lg p-6 shadow-lg"
+  overlayClassName="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center"
+  ariaHideApp={false}
+>
+  <h2 className="text-lg font-semibold mb-4 text-gray-800">
+    Select Download Format
+  </h2>
+  <div className="space-y-4">
+    <button
+      className="flex items-center w-full text-green-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+      onClick={() => handleDownload('Excel', exportData)}
+    >
+      <FaFileExcel className="mr-3" />
+      Excel
+    </button>
+    <button
+      className="flex items-center w-full text-yellow-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+      onClick={() => handleDownload('CSV', exportData)}
+    >
+      <FaFileCsv className="mr-3" />
+      CSV
+    </button>
+    <button
+      className="flex items-center w-full text-red-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+      onClick={() => handleDownload('PDF', exportData)}
+    >
+      <FaFilePdf className="mr-3" />
+      PDF
+    </button>
+  </div>
+  <button
+    className="mt-4 w-full text-gray-700 font-medium px-4 py-2 border rounded-lg hover:bg-gray-100"
+    onClick={() => setIsModalVisible(false)}
+  >
+    Cancel
+  </button>
+</Modal>
+
     </div>
   );
 };

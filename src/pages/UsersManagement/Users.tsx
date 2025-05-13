@@ -13,14 +13,19 @@ import {
   checkPhoneAvailability,
   checkUsernameAvailability,
 } from '../Utils/validationUtils';
+
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 interface RowData {
   userID: number;
   tenantName: string;
   username: string;
-  phone: string;
+  mobile: string;
   email: string;
   role: string;
   isActive: string;
+  unitType: string;
 }
 
 const Users: React.FC = () => {
@@ -65,10 +70,10 @@ const Users: React.FC = () => {
     seconddropdown: '',
     selectedUnitType: '', // Updated
     selectedSecondItem: '', // Updated
-    password: '', 
-    userPlan: 'Free', 
+    password: '',
+    userPlan: 'Free',
   });
-  
+
   const [errors, setErrors] = useState({
     username: '',
     email: '',
@@ -142,6 +147,7 @@ const Users: React.FC = () => {
       return [];
     }
   };
+
   useEffect(() => {
     console.log('Updated secondDropdownData:', secondDropdownData);
   }, [secondDropdownData]);
@@ -179,7 +185,14 @@ const Users: React.FC = () => {
 
   const [unitNames, setUnitNames] = useState<Record<string, string>>({});
 
+  const unitNamesRef = useRef<{ [key: string]: string }>({});
   const fetchUnitName = async (unitType: string, unitID: string) => {
+    // Check if data is already in cache
+    const cachedName = unitNamesRef.current[unitID];
+    if (cachedName) {
+      console.log(`Using cached data for ${unitID}: ${cachedName}`);
+      return cachedName; // Return cached value and don't call the API again
+    }
     if (!unitID || unitID === 'N/A') {
       console.warn(`⚠️ Invalid unitID: ${unitID}`);
       return 'N/A';
@@ -194,10 +207,10 @@ const Users: React.FC = () => {
       return 'N/A';
     }
 
-    // ✅ Check cached data before making API call
-    if (unitNames[unitID]) {
-      console.log(`✅ Using Cached Name for ${unitID}:`, unitNames[unitID]);
-      return unitNames[unitID];
+    // 🔄 Check Cache Before API Call
+    if (unitNamesRef.current[unitID]) {
+      console.log(`✅ Using Cached Name for ${unitID}`);
+      return unitNamesRef.current[unitID];
     }
 
     // 🔄 Determine API URL
@@ -215,61 +228,46 @@ const Users: React.FC = () => {
 
     try {
       const response = await fetch(apiUrl);
-
       if (!response.ok) {
-        console.error(
-          `⚠️ API Request Failed (${response.status}): ${response.statusText}`,
-        );
+        console.error(`⚠️ API Request Failed: ${response.statusText}`);
         return 'N/A';
       }
 
       const result = await response.json();
-      console.log(`✅ Raw API Response for ${unitID}:`, result);
+      console.log(`✅ API Response for ${unitID}:`, result);
 
       let unitName = 'N/A';
 
-      if (!result?.data) {
-        console.warn(`⚠️ No data found for ${unitID}`);
-        return 'N/A';
-      }
-
-      // 🏥 Extract hospital name
-      if (normalizedType === 'hospital' && result.success && result.data) {
-        unitName = result.data.hospitalName?.trim() || 'N/A';
-      }
-      // 🧪 Extract lab name (handling different response formats)
-      else if (normalizedType === 'lab' && result.success) {
-        if (Array.isArray(result.data)) {
-          console.log(`🔎 Searching for Lab ID: ${unitID} in array format`);
-          const matchingLab = result.data.find(
-            (lab) => String(lab.laboratoryID) === String(unitID),
-          );
-          unitName = matchingLab?.labName?.trim() || 'N/A';
-        } else if (
-          typeof result.data === 'object' &&
-          String(result.data.laboratoryID) === String(unitID)
-        ) {
-          console.log(`🧪 Extracting Lab Name from object response`);
-          unitName = result.data.labName?.trim() || 'N/A';
-        } else {
-          console.warn(`⚠️ No matching lab found for ID: ${unitID}`);
+      if (result?.data) {
+        if (normalizedType === 'hospital' && result.success) {
+          unitName = result.data.hospitalName?.trim() || 'N/A';
+        } else if (normalizedType === 'lab' && result.success) {
+          if (Array.isArray(result.data)) {
+            const matchingLab = result.data.find(
+              (lab) => String(lab.laboratoryID) === String(unitID),
+            );
+            unitName = matchingLab?.labName?.trim() || 'N/A';
+          } else if (
+            typeof result.data === 'object' &&
+            String(result.data.laboratoryID) === String(unitID)
+          ) {
+            unitName = result.data.labName?.trim() || 'N/A';
+          }
         }
       }
 
-      console.log(`🏥 Extracted Name for ${unitID}: ${unitName}`);
-
-      // ✅ Update state to cache the name
-      setUnitNames((prev) => ({ ...prev, [unitID]: unitName }));
+      // Cache the result
+      unitNamesRef.current[unitID] = unitName;
 
       return unitName;
     } catch (error) {
-      console.error(`⚠️ Error fetching ${unitType} name for ${unitID}:`, error);
+      console.error(`⚠️ Error fetching unit name for ${unitID}:`, error);
       return 'N/A';
     }
   };
 
-  const UnitNameRenderer = (params: any) => {
-    const { unitType, unitID } = params.data || {};
+  const UnitNameRenderer: React.FC<any> = ({ data }) => {
+    const { unitType, unitID } = data || {};
     const [name, setName] = useState('Loading...');
 
     useEffect(() => {
@@ -278,50 +276,57 @@ const Users: React.FC = () => {
           setName('N/A');
           return;
         }
+
+        const cachedName = unitNamesRef.current[unitID];
+        if (cachedName) {
+          setName(cachedName);
+          return;
+        }
+
         const n = await fetchUnitName(unitType, unitID);
         setName(n || 'N/A');
       };
+
       load();
     }, [unitType, unitID]);
 
     return <span>{name}</span>;
   };
 
+  // Unit Type Change Handler
   const handleUnitTypeChange = (event) => {
     const unitID = event.target.value;
     setSelectedUnitID(unitID);
-  
+
     console.log('🔵 Available unitTypes:', unitTypes);
     console.log('🟡 Selected Unit ID:', unitID);
-  
+
     const selectedUnit = unitTypes.find(
       (unit) => String(unit.appLOVID) === unitID,
     );
-  
+
     if (!selectedUnit) {
       console.warn('⚠️ No matching unit found for unitID:', unitID);
       setSelectedUnitType('');
-      // Clear the error for unitType
       setErrors((prevErrors) => ({
         ...prevErrors,
         unitType: 'Unit Type is required',
       }));
       return;
     }
-  
+
     const normalizedUnitType = selectedUnit.name.trim().toLowerCase();
     setSelectedUnitType(selectedUnit.name);
-  
+
     console.log('🟢 Updated selectedUnitID:', unitID);
     console.log('🟢 Updated selectedUnitType:', selectedUnit.name);
     console.log('🔍 Normalized Unit Type:', normalizedUnitType);
-  
-    // Clear the error for unitType after a valid selection
+
     setErrors((prevErrors) => ({
       ...prevErrors,
       unitType: '', // clear unitType error
     }));
-  
+
     if (normalizedUnitType === 'lab') {
       console.log('🧪 Fetching Lab Data...');
       fetchLaboratoryData();
@@ -333,15 +338,10 @@ const Users: React.FC = () => {
     }
   };
 
-
-  useEffect(() => {
-    console.log('🟢 Updated selectedUnitType in useEffect:', selectedUnitType);
-  }, [selectedUnitType]);
-
   // Handle Second Dropdown Selection
   const handleSecondItemChange = (e) => {
     setSelectedSecondItem(e.target.value);
-  
+
     // Clear the error for unitID when the user selects a valid item
     setErrors((prevErrors) => ({
       ...prevErrors,
@@ -360,33 +360,38 @@ const Users: React.FC = () => {
   }, [selectedUnitType]);
 
   // Fetch data on component mount (only once)
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/User',
-        );
 
-        if (!response.ok) throw new Error('Failed to fetch data');
+  const fetchAllUserData = async () => {
+    try {
+      let url = 'https://predart003-001-site1.anytempurl.com/api/User';
+      const roleName = sessionStorage.getItem('roleName');
+      const unitID = sessionStorage.getItem('unitID');
 
-        const data = await response.json();
-
-        // Ensure the response is an array
-        if (Array.isArray(data)) {
-          setApiData(data);
-          setRowData(data);
-        } else {
-          throw new Error('Invalid API response');
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
+      if (roleName === 'HostitalAdmin' && unitID) {
+        url += `?hospitalId=${unitID}`;
       }
-    };
 
-    if (apiData.length === 0) {
-      fetchData();
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Failed to fetch data');
+
+      const data = await response.json();
+
+      if (Array.isArray(data)) {
+        setApiData(data);
+        setRowData(data);
+        setFilteredData(data); // Also update grid data
+      } else {
+        throw new Error('Invalid API response');
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch user data.');
     }
-  }, [apiData]);
+  };
+
+  useEffect(() => {
+    fetchAllUserData();
+  }, []);
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
@@ -458,7 +463,7 @@ const Users: React.FC = () => {
 
     {
       headerName: 'phone No',
-      field: 'phone',
+      field: 'mobile',
       sortable: true,
       filter: true,
       flex: 1.3,
@@ -723,70 +728,70 @@ const Users: React.FC = () => {
 
   const handleEdit = async (userID: number) => {
     if (!Array.isArray(rowData)) return;
-  
+
     const selectedRow = rowData.find((item) => item.userID === userID);
     if (!selectedRow) return;
-  
+
     console.log('🟢 Selected Row Data:', selectedRow);
     console.log('✅ Unit Type from API:', selectedRow.unitType);
     console.log('✅ Unit ID from API:', selectedRow.unitID);
-  
+
     const formData = {
       userID: selectedRow.userID,
       username: selectedRow.username ?? '',
       email: selectedRow.email ?? '',
-      phone: selectedRow.phone ?? '',
+      mobile: selectedRow.phone ?? '',
       isActive: selectedRow.isActive ? 'Active' : 'Inactive',
       tenantID: selectedRow.tenantID ?? '',
       createdBy: selectedRow.createdBy ?? '',
       password: selectedRow.password ?? '', // Include password from selectedRow
       userPlan: selectedRow.userPlan ?? 'Free',
     };
-  
+
     console.log('🟢 Form Data before setting state:', formData);
-  
+
     setFormData(formData);
     setSelectedUnitID(selectedRow.unitID); // ✅ Setting Unit ID
     setSelectedUnitType(selectedRow.unitType); // ✅ Setting Unit Type
-  
+
     console.log('🔄 Updated selectedUnitID:', selectedRow.unitID);
     console.log('🔄 Updated selectedUnitType:', selectedRow.unitType);
-  
+
     let fetchedData = [];
     if (selectedRow.unitType === 'Lab') {
       fetchedData = await fetchLaboratoryData();
     } else if (selectedRow.unitType === 'Hospital') {
       fetchedData = await fetchHospitalData();
     }
-  
+
     console.log('🟢 Fetched Data for', selectedRow.unitType, ':', fetchedData);
-  
+
     let selectedUnitID = selectedRow.unitID || '';
     let selectedUnitName = 'N/A';
-  
+
     if (!selectedUnitID) {
       console.warn(
         '⚠️ selectedRow.unitID is missing, unable to set hospital/lab.',
       );
     }
-  
+
     const selectedItem = fetchedData.find((item) =>
       selectedRow.unitType === 'Hospital'
         ? item.hospitalID === selectedUnitID
         : item.laboratoryID === selectedUnitID,
     );
-  
+
     if (selectedItem) {
       selectedUnitID =
         selectedRow.unitType === 'Hospital'
           ? selectedItem.hospitalID
           : selectedItem.laboratoryID;
-  
+
       selectedUnitName =
         selectedRow.unitType === 'Hospital'
           ? selectedItem.hospitalName
           : selectedItem.labName;
-  
+
       console.log(`✅ Setting Selected Unit ID:`, selectedUnitID);
       console.log(`✅ Setting Unit Name:`, selectedUnitName);
     } else {
@@ -795,12 +800,11 @@ const Users: React.FC = () => {
         selectedUnitID,
       );
     }
-  
+
     setSelectedSecondItem(selectedUnitID);
     setSelectedUnitName(selectedUnitName);
     setShowForm(true);
   };
-  
 
   // 🛠️ Track `selectedUnitID` and `selectedUnitType` changes
   useEffect(() => {
@@ -886,10 +890,11 @@ const Users: React.FC = () => {
 
   const validateFormFields = () => {
     const newErrors: { [key: string]: string } = {};
+    const roleName = sessionStorage.getItem('roleName');
 
     console.log('Validating form fields...');
-    console.log("Selected Unit Type:", selectedUnitType);
-    console.log("Selected Unit ID:", selectedSecondItem);
+    console.log('Selected Unit Type:', selectedUnitType);
+    console.log('Selected Unit ID:', selectedSecondItem);
 
     if (!(formData.username || '').trim()) {
       newErrors.username = 'Username is required';
@@ -911,24 +916,22 @@ const Users: React.FC = () => {
       newErrors.plan = 'Plan is required';
     }
 
-    // Check the selectedUnitType and selectedSecondItem directly from state
-    if (!(selectedUnitType || '').trim()) {
-      newErrors.unitType = 'Unit Type is required';
-    }
+    // Only validate unitType and unitID if role is not SuperAdmin
+    if (roleName !== 'SuperAdmin') {
+      if (!(selectedUnitType || '').trim()) {
+        newErrors.unitType = 'Unit Type is required';
+      }
 
-    if (!(selectedSecondItem || '').trim()) {
-      newErrors.unitID = 'Unit ID is required';
+      if (!(selectedSecondItem || '').trim()) {
+        newErrors.unitID = 'Unit ID is required';
+      }
     }
-
     setErrors(newErrors);
 
     console.log('Errors:', newErrors);
 
     return Object.keys(newErrors).length === 0;
-};
-
-  
-  
+  };
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -956,7 +959,7 @@ const Users: React.FC = () => {
         userID: formData.userID !== 0 ? formData.userID : undefined,
         username: formData.username.trim(),
         email: formData.email.trim(),
-        phone: formData.phone.trim(),
+        mobile: formData.phone.trim(),
         password: formData.password.trim() || 'DefaultPassword',
         isActive: isActiveBoolean,
         tenantID: selectedTenant,
@@ -1017,28 +1020,45 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleFilterSearch = () => {
-    const filtered = apiData.filter((item) => {
-      const matchesName = name
-        ? item.username.toLowerCase().includes(name.toLowerCase())
-        : true;
-      const matchesStatus =
-        isActive !== undefined ? item.isActive === isActive : true;
-      return matchesName && matchesStatus;
-    });
+  // const handleFilterSearch = () => {
+  //   const filtered = apiData.filter((item) => {
+  //     const matchesName = name
+  //       ? item.username.toLowerCase().includes(name.toLowerCase())
+  //       : true;
+  //     const matchesStatus =
+  //       isActive !== undefined ? item.isActive === isActive : true;
+  //     return matchesName && matchesStatus;
+  //   });
 
-    setFilteredData(filtered);
-    setRowData(filtered); // Update rowData with filtered data
-  };
+  //   setFilteredData(filtered);
+  //   setRowData(filtered); // Update rowData with filtered data
+  // };
 
   const applyGlobalSearch = (data: RowData[]) => {
     return data.filter(
       (row) =>
-        row.username.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-        row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-        row.email.toLowerCase().includes(quickSearchText.toLowerCase()),
+        (row.username?.toLowerCase() ?? '').includes(
+          quickSearchText.toLowerCase(),
+        ) ||
+        (row.tenantName?.toLowerCase() ?? '').includes(
+          quickSearchText.toLowerCase(),
+        ) ||
+        (row.email?.toLowerCase() ?? '').includes(
+          quickSearchText.toLowerCase(),
+        ) ||
+        (row.mobile?.toLowerCase() ?? '').includes(
+          quickSearchText.toLowerCase(),
+        ) ||
+        (row.unitType?.toLowerCase() ?? '').includes(
+          quickSearchText.toLowerCase(),
+        ),
     );
   };
+
+  useEffect(() => {
+    const filtered = applyGlobalSearch(rowData);
+    setFilteredData(filtered);
+  }, [quickSearchText, rowData]);
 
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
@@ -1099,6 +1119,42 @@ const Users: React.FC = () => {
     setErrors(newErrors);
   };
 
+  const handleFilterSearch = async () => {
+    if (!name && isActive === false) {
+      toast.warning('Please enter or select anyone field.');
+      return;
+    }
+
+    try {
+      const response = await axios.get(
+        'https://predart003-001-site1.anytempurl.com/api/User',
+        {
+          params: {
+            userName: name || undefined, // Avoid sending empty string
+            isActive: isActive ? true : undefined,
+          },
+        },
+      );
+
+      if (response.data?.length > 0) {
+        setFilteredData(response.data);
+      } else {
+        toast.info('No users found for given filters.');
+        setFilteredData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      toast.error('Error fetching user data.');
+      setFilteredData([]);
+    }
+  };
+
+  const handleReset = () => {
+    setName('');
+    setIsActive(false);
+    fetchAllUserData(); // just call the same function
+  };
+
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Users</h2>
@@ -1107,34 +1163,36 @@ const Users: React.FC = () => {
           <div className="flex flex-wrap gap-4 mb-4 items-center">
             <input
               type="text"
-              placeholder="Name"
+              placeholder="Enter user name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
             />
-            <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={(e) => setIsActive(e.target.checked)}
-                className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-              />
-              <span>Active</span>
-            </label>
-            <button
-              className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-           hover:from-[#007BFF] hover:to-[#004A99]
-           text-white transition duration-150 
-           ease-out hover:ease-in py-2 px-5 rounded-lg"
-              onClick={handleFilterSearch}
-            >
+           <label className="flex items-center space-x-2 cursor-pointer text-black">
+  <input
+    type="checkbox"
+    checked={isActive}
+    onChange={(e) => setIsActive(e.target.checked)}
+    className="w-4 h-4 accent-blue-600 rounded"
+  />
+  <span>Active</span>
+</label>
+
+
+            <CustomButton className="h-10 px-6" onClick={handleFilterSearch}>
               Search
-            </button>
+            </CustomButton>
+            <CustomButton
+              onClick={handleReset}
+              className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
+            >
+              Reset
+            </CustomButton>
           </div>
           <hr className="border-t-2 border-stroke bg-transparent my-6" />
         </div>
       )}
-
+      <ToastContainer position="top-right" autoClose={3000} />
       {showForm && (
         <div
           ref={formRef} // Attach the ref here
@@ -1309,60 +1367,69 @@ const Users: React.FC = () => {
               {errors.userPlan && (
                 <p className="text-red-500 text-sm mt-1">{errors.userPlan}</p>
               )}
-<div>
-  {/* First Dropdown: Unit Type */}
-  <select
-    key={selectedUnitID}
-    value={selectedUnitType}
-    onChange={handleUnitTypeChange} // Update the state and clear error
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  >
-    <option value="" disabled>
-      Select Unit Type
-    </option>
-    {unitTypes.map((unit) => (
-      <option key={unit.appLOVID} value={String(unit.appLOVID)}>
-        {unit.name}
-      </option>
-    ))}
-  </select>
-  {errors.unitType && (
-    <p className="text-red-500 text-sm mt-1">{errors.unitType}</p>
-  )}
-</div>
-{/* Second Dropdown: Lab or Hospital */}
-{selectedUnitType && (
-  <div>
-    <select
-      value={selectedSecondItem}
-      onChange={handleSecondItemChange}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="" disabled>
-        {selectedUnitType === 'Lab' ? 'Select Lab' : 'Select Hospital'}
-      </option>
-      {secondDropdownData.length > 0 ? (
-        secondDropdownData.map((item) => (
-          <option
-            key={selectedUnitType === 'Lab' ? item.laboratoryID : item.hospitalID}
-            value={selectedUnitType === 'Lab' ? item.laboratoryID : item.hospitalID}
-          >
-            {selectedUnitType === 'Lab' ? item.labName : item.hospitalName}
-          </option>
-        ))
-      ) : (
-        <option disabled>No Data Available</option>
-      )}
-    </select>
 
-    {/* Display error directly below the second dropdown */}
-    {errors.unitID && (
-      <p className="text-red-500 text-sm mt-1">{errors.unitID}</p>
-    )}
-  </div>
-)}
+              <div>
+                {/* First Dropdown: Unit Type */}
+                <select
+                  key={selectedUnitID}
+                  value={selectedUnitType}
+                  onChange={handleUnitTypeChange} // Update the state and clear error
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                >
+                  <option value="">Select Unit Type</option>
+                  {unitTypes.map((unit) => (
+                    <option key={unit.appLOVID} value={String(unit.appLOVID)}>
+                      {unit.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.unitType && (
+                  <p className="text-red-500 text-sm mt-1">{errors.unitType}</p>
+                )}
+              </div>
+              {/* Second Dropdown: Lab or Hospital */}
+              {selectedUnitType && (
+                <div>
+                  <select
+                    value={selectedSecondItem}
+                    onChange={handleSecondItemChange}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="" disabled>
+                      {selectedUnitType === 'Lab'
+                        ? 'Select Lab'
+                        : 'Select Hospital'}
+                    </option>
+                    {secondDropdownData.length > 0 ? (
+                      secondDropdownData.map((item) => (
+                        <option
+                          key={
+                            selectedUnitType === 'Lab'
+                              ? item.laboratoryID
+                              : item.hospitalID
+                          }
+                          value={
+                            selectedUnitType === 'Lab'
+                              ? item.laboratoryID
+                              : item.hospitalID
+                          }
+                        >
+                          {selectedUnitType === 'Lab'
+                            ? item.labName
+                            : item.hospitalName}
+                        </option>
+                      ))
+                    ) : (
+                      <option disabled>No Data Available</option>
+                    )}
+                  </select>
 
-
+                  {/* Display error directly below the second dropdown */}
+                  {errors.unitID && (
+                    <p className="text-red-500 text-sm mt-1">{errors.unitID}</p>
+                  )}
+                </div>
+              )}
 
               {/* Empty column for spacing when Status is hidden */}
               {formData.userID === 0 && <div></div>}
@@ -1386,7 +1453,7 @@ const Users: React.FC = () => {
         <div className="relative">
           <input
             type="text"
-            placeholder="Search..."
+            placeholder="Quick Search.."
             value={quickSearchText}
             onChange={(e) => setQuickSearchText(e.target.value)}
             className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -1423,10 +1490,10 @@ const Users: React.FC = () => {
 
       <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
         <AgGridReact
-          rowData={rowData}
+          rowData={filteredData}
           columnDefs={columnDefs}
           pagination={true}
-          paginationPageSize={10} // ✅ Set default page size
+          paginationPageSize={10}
           paginationPageSizeSelector={[10, 20, 50, 100]}
           domLayout="autoHeight"
           headerHeight={40}

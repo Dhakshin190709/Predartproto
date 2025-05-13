@@ -52,6 +52,8 @@ const DoctorRegistration: React.FC = () => {
     [key: string]: boolean;
   }>({});
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
+  const [aadhaarExists, setAadhaarExists] = useState<boolean | null>(null); // null: not checked, false: does not exist, true: exists
+const [panExists, setPanExists] = useState<boolean | null>(null);
 
   const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
 
@@ -78,18 +80,31 @@ const DoctorRegistration: React.FC = () => {
     };
 
     const nameRegex = /^[A-Za-z0-9_. ]{2,50}$/;
-    const emailRegex = /^[^@.]+@[^@.]+\.[^@.]+$/;
-    const phoneRegex = /^\d{10}$/;
+const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
+
+
+   const phoneRegex = /^[6-9]\d{9}$/;
+
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    const trimmedPan = formData.pan?.trim() || '';
+
     const aadhaarRegex = /^\d{12}$/;
 
     // Basic checks
     if (!formData.name || !nameRegex.test(formData.name))
-      newErrors.name = 'Valid name is required.';
-    if (!formData.email || !emailRegex.test(formData.email))
-      newErrors.email = 'Valid email is required.';
-    if (!formData.phone || !phoneRegex.test(formData.phone))
-      newErrors.phone = 'Valid 10-digit phone number is required.';
+      newErrors.name = 'Name is required.';
+    if (!formData.email) {
+  newErrors.email = 'Email is required.';
+} else if (!emailRegex.test(formData.email)) {
+  newErrors.email = 'Invalid email format. Please enter a valid email like example@example.com';
+}
+
+   if (!formData.phone) {
+  newErrors.phone = 'Phone number is required.';
+} else if (!phoneRegex.test(formData.phone)) {
+  newErrors.phone = 'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
+}
+
     if (!formData.qualification)
       newErrors.qualification = 'Qualification is required.';
     if (!formData.specialization)
@@ -98,10 +113,17 @@ const DoctorRegistration: React.FC = () => {
     if (!formData.hospitalType)
       newErrors.hospitalType = 'Hospital is required.';
     if (!formData.gender) newErrors.gender = 'Gender is required.';
-    if (!formData.aadhaar || !aadhaarRegex.test(formData.aadhaar))
-      newErrors.aadhaar = 'Aadhaar must be 12 digits.';
-    if (!formData.pan || !panRegex.test(formData.pan))
-      newErrors.pan = 'Invalid PAN format.';
+    if (!formData.aadhaar) {
+      newErrors.aadhaar = 'Aadhaar is required.';
+    } else if (!aadhaarRegex.test(formData.aadhaar)) {
+      newErrors.aadhaar = 'Aadhaar must be a 12-digit number.';
+    }
+
+    if (!trimmedPan) {
+      newErrors.pan = 'PAN is required.';
+    } else if (!panRegex.test(trimmedPan)) {
+      newErrors.pan = 'Invalid PAN format. Expected format: ABCDE1234F';
+    }
 
     // DOB logic
     if (!formData.DateOfBirth) {
@@ -115,7 +137,7 @@ const DoctorRegistration: React.FC = () => {
         let age = today.getFullYear() - dob.getFullYear();
         const m = today.getMonth() - dob.getMonth();
         if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
-        if (age < 18) newErrors.DateOfBirth = 'Minimum age is 18.';
+        if (age < 22) newErrors.DateOfBirth = 'Minimum age is 22.';
       }
     }
 
@@ -231,16 +253,53 @@ const DoctorRegistration: React.FC = () => {
   };
 
   const handleSingleInputChange = (field: string, value: string) => {
-    setFormData({ ...formData, [field]: value });
+  // Only convert PAN to uppercase
+  const inputValue = field === 'pan' ? value.toUpperCase() : value;
 
-    // Clear previous error
-    setErrors({ ...errors, [field]: '' });
+  setFormData({ ...formData, [field]: inputValue });
+  setErrors({ ...errors, [field]: '' });
 
-    // Reset username availability check on change
-    if (field === 'name') {
-      setUsernameAvailable(null);
+  // Aadhaar check
+  if (field === 'aadhaar') {
+    setAadhaarExists(null);
+    if (value.length === 12) {
+      checkAadhaarExists(value);
+    }
+  }
+
+  // PAN check
+  if (field === 'pan') {
+    setPanExists(null);
+    if (/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(inputValue)) {
+      checkPanExists(inputValue);
+    }
+  }
+};
+
+
+  const checkAadhaarExists = async (uid: string) => {
+    try {
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Login/CheckUIDExist?UID=${uid}`,
+      );
+      const data = await response.json();
+      setAadhaarExists(data.success); // success: false → available; true → exists
+    } catch (error) {
+      console.error('Error checking Aadhaar:', error);
+      setAadhaarExists(null); // fallback
     }
   };
+
+  const checkPanExists = async (pan: string) => {
+  try {
+    const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Login/CheckPANExist?PanNumber=${pan}`);
+    const data = await response.json();
+    setPanExists(data.success); // true = exists, false = available
+  } catch (error) {
+    console.error("Error checking PAN:", error);
+    setPanExists(null);
+  }
+};
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
@@ -261,17 +320,30 @@ const DoctorRegistration: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
+    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
       .then((response) => response.json())
       .then((data) => {
         console.log('API Response:', data); // This will show the array of hospital objects
         if (Array.isArray(data)) {
-          setHospitals(data); // Directly set the hospitals since data is an array
+          // Filter hospitals to only include active ones
+          const activeHospitals = data.filter((hospital) => hospital.isActive);
+          setHospitals(activeHospitals); // Set only active hospitals
         } else {
           console.warn('Unexpected response format:', data);
         }
       })
       .catch((error) => console.error('Error fetching hospitals:', error));
+  }, []);
+
+  // Prefill the dropdown with hospital from session
+  useEffect(() => {
+    const unitID = sessionStorage.getItem('unitID'); // Get the unitID (hospitalID) from session
+    if (unitID) {
+      setFormData((prevData) => ({
+        ...prevData,
+        hospitalType: unitID, // Pre-fill the hospitalType field with the unitID
+      }));
+    }
   }, []);
 
   // Fetch and set user roles to determine if user is a SuperAdmin
@@ -463,7 +535,8 @@ const DoctorRegistration: React.FC = () => {
               {/* Hospital */}
               <div>
                 <select
-                  value={formData.hospitalType}
+                  value={formData.hospitalType} // The pre-filled hospital ID value
+                  disabled
                   onChange={(e) =>
                     handleSingleInputChange('hospitalType', e.target.value)
                   }
@@ -521,80 +594,82 @@ const DoctorRegistration: React.FC = () => {
 
               {/* Email */}
               <div className="relative">
-                                     <input
-                                       type="email"
-                                       className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                <input
+                  type="email"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                                       value={formData.email}
-                                       onChange={(e) => {
-                                         const email = e.target.value;
-                                         handleSingleInputChange('email', email);
-                                       }}
-                                       onBlur={handleEmailBlur} // ✅ Use the actual handler
-                                       placeholder="Enter your email"
-                                     />
-             
-                                     {/* ✅ Only show green icon if available and no error */}
-                                     {emailAvailable === true &&
-                                       formData.email &&
-                                       !errors.email && (
-                                         <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
-                                       )}
-             
-                                     {/* ❌ Show error only if exists (no icon in that case) */}
-                                     {errors.email && (
-                                       <p className="text-red-500 text-sm mt-1">
-                                         {errors.email}
-                                       </p>
-                                     )}
-                                   </div>
+                  value={formData.email}
+                  onChange={(e) => {
+                    const email = e.target.value;
+                    handleSingleInputChange('email', email);
+                  }}
+                  onBlur={handleEmailBlur} // ✅ Use the actual handler
+                  placeholder="Enter your email"
+                />
+
+                {/* ✅ Only show green icon if available and no error */}
+                {emailAvailable === true && formData.email && !errors.email && (
+                  <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
+                )}
+
+                {/* ❌ Show error only if exists (no icon in that case) */}
+                {errors.email && (
+                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                )}
+              </div>
             </div>
 
             {/* Phone & DOB */}
             <div className="grid grid-cols-2 gap-4">
               <div className="relative">
-                                     <input
-                                       type="tel"
-                                       className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                <input
+                  type="tel"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                         text-black outline-none focus:border-primary dark:border-form-strokedark 
                         dark:bg-form-input dark:text-white dark:focus:border-primary"
-                                       value={formData.phone}
-                                       onChange={(e) =>
-                                         handleSingleInputChange('phone', e.target.value)
-                                       }
-                                       onBlur={(e) => handlePhoneBlur(e.target.value)} // ✅ Correct usage
-                                       placeholder="Enter your number"
-                                     />
-             
-                                     {phoneAvailable && formData.phone && !errors.phone && (
-                                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
-                                         <CheckCircle className="w-5 h-5" />
-                                       </span>
-                                     )}
-             
-                                     {errors.phone && (
-                                       <p className="text-red-500 text-sm mt-1">
-                                         {errors.phone}
-                                       </p>
-                                     )}
-                                   </div>
+                  value={formData.phone}
+                  onChange={(e) =>
+                    handleSingleInputChange('phone', e.target.value)
+                  }
+                  onBlur={(e) => handlePhoneBlur(e.target.value)} // ✅ Correct usage
+                  placeholder="Enter your number"
+                />
+
+                {phoneAvailable && formData.phone && !errors.phone && (
+                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+                    <CheckCircle className="w-5 h-5" />
+                  </span>
+                )}
+
+                {errors.phone && (
+                  <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                )}
+              </div>
 
               <div>
                 <input
-                  type={formData.DateOfBirth ? 'date' : 'text'}
+                  type="date"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
                   value={formData.DateOfBirth}
-                  onFocus={(e) => (e.target.type = 'date')}
-                  onBlur={(e) => {
-                    if (!e.target.value) e.target.type = 'text';
+                  onChange={(e) => {
+                    // Check if the selected date is in the future
+                    const selectedDate = new Date(e.target.value);
+                    const today = new Date();
+
+                    if (selectedDate > today) {
+                      setErrors({
+                        ...errors,
+                        DateOfBirth: 'Date of Birth cannot be in the future',
+                      });
+                    } else {
+                      handleSingleInputChange('DateOfBirth', e.target.value); // Only update if the date is valid
+                    }
                   }}
-                  onChange={(e) =>
-                    handleSingleInputChange('DateOfBirth', e.target.value)
-                  }
                   placeholder="Date of Birth"
+                  max={new Date().toISOString().split('T')[0]} // Restrict max date to today
                 />
                 {errors.DateOfBirth && (
                   <p className="text-red-500 text-sm">{errors.DateOfBirth}</p>
@@ -661,44 +736,71 @@ const DoctorRegistration: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                {/* <label className="block text-sm font-medium text-gray-700">Aadhaar</label> */}
+              <div className="relative">
                 <input
                   type="text"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
                   value={formData.aadhaar}
                   onChange={(e) =>
                     handleSingleInputChange('aadhaar', e.target.value)
                   }
                   placeholder="Enter your Aadhaar"
+                  maxLength={12}
                 />
 
+                {/* Green tick if available */}
+                {aadhaarExists === false && (
+                  <div className="absolute top-4 right-4 text-green-500">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                )}
+
+                {/* Red warning if exists */}
+                {aadhaarExists === true && (
+                  <p className="text-red-500 text-sm mt-1">
+                    Aadhaar already exists
+                  </p>
+                )}
+
                 {errors.aadhaar && (
-                  <p className="text-red-500 text-sm">{errors.aadhaar}</p>
+                  <p className="text-red-500 text-sm mt-1">{errors.aadhaar}</p>
                 )}
               </div>
 
               {/* PAN */}
-              <div>
-                {/* <label className="block text-sm font-medium text-gray-700">PAN</label> */}
-                <input
-                  type="text"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.pan}
-                  onChange={(e) =>
-                    handleSingleInputChange('pan', e.target.value)
-                  }
-                  placeholder="Enter your PAN"
-                />
-                {errors.pan && (
-                  <p className="text-red-500 text-sm">{errors.pan}</p>
-                )}
-              </div>
+             <div className="relative">
+  <input
+    type="text"
+   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={formData.pan}
+    onChange={(e) => handleSingleInputChange('pan', e.target.value)}
+    placeholder="Enter your PAN"
+    maxLength={10}
+  />
+
+  {/* ✅ Green Tick */}
+  {panExists === false && (
+    <div className="absolute top-4 right-4 text-green-500">
+     <CheckCircle className="w-5 h-5" />
+    </div>
+  )}
+
+  {/* ❌ Already exists error */}
+  {panExists === true && (
+    <p className="text-red-500 text-sm mt-1">PAN already exists</p>
+  )}
+
+  {errors.pan && (
+    <p className="text-red-500 text-sm mt-1">{errors.pan}</p>
+  )}
+</div>
+
             </div>
+
             {/* Gender */}
             <div className="grid grid-cols-2 gap-4">
               <div>

@@ -130,7 +130,7 @@ const BookAppointment = () => {
     const fetchHospitals = async () => {
       try {
         const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital',
+          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
         );
         const result = await response.json();
 

@@ -87,6 +87,7 @@ const ForgotPassword: React.FC = () => {
   
     // Auto-hide after 1 second
     setTimeout(() => {
+      navigate('/ResetPassword'); 
       setMessage('');
     }, 2000);
   };

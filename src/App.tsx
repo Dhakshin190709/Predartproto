@@ -53,14 +53,23 @@ import ViewAvailableSlots from './pages/ViewAvailableSlots';
 import TemplateUI from './pages/TemplateUI/TemplateUI';
 import Login from './pages/LoginPage';
 
+
 import BookAppointment from './pages/BookAppointment';
 import PatientRecord from './pages/PatientRecord';
+import ProfilePatient from './pages/ProfilePatient';
+import ProfileDoctor from './pages/ProfileDoctor';
+import PatientProfile from './pages/PatientProfile';
+import DoctorProfile from './pages/DoctorProfile';
+import HospitalProfile from './pages/HospitalProfile';
+import ProfileHospital from './pages/ProfileHospital';
 
 
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
 import Membership from './pages/Membership';
 import PatientRegistration from './pages/Registration/PatientRegistration';
 import PatientFormWizard from './pages/Profile/PatientFormWizard';
+import DoctorFormWizard from './pages/DoctorFormWizard';
+import DevelopmentInProgress from './pages/DevelopmentInProgress';
 
 import PrescriptionAnswers from './pages/PrescriptionAnswers';
 import SearchPatient from './pages/Search/SearchPatient';
@@ -71,6 +80,7 @@ import SearchLab from './pages/Search/SearchLab';
 import SearchMedicals from './pages/Search/SearchMedicals';
 
 import AppointmentHistory from './pages/History/AppointmentHistory';
+import PatientHistory from './pages/History/PatientHistory';
 
 
 import EventCreation from './pages/CreationPage/EventCreation';
@@ -86,6 +96,9 @@ import PaymentReport from './pages/Reports/PaymentReport';
 import DischargeReport from './pages/Reports/DischargeReport';
 import SurveyReport from './pages/Reports/SurveyReport';
 import EventReport from './pages/Reports/EventReport';
+import ConsolidatedReport from './pages/Reports/ConsolidatedReport';
+import MISReport from './pages/Reports/MISReport';
+
 import FeedBack from './pages/FeedBack';
 import Offers from './pages/Offers';
 import Chart from './pages/Chart';
@@ -110,11 +123,13 @@ import Skills from './pages/DoctorProfile/Skills';
 import Experience from './pages/DoctorProfile/Experience';
 import Address from './pages/DoctorProfile/Address';
 import Language from './pages/DoctorProfile/Language';
-import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
+// import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
+import AccountSettings from './pages/AccountSettings';
 
 import RescheduleModel from './pages/RescheduleModel';
-import UploadedDocument from './pages/UploadedDocument';
+import DocumentUpload from './pages/DocumentUpload';
 import MyContacts from './pages/MyContacts';
+import PatientCardNavigation from './pages/PatientCardNavigation';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -361,12 +376,30 @@ function App() {
             </>
           }
         />
-        <Route
+        {/* <Route
           path="/doctorProfile" 
           element={
             <>
               <PageTitle title="DoctorProfile | CarePoint Pro" />
               <MainDoctor />
+              </>
+          }
+          /> */}
+        <Route
+          path="/AccountSettings" 
+          element={
+            <>
+              <PageTitle title="AccountSettings | CarePoint Pro" />
+              <AccountSettings />
+              </>
+          }
+          />
+        <Route
+          path="/DevelopmentInProgress" 
+          element={
+            <>
+              <PageTitle title="DevelopmentInProgress | CarePoint Pro" />
+              <DevelopmentInProgress />
               </>
           }
           />
@@ -380,7 +413,7 @@ function App() {
             </>
           }
         />
-        <Route
+        {/* <Route
           path="doctorProfile/BasicDetails" 
           element={
             <>
@@ -406,8 +439,8 @@ function App() {
               <Awards />
               </>
           }
-          />
-        <Route
+          /> */}
+        {/* <Route
           path="doctorProfile/Experience" 
           element={
             <>
@@ -445,6 +478,15 @@ function App() {
           />
         <Route
           path="doctorProfile/DocumentUpload" 
+          element={
+            <>
+              <PageTitle title="DocumentUpload | CarePoint Pro" />
+              <DocumentUpload />
+              </>
+          }
+          /> */}
+           <Route
+          path="/DocumentUpload" 
           element={
             <>
               <PageTitle title="DocumentUpload | CarePoint Pro" />
@@ -516,15 +558,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/document-upload"
-          element={
-            <>
-              <PageTitle title="UploadedDocument | CarePoint Pro" />
-                <UploadedDocument />
-            </>
-          }
-        />
+        
         
         <Route
           path="/appointment/view-available-slots"
@@ -600,6 +634,79 @@ function App() {
             <>
               <PageTitle title="PatientFormWizard | CarePoint Pro" />
               <PatientFormWizard />
+            </>
+          }
+        />
+        <Route
+          path="/ProfilePatient"
+          element={
+            <>
+              <PageTitle title="ProfilePatient | CarePoint Pro" />
+              <ProfilePatient />
+            </>
+          }
+        />
+        <Route
+          path="/PatientProfile"
+          element={
+            <>
+              <PageTitle title="PatientProfile | CarePoint Pro" />
+              <PatientProfile />
+            </>
+          }
+        />
+        <Route
+          path="/DoctorProfile"
+          element={
+            <>
+              <PageTitle title="DoctorProfile | CarePoint Pro" />
+              <DoctorProfile />
+            </>
+          }
+        />
+        <Route
+          path="/HospitalProfile"
+          element={
+            <>
+              <PageTitle title="HospitalProfile | CarePoint Pro" />
+              <HospitalProfile />
+            </>
+          }
+        />
+        <Route
+          path="/ProfileHospital"
+          element={
+            <>
+              <PageTitle title="ProfileHospital | CarePoint Pro" />
+              <ProfileHospital />
+            </>
+          }
+        />
+
+        <Route
+          path="/PatientCardNavigation"
+          element={
+            <>
+              <PageTitle title="PatientCardNavigation | CarePoint Pro" />
+              <PatientCardNavigation />
+            </>
+          }
+        />
+        <Route
+          path="/DoctorFormWizard"
+          element={
+            <>
+              <PageTitle title="DoctorFormWizard | CarePoint Pro" />
+              <DoctorFormWizard />
+            </>
+          }
+        />
+        <Route
+          path="/ProfileDoctor"
+          element={
+            <>
+              <PageTitle title="ProfileDoctor | CarePoint Pro" />
+              <ProfileDoctor />
             </>
           }
         />
@@ -790,6 +897,24 @@ function App() {
           }
         />
         <Route
+          path="/consolidatedReport"
+          element={
+            <>
+              <PageTitle title="ConsolidatedReport | CarePoint Pro" />
+              <ConsolidatedReport />
+            </>
+          }
+        />
+        <Route
+          path="/MISReport"
+          element={
+            <>
+              <PageTitle title="MISReport | CarePoint Pro" />
+              <MISReport />
+            </>
+          }
+        />
+        <Route
           path="reports/surveyreport"
           element={
             <>
@@ -922,6 +1047,15 @@ function App() {
             <>
               <PageTitle title="AppointmentHistory | CarePoint Pro" />
               <AppointmentHistory />
+            </>
+          }
+        />
+         <Route
+          path="/history/PatientHistory" 
+          element={
+            <>
+              <PageTitle title="PatientHistory | CarePoint Pro" />
+              <PatientHistory />
             </>
           }
         />

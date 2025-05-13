@@ -15,6 +15,10 @@ import { fetchSpecializations } from '../../Utils';
 import CustomButton from '../../components/CustomButton';
 import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
 import SpecializationIcon from '../../images/icon/Health doctor medical medicine box box.svg';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 interface Doctor {
   doctorID: string;
@@ -36,10 +40,11 @@ const SearchDoctors: React.FC = () => {
   const [doctorData, setDoctorData] = useState([]);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-const [options, setOptions] = useState<AppLOVOption[]>([]);
+  const [options, setOptions] = useState<AppLOVOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
+   const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
   const [selectedHospital, setSelectedHospital] = useState('');
+
   const [specializations, setSpecializations] = useState<{
     [key: string]: string;
   }>({});
@@ -68,12 +73,18 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
   const [showPopup, setShowPopup] = useState(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [hospitalID, setHospitalID] = useState('');
-    const [relationships, setRelationships] = useState([]);
-    const [isOthers, setIsOthers] = useState(false);
+  const [relationships, setRelationships] = useState([]);
+  const [isOthers, setIsOthers] = useState(false);
   const [doctorID, setDoctorID] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [notes, setNotes] = useState('');
+
+  const [DoctorName, setDoctorName] = useState('');
+  const [mobile, setMobile] = useState('');
+  const [selectedSpecializationID, setSelectedSpecializationID] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+
   const [formData, setFormData] = useState({
     name: '',
     relationship: '',
@@ -97,17 +108,19 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
     date: '',
     time: '',
   });
-  useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Doctor')
-      .then((response) => response.json())
-      .then((data) => {
-        setDoctorData(data.data);
-        setFilteredDoctors(data.data); // Initially show all doctors
-        setLoading(false);
-      })
-      .catch((error) => console.error('Error fetching doctor data:', error));
 
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
+  const [roleName, setRoleName] = useState('');
+
+useEffect(() => {
+  const role = sessionStorage.getItem('roleName');
+  if (role) {
+    setRoleName(role);
+  }
+}, []);
+
+
+  useEffect(() => {
+    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
       .then((response) => response.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -127,31 +140,65 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
       .catch((error) => console.error('Error fetching hospitals:', error));
   }, []);
 
-
-   const fetchRelationships = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-        );
-        const result = await response.json();
+  const fetchAllDoctors = async () => {
+    try {
+      const roleName = sessionStorage.getItem('roleName');
+      const unitID = sessionStorage.getItem('unitID');
   
-        console.log('API Response:', result); // Check the response structure
+      let url = 'https://predart003-001-site1.anytempurl.com/api/Doctor';
   
-        if (Array.isArray(result.data)) {
-          setRelationships(result.data); // Set the fetched relationships
-        } else {
-          console.error('Invalid relationship data format:', result.data);
-          setRelationships([]);
-        }
-      } catch (error) {
-        console.error('Error fetching relationships:', error);
+      // Append hospitalId query if the role is HospitalAdmin
+      if (roleName === 'HostitalAdmin' && unitID) {
+        url += `?hospitalId=${unitID}`;
       }
-    };
   
-    // Fetch on component mount
-    useEffect(() => {
-      fetchRelationships();
-    }, []);
+      const response = await fetch(url);
+      const result = await response.json();
+  
+      if (result?.data) {
+        setDoctorData(result.data);
+        setFilteredDoctors(result.data);
+      } else {
+        setDoctorData([]);
+        setFilteredDoctors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctor data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+
+  useEffect(() => {
+    fetchAllDoctors();
+  }, []);
+
+  const fetchRelationships = async () => {
+    try {
+      const response = await fetch(
+        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
+      );
+      const result = await response.json();
+
+      console.log('API Response:', result); // Check the response structure
+
+      if (Array.isArray(result.data)) {
+        setRelationships(result.data); // Set the fetched relationships
+      } else {
+        console.error('Invalid relationship data format:', result.data);
+        setRelationships([]);
+      }
+    } catch (error) {
+      console.error('Error fetching relationships:', error);
+    }
+  };
+
+  // Fetch on component mount
+  useEffect(() => {
+    fetchRelationships();
+  }, []);
+
   useEffect(() => {
     const getSpecializations = async () => {
       const specMap = await fetchSpecializations();
@@ -183,7 +230,7 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
       hour12: false,
     });
   };
-  
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
@@ -343,8 +390,6 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
     return availableSlots;
   };
 
-
-
   const filterHospitals = (text: string) => {
     setSearchText(text);
     setFilteredHospitals(
@@ -366,7 +411,7 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
     setShowDoctorDropdown(true);
   };
 
- const handleInputChange = (
+  const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
     const { name, value } = e.target;
@@ -393,41 +438,82 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
     // Validate the field
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
+ useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    const roleName = sessionStorage.getItem('roleName');
 
-   const [selectedRelationship, setSelectedRelationship] = useState('');
+    if (userID && roleName !== 'Reception') {
+      fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data) {
+            const name = data.data.patientName || '';
+            const phoneNumber = data.data.patientPhoneNumber || '';
 
-    useEffect(() => {
-       const selectedOption = options.find(
-         (opt) => opt.appLOVID === appointmentType,
-       );
-   
-       if (selectedOption?.name === 'Self') {
-         setIsSelf(true);
-         setIsOthers(false);
-   
-         setFormData((prev) => ({
-           ...prev,
-           name: patientData.name, // ✅ refill from stored patient data
-           phoneNumber: patientData.phoneNumber,
-           relationship: selectedOption.appLOVID,
-         }));
-         setSelectedRelationship(selectedOption.appLOVID);
-       } else if (selectedOption?.name === 'Others') {
-         setIsSelf(false);
-         setIsOthers(true);
-   
-         setFormData((prev) => ({
-           ...prev,
-           name: '',
-           phoneNumber: '',
-           relationship: '',
-         }));
-         setSelectedRelationship('');
-       } else {
-         setIsSelf(false);
-         setIsOthers(false);
-       }
-     }, [appointmentType, options, patientData]);
+            // Save it separately
+            setPatientData({ name, phoneNumber });
+
+            // Initialize formData if needed
+            setFormData((prev) => ({
+              ...prev,
+              name,
+              phoneNumber,
+            }));
+          } else {
+            console.warn('⚠️ Failed to fetch patient data');
+          }
+        })
+        .catch((err) => {
+          console.error('❌ Error fetching patient data:', err);
+        });
+    }
+  }, []);
+  const [selectedRelationship, setSelectedRelationship] = useState('');
+
+  useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
+
+    if (roleName === 'HostitalAdmin' && unitID) {
+      setSelectedHospital(unitID);
+    }
+  }, []);
+
+  useEffect(() => {
+    const selectedOption = options.find(
+      (opt) => opt.appLOVID === appointmentType,
+    );
+
+    if (selectedOption?.name === 'Self') {
+      setIsSelf(true);
+      setIsOthers(false);
+
+      setFormData((prev) => ({
+        ...prev,
+        name: patientData.name, // ✅ refill from stored patient data
+        phoneNumber: patientData.phoneNumber,
+        relationship: selectedOption.appLOVID,
+      }));
+      setSelectedRelationship(selectedOption.appLOVID);
+    } else if (selectedOption?.name === 'Others') {
+      setIsSelf(false);
+      setIsOthers(true);
+
+      setFormData((prev) => ({
+        ...prev,
+        name: '',
+        phoneNumber: '',
+        relationship: '',
+      }));
+      setSelectedRelationship('');
+    } else {
+      setIsSelf(false);
+      setIsOthers(false);
+    }
+  }, [appointmentType, options, patientData]);
+
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     setSelectedTime(time);
     setSelectedTimeSlotID(timeSlotID);
@@ -486,109 +572,108 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
     return error;
   };
 
- const handleSubmit = async (e: React.FormEvent) => {
-     e.preventDefault();
- 
-     const userID = sessionStorage.getItem('userID');
- 
-     if (!userID) {
-       toast.error('User not logged in. Please log in again.');
-       return;
-     }
- 
-     const newErrors = {
-       name: validateField('name', formData.name),
-       relationship: validateField('relationship', selectedRelationship),
-       hospital: validateField('hospital', selectedHospitalID),
-       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
-       doctor: validateField('doctor', formData.doctor),
-       reason: validateField('reason', formData.reason),
-       date: validateField('date', formData.date),
-       time: validateField('time', formData.time),
-     };
- 
-     setErrors(newErrors);
- 
-     if (Object.values(newErrors).every((error) => error === '')) {
-       try {
-         const patientRes = await fetch(
-           `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-         );
- 
-         if (!patientRes.ok) {
-           throw new Error('Failed to fetch patient ID');
-         }
- 
-         const patientData = await patientRes.json();
-         const patientID = patientData?.data?.patientID;
- 
-         if (!patientID) {
-           toast.error('Patient ID not found for the logged-in user.');
-           return;
-         }
- 
-         const appointmentTimeFormatted = formData.time
-           ? convertTo24HourFormat(formData.time)
-           : '00:00:00';
- 
-         const formatDateYYYYMMDD = (dateString: string) => {
-           const date = new Date(dateString);
-           const year = date.getFullYear();
-           const month = `0${date.getMonth() + 1}`.slice(-2);
-           const day = `0${date.getDate()}`.slice(-2);
-           return `${year}-${month}-${day}`;
-         };
-         console.log('Form Data:', formData);
-         const payload = {
-           createdBy: userID,
-           isActive: true,
-           doctorID: formData.doctor,
-           patientID: patientID,
-           timeSlotID: formData.timeSlotID, // Pass this correctly
-           appointmentDate: formData.date
-             ? formatDateYYYYMMDD(formData.date)
-             : null,
-           appointmentTime: appointmentTimeFormatted,
-           statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-           notes: formData.reason?.trim() || 'No additional notes',
-           toWhom: appointmentType,
-           relationShip: selectedRelationship,
-           phoneNumber: formData.phoneNumber || '',
-         };
- 
-         const response = await fetch(
-           'https://predart003-001-site1.anytempurl.com/api/Appointment',
-           {
-             method: 'POST',
-             headers: {
-               'Content-Type': 'application/json',
-             },
-             body: JSON.stringify(payload),
-           },
-         );
- 
-         const responseData = await response.json();
- 
-         if (response.ok) {
-           const message =
-             responseData?.message || 'Appointment booked successfully!';
-           toast.success(message);
-           console.log('Form Submitted:', payload);
-           resetForm();
-         } else {
-           const message =
-             responseData?.message || 'Submission failed. Please try again.';
-           toast.error(message);
-         }
-       } catch (error) {
-         console.error('Error during submission:', error);
-         toast.error('An error occurred. Please try again later.');
-       }
-     } else {
-       toast.warning('Please fix the highlighted errors before submitting.');
-     }
-   };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
+    const userID = sessionStorage.getItem('userID');
+
+    if (!userID) {
+      toast.error('User not logged in. Please log in again.');
+      return;
+    }
+
+    const newErrors = {
+      name: validateField('name', formData.name),
+      relationship: validateField('relationship', selectedRelationship),
+      hospital: validateField('hospital', selectedHospitalID),
+      phoneNumber: validateField('phoneNumber', formData.phoneNumber),
+      doctor: validateField('doctor', formData.doctor),
+      reason: validateField('reason', formData.reason),
+      date: validateField('date', formData.date),
+      time: validateField('time', formData.time),
+    };
+
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).every((error) => error === '')) {
+      try {
+        const patientRes = await fetch(
+          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
+        );
+
+        if (!patientRes.ok) {
+          throw new Error('Failed to fetch patient ID');
+        }
+
+        const patientData = await patientRes.json();
+        const patientID = patientData?.data?.patientID;
+
+        if (!patientID) {
+          toast.error('Patient ID not found for the logged-in user.');
+          return;
+        }
+
+        const appointmentTimeFormatted = formData.time
+          ? convertTo24HourFormat(formData.time)
+          : '00:00:00';
+
+        const formatDateYYYYMMDD = (dateString: string) => {
+          const date = new Date(dateString);
+          const year = date.getFullYear();
+          const month = `0${date.getMonth() + 1}`.slice(-2);
+          const day = `0${date.getDate()}`.slice(-2);
+          return `${year}-${month}-${day}`;
+        };
+        console.log('Form Data:', formData);
+        const payload = {
+          createdBy: userID,
+          isActive: true,
+          doctorID: formData.doctor,
+          patientID: patientID,
+          timeSlotID: formData.timeSlotID, // Pass this correctly
+          appointmentDate: formData.date
+            ? formatDateYYYYMMDD(formData.date)
+            : null,
+          appointmentTime: appointmentTimeFormatted,
+          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+          notes: formData.reason?.trim() || 'No additional notes',
+          toWhom: appointmentType,
+          relationShip: selectedRelationship,
+          phoneNumber: formData.phoneNumber || '',
+        };
+
+        const response = await fetch(
+          'https://predart003-001-site1.anytempurl.com/api/Appointment',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+
+        const responseData = await response.json();
+
+        if (response.ok) {
+          const message =
+            responseData?.message || 'Appointment booked successfully!';
+          toast.success(message);
+          console.log('Form Submitted:', payload);
+          resetForm();
+        } else {
+          const message =
+            responseData?.message || 'Submission failed. Please try again.';
+          toast.error(message);
+        }
+      } catch (error) {
+        console.error('Error during submission:', error);
+        toast.error('An error occurred. Please try again later.');
+      }
+    } else {
+      toast.warning('Please fix the highlighted errors before submitting.');
+    }
+  };
 
   const handleOptionChange = (selectedOption: AppLOVOption) => {
     setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
@@ -596,78 +681,192 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
       `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
     );
   };
-   useEffect(() => {
-      if (!appointmentType && options.length > 0) {
-        const defaultOption = options.find((opt) => opt.name === 'Self');
-        if (defaultOption) {
-          setAppointmentType(defaultOption.appLOVID);
-          handleOptionChange(defaultOption); // optional
-        }
+  useEffect(() => {
+    if (!appointmentType && options.length > 0) {
+      const defaultOption = options.find((opt) => opt.name === 'Self');
+      if (defaultOption) {
+        setAppointmentType(defaultOption.appLOVID);
+        handleOptionChange(defaultOption); // optional
       }
-    }, [options]);
-  
+    }
+  }, [options]);
+
+  const handleSearch = async () => {
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
+
+    // At least one filter should be provided
+    const hasAnyFilter =
+      DoctorName || mobile || selectedSpecializationID || selectedHospital;
+
+    if (!hasAnyFilter) {
+      toast.warning('Please enter at least one filter.');
+      return;
+    }
+
+    let apiUrl = 'https://predart003-001-site1.anytempurl.com/api/Doctor?';
+    const queryParams: string[] = [];
+
+    // Hospital ID logic (optional)
+    if (roleName === 'Patient' && selectedHospital) {
+      queryParams.push(`hospitalId=${selectedHospital}`);
+    } else if (roleName === 'HostitalAdmin' && unitID) {
+      queryParams.push(`hospitalId=${unitID}`);
+    }
+
+    if (selectedSpecializationID) {
+      queryParams.push(`SpecializationId=${selectedSpecializationID}`);
+    }
+
+    if (DoctorName.trim()) {
+      queryParams.push(`DoctorName=${encodeURIComponent(DoctorName.trim())}`);
+    }
+
+    if (mobile.trim()) {
+      queryParams.push(`MobileNo=${encodeURIComponent(mobile.trim())}`);
+    }
+
+    const finalUrl = apiUrl + queryParams.join('&');
+    console.log('Doctor Search API:', finalUrl);
+
+    try {
+      const response = await fetch(finalUrl);
+      const result = await response.json();
+
+      if (result?.data && Array.isArray(result.data)) {
+        setDoctorData(result.data); // <-- this updates what UI uses
+      } else {
+        console.error('Unexpected response format:', result);
+        setDoctorData([]); // empty result still updates the screen
+      }
+    } catch (error) {
+      console.error('API fetch error:', error);
+    }
+  };
+
+  const handleReset = async (event) => {
+    event.preventDefault();
+
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
+
+    setDoctorName('');
+    setMobile('');
+    setSelectedSpecializationID('');
+
+    if (roleName === 'Patient') {
+      setSelectedHospital('');
+    } else if (roleName === 'HospitalAdmin') {
+      setSelectedHospital(unitID || '');
+    }
+
+    await fetchAllDoctors();
+  };
+
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
       <div className="p-2 bg-white rounded-md">
-      <h1 className="text-3xl font-semibold text-black mb-6">
-        Search Doctor
-      </h1>
-        
+        <h1 className="text-3xl font-semibold text-black mb-6">
+          Search Doctor
+        </h1>
+
         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-          <div>
-            <input
-              type="text"
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-            text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
-              placeholder="Enter Doctor Name"
-            />
-          </div>
+  <div>
+    <select
+      id="hospital"
+      value={selectedHospital}
+      disabled={sessionStorage.getItem('roleName') === 'HostitalAdmin'}
+      className={`w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary
+        ${sessionStorage.getItem('roleName') === 'HostitalAdmin' ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}`}
+      onChange={(e) => setSelectedHospital(e.target.value)}
+    >
+      {sessionStorage.getItem('roleName') === 'HostitalAdmin' ? (
+        <option value={selectedHospital}>
+          {hospitals[selectedHospital] || 'Selected Hospital'}
+        </option>
+      ) : (
+        <>
+          <option value="">-- Select Hospital --</option>
+          {Object.entries(hospitals).map(([id, name]) => (
+            <option key={id} value={id}>
+              {name}
+            </option>
+          ))}
+        </>
+      )}
+    </select>
+  </div>
 
-          <div>
-            <select
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+  <div>
+    <input
+      type="text"
+      value={DoctorName}
+      onChange={(e) => setDoctorName(e.target.value)}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
-              <option value="">-- Select Specialization --</option>
-              {Object.entries(specializations).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <select
-              id="hospital"
-              value={selectedHospital}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+      placeholder="Enter Doctor Name"
+    />
+  </div>
+
+  <div>
+    <input
+      type="tel"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      maxLength={10}
+      value={mobile}
+      onChange={(e) => setMobile(e.target.value)}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-              onChange={(e) => setSelectedHospital(e.target.value)}
-            >
-              <option value="">-- Select Hospital --</option>
-              {Object.entries(hospitals).map(([id, name]) => (
-                <option key={id} value={id}>
-                  {name}
-                </option>
-              ))}
-            </select>
-          </div>
+      placeholder="Enter Mobile Number"
+    />
+  </div>
 
-          <div>
-            <CustomButton>Search</CustomButton>
-          </div>
-        </form>
+  <div>
+    <select
+      value={selectedSpecializationID}
+      onChange={(e) => setSelectedSpecializationID(e.target.value)}
+      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">-- Select Specialization --</option>
+      {Object.entries(specializations).map(([id, name]) => (
+        <option key={id} value={id}>
+          {name}
+        </option>
+      ))}
+    </select>
+  </div>
+
+  {/* Button group aligned to the left of next grid column */}
+  <div className="flex items-center gap-4 mt-2 lg:col-span-3">
+    <CustomButton onClick={handleSearch} className="h-10 px-6">
+      Search
+    </CustomButton>
+
+    <CustomButton
+      onClick={handleReset}
+      className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-2"
+    >
+      Reset
+    </CustomButton>
+
+    <ToastContainer position="top-right" autoClose={3000} />
+  </div>
+</form>
+
 
       </div>
       <h1 className="text-2xl p-2 font-semibold text-black mb-6 mt-4">
-    
         List of Doctor's
       </h1>
       <DoctorCard
-        doctorData={filteredDoctors}
+        doctorData={searchResults.length ? searchResults : doctorData}
         loading={loading}
         hospitals={hospitals}
         specializations={specializations}
@@ -679,57 +878,60 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
           <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
             <h2 className="text-xl font-semibold mb-4">Book Appointment</h2>
             <form onSubmit={handleSubmit}>
-               {/* Appointment Type */}
-            <div className="flex justify-center mt-4 mb-6">
-              <div className="flex rounded-full border-2 border-blue-300 overflow-hidden">
-                {options.map((option) => (
-                  <label
-                    key={option.appLOVID}
-                    className={`px-6 py-2 cursor-pointer font-semibold text-center transition-all duration-300
+              {/* Appointment Type */}
+              <div className="flex justify-center mt-4 mb-6">
+                <div className="flex rounded-full border-2 border-blue-300 overflow-hidden">
+                  {options.map((option) => (
+                    <label
+                      key={option.appLOVID}
+                      className={`px-6 py-2 cursor-pointer font-semibold text-center transition-all duration-300
         ${appointmentType === option.appLOVID ? 'bg-blue-500 text-white' : 'bg-gray-500 text-black'}`}
-                  >
-                    <input
-                      type="radio"
-                      name="appointmentType"
-                      value={option.appLOVID}
-                      checked={appointmentType === option.appLOVID}
-                      onChange={() => {
-                        setAppointmentType(option.appLOVID);
-                        handleOptionChange(option);
-                      }}
-                      className="hidden"
-                    />
-                    {option.name}
-                  </label>
-                ))}
+                    >
+                      <input
+                        type="radio"
+                        name="appointmentType"
+                        value={option.appLOVID}
+                        checked={appointmentType === option.appLOVID}
+                        onChange={() => {
+                          setAppointmentType(option.appLOVID);
+                          handleOptionChange(option);
+                        }}
+                        className="hidden"
+                      />
+                      {option.name}
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
-                  <input
+                <input
                     type="text"
                     name="name"
                     maxLength={30}
-                    placeholder="Name"
+                    placeholder={isOthers ? 'Enter your Name' : 'Name'}
                     value={formData.name}
                     onChange={handleInputChange}
-                    // disabled={appointmentType === 'Self'}
+                    disabled={isSelf && roleName !== 'Reception'}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-           text-black outline-none focus:border-primary dark:border-form-strokedark
-            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  text-black outline-none focus:border-primary dark:border-form-strokedark
+                   dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
                   {errors.name && (
                     <p className="text-red-500 text-sm">{errors.name}</p>
                   )}
                 </div>
                 <div className="relative w-1/2">
-                  <input
+                <input
                     type="text"
                     name="phoneNumber"
                     maxLength={10}
-                    placeholder="Phone Number"
+                    placeholder={
+                      isOthers ? 'Enter your number' : 'Phone Number'
+                    }
                     value={formData.phoneNumber}
                     onChange={handleInputChange}
+                    disabled={isSelf && roleName !== 'Reception'}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   />
                   {errors.phoneNumber && (
@@ -738,54 +940,55 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
                 </div>
               </div>
 
-                {/* Relationship (for Others) */}
-            {appointmentType ===
-              options.find((opt) => opt.name === 'Others')?.appLOVID && (
-              <div className="mb-4">
-                <div className="relative">
-                  {/* Relationship Dropdown */}
-                  <select
-                    name="relationship"
-                    value={selectedRelationship || ''}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedRelationship(value); // Updates selectedRelationship
-                      setFormData((prev) => ({
-                        ...prev,
-                        relationship: value, // Updates formData.relationship
-                      }));
-                    }}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    <option value="">Select Relationship</option>
-                    {relationships.length > 0 ? (
-                      relationships.map((relation) => (
-                        <option
-                          key={relation.appLOVID}
-                          value={relation.appLOVID}
-                        >
-                          {relation.name}
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled>No relationships available</option>
-                    )}
-                  </select>
-                </div>
+              {/* Relationship (for Others) */}
+              {appointmentType ===
+                options.find((opt) => opt.name === 'Others')?.appLOVID && (
+                <div className="mb-4">
+                  <div className="relative">
+                    {/* Relationship Dropdown */}
+                    <select
+                      name="relationship"
+                      value={selectedRelationship || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setSelectedRelationship(value); // Updates selectedRelationship
+                        setFormData((prev) => ({
+                          ...prev,
+                          relationship: value, // Updates formData.relationship
+                        }));
+                      }}
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      <option value="">Select Relationship</option>
+                      {relationships.length > 0 ? (
+                        relationships.map((relation) => (
+                          <option
+                            key={relation.appLOVID}
+                            value={relation.appLOVID}
+                          >
+                            {relation.name}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No relationships available</option>
+                      )}
+                    </select>
+                  </div>
 
-                {/* Error Message */}
-                {errors.relationship && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {errors.relationship}
-                  </p>
-                )}
-              </div>
-            )}
+                  {/* Error Message */}
+                  {errors.relationship && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {errors.relationship}
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
                   <select
                     value={hospitalID}
+                    disabled
                     onChange={(e) => setHospitalID(e.target.value)}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 
                   pl-6 pr-10 text-black outline-none focus:border-primary
@@ -804,6 +1007,7 @@ const [options, setOptions] = useState<AppLOVOption[]>([]);
                   <select
                     name="doctor"
                     value={selectedDoctorID}
+                    disabled
                     // Make sure this updates selectedDoctorID accordingly if the user changes the selection manually
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
@@ -933,14 +1137,20 @@ const DoctorCard = ({
   onBookNow,
 }) => {
   const [showMore, setShowMore] = useState(false);
-
+const navigate = useNavigate();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-       {loading ? (
-    <div className="col-span-full text-center py-10">
-      <p className="text-lg font-medium text-blue-500">Loading...</p>
-    </div>
-  ) : (
+      {loading ? (
+        <div className="col-span-full text-center py-10">
+          <p className="text-lg font-medium text-blue-500">Loading...</p>
+        </div>
+      ) : doctorData.length === 0 ? (
+        <div className="col-span-full text-center py-10">
+          <p className="text-lg font-medium text-blue-500">
+            No doctor data found.
+          </p>
+        </div>
+      ) : (
         doctorData.map((doctor) => {
           const specializationName =
             doctor.specializationID &&
@@ -972,21 +1182,18 @@ const DoctorCard = ({
                   </button>
                 </div>
 
-                {/* Name & Specialization in one row - aligned on same line */}
+                {/* Name & Specialization */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
-                  {/* Doctor Name */}
                   <div className="flex items-center gap-2 max-w-full">
                     <img src={DoctorIcon} alt="doctor" className="w-4 h-5" />
                     <span
                       className="text-black truncate"
-                      title={`Name: ${doctor.doctorName}`} // tooltip on hover
+                      title={`Name: ${doctor.doctorName}`}
                     >
                       <span className="text-black">Name:</span>
                       {doctor.doctorName}
                     </span>
                   </div>
-
-                  {/* Specialization */}
                   <div className="flex items-center gap-2 max-w-full">
                     <img
                       src={SpecializationIcon}
@@ -1004,13 +1211,44 @@ const DoctorCard = ({
                 </div>
 
                 {/* Hospital */}
-                <div className="flex items-center gap-2">
-                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
-                  <span className="text-black">
-                    <span className="text-black">Hospital:</span>{' '}
-                    {hospitalName}
-                  </span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
+                  <div className="flex items-center gap-2 max-w-full">
+                    <img
+                      src={HospitalIcon}
+                      alt="hospital"
+                      className="w-5 h-5 "
+                    />
+                    <span className="text-black">
+                      <span className="text-black">Hospital:</span>{' '}
+                      {hospitalName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 max-w-full">
+                    <img src={HospitalIcon} alt="mobile" className="w-5 h-5" />
+                    <span className="text-black">
+                      <span className="text-black">Mobile:</span>{' '}
+                      {doctor.doctorPhoneNumber || 'N/A'}
+                    </span>
+                  </div>
                 </div>
+                
+
+ <div className="flex justify-end mb-2 mr-2">
+ <button
+  onClick={() =>
+    navigate("/ProfileDoctor", {
+      state: {
+        doctorID: doctor.doctorID,
+        doctorName: doctor.doctorName,
+      },
+    })
+  }
+  className="text-blue-600 hover:underline text-sm font-semibold"
+>
+  View More Profile Info
+</button>
+</div>
+
               </div>
             </div>
           );

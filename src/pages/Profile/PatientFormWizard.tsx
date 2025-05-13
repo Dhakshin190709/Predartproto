@@ -2,10 +2,47 @@ import React, { useState, useEffect, useRef } from 'react';
 import FormWizard from 'react-form-wizard-component';
 import 'react-form-wizard-component/dist/style.css';
 import CalendarIcon from '../../images/icon/calendar.svg';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
+import CustomButton from '../../components/CustomButton';
+type GenderOption = {
+  code: string;
+  name: string;
+};
+interface State {
+  id: number;
+  stateName: string;
+  stateCode: string;
+}
 
+interface District {
+  id: number;
+  pinCode: string;
+  districtName: string;
+  stateCode: string;
+}
+
+interface City {
+  id: number;
+  cityName: string;
+}
+
+interface Address {
+  addressID?: string | null;
+  id?: string | null;
+  addressType?: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  zipCode?: string;
+  type?: string; // Optional or required, based on your use case
+}
 const PatientFormWizard: React.FC = () => {
   const [formData, setFormData] = useState({
     patientName: '',
@@ -23,6 +60,10 @@ const PatientFormWizard: React.FC = () => {
   });
 
   const [formErrors, setFormErrors] = useState<{
+    district: any;
+    pincode: any;
+    city: any;
+    state: any;
     patientName: string;
     patientEmail: string;
     patientPhoneNumber: string;
@@ -34,6 +75,10 @@ const PatientFormWizard: React.FC = () => {
     patientPhoneNumber: '',
     patientDateOfBirth: '',
     patientGender: '',
+    state: '',
+    district: '',
+    pincode: '',
+    city: '',
   });
 
   const [boxes, setBoxes] = useState([
@@ -50,10 +95,22 @@ const PatientFormWizard: React.FC = () => {
     },
   ]);
 
-  const [genderOptions, setGenderOptions] = useState<string[]>([]); // State to store gender options
+  const [genderOptions, setGenderOptions] = useState<GenderOption[]>([]);
+
   const dateInputRef = useRef(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [isFormReady, setIsFormReady] = useState(true);
+  const [states, setStates] = useState<State[]>([]);
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [showCityInput, setShowCityInput] = useState(false);
+  // this persists between renders
+
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+
+  const [manualCity, setManualCity] = useState('');
 
   const [forms, setForms] = useState([
     {
@@ -68,28 +125,17 @@ const PatientFormWizard: React.FC = () => {
     year: string;
     description: string;
   }
-  interface Address {
-    addressID?: string | null;
-    id?: string | null;
-    addressType?: string;
-    address1?: string;
-    address2?: string;
-    city?: string;
-    district?: string;
-    state?: string;
-    zipCode?: string;
-    type?: string; // Optional or required, based on your use case
-  }
-  const [addresses, setAddresses] = useState([
+
+  const [addresses, setAddresses] = useState<Address[]>([
     {
       addressType: '',
       address1: '',
       address2: '',
-      city: '',
-      district: '',
       state: '',
+      district: '',
       zipCode: '',
-      type: 'patient', // Default type, can be updated dynamically
+      city: '',
+      type: 'patient',
     },
   ]);
   const [sections, setSections] = useState([
@@ -107,6 +153,76 @@ const PatientFormWizard: React.FC = () => {
   const [showAddressFields, setShowAddressFields] = useState(false);
 
   const [bloodGroups, setBloodGroups] = useState([]);
+
+  useEffect(() => {
+    axios
+      .get('https://predart003-001-site1.anytempurl.com/api/Address/states')
+      .then((res) => setStates(res.data.data));
+  }, []);
+
+  const handleStateChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number,
+  ) => {
+    const stateCode = e.target.value;
+    setSelectedState(stateCode);
+    setSelectedDistrict('');
+    setCities([]);
+    setShowCityInput(false);
+
+    // Update state in address list
+    updateAddress(index, 'state', stateCode);
+    updateAddress(index, 'district', '');
+    updateAddress(index, 'zipCode', '');
+    updateAddress(index, 'city', '');
+
+    axios
+      .get(
+        `https://predart003-001-site1.anytempurl.com/api/Address/districts?StateCode=${stateCode}`,
+      )
+      .then((res) => {
+        setDistricts(res.data.data);
+        const uniquePincodes = Array.from(
+          new Set(res.data.data.map((d: District) => d.pinCode)),
+        );
+        setPincodes(uniquePincodes);
+      });
+  };
+
+  const handleDistrictChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number,
+  ) => {
+    const districtName = e.target.value;
+    setSelectedDistrict(districtName);
+    setShowCityInput(false);
+
+    // Update district in address list
+    updateAddress(index, 'district', districtName);
+    updateAddress(index, 'zipCode', ''); // ✅ correct
+
+    updateAddress(index, 'city', '');
+
+    const filteredPins = districts
+      .filter((item) => item.districtName === districtName)
+      .map((item) => item.pinCode);
+
+    setPincodes(filteredPins);
+
+    axios
+      .get(
+        `https://predart003-001-site1.anytempurl.com/api/Address/cities?districtName=${districtName}`,
+      )
+      .then((res) => {
+        const cityData = res.data.data;
+        if (cityData.length === 0) {
+          setShowCityInput(true);
+          setCities([]);
+        } else {
+          setCities(cityData);
+        }
+      });
+  };
 
   useEffect(() => {
     fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
@@ -135,40 +251,76 @@ const PatientFormWizard: React.FC = () => {
       .catch((error) => console.error('Error fetching address types:', error));
   }, []);
 
-  useEffect(() => {
-    const fetchFamilyData = async () => {
-      const patientID = sessionStorage.getItem('patientID');
-      try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetFamily?PatientID=${patientID}`,
-        );
-        const result = await response.json();
+useEffect(() => {
+  const fetchFamilyData = async () => {
+    const patientID = sessionStorage.getItem('patientID');
+    try {
+      const response = await fetch(
+        `https://predart003-001-site1.anytempurl.com/api/Patient/GetFamily?PatientID=${patientID}`,
+      );
+      const result = await response.json();
 
-        if (result.success && result.data) {
-          const item = result.data;
-          const mappedBox = {
-            name: item.name || '',
-            email: item.email || '',
-            phoneNumber: item.phoneNumber || '',
-            patientDateOfBirth: item.dateOfBirth
-              ? item.dateOfBirth.split('T')[0]
-              : '',
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        const uniqueMap = new Map();
 
-            bloodGroup: item.bloodGroupID || '',
-            height: item.height || '',
-            weight: item.weight || '',
+        result.data.forEach((item) => {
+          const key = `${item.name}-${item.phoneNumber}`; // composite key
+          if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, {
+              name: item.name || '',
+              email: item.email || '',
+              phoneNumber: item.phoneNumber || '',
+              patientDateOfBirth: item.dateOfBirth
+                ? item.dateOfBirth.split('T')[0]
+                : '',
+              bloodGroup: item.bloodGroupID || '',
+              height: item.height || '',
+              weight: item.weight || '',
+              showDateInput: false,
+              errors: {},
+            });
+          }
+        });
+
+        const mappedBoxes = Array.from(uniqueMap.values());
+        setBoxes(mappedBoxes); // ✅ Set fetched family data
+      } else {
+        // No data returned, show default single box
+        setBoxes([
+          {
+            name: '',
+            email: '',
+            phoneNumber: '',
+            patientDateOfBirth: '',
+            bloodGroup: '',
+            height: '',
+            weight: '',
             showDateInput: false,
             errors: {},
-          };
-          setBoxes([mappedBox]); // wrap in array since your state expects an array
-        }
-      } catch (error) {
-        console.error('Error fetching family data:', error);
+          },
+        ]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching family data:', error);
+      // On error also show single default box
+      setBoxes([
+        {
+          name: '',
+          email: '',
+          phoneNumber: '',
+          patientDateOfBirth: '',
+          bloodGroup: '',
+          height: '',
+          weight: '',
+          showDateInput: false,
+          errors: {},
+        },
+      ]);
+    }
+  };
 
-    fetchFamilyData();
-  }, []);
+  fetchFamilyData();
+}, []);
 
   useEffect(() => {
     const patientID = sessionStorage.getItem('patientID');
@@ -240,9 +392,10 @@ const PatientFormWizard: React.FC = () => {
   };
   // Add a new address row
   const addAddress = () => {
-    setAddresses([
-      ...addresses,
+    setAddresses((prevAddresses) => [
+      ...prevAddresses,
       {
+        addressID: '',
         addressType: '',
         address1: '',
         address2: '',
@@ -250,7 +403,7 @@ const PatientFormWizard: React.FC = () => {
         district: '',
         state: '',
         zipCode: '',
-        type: 'Patient', // Default type for new address
+        type: '',
       },
     ]);
   };
@@ -305,15 +458,12 @@ const PatientFormWizard: React.FC = () => {
       try {
         const response = await axios.get(
           'https://predart003-001-site1.anytempurl.com/api/AppLOV',
-          {
-            params: {
-              type: 'gender',
-            },
-          },
+          { params: { type: 'gender' } },
         );
 
         if (response.data && response.data.data) {
-          setGenderOptions(response.data.data); // Update the gender options
+          console.log('Gender Options:', response.data.data); // 👈 Add this line
+          setGenderOptions(response.data.data);
         }
       } catch (error) {
         console.error('Error fetching gender options:', error);
@@ -411,16 +561,6 @@ const PatientFormWizard: React.FC = () => {
     newsletterSubscription: false,
   });
 
-  // Handle checkbox state change
-  // const handleCheckboxChange = (e) => {
-  //   const { name, checked } = e.target;
-
-  //   setPreferences((prevState) => ({
-  //     ...prevState,
-  //     [name]: checked,
-  //   }));
-  // };
-
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setPreferences((prev) => ({
@@ -456,15 +596,15 @@ const PatientFormWizard: React.FC = () => {
               ? ''
               : 'Invalid email format.';
 
-      case 'patientPhoneNumber':
-      case 'phoneNumber':
-        return !value
-          ? 'Phone number is required.'
-          : emojiRegex.test(value)
-            ? 'Emojis are not allowed in phone number.'
-            : /^\d{10}$/.test(value)
-              ? ''
-              : 'Phone number must be exactly 10 digits.';
+     case 'patientPhoneNumber':
+case 'phoneNumber':
+  return !value
+    ? 'Phone number is required.'
+    : emojiRegex.test(value)
+      ? 'Emojis are not allowed in phone number.'
+      : /^[6-9]\d{9}$/.test(value)
+        ? ''
+        : 'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
 
       case 'patientDateOfBirth':
         if (!value) return 'Date of Birth is required.';
@@ -549,16 +689,18 @@ const PatientFormWizard: React.FC = () => {
 
         const data = response.data.data;
 
+        // Ensure patientGender matches one of the gender options
         const matchedGender = genderOptions.find(
           (gender) =>
-            gender.code.toUpperCase() === data.patientGender?.toUpperCase(),
+            gender.name.toLowerCase() === data.patientGender?.toLowerCase() ||
+            gender.code.toLowerCase() === data.patientGender?.toLowerCase(),
         );
 
-        // ✅ Store patientID into sessionStorage
         if (data.patientID) {
           sessionStorage.setItem('patientID', data.patientID);
         }
 
+        // Ensure that you're correctly updating formData with the matched gender code
         setFormData((prev) => ({
           ...prev,
           patientID: data.patientID || '',
@@ -583,104 +725,140 @@ const PatientFormWizard: React.FC = () => {
   useEffect(() => {
     const fetchMedicalInfo = async () => {
       const patientID = sessionStorage.getItem('patientID');
-      console.log(patientID);
+      if (!patientID) return;
+
       try {
         const response = await fetch(
           `https://predart003-001-site1.anytempurl.com/api/Patient/GetMedicalInformation?PatientID=${patientID}`,
         );
         const data = await response.json();
 
-        if (data.success && data.data) {
-          const info = data.data;
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          const info = data.data[0];
 
           const bloodGroupName =
             bloodGroups.find((group) => group.appLOVID === info.bloodGroupID)
               ?.name || '';
 
-          setSections([
-            {
-              height: info.height?.toString() || '',
-              weight: info.weight?.toString() || '',
-              bloodGroup: bloodGroupName,
-            },
-          ]);
+          // Format the fetched data to match the section structure
+          const formatted = {
+            height: info.height?.toString() || '',
+            weight: info.weight?.toString() || '',
+            bloodGroup: bloodGroupName,
+          };
+
+          setSections([formatted]); // Set the sections state to include the fetched data
+        } else {
+          // ✅ If no data found, ensure that at least one empty section is present
+          setSections([{ height: '', weight: '', bloodGroup: '' }]);
         }
       } catch (error) {
         console.error('Error fetching medical info:', error);
+        // ✅ Fallback to one empty section if the API call fails
+        setSections([{ height: '', weight: '', bloodGroup: '' }]);
       }
     };
 
-    fetchMedicalInfo();
-  }, [patientID, bloodGroups]);
+    // Fetch data when bloodGroups are available
+    if (bloodGroups.length > 0) {
+      fetchMedicalInfo();
+    }
+  }, [bloodGroups]); // Re-run when bloodGroups changes
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // ✅ No patientID here, use sessionStorage directly
 
-    try {
-      const userID = sessionStorage.getItem('userID');
-      const patientID = sessionStorage.getItem('patientID');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-      console.log('🧠 userID from session:', userID);
-      console.log('🧠 patientID from session:', patientID);
+  const userID = sessionStorage.getItem('userID');
+  const patientID = sessionStorage.getItem('patientID');
 
-      const updatedFormData = {
-        ...formData,
-        patientID: formData.patientID || patientID,
-        patientDateOfBirth: new Date(formData.patientDateOfBirth).toISOString(),
-        userID, // Include userID for reference
-        createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646',
-        isActive: true,
-        patientGender: formData.patientGender || '',
-        updatedBy: userID,
+  if (!userID || !patientID) {
+    toast.error('User ID or Patient ID is missing.');
+    return;
+  }
+
+  console.log('🧠 userID from session:', userID);
+  console.log('🧠 patientID from session:', patientID);
+
+  const matchedGender = genderOptions.find(
+    (g) => g.name.toLowerCase() === formData.patientGender?.toLowerCase(),
+  );
+
+  // Prepare the form data with updated values
+  const updatedFormData = {
+    ...formData,
+    patientID: formData.patientID || patientID,
+    patientDateOfBirth: new Date(formData.patientDateOfBirth).toISOString(),
+    userID,
+    createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646',
+    isActive: true,
+    patientGender: formData.patientGender
+      ? formData.patientGender
+      : matchedGender?.code || '',
+    updatedBy: userID,
+  };
+
+  console.log('📝 Submitting form with:', updatedFormData);
+
+  // Check if any actual changes have been made
+  const hasChanges = 
+    formData.patientGender !== updatedFormData.patientGender ||
+    formData.patientDateOfBirth !== updatedFormData.patientDateOfBirth;
+
+  if (!hasChanges) {
+    toast.info('No changes detected. No need to save.');
+    return; // Prevent submission if no changes
+  }
+
+  try {
+    const response = await axios.put(
+      `https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`,
+      updatedFormData,
+    );
+
+    console.log('✅ SaveBasicDetails Response:', response.data);
+
+    if (response.data?.success && response.data?.data) {
+      toast.success('Basic details updated successfully!');
+      return {
+        isValid: true,
+        errors: {},
       };
-
-      console.log('📝 Submitting form with:', updatedFormData);
-
-      const response = await axios.put(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`,
-        updatedFormData,
-      );
-
-      console.log('✅ SaveBasicDetails Response:', response.data);
-
-      if (response.data?.success && response.data?.data) {
-        const returnedPatientId = response.data.data;
-
-        return {
-          isValid: true,
-          errors: {},
-        };
-      } else {
-        return {
-          isValid: false,
-          errors: {
-            general: response.data?.message || 'Failed to save basic details',
-          },
-        };
-      }
-    } catch (error) {
-      console.error('🚨 Error saving basic details:', error);
+    } else {
+      toast.error(response.data?.message || 'Failed to save basic details');
       return {
         isValid: false,
         errors: {
-          general: 'Network or server error while saving basic details.',
+          general: response.data?.message || 'Failed to save basic details',
         },
       };
     }
-  };
+  } catch (error) {
+    console.error('🚨 Error saving basic details:', error);
+    toast.error('Network or server error while saving basic details.');
+    return {
+      isValid: false,
+      errors: {
+        general: 'Network or server error while saving basic details.',
+      },
+    };
+  }
+};
+
+
+
 
   const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
 
-    if (!address.type) errors.type = 'Address type is required';
+    if (!address.addressType) errors.addressType = 'Address type is required'; // ✅ Match this to your form field
     if (!address.address1) errors.address1 = 'Address line 1 is required';
     if (!address.address2) errors.address2 = 'Address line 2 is required';
     if (!address.city) errors.city = 'City is required';
     if (!address.district) errors.district = 'District is required';
     if (!address.state) errors.state = 'State is required';
     if (!address.zipCode) errors.zipCode = 'Zip code is required';
-    else if (!/^\d{6}$/.test(address.zipCode))
-      errors.zipCode = 'Enter a valid 6-digit zip code';
 
     setFormErrors((prev) => ({ ...prev, [index]: errors }));
   };
@@ -694,267 +872,354 @@ const PatientFormWizard: React.FC = () => {
     validateAddress(addresses[index], index);
   };
 
-  const handleAddressSubmit = async () => {
-    const allErrors: { [index: number]: { [field: string]: string } } = {};
+  
+const handleAddressSubmit = async () => {
+  const allErrors: { [index: number]: { [field: string]: string } } = {};
+  const userID = sessionStorage.getItem('userID');
+  const patientID = sessionStorage.getItem('patientID');
 
-    const userID = sessionStorage.getItem('userID');
-    const patientID = sessionStorage.getItem('patientID');
+  if (!patientID) {
+    toast.error('Patient ID is missing. Please save patient details first.');
+    return {
+      isValid: false,
+      errors: { general: 'Patient ID is required.' },
+    };
+  }
 
-    if (!patientID) {
-      alert('Patient ID is missing. Please save patient details first.');
-      return {
-        isValid: false,
-        errors: { general: 'Patient ID is required.' },
-      };
+  let hasError = false;
+  const promises = [];
+
+  // Regex patterns
+  const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+  const noOnlySpaces = /\S/;
+  const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
+  const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/;
+  const onlyAlphabets = /^[a-zA-Z\s]+$/;
+
+  const hasAddressChanged = (current: any, original: any) => {
+    const fields = [
+      'address1',
+      'address2',
+      'city',
+      'district',
+      'state',
+      'zipCode',
+      'addressType',
+    ];
+    return fields.some((field) => current[field] !== original[field]);
+  };
+
+  for (let index = 0; index < addresses.length; index++) {
+    const address = addresses[index];
+    const errors: { [key: string]: string } = {};
+
+    // Skip if already saved and no changes
+    if (
+      address.isSaved &&
+      !hasAddressChanged(address, address.original || {})
+    ) {
+      console.log(
+        `Skipping address at index ${index} - already saved and unchanged.`,
+      );
+      continue;
     }
 
-    let hasError = false;
-
-    // Regex patterns
-    // Regex patterns
-    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-    const noOnlySpaces = /\S/;
-    const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
-    const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/; // <-- Updated line
-
-    for (let index = 0; index < addresses.length; index++) {
-      const address = addresses[index];
-      const errors: { [key: string]: string } = {};
-
-      const validateField = (field: string, fieldName: string) => {
-        if (!field || !noOnlySpaces.test(field)) {
-          errors[fieldName] = 'This field is required.';
-        } else if (!noEmojis.test(field)) {
-          errors[fieldName] = 'No emojis allowed.';
-        } else if (!notRepeatedChar.test(field)) {
-          errors[fieldName] =
-            'No repetitive characters (e.g., "aaaaaa", "111111").';
-        } else if (!onlyAlphaNumericAndSpaces.test(field)) {
-          errors[fieldName] =
-            'Only alphanumeric characters and spaces allowed.';
-        }
-      };
-
-      validateField(address.addressType, 'addressType');
-      validateField(address.address1, 'address1');
-      validateField(address.address2, 'address2');
-      validateField(address.city, 'city');
-      validateField(address.district, 'district');
-      validateField(address.state, 'state');
-
-      // ZIP code validation
-      if (!address.zipCode || !/^\d{5,6}$/.test(address.zipCode)) {
-        errors.zipCode = 'ZIP Code must be 5 or 6 digits.';
-      } else if (/^0+$/.test(address.zipCode)) {
-        errors.zipCode = 'ZIP Code cannot be all zeros.';
+    const validateField = (
+      field: string,
+      fieldName: string,
+      pattern: RegExp,
+      minLength: number = 1,
+      message = 'Invalid format.',
+    ) => {
+      if (!field || !noOnlySpaces.test(field)) {
+        errors[fieldName] = 'This field is required.';
+      } else if (!noEmojis.test(field)) {
+        errors[fieldName] = 'No emojis allowed.';
+      } else if (!notRepeatedChar.test(field)) {
+        errors[fieldName] = 'No repetitive characters.';
+      } else if (!pattern.test(field) || field.length < minLength) {
+        errors[fieldName] = message;
       }
+    };
 
-      if (Object.keys(errors).length > 0) {
-        allErrors[index] = errors;
-        hasError = true;
-        continue;
-      }
+const validateAddressLine = (field: string, fieldName: string) => {
+  const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
+  const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
+  const atLeastOneLetter = /[a-zA-Z]/;
+  const containsNumber = /\d/;
 
-      const addressPayload = {
-        createdBy: userID,
-        updatedBy: userID,
-        isActive: true,
-        id: patientID,
-        type: 'Patient',
-        addressType: address.addressType || '',
-        address1: address.address1 || '',
-        address2: address.address2 || '',
-        city: address.city || '',
-        district: address.district || '',
-        state: address.state || '',
-        zipCode: address.zipCode || '',
-      };
+  if (!field || !noOnlySpaces.test(field)) {
+    errors[fieldName] = 'This field is required.';
+  } else if (!noEmojis.test(field)) {
+    errors[fieldName] = 'No emojis allowed.';
+  } else if (!alphaNumericSlash.test(field)) {
+    errors[fieldName] = 'Only alphanumeric characters, spaces, and slashes allowed.';
+  } else if (field.length < 3) {
+    errors[fieldName] = 'Minimum 3 characters required.';
+  } else if (!atLeastOneLetter.test(field)) {
+    errors[fieldName] = 'Must contain at least one alphabet letter.';
+  } else if (!containsNumber.test(field)) {
+    errors[fieldName] = 'Must contain at least one number.';
+  } else if (!noTripleRepeat.test(field)) {
+    errors[fieldName] = 'No character should repeat more than twice consecutively.';
+  }
+};
 
-      try {
-        await axios.post(
+
+    // Address 1 & 2
+    validateAddressLine(address.address1, 'address1');
+    validateAddressLine(address.address2, 'address2');
+
+    if (!address.city || !noOnlySpaces.test(address.city)) {
+  errors.city = 'City is required.';
+} else if (!noEmojis.test(address.city)) {
+  errors.city = 'No emojis allowed.';
+} else if (!onlyAlphabets.test(address.city)) {
+  errors.city = 'Only alphabets and spaces allowed.';
+} else if (address.city.length < 2) {
+  errors.city = 'City must be at least 2 characters.';
+}
+
+    // State, district, and zip validations
+    if (!address.state) errors.state = 'Please select a state.';
+    if (!address.district) errors.district = 'Please select a district.';
+    if (!address.zipCode) errors.zipCode = 'Please select a pincode.';
+
+    // Address Type
+    validateField(
+      address.addressType,
+      'addressType',
+      onlyAlphaNumericAndSpaces,
+      1,
+      'Only alphanumeric characters and spaces allowed.',
+    );
+
+    if (Object.keys(errors).length > 0) {
+      allErrors[index] = errors;
+      hasError = true;
+      continue;
+    }
+
+    const addressPayload = {
+      createdBy: userID,
+      updatedBy: userID,
+      isActive: true,
+      id: patientID,
+      type: 'Patient',
+      addressType: address.addressType || '',
+      address1: address.address1 || '',
+      address2: address.address2 || '',
+      city: address.city || '',
+      district: address.district || '',
+      state: address.state || '',
+      zipCode: address.zipCode || '',
+    };
+
+    // Add axios POST request to promises array
+    promises.push(
+      axios
+        .post(
           'https://predart003-001-site1.anytempurl.com/api/Address',
           addressPayload,
-        );
-      } catch (error) {
-        console.error(`Failed to save address at index ${index}:`, error);
-        allErrors[index] = { general: 'Failed to save this address.' };
-        hasError = true;
+        )
+        .then(() => {
+          addresses[index].isSaved = true;
+          addresses[index].original = { ...address };
+        })
+        .catch((error) => {
+          console.error(`Failed to save address at index ${index}:`, error);
+          allErrors[index] = { general: 'Failed to save this address.' };
+          hasError = true;
+        }),
+    );
+  }
+
+  // Wait for all promises to resolve
+  await Promise.all(promises);
+
+  setFormErrors(allErrors);
+
+  if (hasError) {
+    return {
+      isValid: false,
+      errors: allErrors,
+    };
+  }
+
+  toast.success('All addresses saved successfully!');
+  return {
+    isValid: true,
+    errors: {},
+  };
+};
+
+
+const handleMedicalSubmit = async () => {
+  const updatedErrors: { [index: number]: { [field: string]: string } } = {};
+  const patientID = sessionStorage.getItem('patientID');
+
+  // Regex to disallow emojis, special characters, and whitespace
+  const onlyDigits = /^\d+(\.\d+)?$/; // allows numbers and optional decimal
+  const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+  const noOnlySpaces = /\S/;
+
+  sections.forEach((section, index) => {
+    const fieldErrors: { [field: string]: string } = {};
+
+    // Height validation
+    if (!section.height || !noOnlySpaces.test(section.height)) {
+      fieldErrors.height = 'Height is required.';
+    } else if (!onlyDigits.test(section.height)) {
+      fieldErrors.height = 'Height must contain digits only.';
+    } else if (!noEmojis.test(section.height)) {
+      fieldErrors.height = 'Emojis are not allowed.';
+    } else {
+      const heightValue = parseFloat(section.height);
+      if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
+        fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
       }
     }
 
-    setFormErrors(allErrors);
-
-    if (hasError) {
-      return {
-        isValid: false,
-        errors: allErrors,
-      };
+    // Weight validation
+    if (!section.weight || !noOnlySpaces.test(section.weight)) {
+      fieldErrors.weight = 'Weight is required.';
+    } else if (!onlyDigits.test(section.weight)) {
+      fieldErrors.weight = 'Weight must contain digits only.';
+    } else if (!noEmojis.test(section.weight)) {
+      fieldErrors.weight = 'Emojis are not allowed.';
+    } else {
+      const weightValue = parseFloat(section.weight);
+      if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
+        fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
+      }
     }
 
-    alert('All addresses saved successfully!');
+    // Blood Group validation
+    if (!section.bloodGroup) {
+      fieldErrors.bloodGroup = 'Blood Group is required.';
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      updatedErrors[index] = fieldErrors;
+    }
+  });
+
+  setFormErrors(updatedErrors);
+
+  // Stop if any errors
+  if (Object.keys(updatedErrors).length > 0) {
+    toast.error('Please correct the errors before submitting.'); // Toast error for validation issues
+    return {
+      isValid: false,
+      errors: updatedErrors,
+    };
+  }
+
+  // If valid, save data
+  try {
+    const medicalInfo = {
+      patientsID: patientID,
+      height: parseFloat(sections[0].height),
+      weight: parseFloat(sections[0].weight),
+      bloodGroupID: bloodGroups.find(
+        (group) => group.name === sections[0].bloodGroup,
+      )?.appLOVID,
+      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+    };
+
+    await axios.post(
+      'https://predart003-001-site1.anytempurl.com/api/Patient/SaveMedicalInformation',
+      medicalInfo,
+    );
+
+    toast.success('Medical Information saved successfully!'); // Toast success for successful submission
     return {
       isValid: true,
       errors: {},
     };
-  };
+  } catch (error: any) {
+    const errorMessage = error?.response?.data?.message
+      ? `Failed: ${error.response.data.message}`
+      : 'Failed to save Medical Information.';
 
-  const handleMedicalSubmit = async () => {
-    const updatedErrors: { [index: number]: { [field: string]: string } } = {};
-    const patientID = sessionStorage.getItem('patientID');
-  
-    // Regex to disallow emojis, special characters, and whitespace
-    const onlyDigits = /^\d+(\.\d+)?$/; // allows numbers and optional decimal
-    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-    const noOnlySpaces = /\S/;
-  
-    sections.forEach((section, index) => {
-      const fieldErrors: { [field: string]: string } = {};
-  
-      // Height validation
-      if (!section.height || !noOnlySpaces.test(section.height)) {
-        fieldErrors.height = 'Height is required.';
-      } else if (!onlyDigits.test(section.height)) {
-        fieldErrors.height = 'Height must contain digits only.';
-      } else if (!noEmojis.test(section.height)) {
-        fieldErrors.height = 'Emojis are not allowed.';
-      } else {
-        const heightValue = parseFloat(section.height);
-        if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
-          fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
-        }
-      }
-  
-      // Weight validation
-      if (!section.weight || !noOnlySpaces.test(section.weight)) {
-        fieldErrors.weight = 'Weight is required.';
-      } else if (!onlyDigits.test(section.weight)) {
-        fieldErrors.weight = 'Weight must contain digits only.';
-      } else if (!noEmojis.test(section.weight)) {
-        fieldErrors.weight = 'Emojis are not allowed.';
-      } else {
-        const weightValue = parseFloat(section.weight);
-        if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
-          fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
-        }
-      }
-  
-      // Blood Group validation
-      if (!section.bloodGroup) {
-        fieldErrors.bloodGroup = 'Blood Group is required.';
-      }
-  
-      if (Object.keys(fieldErrors).length > 0) {
-        updatedErrors[index] = fieldErrors;
-      }
-    });
-  
-    setFormErrors(updatedErrors);
-  
-    // Stop if any errors
-    if (Object.keys(updatedErrors).length > 0) {
-      return {
-        isValid: false,
-        errors: updatedErrors,
-      };
-    }
-  
-    // If valid, save data
-    try {
-      const medicalInfo = {
-        patientsID: patientID,
-        height: parseFloat(sections[0].height),
-        weight: parseFloat(sections[0].weight),
-        bloodGroupID: bloodGroups.find(
-          (group) => group.name === sections[0].bloodGroup,
-        )?.appLOVID,
-        createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
-      };
-  
-      await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveMedicalInformation',
-        medicalInfo,
-      );
-  
-      alert('Medical Information saved successfully!');
-      return {
-        isValid: true,
-        errors: {},
-      };
-    } catch (error: any) {
-      alert(
-        error?.response?.data?.message
-          ? `Failed: ${error.response.data.message}`
-          : 'Failed to save Medical Information.',
-      );
-      return {
-        isValid: false,
-        errors: { general: 'Error saving Medical Information' },
-      };
-    }
-  };
-  
-
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    const patientID = sessionStorage.getItem('patientID');
-
-    const updatedBoxes = boxes.map((box) => {
-      const updatedErrors = {};
-      Object.keys(box).forEach((field) => {
-        if (field !== 'errors') {
-          updatedErrors[field] = validateField(field, box[field]);
-        }
-      });
-      return { ...box, errors: updatedErrors };
-    });
-
-    setBoxes(updatedBoxes);
-
-    const hasErrors = updatedBoxes.some((box) =>
-      Object.values(box.errors).some((err) => err),
-    );
-    if (hasErrors) {
-      alert('Please fix the validation errors before submitting.');
-      return;
-    }
-
-    const payload = {
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
-      patientsID: patientID,
-      isActive: true,
-      name: boxes[0].name,
-      height: parseFloat(boxes[0].height) || 0,
-      weight: parseFloat(boxes[0].weight) || 0,
-      dateOfBirth: boxes[0].patientDateOfBirth || new Date().toISOString(),
-      bloodGroupID: boxes[0].bloodGroup, // already the ID now
-      email: boxes[0].email || '',
-      phoneNumber: boxes[0].phoneNumber || '',
+    toast.error(errorMessage); // Toast error for failure
+    return {
+      isValid: false,
+      errors: { general: 'Error saving Medical Information' },
     };
+  }
+};
 
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
 
-      const result = await response.json();
+ const handleFormSubmit = async (e) => {
+  e.preventDefault();
 
-      if (result.success) {
-        alert('Family information saved successfully!');
-      } else {
-        alert('Failed to save family information.');
+  const patientID = sessionStorage.getItem('patientID');
+
+  if (!patientID) {
+    toast.error('Patient ID is missing.');
+    return;
+  }
+
+  const updatedBoxes = boxes.map((box) => {
+    const updatedErrors = {};
+    Object.keys(box).forEach((field) => {
+      if (field !== 'errors') {
+        updatedErrors[field] = validateField(field, box[field]);
       }
-    } catch (error) {
-      console.error('Error saving family information:', error);
-      alert('An error occurred while saving.');
+    });
+    return { ...box, errors: updatedErrors };
+  });
+
+  setBoxes(updatedBoxes);
+
+  const hasErrors = updatedBoxes.some((box) =>
+    Object.values(box.errors).some((err) => err),
+  );
+
+  if (hasErrors) {
+    toast.warn('Please fix the validation errors before submitting.');
+    return;
+  }
+
+  const payload = updatedBoxes.map((box) => ({
+    createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+    patientsID: patientID,
+    isActive: true,
+    name: box.name,
+    height: parseFloat(box.height) || 0,
+    weight: parseFloat(box.weight) || 0,
+    dateOfBirth: box.patientDateOfBirth || new Date().toISOString(),
+    bloodGroupID: box.bloodGroup,
+    email: box.email || '',
+    phoneNumber: box.phoneNumber || '',
+  }));
+
+  try {
+    const response = await fetch(
+      'https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const result = await response.json();
+
+    if (result.success) {
+      toast.success('Family information saved successfully!');
+    } else {
+      toast.error('Failed to save family information.');
     }
-  };
+  } catch (error) {
+    console.error('Error saving family information:', error);
+    toast.error('An error occurred while saving.');
+  }
+};
+
 
   const handleChange = (index: number, field: string, value: string) => {
     const updatedSections = [...sections];
@@ -992,148 +1257,69 @@ const PatientFormWizard: React.FC = () => {
 
   // Submit the preferences to the API
 
-  const handlePreferencesSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+ const handlePreferencesSubmit = async (event: React.FormEvent) => {
+  event.preventDefault();
 
-    const userID = sessionStorage.getItem('userID');
-    const patientID = sessionStorage.getItem('patientID');
+  const userID = sessionStorage.getItem('userID');
+  const patientID = sessionStorage.getItem('patientID');
 
-    const isAnySelected = Object.values(preferences).some((value) => value);
+  const isAnySelected = Object.values(preferences).some((value) => value);
 
-    if (!isAnySelected) {
-      setError('Please select at least one preference.');
-      return {
-        isValid: false,
-        errors: { preferences: 'Please select at least one preference.' },
-      };
-    } else {
-      setError('');
-    }
-
-    const preferencesData = {
-      patientsID: patientID,
-      updatedBy: userID,
-      isActive: true,
-      ...preferences,
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+  if (!isAnySelected) {
+    setError('Please select at least one preference.');
+    toast.error('Please select at least one preference.'); // Toast error for validation
+    return {
+      isValid: false,
+      errors: { preferences: 'Please select at least one preference.' },
     };
+  } else {
+    setError('');
+  }
 
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SavePreferences',
-        preferencesData,
-      );
-
-      console.log('Preferences saved successfully:', response.data);
-      alert('Preferences saved successfully!');
-
-      return {
-        isValid: true,
-        errors: {},
-      };
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-      alert('Failed to save preferences.');
-
-      return {
-        isValid: false,
-        errors: { general: 'Failed to save preferences.' },
-      };
-    }
+  const preferencesData = {
+    patientsID: patientID,
+    updatedBy: userID,
+    isActive: true,
+    ...preferences,
+    createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
   };
+
+  try {
+    const response = await axios.post(
+      'https://predart003-001-site1.anytempurl.com/api/Patient/SavePreferences',
+      preferencesData,
+    );
+
+    console.log('Preferences saved successfully:', response.data);
+    toast.success('Preferences saved successfully!'); // Toast success for successful submission
+
+    return {
+      isValid: true,
+      errors: {},
+    };
+  } catch (error) {
+    console.error('Error saving preferences:', error);
+    toast.error('Failed to save preferences.'); // Toast error for failure
+
+    return {
+      isValid: false,
+      errors: { general: 'Failed to save preferences.' },
+    };
+  }
+};
+
 
   const [currentStep, setCurrentStep] = useState(1); // Track the active step
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [stepSavedStatus, setStepSavedStatus] = useState<{
+    [step: number]: boolean;
+  }>({});
+
   const isFormValid =
     Object.values(formErrors).every((error) => error === '') &&
     Object.values(formData).every((value) => value !== '');
 
-  const handleStepSubmit = async (
-    e: React.FormEvent,
-    handleNext: () => void,
-  ) => {
-    e.preventDefault();
-
-    if (!isFormReady) {
-      console.warn('Form is still loading. Try again in a moment.');
-      return;
-    }
-
-    console.log('✅ FormData at submit:', formData);
-
-    let validationResult: { isValid: boolean; errors: Record<string, string> } =
-      {
-        isValid: false,
-        errors: {},
-      };
-
-    try {
-      if (currentStep === 1) {
-        const submitResult = await handleSubmit(e);
-        validationResult = {
-          isValid: submitResult.isValid,
-          errors: submitResult.errors,
-        };
-      } else if (currentStep === 2) {
-        const addressResult = await handleAddressSubmit();
-        validationResult = {
-          isValid: addressResult.isValid,
-          errors: addressResult.errors,
-        };
-      } else if (currentStep === 3) {
-        const medicalResult = await handleMedicalSubmit(e);
-        validationResult = {
-          isValid: medicalResult.isValid,
-          errors: medicalResult.errors,
-        };
-      } else if (currentStep === 4) {
-        const preferencesResult = await handlePreferencesSubmit(e);
-        validationResult = {
-          isValid: preferencesResult.isValid,
-          errors: preferencesResult.errors,
-        };
-      } else if (currentStep === 5) {
-        const formResult = await handleFormSubmit(e);
-        validationResult = {
-          isValid: formResult.isValid,
-          errors: formResult.errors,
-        };
-      }
-
-      if (validationResult.isValid) {
-        console.log('✅ Validation passed');
-        handleNext(); // Go to next UI step
-        setCompletedSteps((prev) => [...prev, currentStep]);
-        setCurrentStep((prev) => prev + 1);
-      } else {
-        console.warn('⚠️ Missing or invalid fields:', validationResult.errors);
-        setFormErrors(validationResult.errors);
-
-        // Optional: Scroll to first error field
-        const firstErrorField = Object.keys(validationResult.errors)[0];
-        const el = document.querySelector(`[name="${firstErrorField}"]`);
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    } catch (error) {
-      console.error('🚨 Error during form submission:', error);
-    }
-  };
-
-  // ✅ Next button template
-
-  const nextButtonTemplate = (handleNext: () => void) => (
-    <div>
-      <button
-        type="button"
-        className="base-button"
-        onClick={(e) => handleStepSubmit(e, handleNext)}
-      >
-        Next
-      </button>
-    </div>
-  );
-
-  // ✅ Finish button template
+ 
   const finishButtonTemplate = (handleComplete: () => void) => (
     <button className="finish-button" onClick={handleComplete}>
       Finish
@@ -1141,6 +1327,7 @@ const PatientFormWizard: React.FC = () => {
   );
 
   const [steps, setSteps] = useState<{ label: string }[]>([]);
+
   useEffect(() => {
     const formSections = ['Basic Details', 'Education', 'Experience', 'Awards'];
 
@@ -1151,43 +1338,114 @@ const PatientFormWizard: React.FC = () => {
     setSteps(generatedSteps);
   }, []);
 
+  const isAddressFetched = useRef(false);
+
+  useEffect(() => {
+    fetchPatientAddress();
+  }, []); // run only once on component mount
+
   const fetchPatientAddress = async () => {
     const patientID = sessionStorage.getItem('patientID');
     if (!patientID) return;
+
+    if (isAddressFetched.current) {
+      return; // Already fetched, skip
+    }
 
     try {
       const response = await axios.get(
         `https://predart003-001-site1.anytempurl.com/api/Address/getaddress?id=${patientID}&Type=Patient`,
       );
 
-      if (response.data?.success && response.data.data) {
+      if (response.data?.success && Array.isArray(response.data.data)) {
         const addressData = response.data.data;
 
-        // Wrap the object in an array for your form
-        const formatted = [
-          {
-            addressID: addressData.addressID || '',
-            addressType: addressData.addressType || '',
-            address1: addressData.address1 || '',
-            address2: addressData.address2 || '',
-            city: addressData.city || '',
-            district: addressData.district || '',
-            state: addressData.state || '',
-            zipCode: addressData.zipCode || '',
-            type: addressData.type || '',
-          },
-        ];
+        if (addressData.length === 0) {
+          // Show initial empty address box
+          setAddresses([
+            {
+              addressID: '',
+              addressType: '',
+              address1: '',
+              address2: '',
+              city: '',
+              district: '',
+              state: '',
+              zipCode: '',
+              type: '',
+            },
+          ]);
 
-        setAddresses(formatted);
+          // Do NOT set isAddressFetched to true, allow user retry/input
+          return;
+        }
+
+        const formatted = addressData.map((addr: any) => ({
+          addressID: addr.addressID || '',
+          addressType: addr.addressType || '',
+          address1: addr.address1 || '',
+          address2: addr.address2 || '',
+          city: addr.city || '',
+          district: addr.district || '',
+          state: addr.state || '',
+          zipCode: addr.zipCode || '',
+          type: addr.type || '',
+        }));
+
+        setAddresses((prevAddresses) => {
+          const isSameLength = prevAddresses.length === formatted.length;
+          const isExactMatch =
+            isSameLength &&
+            prevAddresses.every((prevAddr, idx) => {
+              const newAddr = formatted[idx];
+              return (
+                prevAddr.addressID === newAddr.addressID &&
+                prevAddr.address1 === newAddr.address1 &&
+                prevAddr.address2 === newAddr.address2 &&
+                prevAddr.city === newAddr.city &&
+                prevAddr.district === newAddr.district &&
+                prevAddr.state === newAddr.state &&
+                prevAddr.zipCode === newAddr.zipCode &&
+                prevAddr.addressType === newAddr.addressType
+              );
+            });
+
+          return isExactMatch ? prevAddresses : formatted;
+        });
+
+        isAddressFetched.current = true;
+
+        // Pre-fill state/district/city if data is available
+        const address = formatted[0];
+
+        if (address.state) {
+          const districtRes = await axios.get(
+            `https://predart003-001-site1.anytempurl.com/api/Address/districts?StateCode=${address.state}`,
+          );
+          const districtData = districtRes.data.data || [];
+          setDistricts(districtData);
+
+          const uniquePincodes = Array.from(
+            new Set(districtData.map((d: any) => d.pinCode)),
+          );
+          setPincodes(uniquePincodes);
+        }
+
+        if (address.district) {
+          const cityRes = await axios.get(
+            `https://predart003-001-site1.anytempurl.com/api/Address/cities?districtName=${address.district}`,
+          );
+          const cityData = cityRes.data.data || [];
+          setCities(cityData);
+
+          setShowCityInput(cityData.length === 0);
+        }
       }
     } catch (error) {
       console.error('Failed to fetch address:', error);
+      // Optionally handle with user-friendly message or fallback UI
     }
   };
-
-  useEffect(() => {
-    fetchPatientAddress();
-  }, []);
 
   <div className="step-navigation">
     {steps.map((step, index) => (
@@ -1201,13 +1459,20 @@ const PatientFormWizard: React.FC = () => {
     ))}
   </div>;
 
-  const backTemplate = (handlePrevious: () => void) => {
-    return (
-      <button className="base-button" onClick={handlePrevious}>
-        back
+  const nextButtonTemplate = (handleNext: () => void) => (
+    <div>
+      <button type="button" className="base-button" onClick={handleNext}>
+        Next
       </button>
-    );
-  };
+    </div>
+  );
+
+  const backTemplate = (handlePrev: () => void) => (
+    <button type="button" className="base-button" onClick={handlePrev}>
+      Back
+    </button>
+  );
+
   return (
     <div className="bg-white min-h-screen">
       <div className="container">
@@ -1233,7 +1498,7 @@ const PatientFormWizard: React.FC = () => {
                 </div>
               }
             >
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSubmit}>
                 {/* First Line: Name and Email */}
                 <div className="grid grid-cols-2 gap-4">
                   {/* Name */}
@@ -1349,20 +1614,22 @@ const PatientFormWizard: React.FC = () => {
                     {/* Gender */}
                     <div>
                       <select
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-4 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        name="patientGender"
                         value={formData.patientGender}
+                        className="custom-date-input w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+  text-black outline-none focus:border-primary dark:border-form-strokedark 
+  dark:bg-form-input dark:text-white dark:focus:border-primary"
                         onChange={(e) =>
-                          handleFormInputChange('patientGender', e.target.value)
+                          setFormData((prev) => ({
+                            ...prev,
+                            patientGender: e.target.value,
+                          }))
                         }
                       >
                         <option value="">Select Gender</option>
-                        {genderOptions.map((gender, index) => (
-                          <option key={index} value={gender.code}>
-                            {' '}
-                            {/* Use the 'code' or 'name' based on your API response */}
-                            {gender.name} {/* Display the gender name */}
+                        {genderOptions.map((gender) => (
+                          <option key={gender.code} value={gender.code}>
+                            {gender.name}
                           </option>
                         ))}
                       </select>
@@ -1377,6 +1644,9 @@ const PatientFormWizard: React.FC = () => {
                 </div>
 
                 {/* Submit Button */}
+                <div className="flex justify-end">
+                  <CustomButton type="submit">Save Basic Details</CustomButton>
+                </div>
               </form>
             </FormWizard.TabContent>
 
@@ -1393,152 +1663,217 @@ const PatientFormWizard: React.FC = () => {
                 </div>
               }
             >
-              <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // handleSubmit will only handle the current form state
+                  handleAddressSubmit();
+                }}
+              >
                 <h2 className="text-lg font-bold text-black-700 text-left mt-8">
                   Address
                 </h2>
+                {addresses &&
+                  addresses.length > 0 &&
+                  addresses.map((address, index) => (
+                    <div
+                      key={index}
+                      onClick={() => handleSelectAddress(index)}
+                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    >
+                      {/* Address Type */}
+                      <div className="mb-4">
+                        <div className="flex flex-col">
+                          <select
+                            className="w-[200px] rounded-lg border border-stroke p-2 pl-4 text-black outline-none bg-transparent dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            value={address.addressType}
+                            onChange={(e) =>
+                              updateAddress(
+                                index,
+                                'addressType',
+                                e.target.value,
+                              )
+                            }
+                          >
+                            <option value="">Select Address Type</option>
+                            {addressTypes.map((type) => (
+                              <option key={type.appLOVID} value={type.name}>
+                                {type.name}
+                              </option>
+                            ))}
+                          </select>
+                          {formErrors[index]?.addressType && (
+                            <p className="text-red-500 text-sm mt-1 text-left">
+                              {formErrors[index].addressType}
+                            </p>
+                          )}
+                        </div>
+                      </div>
 
-                {addresses.map((address, index) => (
-                  <div
-                    key={index}
-                    onClick={() => handleSelectAddress(index)}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    {/* Address Type */}
-                    <div className="flex justify-between items-center mb-4">
-                      <select
-                        className="w-[200px] rounded-lg border border-stroke bg-transparent p-2 pl-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.addressType} // Fix here: ensure it's using address.addressType
-                        onChange={
-                          (e) =>
-                            updateAddress(index, 'addressType', e.target.value) // Update addressType
-                        }
-                      >
-                        <option value="">Select Address Type</option>
-                        {addressTypes.map((type) => (
-                          <option key={type.appLOVID} value={type.name}>
-                            {type.name}
-                          </option>
-                        ))}
-                      </select>
-                      {formErrors[index]?.addressType && (
-                        <p className="text-red-500 text-sm">
-                          {formErrors[index].addressType}
-                        </p>
-                      )}
+                      {/* Address Fields */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <input
+                            type="text"
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            value={address.address1}
+                            onChange={(e) =>
+                              updateAddress(index, 'address1', e.target.value)
+                            }
+                            placeholder="Enter address line 1"
+                          />
+                          {formErrors[index]?.address1 && (
+                            <p className="text-red-500 text-sm">
+                              {formErrors[index].address1}
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            value={address.address2}
+                            onChange={(e) =>
+                              updateAddress(index, 'address2', e.target.value)
+                            }
+                            placeholder="Enter address line 2"
+                          />
+                          {formErrors[index]?.address2 && (
+                            <p className="text-red-500 text-sm">
+                              {formErrors[index].address2}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* City, District, State, Zip Code */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        {/* Section 1: State & District */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <select
+                              value={address.state || ''}
+                              onChange={(e) => handleStateChange(e, index)}
+                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            >
+                              <option value="">Select State</option>
+                              {states.map((state) => (
+                                <option key={state.id} value={state.stateName}>
+                                  {state.stateName}
+                                </option>
+                              ))}
+                            </select>
+                            {formErrors[index]?.state && (
+                              <p className="text-red-500 text-sm">
+                                {formErrors[index].state}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <select
+                              value={address.district || ''}
+                              onChange={(e) => handleDistrictChange(e, index)}
+                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            >
+                              <option value="">Select District</option>
+                              {[
+                                ...new Map(
+                                  districts.map((d) => [d.districtName, d]),
+                                ).values(),
+                              ].map((dist) => (
+                                <option key={dist.id} value={dist.districtName}>
+                                  {dist.districtName}
+                                </option>
+                              ))}
+                            </select>
+                            {formErrors[index]?.district && (
+                              <p className="text-red-500 text-sm">
+                                {formErrors[index].district}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Section 2: Pincode & City */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <select
+                              value={address.zipCode || ''}
+                              onChange={(e) =>
+                                updateAddress(index, 'zipCode', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            >
+                              <option value="">Select Pincode</option>
+                              {pincodes.map((pin, index) => (
+                                <option key={index} value={pin}>
+                                  {pin}
+                                </option>
+                              ))}
+                            </select>
+
+                            {formErrors[index]?.zipCode && (
+                              <p className="text-red-500 text-sm">
+                                {formErrors[index].zipCode}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            {showCityInput ? (
+                              <>
+                                <input
+                                  type="text"
+                                  value={address.city || ''}
+                                  onChange={(e) => {
+                                    updateAddress(
+                                      index,
+                                      'city',
+                                      e.target.value,
+                                    );
+                                    setManualCity(e.target.value);
+                                  }}
+                                  placeholder="Enter City"
+                                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                />
+
+                                {formErrors[index]?.city && (
+                                  <p className="text-red-500 text-sm">
+                                    {formErrors[index].city}
+                                  </p>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <select
+                                  value={address.city || ''}
+                                  onChange={(e) =>
+                                    updateAddress(index, 'city', e.target.value)
+                                  }
+                                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                                >
+                                  <option value="">Select City</option>
+                                  {cities.map((city) => (
+                                    <option key={city.id} value={city.cityName}>
+                                      {city.cityName}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                {formErrors[index]?.city && (
+                                  <p className="text-red-500 text-sm">
+                                    {formErrors[index].city}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
                     </div>
-
-                    {/* Address Fields */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <input
-                          type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.address1}
-                          onChange={(e) =>
-                            updateAddress(index, 'address1', e.target.value)
-                          }
-                          placeholder="Enter address line 1"
-                        />
-                        {formErrors[index]?.address1 && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].address1}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.address2}
-                          onChange={(e) =>
-                            updateAddress(index, 'address2', e.target.value)
-                          }
-                          placeholder="Enter address line 2"
-                        />
-                        {formErrors[index]?.address2 && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].address2}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* City, District, State, Zip Code */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mt-4">
-                      <div>
-                        <input
-                          type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.city}
-                          onChange={(e) =>
-                            updateAddress(index, 'city', e.target.value)
-                          }
-                          placeholder="Enter city"
-                        />
-                        {formErrors[index]?.city && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].city}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        {/* District Input Field */}
-                        <input
-                          type="text"
-                          placeholder="Enter District"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.district}
-                          onChange={(e) =>
-                            updateAddress(index, 'district', e.target.value)
-                          }
-                        />
-                        {formErrors[index]?.district && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].district}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        {/* State Input Field */}
-                        <input
-                          type="text"
-                          placeholder="Enter State"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.state}
-                          onChange={(e) =>
-                            updateAddress(index, 'state', e.target.value)
-                          }
-                        />
-                        {formErrors[index]?.state && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].state}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <input
-                          type="text"
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                          value={address.zipCode}
-                          onChange={(e) =>
-                            updateAddress(index, 'zipCode', e.target.value)
-                          }
-                          placeholder="Enter zip code"
-                        />
-                        {formErrors[index]?.zipCode && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].zipCode}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
+                  ))}
                 {/* Add New Address */}
                 <div className="flex items-center justify-end gap-1">
                   <div
@@ -1550,6 +1885,10 @@ const PatientFormWizard: React.FC = () => {
                   <span className="text-sm font-medium text-black-600">
                     Add
                   </span>
+                </div>
+
+                <div className="flex justify-end">
+                  <CustomButton type="submit">Save Address</CustomButton>
                 </div>
               </form>
             </FormWizard.TabContent>
@@ -1564,7 +1903,14 @@ const PatientFormWizard: React.FC = () => {
                 </div>
               }
             >
-              <form className="space-y-6">
+              <form
+                className="space-y-6"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  // handleSubmit will only handle the current form state
+                  handleMedicalSubmit();
+                }}
+              >
                 <h2 className="text-lg font-bold text-black-700 text-left">
                   Medical Information
                 </h2>
@@ -1648,6 +1994,11 @@ const PatientFormWizard: React.FC = () => {
                       </div>
                     </div>
                   ))}
+                  <div className="flex justify-end mt-4 ">
+                    <CustomButton type="submit">
+                      Save medical information
+                    </CustomButton>
+                  </div>
                 </div>
               </form>
             </FormWizard.TabContent>
@@ -1662,7 +2013,13 @@ const PatientFormWizard: React.FC = () => {
                 </div>
               }
             >
-              <form className="space-y-4">
+              <form
+                className="space-y-4"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handlePreferencesSubmit(e); // Pass the event to the handler
+                }}
+              >
                 <h2 className="text-lg font-bold text-black-700 text-left">
                   Preferences
                 </h2>
@@ -1685,7 +2042,9 @@ const PatientFormWizard: React.FC = () => {
                     );
                   })}
                 </div>
-
+                <div className="flex justify-end mt-4 ">
+                  <CustomButton type="submit">Save prefrences</CustomButton>
+                </div>
                 {error && (
                   <p style={{ color: 'red', marginTop: '8px' }}>{error}</p>
                 )}
@@ -1725,7 +2084,6 @@ const PatientFormWizard: React.FC = () => {
                             }
                             placeholder="Enter the name"
                           />
-
                           {box.errors.name && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.name}
@@ -1757,6 +2115,7 @@ const PatientFormWizard: React.FC = () => {
                             type="tel"
                             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.phoneNumber}
+                            maxLength={10}
                             onChange={(e) =>
                               handleInputChange(
                                 index,
@@ -1776,8 +2135,7 @@ const PatientFormWizard: React.FC = () => {
 
                       {/* Age, Blood Group, Height, Weight, Gender, and PAN in the second row (6 columns) */}
                       <div className="grid grid-cols-6 gap-4 mt-4">
-                        {/* Age */}
-
+                        {/* Date of Birth */}
                         <div className="col-span-2">
                           <input
                             type={box.showDateInput ? 'date' : 'text'}
@@ -1793,9 +2151,7 @@ const PatientFormWizard: React.FC = () => {
                                 );
                               }
                             }}
-                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.patientDateOfBirth}
                             onChange={(e) =>
                               handleInputChange(
@@ -1807,7 +2163,6 @@ const PatientFormWizard: React.FC = () => {
                             placeholder="Date of birth"
                             max={new Date().toISOString().split('T')[0]} // Disallows future dates and today
                           />
-
                           {box.errors.patientDateOfBirth && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.patientDateOfBirth}
@@ -1852,43 +2207,6 @@ const PatientFormWizard: React.FC = () => {
                             }}
                             placeholder="Height"
                           />
-                          {/* Up/Down controls */}
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col justify-center items-center space-y-1">
-                            <button
-                              type="button"
-                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
-                              onClick={() => {
-                                const newVal = Math.min(
-                                  Number(box.weight || 0) + 1,
-                                  999,
-                                ); // max 3 digits
-                                handleInputChange(
-                                  index,
-                                  'weight',
-                                  newVal.toString(),
-                                );
-                              }}
-                            >
-                              ▲
-                            </button>
-                            <button
-                              type="button"
-                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
-                              onClick={() => {
-                                const newVal = Math.max(
-                                  Number(box.weight || 0) - 1,
-                                  0,
-                                ); // prevent going below 0
-                                handleInputChange(
-                                  index,
-                                  'weight',
-                                  newVal.toString(),
-                                );
-                              }}
-                            >
-                              ▼
-                            </button>
-                          </div>
                           {box.errors.height && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.height}
@@ -1899,7 +2217,7 @@ const PatientFormWizard: React.FC = () => {
                         {/* Weight */}
                         <div className="col-span-1 relative">
                           <input
-                            type="text" // change to "text" to fully control decimal input
+                            type="text"
                             className="w-full hide-number-arrows rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={box.weight ?? ''}
                             onChange={(e) => {
@@ -1914,45 +2232,6 @@ const PatientFormWizard: React.FC = () => {
                             }}
                             placeholder="Weight"
                           />
-
-                          {/* Up/Down controls */}
-                          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col justify-center items-center space-y-1">
-                            <button
-                              type="button"
-                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
-                              onClick={() => {
-                                const newVal = Math.min(
-                                  Number(box.weight || 0) + 1,
-                                  999,
-                                ); // max 3 digits
-                                handleInputChange(
-                                  index,
-                                  'weight',
-                                  newVal.toString(),
-                                );
-                              }}
-                            >
-                              ▲
-                            </button>
-                            <button
-                              type="button"
-                              className="text-xs text-gray-200 hover:text-black dark:hover:text-white"
-                              onClick={() => {
-                                const newVal = Math.max(
-                                  Number(box.weight || 0) - 1,
-                                  0,
-                                ); // prevent going below 0
-                                handleInputChange(
-                                  index,
-                                  'weight',
-                                  newVal.toString(),
-                                );
-                              }}
-                            >
-                              ▼
-                            </button>
-                          </div>
-
                           {box.errors.weight && (
                             <p className="text-red-500 text-sm mt-1">
                               {box.errors.weight}
@@ -1980,9 +2259,9 @@ const PatientFormWizard: React.FC = () => {
                 <button
                   type="submit"
                   className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-          hover:from-[#007BFF] hover:to-[#004A99]
-          text-white transition duration-150 
-          ease-out hover:ease-in py-2 px-5 rounded-lg"
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
                 >
                   Submit
                 </button>
@@ -2006,6 +2285,13 @@ const PatientFormWizard: React.FC = () => {
               </div>
             </div>
           )}
+<ToastContainer
+  position="top-right"
+  autoClose={2000}
+  hideProgressBar={false}
+  closeOnClick
+  pauseOnHover
+/>
 
           {/* Inline styles */}
           <style>{`
