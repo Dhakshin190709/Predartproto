@@ -17,6 +17,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
+import api from '../api/request';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -142,12 +143,10 @@ const Calendar: React.FC = () => {
 
     const fetchTimeSlots = async () => {
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
-        );
-        const responseData = await response.json();
-        const data = Array.isArray(responseData.data) ? responseData.data : [];
-
+        const response = await api.get('/Doctor/GetDoctorTimeSlot');
+        const data = Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
         console.log('Fetched Time Slots Data:', data);
 
         const matchedTimeSlots = data.filter(
@@ -196,47 +195,44 @@ const Calendar: React.FC = () => {
     }
   }, [appointmentType]);
 
-  const fetchAppointments = async (doctorID) => {
-    try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}`,
-      );
-      const data = await response.json();
+ const fetchAppointments = async (doctorID: string) => {
+  try {
+    const response = await api.get(`/Appointment/GetAppointment?DoctorID=${doctorID}`);
+    const data = response.data;
 
-      if (Array.isArray(data)) {
-        const parsedAppointments = data.map((appt) => {
-          const date = new Date(appt.appointmentDate);
-          const [hours, minutes] = appt.appointmentTime.split(':');
-          date.setHours(parseInt(hours));
-          date.setMinutes(parseInt(minutes));
-          date.setSeconds(0);
+    if (Array.isArray(data)) {
+      const parsedAppointments = data.map((appt: any) => {
+        const date = new Date(appt.appointmentDate);
+        const [hours, minutes] = appt.appointmentTime.split(':');
+        date.setHours(parseInt(hours, 10));
+        date.setMinutes(parseInt(minutes, 10));
+        date.setSeconds(0);
 
-          return {
-            start: new Date(date),
-            end: new Date(date.getTime() + timeInterval * 60000), // add slot duration
-            title: appt.patientName, // Optional: show patient name
-            status: 'booked',
-          };
-        });
+        return {
+          start: new Date(date),
+          end: new Date(date.getTime() + timeInterval * 60000), // add slot duration
+          title: appt.patientName,
+          status: 'booked',
+        };
+      });
 
-        setBookedAppointments(parsedAppointments);
-      }
-    } catch (err) {
-      console.error('Failed to fetch appointments', err);
+      setBookedAppointments(parsedAppointments);
     }
-  };
+  } catch (err) {
+    console.error('Failed to fetch appointments', err);
+  }
+};
+
 
   const fetchRelationships = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-      );
-      const result = await response.json();
+      const response = await api.get('/AppLOV?type=Relationship');
+      const result = response.data;
 
-      console.log('API Response:', result); // Check the response structure
+      console.log('API Response:', result);
 
       if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
+        setRelationships(result.data);
       } else {
         console.error('Invalid relationship data format:', result.data);
         setRelationships([]);
@@ -298,95 +294,88 @@ const Calendar: React.FC = () => {
 
   // Handle selecting a time slot and matching it to available slots
 
-  const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
-    const toMinutes = (timeStr: string) => {
-      const [hh, mm, ss] = timeStr.split(':').map(Number);
-      return hh * 60 + mm;
-    };
-  
-    const formatDateToMinutes = (date: Date) => {
-      return date.getHours() * 60 + date.getMinutes();
-    };
-  
-    const selectedStartMin = formatDateToMinutes(start);
-    const selectedEndMin = formatDateToMinutes(end);
-  
-    console.log('Slot selected:');
-  
-    const formatToHHMMSS = (date: Date) =>
-      date.toTimeString().split(' ')[0]; // returns 'HH:MM:SS'
-    
-    console.log('Start Time:', formatToHHMMSS(start));
-    console.log('End Time:', formatToHHMMSS(end));
-  
-    const selectedDay = start.toLocaleDateString('en-US', { weekday: 'long' });
-  
-    // Check if the selected start time (both date and time) is in the past
-    const now = new Date();
-    now.setSeconds(0, 0); // Reset seconds and milliseconds to make sure we're comparing minutes accurately
-    
-    if (start < now) {
-      toast.error('Please select a time that is in the future ');
-      return; // Prevent the selection of past times and dates
-    }
-  
-    // Check if the selected slot is already booked in the future
-    const isSlotBooked = bookedAppointments.some((appointment) => {
-      return (
-        appointment.start.getTime() === start.getTime() && // Compare start times
-        appointment.status === 'booked' &&
-        appointment.start >= now // Ensure it's a future booking
-      );
-    });
-  
-    if (isSlotBooked) {
-      toast.error('This appointment slot is already booked for the future. Please choose another time.');
-      return; // Prevent booking for already booked slots in the future
-    }
-  
-    const matchingSlot = availableTimeSlots.find((slot) => {
-      const slotStart = toMinutes(slot.fromTime); // e.g., 540
-      const slotEnd = toMinutes(slot.toTime); // e.g., 720
-      return (
-        selectedStartMin >= slotStart &&
-        selectedEndMin <= slotEnd &&
-        slot.day === selectedDay
-      );
-    });
-  
-    if (!matchingSlot) {
-      console.warn('No matching timeslot found for selected time.');
-      toast.error('No available time slots for the selected date and time.');
-    } else if (matchingSlot.status === 'booked') {
-      console.warn('Selected timeslot is already booked.');
-      toast.error('You cannot select a booked appointment. Please choose another time.');
-    } else {
-      console.log('✅ Matched Slot Details:');
-      console.log('TimeSlot ID:', matchingSlot.timeSlotID);
-  
-      setSelectedEvent({
-        title: '',
-        start,
-        end,
-        status: 'Pending',
-        doctor: '',
-        patient: '',
-        patientId: '',
-        timeSlotID: matchingSlot.timeSlotID,
-      });
-  
-      setSelectedDoctor('');
-      setPatientName('');
-      setShowAddModal(true);
-    }
-  };
+  // const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+  //   const toMinutes = (timeStr: string) => {
+  //     const [hh, mm, ss] = timeStr.split(':').map(Number);
+  //     return hh * 60 + mm;
+  //   };
 
-  
-  
-  
-  
-  
-  
+  //   const formatDateToMinutes = (date: Date) => {
+  //     return date.getHours() * 60 + date.getMinutes();
+  //   };
+
+  //   const selectedStartMin = formatDateToMinutes(start);
+  //   const selectedEndMin = formatDateToMinutes(end);
+
+  //   console.log('Slot selected:');
+
+  //   const formatToHHMMSS = (date: Date) =>
+  //     date.toTimeString().split(' ')[0]; // returns 'HH:MM:SS'
+
+  //   console.log('Start Time:', formatToHHMMSS(start));
+  //   console.log('End Time:', formatToHHMMSS(end));
+
+  //   const selectedDay = start.toLocaleDateString('en-US', { weekday: 'long' });
+
+  //   // Check if the selected start time (both date and time) is in the past
+  //   const now = new Date();
+  //   now.setSeconds(0, 0); // Reset seconds and milliseconds to make sure we're comparing minutes accurately
+
+  //   if (start < now) {
+  //     toast.error('Please select a time that is in the future ');
+  //     return; // Prevent the selection of past times and dates
+  //   }
+
+  //   // Check if the selected slot is already booked in the future
+  //   const isSlotBooked = bookedAppointments.some((appointment) => {
+  //     return (
+  //       appointment.start.getTime() === start.getTime() && // Compare start times
+  //       appointment.status === 'booked' &&
+  //       appointment.start >= now // Ensure it's a future booking
+  //     );
+  //   });
+
+  //   if (isSlotBooked) {
+  //     toast.error('This appointment slot is already booked for the future. Please choose another time.');
+  //     return; // Prevent booking for already booked slots in the future
+  //   }
+
+  //   const matchingSlot = availableTimeSlots.find((slot) => {
+  //     const slotStart = toMinutes(slot.fromTime); // e.g., 540
+  //     const slotEnd = toMinutes(slot.toTime); // e.g., 720
+  //     return (
+  //       selectedStartMin >= slotStart &&
+  //       selectedEndMin <= slotEnd &&
+  //       slot.day === selectedDay
+  //     );
+  //   });
+
+  //   if (!matchingSlot) {
+  //     console.warn('No matching timeslot found for selected time.');
+  //     toast.error('No available time slots for the selected date and time.');
+  //   } else if (matchingSlot.status === 'booked') {
+  //     console.warn('Selected timeslot is already booked.');
+  //     toast.error('You cannot select a booked appointment. Please choose another time.');
+  //   } else {
+  //     console.log('✅ Matched Slot Details:');
+  //     console.log('TimeSlot ID:', matchingSlot.timeSlotID);
+
+  //     setSelectedEvent({
+  //       title: '',
+  //       start,
+  //       end,
+  //       status: 'Pending',
+  //       doctor: '',
+  //       patient: '',
+  //       patientId: '',
+  //       timeSlotID: matchingSlot.timeSlotID,
+  //     });
+
+  //     setSelectedDoctor('');
+  //     setPatientName('');
+  //     setShowAddModal(true);
+  //   }
+  // };
 
   // Handle the click event of an existing event (Edit Event)
   const handleEventClick = (event: Event) => {
@@ -427,10 +416,8 @@ const Calendar: React.FC = () => {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-        );
-        const result = await response.json();
+        const response = await api.get('/Hospital/List');
+        const result = response.data;
 
         let hospitals = [];
 
@@ -444,7 +431,6 @@ const Calendar: React.FC = () => {
           return;
         }
 
-        // Filter only active hospitals
         const activeHospitals = hospitals.filter((h) => h.isActive === true);
         setHospitals(activeHospitals);
       } catch (error) {
@@ -490,25 +476,21 @@ const Calendar: React.FC = () => {
   // Fetch Doctors
   const fetchDoctors = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor',
-      );
-      const result = await response.json();
+      const response = await api.get('/Doctor');
+      const result = response.data;
 
       if (result.success && Array.isArray(result.data)) {
         setDoctors(result.data);
 
-        // Retrieve logged-in doctorID from sessionStorage
         const loggedInDoctorID = sessionStorage.getItem('doctorID');
 
-        // Find the doctor details based on doctorID
         const loggedInDoctor = result.data.find(
-          (doc) => doc.doctorID === loggedInDoctorID,
+          (doc) => String(doc.doctorID) === String(loggedInDoctorID),
         );
         if (loggedInDoctor) {
           setSelectedDoctor(loggedInDoctor.doctorID);
           setDoctorName(loggedInDoctor.doctorName);
-          fetchDoctorTimeSlots(loggedInDoctor.doctorID); // Fetch time slots for this doctor
+          fetchDoctorTimeSlots(loggedInDoctor.doctorID);
         }
       } else {
         console.error('Invalid doctor data format:', result.data);
@@ -523,10 +505,10 @@ const Calendar: React.FC = () => {
     if (!doctorID) return;
 
     try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+      const response = await api.get(
+        `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
       );
-      const result = await response.json();
+      const result = response.data;
 
       if (
         result.success &&
@@ -541,7 +523,6 @@ const Calendar: React.FC = () => {
           const slotFromTime = new Date(`1970-01-01T${slot.fromTime}`);
           const slotToTime = new Date(`1970-01-01T${slot.toTime}`);
 
-          // 👇 Log timeSlotID here
           console.log('TimeSlot ID:', slot.timeSlotID);
 
           if (!fromTime || slotFromTime < fromTime) fromTime = slotFromTime;
@@ -586,41 +567,47 @@ const Calendar: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (!userID || !doctorID) {
       toast.error('User or Doctor not logged in. Please log in again.');
       return;
     }
-  
+
     // Ensure a slot is selected
     if (!selectedEvent || !selectedEvent.start || !selectedEvent.timeSlotID) {
       toast.error('No timeslot has been selected.');
       return;
     }
-  
+
     const appointmentDate = selectedEvent.start.toLocaleDateString('en-CA'); // Format: YYYY-MM-DD
     const appointmentTime = selectedEvent.start.toTimeString().split(' ')[0]; // Format: HH:MM:SS
-  
-    const appointmentDay = new Date(appointmentDate).toLocaleDateString('en-US', {
-      weekday: 'long',
-    });
-  
+
+    const appointmentDay = new Date(appointmentDate).toLocaleDateString(
+      'en-US',
+      {
+        weekday: 'long',
+      },
+    );
+
     console.log('appointmentDay:', appointmentDay);
-    console.log('doctorAvailability days:', doctorAvailability.map((s) => s.dayofWeek));
-  
+    console.log(
+      'doctorAvailability days:',
+      doctorAvailability.map((s) => s.dayofWeek),
+    );
+
     if (!formData.patientID) {
       toast.warn('Please select a patient.');
       return;
     }
-  
+
     if (!formData.reason || formData.reason.trim() === '') {
       toast.warn('Please enter notes before submitting.');
       return;
     }
-  
+
     const payload = {
       createdBy: userID,
       isActive: true,
@@ -635,20 +622,13 @@ const Calendar: React.FC = () => {
       relationship: 'ae34b43e-74cf-4328-7794-08dd561d6477',
       phoneNumber: formData.phoneNumber || '',
     };
-  
+
     console.log(payload);
-  
+
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Appointment',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      );
-  
-      if (response.ok) {
+      const response = await api.post('/Appointment', payload);
+
+      if (response.status === 200 || response.status === 201) {
         toast.success('Appointment booked successfully!');
         setFormData({
           doctor: '',
@@ -663,16 +643,17 @@ const Calendar: React.FC = () => {
         setAppointmentType('');
         setShowAddModal(false);
       } else {
-        const errorData = await response.json();
-        console.error('Submission failed:', errorData);
         toast.error('Submission failed. Please try again.');
+        console.error('Submission failed:', response.data);
       }
     } catch (error) {
-      console.error('Error during submission:', error);
+      console.error(
+        'Error during submission:',
+        error.response || error.message || error,
+      );
       toast.error('An error occurred. Please try again later.');
     }
   };
-  
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -705,9 +686,7 @@ const Calendar: React.FC = () => {
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-        );
+        const response = await api.get('/AppLOV?type=toWhom');
         console.log('API Response:', response.data);
         setOptions(response.data?.data ?? []);
       } catch (error) {
@@ -905,14 +884,13 @@ const Calendar: React.FC = () => {
     }));
   };
   const [patients, setPatients] = useState([]);
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/Patient',
-        );
-
-        const activePatients = response.data.data.filter((p) => p.isActive);
+        const response = await api.get('/Patient');
+        const activePatients =
+          response.data?.data?.filter((p) => p.isActive) ?? [];
         setPatients(activePatients);
       } catch (error) {
         console.error('Failed to fetch patients', error);
@@ -936,7 +914,7 @@ const Calendar: React.FC = () => {
           step={timeInterval} // ✅ Uses slot duration dynamically
           timeslots={1}
           eventPropGetter={eventStyleGetter}
-          onSelectSlot={handleSelectSlot}
+          // onSelectSlot={handleSelectSlot}
           onSelectEvent={handleEventClick}
           formats={{
             eventTimeRangeFormat: () => '', // Hide event time range
@@ -953,17 +931,16 @@ const Calendar: React.FC = () => {
       </div>
 
       {/* Add Appointment Modal */}
-      {showAddModal && (
+      {/* {showAddModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
             <h2 className="mb-2.5 text-2xl font-bold text-black dark:text-white">
               Add New Appointment
             </h2>
 
-            <form onSubmit={handleSubmit}>
-              {/* Appointment Type */}
+            <form onSubmit={handleSubmit}>     
 
-              {/* Name */}
+            
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
                   <select
@@ -1011,9 +988,9 @@ const Calendar: React.FC = () => {
                 </div>
               </div>
 
-              {/* Hospital Dropdown */}
+             
               <div className="mb-4 flex gap-4">
-                {/* Hospital Dropdown */}
+             
                 <div className="relative w-1/2">
                   <select
                     name="hospital"
@@ -1034,7 +1011,7 @@ const Calendar: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Doctor Dropdown in Modal */}
+              
                 <div className="relative w-1/2">
                   <select
                     name="doctor"
@@ -1049,7 +1026,7 @@ const Calendar: React.FC = () => {
                 </div>
               </div>
 
-              {/* Reason */}
+             
               <div className="mb-4">
                 <textarea
                   name="reason"
@@ -1064,14 +1041,14 @@ const Calendar: React.FC = () => {
                   <p className="text-red-500 text-sm">{errors.reason}</p>
                 )}
               </div>
-              {/* Start Time (date and time picker) */}
+            
               <div className="mb-2.5 block font-medium text-black dark:text-white">
                 <DatePicker
                   selected={selectedEvent ? selectedEvent.start : new Date()}
                   onChange={handleDateChange}
                   showTimeSelect
-                  minTime={fromTime} // Restrict minimum selectable time for selected day
-                  maxTime={toTime} // Restrict maximum selectable time for selected day
+                  minTime={fromTime} 
+                  maxTime={toTime} 
                   dateFormat="Pp"
                   className="w-full rounded-lg border border-stroke 
   bg-transparent py-4 pl-6 pr-10 text-black outline-none
@@ -1080,7 +1057,7 @@ const Calendar: React.FC = () => {
      dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
                 />
               </div>
-              {/* Save and Cancel Buttons */}
+           
               <div className="mt-4 flex justify-between">
                 <button
                   className="bg-gray-500 text-black py-1 px-3 rounded-md"
@@ -1094,7 +1071,7 @@ const Calendar: React.FC = () => {
             </form>
           </div>
         </div>
-      )}
+      )} */}
 
       <ToastContainer
         position="top-right"

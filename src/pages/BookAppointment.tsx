@@ -10,6 +10,7 @@ import ClockIcon from '../../images/icon/Clock.png';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import api from '../api/request';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -26,6 +27,7 @@ const BookAppointment = () => {
     reason: '',
     date: null as Date | null,
     time: null as Date | null,
+     appointmentType: '',
   });
 
   const [errors, setErrors] = useState({
@@ -54,6 +56,7 @@ const BookAppointment = () => {
 
   const [isSelf, setIsSelf] = useState(false);
   const [isOthers, setIsOthers] = useState(false);
+const [loading, setLoading] = useState(false); // ✅ default is false
 
   const [doctorID, setDoctorID] = useState('');
 
@@ -98,88 +101,84 @@ const BookAppointment = () => {
   const [hospitals, setHospitals] = useState([]); // Ensure default state is an array
   const [doctors, setDoctors] = useState([]); // Ensure default state is an array
 
-  const [loading, setLoading] = useState(true);
+
 
   const [selectedDoctorID, setSelectedDoctorID] = useState(null);
+
   const fetchRelationships = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-      );
-      const result = await response.json();
+  try {
+    const response = await api.get('/AppLOV', { params: { type: 'Relationship' } });
+    const result = response.data;
 
-      console.log('API Response:', result); // Check the response structure
+    console.log('API Response:', result);
 
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
-      } else {
-        console.error('Invalid relationship data format:', result.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
+    if (Array.isArray(result.data)) {
+      setRelationships(result.data);
+    } else {
+      console.error('Invalid relationship data format:', result.data);
+      setRelationships([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching relationships:', error);
+  }
+};
+
 
   // Fetch on component mount
   useEffect(() => {
     fetchRelationships();
   }, []);
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-        );
-        const result = await response.json();
-
-        let hospitalData = [];
-
-        if (Array.isArray(result)) {
-          hospitalData = result;
-        } else if (Array.isArray(result?.data)) {
-          hospitalData = result.data;
-        } else {
-          console.error('Invalid hospital data format:', result);
-          setHospitals([]);
-          return;
-        }
-
-        const activeHospitals = hospitalData.filter(
-          (hospital) => hospital.isActive,
-        );
-
-        setHospitals(activeHospitals);
-
-        // ❌ Don’t prefill hospital
-        // setSelectedHospitalID(activeHospitals[0]?.hospitalID);
-        // ❌ Don’t fetch doctors yet
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
-
-  const fetchDoctors = async (hospitalId: string) => {
+ useEffect(() => {
+  const fetchHospitals = async () => {
     try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor?HospitalID=${hospitalId}`,
-      );
-      const result = await response.json();
+      const response = await api.get('/Hospital/List');
+      const result = response.data;
 
-      if (result.success && Array.isArray(result.data)) {
-        setDoctors(result.data);
+      let hospitalData = [];
+
+      if (Array.isArray(result)) {
+        hospitalData = result;
+      } else if (Array.isArray(result?.data)) {
+        hospitalData = result.data;
       } else {
-        console.error('Invalid doctor data format:', result.data);
-        setDoctors([]);
+        console.error('Invalid hospital data format:', result);
+        setHospitals([]);
+        return;
       }
+
+      const activeHospitals = hospitalData.filter(
+        (hospital) => hospital.isActive,
+      );
+
+      setHospitals(activeHospitals);
+
+      // ❌ Don’t prefill hospital
+      // setSelectedHospitalID(activeHospitals[0]?.hospitalID);
+      // ❌ Don’t fetch doctors yet
     } catch (error) {
-      console.error('Error fetching doctors:', error);
+      console.error('Error fetching hospitals:', error);
     }
   };
+
+  fetchHospitals();
+}, []);
+
+  const fetchDoctors = async (hospitalId: string) => {
+  try {
+    const response = await api.get(`/Doctor?HospitalID=${hospitalId}`);
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setDoctors(result.data);
+    } else {
+      console.error('Invalid doctor data format:', result.data);
+      setDoctors([]);
+    }
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+  }
+};
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
@@ -189,54 +188,55 @@ const BookAppointment = () => {
     console.log('Retrieved role:', storedRole);
   }, []);
 
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-        );
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
+ useEffect(() => {
+  const fetchOptions = async () => {
+    try {
+      const response = await api.get('/AppLOV?type=toWhom');
+      console.log('API Response:', response.data);
+      setOptions(response.data?.data ?? []);
+    } catch (error) {
+      console.error('Error fetching options:', error);
+    }
+  };
 
-    fetchOptions();
-  }, []);
+  fetchOptions();
+}, []);
+
 
   useEffect(() => {
+  const fetchPatientData = async () => {
     const userID = sessionStorage.getItem('userID');
     const roleName = sessionStorage.getItem('roleName');
 
     if (userID && roleName !== 'Reception') {
-      fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.data) {
-            const name = data.data.patientName || '';
-            const phoneNumber = data.data.patientPhoneNumber || '';
+      try {
+        const response = await api.get(`/Patient/GetPatientByUserID?userId=${userID}`);
+        const data = response.data;
 
-            // Save it separately
-            setPatientData({ name, phoneNumber });
+        if (data.success && data.data) {
+          const name = data.data.patientName || '';
+          const phoneNumber = data.data.patientPhoneNumber || '';
 
-            // Initialize formData if needed
-            setFormData((prev) => ({
-              ...prev,
-              name,
-              phoneNumber,
-            }));
-          } else {
-            console.warn('⚠️ Failed to fetch patient data');
-          }
-        })
-        .catch((err) => {
-          console.error('❌ Error fetching patient data:', err);
-        });
+          // Save it separately
+          setPatientData({ name, phoneNumber });
+
+          // Initialize formData if needed
+          setFormData((prev) => ({
+            ...prev,
+            name,
+            phoneNumber,
+          }));
+        } else {
+          console.warn('⚠️ Failed to fetch patient data');
+        }
+      } catch (err) {
+        console.error('❌ Error fetching patient data:', err);
+      }
     }
-  }, []);
+  };
+
+  fetchPatientData();
+}, []);
 
   const handleOptionChange = (selectedOption: AppLOVOption) => {
     setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
@@ -258,7 +258,25 @@ const BookAppointment = () => {
     if (name === 'name' && !value) error = 'Name is required.';
     if (name === 'hospital' && !value) error = 'Hospital is required.';
     if (name === 'doctor' && !value) error = 'Doctor is required.';
-    if (name === 'reason' && !value) error = 'Reason is required.';
+  if (name === 'reason') {
+  const desc = (value || '').toString().trim();
+
+  if (!desc) {
+    error = 'Reason is required.';
+  } else if (desc.length > 255) {
+    error = 'Reason cannot exceed 255 characters.';
+  } else if (/[\uD800-\uDBFF][\uDC00-\uDFFF]/.test(desc)) {
+    error = 'Emojis are not allowed.';
+  } else if (/[^a-zA-Z0-9\s.,!?'"@#&()\-:;/]/.test(desc)) {
+    error = 'Reason contains invalid characters.';
+  } else if (/(.)\1{3,}/.test(desc)) {
+    error = 'Too many repeated characters.';
+  } else if (/\d{5,}/.test(desc)) {
+    error = 'Too many consecutive digits.';
+  }
+}
+
+
 
     if (name === 'phoneNumber') {
       if (!value) {
@@ -415,129 +433,120 @@ const BookAppointment = () => {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+ 
 
-    const userID = sessionStorage.getItem('userID');
+  setLoading(true); // Start loading
 
-    if (!userID) {
-      toast.error('User not logged in. Please log in again.');
-      return;
-    }
+  const userID = sessionStorage.getItem('userID');
 
-    const newErrors = {
-      name: validateField('name', formData.name),
-      relationship: validateField('relationship', selectedRelationship),
-      hospital: validateField('hospital', selectedHospitalID),
-      phoneNumber: validateField('phoneNumber', formData.phoneNumber),
-      doctor: validateField('doctor', formData.doctor),
-      reason: validateField('reason', formData.reason),
-      date: validateField('date', formData.date),
-      time: validateField('time', formData.time),
-    };
+  if (!userID) {
+    toast.error('User not logged in. Please log in again.');
+      setLoading(false);
+    return;
+  }
 
-    setErrors(newErrors);
-
-    if (Object.values(newErrors).every((error) => error === '')) {
-      try {
-        const patientRes = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-        );
-
-        if (!patientRes.ok) {
-          throw new Error('Failed to fetch patient ID');
-        }
-
-        const patientData = await patientRes.json();
-        const patientID = patientData?.data?.patientID;
-
-        if (!patientID) {
-          toast.error('Patient ID not found for the logged-in user.');
-          return;
-        }
-
-        const appointmentTimeFormatted = formData.time
-          ? convertTo24HourFormat(formData.time)
-          : '00:00:00';
-
-        const formatDateYYYYMMDD = (dateString: string) => {
-          const date = new Date(dateString);
-          const year = date.getFullYear();
-          const month = `0${date.getMonth() + 1}`.slice(-2);
-          const day = `0${date.getDate()}`.slice(-2);
-          return `${year}-${month}-${day}`;
-        };
-        console.log('Form Data:', formData);
-        const payload = {
-          createdBy: userID,
-          isActive: true,
-          doctorID: formData.doctor,
-          patientID: patientID,
-          timeSlotID: formData.timeSlotID, // Pass this correctly
-          appointmentDate: formData.date
-            ? formatDateYYYYMMDD(formData.date)
-            : null,
-          appointmentTime: appointmentTimeFormatted,
-          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-          notes: formData.reason?.trim() || 'No additional notes',
-          toWhom: appointmentType,
-          relationShip: selectedRelationship,
-          phoneNumber: formData.phoneNumber || '',
-        };
-
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Appointment',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          },
-        );
-
-        const responseData = await response.json();
-
-        if (response.ok) {
-          const message =
-            responseData?.message || 'Appointment booked successfully!';
-          toast.success(message);
-          console.log('Form Submitted:', payload);
-          resetForm();
-        } else {
-          const message =
-            responseData?.message || 'Submission failed. Please try again.';
-          toast.error(message);
-        }
-      } catch (error) {
-        console.error('Error during submission:', error);
-        toast.error('An error occurred. Please try again later.');
-      }
-    } else {
-      toast.warning('Please fix the highlighted errors before submitting.');
-    }
+  const newErrors = {
+    name: validateField('name', formData.name),
+    relationship: validateField('relationship', selectedRelationship),
+    hospital: validateField('hospital', selectedHospitalID),
+    phoneNumber: validateField('phoneNumber', formData.phoneNumber),
+    doctor: validateField('doctor', formData.doctor),
+    reason: validateField('reason', formData.reason),
+    date: validateField('date', formData.date),
+    time: validateField('time', formData.time),
   };
+
+  setErrors(newErrors);
+
+  if (Object.values(newErrors).every((error) => error === '')) {
+    try {
+      const patientRes = await api.get(`/Patient/GetPatientByUserID?userId=${userID}`);
+      const patientData = patientRes.data;
+      const patientID = patientData?.data?.patientID;
+
+      if (!patientID) {
+        toast.error('Patient ID not found for the logged-in user.');
+         setLoading(false); 
+        return;
+      }
+
+      const appointmentTimeFormatted = formData.time
+        ? convertTo24HourFormat(formData.time)
+        : '00:00:00';
+
+      const formatDateYYYYMMDD = (dateString: string) => {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = `0${date.getMonth() + 1}`.slice(-2);
+        const day = `0${date.getDate()}`.slice(-2);
+        return `${year}-${month}-${day}`;
+      };
+
+      console.log('Form Data:', formData);
+
+      const payload = {
+        createdBy: userID,
+        isActive: true,
+        doctorID: formData.doctor,
+        patientID: patientID,
+        timeSlotID: formData.timeSlotID, // Pass this correctly
+        appointmentDate: formData.date ? formatDateYYYYMMDD(formData.date) : null,
+        appointmentTime: appointmentTimeFormatted,
+        statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+        notes: formData.reason?.trim() || 'No additional notes',
+        toWhom: appointmentType,
+        relationShip: selectedRelationship,
+        phoneNumber: formData.phoneNumber || '',
+      };
+
+      // Make the API request to book the appointment
+      const response = await api.post('/Appointment', payload);
+      const responseData = response.data;
+
+      // Check if response status is 200 (success)
+      if (response.status === 200) {
+        const message = responseData?.message || 'Appointment booked successfully!';
+        toast.success(message);
+        console.log('Form Submitted:', payload);
+        resetForm();
+      } else {
+        const message = responseData?.message || 'Submission failed. Please try again.';
+        toast.error(message);
+      }
+    } catch (error) {
+      console.error('Error during submission:', error);
+      toast.error('An error occurred. Please try again later.');
+    }
+      setLoading(false);
+  } else {
+    toast.warning('Please fix the highlighted errors before submitting.');
+     setLoading(false);
+  }
+};
+
 
   // ✅ Helper function to reset the form completely
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      relationship: '',
-      phoneNumber: '',
-      doctor: '',
-      reason: '',
-      date: '',
-      time: '',
-      timeSlotID: '',
-    });
-    setSelectedRelationship('');
-    setAppointmentType('');
-    setSelectedHospitalID('');
-    setSelectedDoctorID('');
-    setSelectedDate(null);
-    setSelectedTime(null);
-    setErrors({});
-  };
+ const resetForm = () => {
+  setFormData({
+    name: formData.name, // Keep the current name value
+    relationship: '',
+    phoneNumber: formData.phoneNumber, // Keep the current phone number value
+    doctor: '',
+    reason: '',
+    date: '',
+    time: '',
+    timeSlotID: '',
+  });
+  setSelectedRelationship('');
+  setAppointmentType(formData.appointmentType); // Keep the current appointment type
+  setSelectedHospitalID('');
+  setSelectedDoctorID('');
+  setSelectedDate(null);
+  setSelectedTime(null);
+  setErrors({});
+};
 
   const handleHospitalChange = async (
     event: React.ChangeEvent<HTMLSelectElement>,
@@ -566,10 +575,11 @@ const BookAppointment = () => {
 
     try {
       // Fetch the time slots for the selected doctor using the correct API
-      const timeSlotResponse = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-      );
-      const timeSlotData = await timeSlotResponse.json();
+     const timeSlotResponse = await api.get(
+  `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
+);
+const timeSlotData = timeSlotResponse.data;
+
 
       console.log('Fetched Time Slot Data:', timeSlotData);
 
@@ -638,51 +648,59 @@ const BookAppointment = () => {
     if (matchedDaySlots.length) {
       console.log('Doctor is available on this date based on their schedule.');
 
-      try {
-        const appointmentResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
-        );
-        const appointmentData = await appointmentResponse.json();
-        console.log('Raw Appointment Data:', appointmentData);
+     try {
+  const appointmentResponse = await api.get(
+    `/Appointment/GetAppointment`,
+    {
+      params: {
+        DoctorID: selectedDoctorID,
+        StartDate: localDate,
+        EndDate: localDate,
+      },
+    }
+  );
+  const appointmentData = appointmentResponse.data;
+  console.log('Raw Appointment Data:', appointmentData);
 
-        const appointmentList = Array.isArray(appointmentData)
-          ? appointmentData
-          : [];
+  const appointmentList = Array.isArray(appointmentData)
+    ? appointmentData
+    : [];
 
-        const bookedSlots = appointmentList.map((appointment: any) => ({
-          appointmentDate: appointment?.appointmentDate,
-          appointmentTime: appointment?.appointmentTime,
-        }));
+  const bookedSlots = appointmentList.map((appointment: any) => ({
+    appointmentDate: appointment?.appointmentDate,
+    appointmentTime: appointment?.appointmentTime,
+  }));
 
-        console.log('Booked Slots:', bookedSlots);
+  console.log('Booked Slots:', bookedSlots);
 
-        // ✅ Generate time slots using the fetched bookedSlots
-        let generated: { time: Date; timeSlotID: number }[] = [];
+  // ✅ Generate time slots using the fetched bookedSlots
+  let generated: { time: Date; timeSlotID: number }[] = [];
 
-        matchedDaySlots.forEach(
-          ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-            const slots = generateTimeSlots(
-              fromTime,
-              toTime,
-              slotDuration,
-              timeSlotID,
-              bookedSlots,
-              date,
-            );
-            generated = [...generated, ...slots];
-          },
-        );
+  matchedDaySlots.forEach(
+    ({ fromTime, toTime, slotDuration, timeSlotID }) => {
+      const slots = generateTimeSlots(
+        fromTime,
+        toTime,
+        slotDuration,
+        timeSlotID,
+        bookedSlots,
+        date,
+      );
+      generated = [...generated, ...slots];
+    },
+  );
 
-        setBookedSlots(bookedSlots); // store after use
-        setGeneratedTimeSlots(generated); // set available slots
+  setBookedSlots(bookedSlots);
+  setGeneratedTimeSlots(generated);
 
-        setFormData((prev) => ({
-          ...prev,
-          timeSlotID: matchedDaySlots[0].timeSlotID,
-        }));
-      } catch (error) {
-        console.error('Error fetching appointments:', error);
-      }
+  setFormData((prev) => ({
+    ...prev,
+    timeSlotID: matchedDaySlots[0].timeSlotID,
+  }));
+} catch (error) {
+  console.error('Error fetching appointments:', error);
+}
+
     } else {
       console.warn(`Doctor is NOT available on ${dayOfWeek}.`);
       setGeneratedTimeSlots([]);
@@ -993,6 +1011,7 @@ const BookAppointment = () => {
             <div className="mb-4">
               <textarea
                 name="reason"
+                maxLength={255}
                 placeholder="Enter your text here..."
                 value={formData.reason}
                 onChange={handleInputChange}
@@ -1078,7 +1097,10 @@ const BookAppointment = () => {
           </form>
           <div className="w-full px-0 sm:px-0 xl:px-0 flex justify-start">
             <div className="w-full sm:w-1/2 md:w-1/4">
-              <CustomButton onClick={handleSubmit}>Book Now</CustomButton>
+             <CustomButton onClick={handleSubmit} disabled={loading}>
+  {loading ? 'Booking...' : 'Book Now'}
+</CustomButton>
+
               <ToastContainer position="top-right" autoClose={3000} />
             </div>
           </div>

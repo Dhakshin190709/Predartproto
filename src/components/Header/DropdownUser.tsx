@@ -5,6 +5,7 @@ import axios from 'axios';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/actions/authActions';
+import api from '../../api/request';
 interface DocumentEntry {
   documentID: string;
   documentType: string;
@@ -44,7 +45,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
       ? '/patientFormWizard'
       : roleName === 'doctor'
         ? '/DoctorFormWizard'
-        : '/HospitalProfile';
+        : '/HospitalFormWizard';
 
   const handleLogout = () => {
     dispatch(logout());
@@ -65,10 +66,8 @@ useEffect(() => {
     }
 
     try {
-      const docListRes = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDocuments?doctorId=${patientID}`
-      );
-
+       const docListRes = await api.get(`/Doctor/GetDocuments?doctorId=${patientID}`);
+       
       const documents = docListRes.data?.data ?? [];
       console.log('Documents fetched:', documents);
 
@@ -81,9 +80,8 @@ useEffect(() => {
         return;
       }
 
-      const imageRes = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/Documents/${photoDoc.documentID}`
-      );
+       const imageRes = await api.get(`/Doctor/Documents/${photoDoc.documentID}`);
+       
       const base64 = imageRes?.data?.data?.fileBase64;
       console.log('Image base64 response:', base64);
 
@@ -107,13 +105,13 @@ useEffect(() => {
 
   return (
     <ClickOutside onClick={() => setDropdownOpen(false)} className="relative">
-     <Link
+   <Link
   to="#"
   onClick={() => setDropdownOpen(!dropdownOpen)}
   className="flex items-center gap-4"
 >
-  {imageBase64 ? (
-    // ✅ Profile Image if available
+  {roleName === 'Patient' && imageBase64 ? (
+    // ✅ Show profile photo only for Patients
     <div
       style={{
         width: '60px',
@@ -133,12 +131,13 @@ useEffect(() => {
       />
     </div>
   ) : (
-    // ✅ Initials Avatar fallback
+    // ✅ Avatar fallback for non-Patients and Patients without photo
     <div className="bg-blue-400 text-white rounded-full w-[60px] h-[60px] flex items-center justify-center font-bold text-lg border-2 border-gray-300">
       {avatarLetters}
     </div>
   )}
 </Link>
+
 
       {/* <!-- Dropdown Start --> */}
       {dropdownOpen && (

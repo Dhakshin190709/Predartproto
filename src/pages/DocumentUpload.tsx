@@ -3,6 +3,10 @@ import axios from 'axios';
 import { X } from 'lucide-react';
 import { Trash2 } from 'lucide-react';
 import { Eye } from 'lucide-react';
+ import { toast } from 'react-toastify';
+ import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import api from '../api/request';
 const FileUpload = () => {
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
@@ -19,19 +23,28 @@ const FileUpload = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [uploadBoxes, setUploadBoxes] = useState([{ id: Date.now() }]);
 
+const [selectedPatientName, setSelectedPatientName] = useState('');
+
   const [patients, setPatients] = useState([]);
   const [selectedPatient, setSelectedPatient] = useState('');
-const roleName = sessionStorage.getItem("roleName");
-  const sessionPatientId = sessionStorage.getItem("patientID");
-  // Assuming you get roleName and patientID from session storage
+const [roleName, setRoleName] = useState<string | null>(null);
+
+useEffect(() => {
+  const storedRoleName = sessionStorage.getItem("roleName");
+  setRoleName(storedRoleName);
+}, []);
+
+ const sessionPatientId = sessionStorage.getItem('patientID');
+console.log('Session Patient ID:', sessionPatientId);
+
   
-  const patientID = sessionStorage.getItem('patientID');
+ 
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
+
  const fetchDocumentTypes = async () => {
   try {
-    const response = await axios.get(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=documentType',
-    );
+    const response = await api.get('/AppLOV?type=documentType');
+    
     if (response.data && Array.isArray(response.data.data)) {
       const activeDocumentTypes = response.data.data.filter(
         (item) => item.isActive === true // or item.status === 'Active'
@@ -54,42 +67,93 @@ const roleName = sessionStorage.getItem("roleName");
   }, []);
 
   // Fetch Uploaded Documents
-  const fetchUploadedDocuments = async () => {
-    try {
-      const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDocuments?doctorId=${patientID}`,
-      );
-      setUploadedDocuments(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch uploaded documents:', error);
-    }
-  };
+ const fetchUploadedDocuments = async () => {
+  try {
+    const response = await api.get(`/Doctor/GetDocuments`, {
+      params: { doctorId: patientID },
+    });
+    setUploadedDocuments(response.data.data || []);
+  } catch (error) {
+    console.error('Failed to fetch uploaded documents:', error);
+  }
+};
 
-   useEffect(() => {
+useEffect(() => {
     const fetchPatients = async () => {
-      try {
-        const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Patient");
-        const data = await response.json();
-        if (data.success && data.data) {
-          setPatients(data.data);
+      const tenantID = sessionStorage.getItem('tenantID');
+      const sessionPatientId = sessionStorage.getItem('patientID');
+      const storedRoleName = sessionStorage.getItem('roleName');
 
-          // Prefill selected patient only for Patient role
-          if (roleName === "Patient" && sessionPatientId) {
-            setSelectedPatient(sessionPatientId);
+      setRoleName(storedRoleName); // Save roleName for use in JSX
+
+      console.log('Session Patient ID:', sessionPatientId);
+      console.log('Role Name:', storedRoleName);
+
+      if (!tenantID || !storedRoleName || !sessionPatientId) {
+        console.warn('Missing tenantID, roleName, or sessionPatientId.');
+        return;
+      }
+
+      try {
+        if (storedRoleName.toLowerCase() === 'patient') {
+          // Fetch single patient data
+          const response = await api.get(`/Patient/${sessionPatientId}`);
+          const data = response.data;
+
+          if (data.success && data.data) {
+            console.log('Fetched single patient data:', data.data);
+            setSelectedPatient(data.data.patientID);
+            setSelectedPatientName(data.data.patientName);
+
+            // Also set patients array so dropdown can show this patient if needed
+            setPatients([data.data]);
+          } else {
+            console.warn('No data returned for patient');
+          }
+        } else {
+          // Fetch all patients
+          const response = await api.get('/Patient', {
+            params: { tenantID },
+          });
+
+          const data = response.data;
+
+          if (data.success && data.data) {
+            console.log('Fetched patient list:', data.data);
+            setPatients(data.data);
+
+            const matchingPatient = data.data.find(
+              (p) => String(p.patientID) === String(sessionPatientId)
+            );
+
+            if (matchingPatient) {
+              console.log('Matched patient:', matchingPatient.patientName);
+              setSelectedPatient(matchingPatient.patientID);
+              setSelectedPatientName(matchingPatient.patientName);
+            } else {
+              console.warn('No matching patient found for session ID');
+            }
           }
         }
       } catch (error) {
-        console.error("Error fetching patient data:", error);
+        console.error('Error fetching patient data:', error);
       }
     };
 
     fetchPatients();
-  }, [roleName, sessionPatientId]);
+  }, []);
 
-  const handlePatientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+   const isPatientRole = roleName?.toLowerCase() === 'patient';
+
+
+
+  const handlePatientChange = (e) => {
     setSelectedPatient(e.target.value);
+    const selected = patients.find(
+      (p) => String(p.patientID) === e.target.value
+    );
+    setSelectedPatientName(selected ? selected.patientName : '');
   };
-
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -106,48 +170,46 @@ const roleName = sessionStorage.getItem("roleName");
     setSelectedDocumentType(event.target.value);
   };
 
- const handleUpload = async () => {
+const handleUpload = async () => {
   if (!selectedFile || !selectedType) {
-    alert('Please select a file and document type.');
+    toast.error('Please select all fields..');
     return;
   }
 
   const reader = new FileReader();
   reader.readAsDataURL(selectedFile);
+
   reader.onload = async () => {
     const base64String = reader.result?.toString().split(',')[1];
     if (!base64String) {
-      console.error('Failed to convert file to Base64');
+      toast.error('Failed to convert file to Base64.');
       return;
     }
 
     const roleName = sessionStorage.getItem('roleName');
-    console.log('Role:', roleName);  // Debugging step
-
     let id = '';
 
     if (roleName === 'Patient') {
       const sessionPatientId = sessionStorage.getItem('patientID');
-      console.log('Session Patient ID:', sessionPatientId);  // Debugging step
       if (!sessionPatientId) {
-        alert('Patient ID not found in session for Patient role.');
+        toast.error('Patient ID not found in session for Patient role.');
         return;
       }
-      id = sessionPatientId; // Use sessionPatientId for Patient
+      id = sessionPatientId;
     } else if (roleName === 'Reception') {
       if (!selectedPatient) {
-        alert('Please select a patient from the dropdown.');
+        toast.error('Please select a patient from the dropdown.');
         return;
       }
-      id = selectedPatient; // Use selectedPatient for Reception
+      id = selectedPatient;
     } else {
-      alert('Unsupported role.');
+      toast.error('Unsupported role.');
       return;
     }
 
     const userID = sessionStorage.getItem('userID');
     if (!userID) {
-      alert('User not logged in. Please log in again.');
+      toast.error('User not logged in. Please log in again.');
       return;
     }
 
@@ -157,7 +219,7 @@ const roleName = sessionStorage.getItem("roleName");
     const payload = {
       createdBy: userID,
       isActive: true,
-      id: id, // Use the dynamic ID based on role
+      id: id,
       type: 'patient',
       documentType: selectedType,
       fileName: selectedFile.name,
@@ -166,49 +228,50 @@ const roleName = sessionStorage.getItem("roleName");
       fileExtension: fileExtension,
     };
 
-    try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDocuments',
-        payload
-      );
-      console.log('Upload successful:', response.data);
-      setSelectedFile(null);
-      setPreviewSrc(null);
-      setSelectedType('');
-    } catch (error) {
-      console.error('Upload failed:', error);
+     try {
+      const response = await api.post('/Doctor/SaveDocuments', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success('Document uploaded successfully!');
+        setSelectedFile(null);
+        setPreviewSrc(null);
+        setSelectedType('');
+      } else {
+        toast.error('Upload failed. Please try again.');
+      }
+    } catch (error: any) {
+      toast.error('Upload failed: ' + (error.response?.data?.message || error.message));
     }
   };
 };
 
-  // View Document in Modal
-  const handleViewDocument = async (documentID, fileName) => {
-  try {
-    const response = await axios.get(
-      `https://predart003-001-site1.anytempurl.com/api/Doctor/Documents/${documentID}`
-    );
 
-    if (!response.data?.data?.fileBase64) {
+  // View Document in Modal
+ const handleViewDocument = async (documentID: string, fileName: string) => {
+  try {
+    const response = await api.get(`/Doctor/Documents/${documentID}`);
+    
+    const fileBase64 = response.data?.data?.fileBase64;
+    if (!fileBase64) {
       alert('Invalid file data received.');
       return;
     }
 
-    const fileBase64 = response.data.data.fileBase64;
+    // Determine if the file is an image by extension
+    const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+    setIsImage(isImageFile);
 
-    // Check if the file is an image
-    const isImageFile = fileName.match(/\.(jpg|jpeg|png|gif)$/i);
-    setIsImage(!!isImageFile);
-
+    // Decode base64 to binary data
     const byteCharacters = atob(fileBase64);
     const byteArray = new Uint8Array(byteCharacters.length);
     for (let i = 0; i < byteCharacters.length; i++) {
       byteArray[i] = byteCharacters.charCodeAt(i);
     }
 
-    // Correctly determine file MIME type
+    // Determine MIME type based on file extension
     let fileType = 'application/pdf';
     if (isImageFile) {
-      const ext = fileName.split('.').pop().toLowerCase();
+      const ext = fileName.split('.').pop()?.toLowerCase();
       fileType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
     }
 
@@ -234,22 +297,29 @@ const roleName = sessionStorage.getItem("roleName");
 
       {/* File Upload Section */}
       <div className="flex items-center gap-2 flex-wrap">
-       <select
-      id="patientDropdown"
-      value={selectedPatient}
-      onChange={handlePatientChange}
-      disabled={roleName === "Patient"}
-      className={`w-[35] rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary ${
-        roleName === "Patient" ? "bg-gray-100 cursor-not-allowed" : ""
-      }`}
-    >
-      <option value="">Select a patient</option>
-      {patients.map((patient) => (
-        <option key={patient.patientID} value={patient.patientID}>
-          {patient.patientName}
-        </option>
-      ))}
-    </select>
+      {isPatientRole ? (
+        <input
+          type="text"
+          readOnly
+          value={selectedPatientName}
+          className="w-[35] rounded-lg border border-stroke bg-gray-100 py-2 px-4 text-black outline-none cursor-not-allowed"
+        />
+      ) : (
+        <select
+          id="patientDropdown"
+          value={selectedPatient || ''}
+          onChange={(e) => setSelectedPatient(e.target.value)}
+          className="w-[35] rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary"
+        >
+          <option value="">Select a patient</option>
+          {patients.map((patient) => (
+            <option key={patient.patientID} value={patient.patientID}>
+              {patient.patientName}
+            </option>
+          ))}
+        </select>
+      )}
+
 
 
         {/* Document Type Dropdown */}
@@ -289,7 +359,7 @@ const roleName = sessionStorage.getItem("roleName");
           Upload
         </button>
       </div>
-
+  <ToastContainer position="top-right" autoClose={3000} />
       {/* Uploaded Documents Table */}
 
       <div className="mt-6">

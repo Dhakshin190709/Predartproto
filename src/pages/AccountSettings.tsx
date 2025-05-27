@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import api from '../api/request';
 
 const UserToggle: React.FC = () => {
   const [isActive, setIsActive] = useState<boolean>(true);
 
   const fetchUsers = async (status: boolean) => {
-    try {
-      await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/User?isActive=${status}`
-      );
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-
+  try {
+    const response = await api.get(`/User?isActive=${status}`);
+    // Assuming you want to use the data:
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    return null;
+  }
+};
   useEffect(() => {
     fetchUsers(isActive);
   }, [isActive]);

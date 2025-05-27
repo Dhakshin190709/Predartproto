@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import Logo from '../../images/logo/image.png';
+import Logo from '../../images/logo/logo-bg.png';
 import { NavLink } from 'react-router-dom';
-import { FaCcMastercard, FaChevronDown, FaChevronUp, FaMagic } from 'react-icons/fa';
+import { FaBookMedical, FaCcMastercard, FaChevronDown, FaChevronUp, FaGooglePay, FaMagic } from 'react-icons/fa';
 
 import {
   FaCog,FaUsers,FaFileAlt,FaUserCircle,FaHome,FaBell,FaUser,FaFolder,FaPills,FaSearch,FaUserCheck,
@@ -11,6 +11,7 @@ import {
   FaMoneyBillWave,FaHeartbeat,FaFileMedical,FaCalendarCheck,FaMoneyCheckAlt,FaFileExport,FaPoll,FaCalendarAlt,
 } from 'react-icons/fa';
 import { MdDateRange, MdDashboard, MdLocalHospital } from 'react-icons/md';
+import api from '../../api/request';
 
 // Define types
 interface MenuItem {
@@ -42,8 +43,8 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   PatientRecord: { icon: <FaUsers />, route: '/patientRecord' ,},
   'CheckIN/OUT': { icon: <FaUserCheck />, route: '/dashboard' },
   Payment: { icon: <FaCashRegister />, route: '/dashboard' },
-  Medical: { icon: <FaFileMedical />, route: '/dashboard' },
-  Priscription: { icon: <FaPills />, route: '/dashboard' },
+  Medical: { icon: <FaFileMedical />, route: '/medical' },
+  Priscription: { icon: <FaPills />, route: '/prescription' },
   History: { icon: <FaHistory />, route: '#' },
   VisitorPass: { icon: <FaIdBadge />, route: '/visitorplan' },
   Reports: { icon: <FaFileAlt />, route: '#' },
@@ -52,16 +53,19 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   UserManagement: { icon: <FaUsersCog />, route: '#' },
   Events: { icon: <FaCalendarCheck />, route: '#' },
   Offers: { icon: <FaTag />, route: '/offers' },
-  FeedBack: { icon: <FaCommentAlt />, route: '/feedback' },
+  FeedBack: { icon: <FaCommentAlt />, route: '/Feedback/FeedBackForm' },
   Settings: { icon: <FaCog />, route: '#' },
   Tenant: { icon: <FaBuilding />, route: '/tenant' },
   Lab: { icon: <FaFlask />, route: '/search/lab' },
   LabProfile: { icon: <FaFlask />, route: '/LabProfile' },
   //UploadedDocument: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
   LOVMasters: { icon: <FaMagic />, route: '/Masters/LovMasters' },
+  MedicineMaster: { icon: <FaBookMedical />, route: '/Masters/MedicineMaster' },
   DoctorProfile: { icon: <FaUserMd />, route: '/DoctorProfile' },
   PatientProfile: { icon: <FaUserInjured />, route: '/PatientProfile' },
   HospitalRegister: { icon: <FaBuilding />, route: '/hospital' },
+  HospitalProfile: { icon: <FaBuilding />, route: '/HospitalProfile' },
+  Diagnosis: { icon: <FaBuilding />, route: '/DiagnosisPage' },
   // Submenus
   Booking: { icon: <FaClipboardList />, route: '/appointment/booking' },
   'View Available Slot': {
@@ -75,9 +79,15 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Hospital: { icon: <MdLocalHospital />, route: '/search/hospital' },
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
+  Pharmacy: { icon: <FaFirstAid />, route: '/PharmacyDetails/PharmacyCreation' },
+  PharmacyMedicine: { icon: <FaFirstAid />, route: '/PharmacyDetails/PharmacyMedicine' },
   PatientHistory: { icon: <FaUser />, route: '/history/patienthistory' },
   ConsolidatedReport: { icon: <FaFileMedical />, route: '/consolidatedReport' },
   MISReport: { icon: <FaFileExport />, route: '/MISReport' },
+  ExpiringStockReport: { icon: <FaFileExport />, route: '/reports/ExpiringStockReport' },
+  LowStockReport: { icon: <FaFileExport />, route: '/reports/LowStockReport' },
+  StockSummaryReport: { icon: <FaFileExport />, route: '/reports/StockSummaryReport' },
+  RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
  
   AppointmentHistory: {
     icon: <FaClipboardCheck />,
@@ -128,27 +138,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     if (storedUserID) {
       console.log('Stored User ID:', storedUserID);
 
-      const fetchUserMenu = async () => {
-        try {
-          const response = await fetch(
-            `https://predart003-001-site1.anytempurl.com/api/Login/${storedUserID}`,
-          );
+     const fetchUserMenu = async () => {
+  try {
+    const response = await api.get(`/Login/${storedUserID}`);
+    
+    console.log('API Response:', response.data);
 
-          if (!response.ok) {
-            throw new Error('Failed to fetch user menu data');
-          }
-
-          const apiResponse = await response.json();
-          console.log('API Response:', apiResponse);
-
-          if (apiResponse.data && Array.isArray(apiResponse.data)) {
-            setMenuItems(apiResponse.data);
-          }
-        } catch (error) {
-          console.error('Error fetching user menu data:', error);
-        }
-      };
-
+    if (response.data?.data && Array.isArray(response.data.data)) {
+      setMenuItems(response.data.data);
+    } else {
+      console.warn('Unexpected data format:', response.data);
+    }
+  } catch (error) {
+    console.error('Error fetching user menu data:', error);
+  }
+};
       fetchUserMenu();
     } else {
       console.warn('No User ID found in session storage.');
@@ -200,8 +204,8 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
 
 <div className="flex items-center px-4 py-4 lg:py-6">
-  <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-10 mr-3" />
-  <h1 className="font-semibold text-white text-xl">CarePoint Pro</h1>
+  <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-15 mr-3" />
+  <h1 className="font-semibold text-white text-2xl">PreCare</h1>
 </div>
 
       <div className="sidebar-menu overflow-y-auto flex-1">

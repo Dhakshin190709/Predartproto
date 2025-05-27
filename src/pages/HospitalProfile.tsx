@@ -1,9 +1,10 @@
 import React, { useState ,useEffect} from 'react';
-import { FaStar } from 'react-icons/fa';
-import Profile from '../images/icon/profile.svg';
 
+import Profile from '../images/icon/profile.svg';
+import { FaStar, FaStarHalfAlt, FaRegStar } from 'react-icons/fa';
 import axios from 'axios';
 import hp from '../images/icon/hp.jpg';
+import api from '../api/request';
 interface Doctor {
   doctorName: string;
   specializationID: string;
@@ -13,32 +14,7 @@ interface Specialization {
   appLOVID: string;
   name: string;
 }
-const reviews = [
-  {
-    name: 'John D.',
-    rating: 5,
-    review: 'Excellent care and friendly staff. Dr. Morgan is the best!',
-    image: 'https://via.placeholder.com/50',
-  },
-  {
-    name: 'Maria K.',
-    rating: 4,
-    review: 'Very clean and professional service, though waiting time was a bit long.',
-    image: 'https://via.placeholder.com/50',
-  },
-  {
-    name: 'Suresh R.',
-    rating: 5,
-    review: 'Had my surgery done here. Great doctors and follow-up.',
-    image: 'https://via.placeholder.com/50',
-  },
-  {
-    name: 'Leena M.',
-    rating: 4,
-    review: 'Staff was polite and helpful. Great pediatric care.',
-    image: 'https://via.placeholder.com/50',
-  },
-];
+
 
 const HospitalDetails = () => {
   const [reviewPage, setReviewPage] = useState(0);
@@ -49,14 +25,38 @@ const HospitalDetails = () => {
   const [hospitalType, setHospitalType] = useState('');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [specializations, setSpecializations] = useState<Record<string, string>>({});
+const [reviews, setReviews] = useState([]);
+const [overallRating, setOverallRating] = useState<number>(0); // initialize
 
-    useEffect(() => {
+const renderStars = (rating: number) => {
+  const stars = [];
+  const fullStars = Math.floor(rating);
+  const hasHalf = rating % 1 >= 0.25 && rating % 1 < 0.75;
+  const totalStars = 5;
+
+  for (let i = 0; i < fullStars; i++) {
+    stars.push(<FaStar key={i} className="text-yellow-500" />);
+  }
+
+  if (hasHalf) {
+    stars.push(<FaStarHalfAlt key="half" className="text-yellow-500" />);
+  }
+
+  while (stars.length < totalStars) {
+    stars.push(<FaRegStar key={`empty-${stars.length}`} className="text-yellow-500" />);
+  }
+
+  return stars;
+};
+
+   useEffect(() => {
+    // Async function to fetch hospital details
     const fetchHospitalDetails = async () => {
       const unitID = sessionStorage.getItem('unitID'); // Ensure unitID is stored in sessionStorage
       if (!unitID) return;
 
       try {
-        const response = await axios.get(`https://predart003-001-site1.anytempurl.com/api/Hospital/${unitID}`);
+        const response = await api.get(`/Hospital/${unitID}`);
         const data = response.data?.data;
         if (data) {
           setHospitalName(data.hospitalName || '');
@@ -68,47 +68,84 @@ const HospitalDetails = () => {
     };
 
     fetchHospitalDetails();
-  }, []);
+  }, []); // Empty dependency array ensures the effect runs only once on mount
+
+  useEffect(() => {
+    // Fetch reviews from API
+    const fetchReviews = async () => {
+      const unitID = sessionStorage.getItem('unitID');
+      if (!unitID) return; // Ensure unitID is available
+
+      try {
+        // Use your Axios instance (api)
+        const res = await api.get(`/Feedback?EntityId=${unitID}&EntityType=Hospital`);
+        
+        // Filter active reviews
+        const activeReviews = res.data?.filter((item: any) => item.isActive);
+        if (activeReviews) {
+          setReviews(activeReviews); // Set active reviews to state
+        }
+      } catch (err) {
+        console.error('Error fetching reviews:', err); // Handle errors
+      }
+    };
+
+    fetchReviews(); // Call the fetch function
+
+  }, []); // Empty array means this effect runs once when the component mounts
+
+  const getReviewerName = (email: string) => email?.split('@')[0];
 
  useEffect(() => {
     const unitID = sessionStorage.getItem('unitID');
     if (!unitID) return;
 
-    const fetchDoctorsAndSpecializations = async () => {
-      try {
-        // Fetch doctors
-        const doctorRes = await axios.get(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${unitID}`
-        );
-        const doctorData = doctorRes.data?.data || [];
+   const fetchDoctorsAndSpecializations = async () => {
+  try {
+    // Fetch doctors using the axios instance
+    const doctorRes = await api.get(`/Doctor?hospitalId=${unitID}`);
+    const doctorData = doctorRes.data?.data || [];
 
-        // Limit to 5 doctors and extract only needed fields
-        const topFiveDoctors = doctorData.slice(0, 5).map((doc: any) => ({
-          doctorName: doc.doctorName,
-          specializationID: doc.specializationID,
-        }));
+    // Limit to 5 doctors and extract only needed fields
+    const topFiveDoctors = doctorData.slice(0, 5).map((doc: any) => ({
+      doctorName: doc.doctorName,
+      specializationID: doc.specializationID,
+    }));
 
-        // Fetch specializations
-        const specRes = await axios.get(
-          `https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Specializations`
-        );
-        const specData = specRes.data?.data || [];
+    // Fetch specializations using the axios instance
+    const specRes = await api.get(`/AppLOV?type=Specializations`);
+    const specData = specRes.data?.data || [];
 
-        // Map specializationID to name
-        const specMap: Record<string, string> = {};
-        specData.forEach((spec: Specialization) => {
-          specMap[spec.appLOVID] = spec.name;
-        });
+    // Map specializationID to name
+    const specMap: Record<string, string> = {};
+    specData.forEach((spec: Specialization) => {
+      specMap[spec.appLOVID] = spec.name;
+    });
 
-        setDoctors(topFiveDoctors);
-        setSpecializations(specMap);
-      } catch (error) {
-        console.error('Error fetching doctor or specialization data:', error);
-      }
-    };
-
+    // Set the state with the fetched data
+    setDoctors(topFiveDoctors);
+    setSpecializations(specMap);
+  } catch (error) {
+    console.error('Error fetching doctor or specialization data:', error);
+  }
+};
     fetchDoctorsAndSpecializations();
   }, []);
+
+  useEffect(() => {
+    const unitID = sessionStorage.getItem('unitID');
+    if (!unitID) return;
+
+    // Use the Axios instance for the API call
+    api.get(`/Feedback/Rating?EntityId=${unitID}&EntityType=Hospital`)
+      .then(response => {
+        setOverallRating(response.data);  // Set the fetched data into state
+      })
+      .catch(err => {
+        console.error('Rating fetch error:', err);  // Log the error if the request fails
+      });
+  }, []);
+
 
   return (
     <div className="p-4">
@@ -118,35 +155,42 @@ const HospitalDetails = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-8 bg-gradient-to-br from-gray-100 to-white min-h-screen">
       {/* Profile Section */}
       <div className="flex bg-white rounded-3xl shadow-xl p-6 border border-blue-100">
-        <div className="w-1/4">
-          
+  <div className="w-1/4">
+    <img
+      src={hp}
+      alt="hospitalImg"
+      className="rounded-2xl w-full h-full object-cover border border-blue-300 shadow"
+    />
+  </div>
 
-          <img
-          src={hp}
-          alt="hospitalImg"
-          className="rounded-2xl w-full h-full object-cover border border-blue-300 shadow"
-        />
-        </div>
-         <div className="w-3/4 pl-8 flex flex-col justify-center">
-      <h2 className="text-4xl font-extrabold text-blue-800 mb-2">
-        {hospitalName || 'Loading Hospital Name...'}
-      </h2>
-      <p className="text-lg font-medium text-blue-600">
-        {hospitalType || 'Loading Hospital Type...'}
-      </p>
-      <p className="text-gray-700 mt-3 leading-relaxed text-justify">
-        It is a modern 200-bed hospital offering cutting-edge services in cardiology,
-        orthopedics, oncology, and emergency care. We believe in compassionate care
-        and world-class medical infrastructure.
-      </p>
+  <div className="w-3/4 pl-8 flex flex-col justify-center">
+    <h2 className="text-4xl font-extrabold text-blue-800 mb-2">
+      {hospitalName || 'Loading Hospital Name...'}
+    </h2>
+    <p className="text-lg font-medium text-blue-600">
+      {hospitalType || 'Loading Hospital Type...'}
+    </p>
+
+    {/* Overall Rating */}
+    <div className="mt-2 flex items-center gap-3">
+      <div className="flex">{renderStars(overallRating)}</div>
+      <span className="text-gray-700 font-semibold text-sm">{overallRating.toFixed(2)} / 5</span>
     </div>
-      </div>
+
+    <p className="text-gray-700 mt-3 leading-relaxed text-justify">
+      It is a modern 200-bed hospital offering cutting-edge services in cardiology,
+      orthopedics, oncology, and emergency care. We believe in compassionate care
+      and world-class medical infrastructure.
+    </p>
+  </div>
+</div>
+
 
       {/* Info Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Branches */}
-        <div className="bg-green-50 p-6 rounded-2xl shadow hover:shadow-lg transition">
-          <h3 className="text-2xl font-bold text-green-700 mb-4">🏥 Hospital Branches</h3>
+        <div className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition">
+          <h3 className="text-2xl font-bold text-blue-500 mb-4">Hospital Branches</h3>
           <ul className="space-y-2 text-gray-800 list-disc pl-6">
             <li>Main: 123 Health Street, NY</li>
             <li>Brooklyn Branch: 45 Wellness Ave</li>
@@ -155,8 +199,8 @@ const HospitalDetails = () => {
         </div>
 
         {/* Top Doctors */}
-        <div className="bg-purple-50 p-6 rounded-2xl shadow hover:shadow-lg transition">
-      <h3 className="text-2xl font-bold text-purple-700 mb-4">👨‍⚕️ Top Doctors</h3>
+        <div className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition">
+      <h3 className="text-2xl font-bold text-blue-500 mb-4"> Top Doctors</h3>
       <ul className="space-y-2 text-gray-800 list-decimal pl-6">
         {doctors.map((doctor, index) => (
           <li key={index}>
@@ -167,11 +211,11 @@ const HospitalDetails = () => {
     </div>
 
         {/* Specialties */}
-        <div className="bg-yellow-50 p-6 rounded-2xl shadow hover:shadow-lg transition">
-          <h3 className="text-2xl font-bold text-yellow-700 mb-4">🩺 Specialties</h3>
+        <div className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition">
+          <h3 className="text-2xl font-bold text-blue-500 mb-4">Specialties</h3>
           <div className="flex flex-wrap gap-2">
             {["Cardiology", "Orthopedics", "Oncology", "Neurology", "Pediatrics", "Radiology"].map((spec, i) => (
-              <span key={i} className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium shadow">
+              <span key={i} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium shadow">
                 {spec}
               </span>
             ))}
@@ -179,8 +223,8 @@ const HospitalDetails = () => {
         </div>
 
         {/* Facilities */}
-        <div className="bg-indigo-50 p-6 rounded-2xl shadow hover:shadow-lg transition">
-          <h3 className="text-2xl font-bold text-indigo-700 mb-4">🏗️ Infrastructure</h3>
+        <div className="bg-white p-6 rounded-2xl shadow hover:shadow-lg transition">
+          <h3 className="text-2xl font-bold text-blue-500 mb-4">Infrastructure</h3>
           <p className="text-gray-800">
             Modern ICU, digital diagnostics, modular OTs, robotic surgery, 24/7 emergency, cafeteria, pharmacy & more.
           </p>
@@ -188,45 +232,71 @@ const HospitalDetails = () => {
       </div>
 
       {/* Patient Reviews Section */}
-      <div className="bg-white p-6 rounded-3xl shadow-xl border border-red-200">
-        <h3 className="text-3xl font-bold text-red-700 mb-6">📝 Patient Reviews</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {reviews.slice(start, end).map((rev, index) => (
-            <div key={index} className="bg-red-50 border border-red-100 rounded-xl p-4 shadow hover:shadow-md transition">
-              <div className="flex items-center gap-4 mb-3">
-                <img src={Profile} alt="Reviewer" className="w-12 h-12 rounded-full border shadow" />
-                <div>
-                  <p className="font-semibold text-gray-900">{rev.name}</p>
-                  <div className="text-yellow-500 flex gap-1">
-                    {[...Array(rev.rating)].map((_, i) => (
-                      <FaStar key={i} />
-                    ))}
+         <div className="bg-white p-6 rounded-3xl shadow-xl border border-blue-200">
+      <h3 className="text-2xl font-bold text-blue-500 mb-6">Patient Reviews</h3>
+
+      {reviews.length === 0 ? (
+        <p className="text-gray-600">No reviews available.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {reviews.slice(start, end).map((rev) => (
+              <div
+                key={rev.feedbackID}
+                className="bg-blue-50 border border-blue-100 rounded-xl p-4 shadow hover:shadow-md transition"
+              >
+                <div className="flex items-center gap-4 mb-3">
+                  <img
+                    src={Profile}
+                    alt="Reviewer"
+                    className="w-12 h-12 rounded-full border shadow"
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-900">
+                      {getReviewerName(rev.reviewerName)}
+                    </p>
+                    <div className="text-yellow-500 flex gap-1">
+                      {[...Array(rev.rating)].map((_, i) => (
+                        <FaStar key={i} />
+                      ))}
+                      {[...Array(5 - rev.rating)].map((_, i) => (
+                        <FaStar key={`empty-${i}`} className="text-gray-300" />
+                      ))}
+                    </div>
                   </div>
                 </div>
+                <p className="text-gray-700 text-sm leading-relaxed">{rev.comments}</p>
               </div>
-              <p className="text-gray-700 text-sm leading-relaxed">{rev.review}</p>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
 
-        {/* Review Pagination */}
-        <div className="flex justify-end gap-4 mt-6">
-          <button
-            disabled={reviewPage === 0}
-            onClick={() => setReviewPage((prev) => prev - 1)}
-            className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-40"
-          >
-            Back
-          </button>
-          <button
-            disabled={end >= reviews.length}
-            onClick={() => setReviewPage((prev) => prev + 1)}
-            className="px-4 py-2 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700 disabled:opacity-40"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+          {/* Pagination */}
+          <div className="flex justify-between items-center mt-6">
+            <p className="text-sm text-gray-600">
+              Showing {start + 1}-{Math.min(end, reviews.length)} of {reviews.length}
+            </p>
+            <div className="flex gap-4">
+              <button
+                disabled={reviewPage === 0}
+                onClick={() => setReviewPage((prev) => prev - 1)}
+                className="px-4 py-2 rounded-xl bg-blue-400 text-white font-semibold hover:bg-blue-400 disabled:opacity-40"
+              >
+                Back
+              </button>
+              <button
+                disabled={end >= reviews.length}
+                onClick={() => setReviewPage((prev) => prev + 1)}
+                className="px-4 py-2 rounded-xl bg-blue-400 text-white font-semibold hover:bg-blue-400 disabled:opacity-40"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+
+      
     </div>
     </div>
   );

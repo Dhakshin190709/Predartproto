@@ -18,8 +18,9 @@ import SpecializationIcon from '../../images/icon/Health doctor medical medicine
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import api from '../../api/request';
+import { useNavigate } from 'react-router-dom';
 interface Doctor {
   doctorID: string;
   doctorName: string;
@@ -42,9 +43,8 @@ const SearchDoctors: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [options, setOptions] = useState<AppLOVOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-   const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
+  const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
   const [selectedHospital, setSelectedHospital] = useState('');
-
   const [specializations, setSpecializations] = useState<{
     [key: string]: string;
   }>({});
@@ -63,14 +63,19 @@ const SearchDoctors: React.FC = () => {
   const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
   const [isSelf, setIsSelf] = useState(false);
   const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
+  const [doctors, setDoctors] = useState([]); // Ensure default state is an array
 
   const [doctorSearchText, setDoctorSearchText] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
-
+  const [isEditable, setIsEditable] = useState(false); // controls edit toggle
   const [successMessage, setSuccessMessage] = useState('');
+  // const [generatedTimeSlots, setGeneratedTimeSlots] = useState<
+  //   { time: Date; timeSlotID: number }[]
+  // >([]);
 
   const [showPopup, setShowPopup] = useState(false);
+  const closePopup = () => setShowPopup(false);
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [hospitalID, setHospitalID] = useState('');
   const [relationships, setRelationships] = useState([]);
@@ -78,19 +83,22 @@ const SearchDoctors: React.FC = () => {
   const [doctorID, setDoctorID] = useState('');
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
-  const [notes, setNotes] = useState('');
+  // const [notes, setNotes] = useState('');
 
   const [DoctorName, setDoctorName] = useState('');
   const [mobile, setMobile] = useState('');
   const [selectedSpecializationID, setSelectedSpecializationID] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-
+  const [bookedSlots, setBookedSlots] = useState<
+    { appointmentDate: string; appointmentTime: string }[]
+  >([]);
+  const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
+    [],
+  );
   const [formData, setFormData] = useState({
     name: '',
     relationship: '',
-
     phoneNumber: '',
-    hospital: '',
     doctor: '',
     reason: '',
     date: null as Date | null,
@@ -110,21 +118,61 @@ const SearchDoctors: React.FC = () => {
   });
 
   const [roleName, setRoleName] = useState('');
+ const [doctorNameError, setDoctorNameError] = useState("");
+  const [mobileError, setMobileError] = useState("");
+  useEffect(() => {
+    const role = sessionStorage.getItem('roleName');
+    if (role) {
+      setRoleName(role);
+    }
+  }, []);
 
-useEffect(() => {
-  const role = sessionStorage.getItem('roleName');
-  if (role) {
-    setRoleName(role);
+ const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+
+  // Allow only letters, digits, and spaces — remove emojis and special characters
+  const sanitizedValue = value.replace(/[^\p{L}\d ]/gu, ""); 
+  setDoctorName(sanitizedValue);
+
+  // Validation: must contain only letters, digits, and spaces
+  if (!/^[A-Za-z0-9 ]+$/.test(sanitizedValue)) {
+    setDoctorNameError("Only alphabets, numbers, and spaces are allowed");
+  } else {
+    setDoctorNameError("");
   }
-}, []);
+};
 
+
+ const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+
+  // Allow only numbers
+  const numericValue = value.replace(/[^0-9]/g, "");
+  setMobile(numericValue);
+
+  // Regex to block repeated digits (like 8888888888)
+  const isFakeMobile = /^(.)\1{9}$/;
+
+  // Validation
+  if (!/^[6-9][0-9]{0,9}$/.test(numericValue)) {
+    setMobileError("Enter valid 10-digit number starting with 6-9");
+  } else if (numericValue.length !== 10) {
+    setMobileError("Mobile number must be 10 digits");
+  } else if (isFakeMobile.test(numericValue)) {
+    setMobileError("Please enter a valid, non-repetitive mobile number");
+  } else {
+    setMobileError("");
+  }
+};
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
-      .then((response) => response.json())
-      .then((data) => {
+    const fetchHospitals = async () => {
+      try {
+        const response = await api.get('/Hospital/List');
+        const data = response.data;
+
         if (Array.isArray(data)) {
-          const activeHospitals = data.filter((hospital) => hospital.isActive); // ✅ filter active only
+          const activeHospitals = data.filter((hospital) => hospital.isActive);
 
           const hospitalMap = activeHospitals.reduce(
             (acc, hospital) => {
@@ -136,25 +184,29 @@ useEffect(() => {
 
           setHospitals(hospitalMap);
         }
-      })
-      .catch((error) => console.error('Error fetching hospitals:', error));
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+      }
+    };
+
+    fetchHospitals();
   }, []);
 
   const fetchAllDoctors = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
       const unitID = sessionStorage.getItem('unitID');
-  
-      let url = 'https://predart003-001-site1.anytempurl.com/api/Doctor';
-  
+
+      let url = '/Doctor';
+
       // Append hospitalId query if the role is HospitalAdmin
-      if (roleName === 'HostitalAdmin' && unitID) {
+      if (roleName === 'HospitalAdmin' && unitID) {
         url += `?hospitalId=${unitID}`;
       }
-  
-      const response = await fetch(url);
-      const result = await response.json();
-  
+
+      const response = await api.get(url);
+      const result = response.data;
+
       if (result?.data) {
         setDoctorData(result.data);
         setFilteredDoctors(result.data);
@@ -168,7 +220,6 @@ useEffect(() => {
       setLoading(false);
     }
   };
-  
 
   useEffect(() => {
     fetchAllDoctors();
@@ -176,17 +227,16 @@ useEffect(() => {
 
   const fetchRelationships = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-      );
-      const result = await response.json();
+      const response = await api.get('/AppLOV', {
+        params: { type: 'Relationship' },
+      });
 
-      console.log('API Response:', result); // Check the response structure
+      console.log('API Response:', response.data); // Axios response data
 
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
+      if (Array.isArray(response.data.data)) {
+        setRelationships(response.data.data);
       } else {
-        console.error('Invalid relationship data format:', result.data);
+        console.error('Invalid relationship data format:', response.data.data);
         setRelationships([]);
       }
     } catch (error) {
@@ -218,6 +268,25 @@ useEffect(() => {
     }
   }, [selectedHospital, doctorData]);
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      relationship: suggestion,
+    }));
+    setShowSuggestions(false);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      relationship: '',
+    }));
+  };
+
+  const handleBlur = (name: string, value: string) => {
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [name]: validateField(name, value),
+    }));
+  };
+
   const convertTo24HourFormat = (time: Date | string): string => {
     if (!time) return '00:00:00';
 
@@ -231,12 +300,32 @@ useEffect(() => {
     });
   };
 
+  const handleHospitalChange = async (
+    event: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const hospitalId = event.target.value;
+    setSelectedHospitalID(hospitalId);
+    setSelectedDoctorID(''); // clear doctor selection
+
+    if (hospitalId) {
+      await fetchDoctors(hospitalId);
+    } else {
+      setDoctors([]);
+    }
+  };
+
+  useEffect(() => {
+    const storedRole = sessionStorage.getItem('roleName');
+    setRoleName(storedRole);
+    console.log('Retrieved role:', storedRole);
+  }, []);
+
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-        );
+        const response = await api.get('/AppLOV', {
+          params: { type: 'toWhom' },
+        });
         console.log('API Response:', response.data);
         setOptions(response.data?.data ?? []);
       } catch (error) {
@@ -248,96 +337,175 @@ useEffect(() => {
   }, []);
 
   // Open popup and set doctor details
-  const handleBookNow = (doctor: Doctor) => {
-    console.log('Booking doctor:', doctor); // Debugging
+  const handleBookNow = async (doctor: Doctor) => {
+    console.log('Booking doctor:', doctor);
+
     setSelectedDoctor(doctor);
-    setSelectedDoctorID(doctor.doctorID); // Set the doctor ID for the dropdown
+    setSelectedDoctorID(doctor.doctorID);
     setHospitalID(doctor.hospitalID);
     setDoctorID(doctor.doctorID);
     setShowPopup(true);
+
+    setFormData((prev) => ({
+      ...prev,
+      doctor: doctor.doctorID,
+    }));
+
+    try {
+      const response = await api.get('/Doctor/GetDoctorTimeSlot', {
+        params: { doctorId: doctor.doctorID },
+      });
+      const timeSlotData = response.data;
+
+      console.log('Fetched Time Slot Data:', timeSlotData);
+
+      const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+
+      if (data.length === 0) {
+        console.warn('No time slots configured for this doctor.');
+        toast.warn('This doctor has no time slots available.');
+        setAvailableTimeSlots([]);
+        setGeneratedTimeSlots([]);
+        return;
+      }
+
+      const matchedTimeSlots = data.filter(
+        (slot) => String(slot.doctorID) === String(doctor.doctorID),
+      );
+
+      console.log('All TimeSlots:', data);
+      console.log(
+        'Selected Day of Week:',
+        selectedDate?.toLocaleString('en-US', { weekday: 'long' }),
+      );
+      console.log('Matched Slots for this day:', matchedTimeSlots);
+
+      if (matchedTimeSlots.length > 0) {
+        const formattedSlots = matchedTimeSlots.map((slot) => ({
+          timeSlotID: slot.timeSlotID,
+          fromTime: slot.fromTime,
+          toTime: slot.toTime,
+          slotDuration: slot.slotDuration,
+          day: slot.dayofWeek,
+        }));
+        setAvailableTimeSlots(formattedSlots);
+
+        if (selectedDate) {
+          handleDateChange(selectedDate, formattedSlots, doctor.doctorID);
+        }
+      } else {
+        console.warn(
+          'Doctor is NOT available on',
+          selectedDate?.toLocaleDateString(),
+        );
+        setAvailableTimeSlots([]);
+        setGeneratedTimeSlots([]);
+        toast.warn('Doctor is not available on the selected date');
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
+    }
   };
 
-  useEffect(() => {
-    if (selectedDoctorID) {
-      // Instead of simulating an event, you could call the fetch logic directly:
-      const fetchTimeSlots = async () => {
-        try {
-          const response = await fetch(
-            'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
-          );
-          const responseData = await response.json();
-          const data = Array.isArray(responseData.data)
-            ? responseData.data
-            : [];
+  const handleDoctorChange = (e) => {
+    const value = e.target.value;
+    setSelectedDoctorID(value);
+    setFormData((prev) => ({ ...prev, doctor: value }));
+  };
 
-          console.log('Fetched Time Slots Data:', data);
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
-          const matchedTimeSlots = data.filter(
-            (slot) => String(slot.doctorID) === selectedDoctorID,
-          );
-
-          if (matchedTimeSlots.length) {
-            console.log('Matched Time Slots:', matchedTimeSlots);
-
-            const formattedSlots = matchedTimeSlots.map((slot) => ({
-              timeSlotID: slot.timeSlotID,
-              fromTime: slot.fromTime,
-              toTime: slot.toTime,
-              slotDuration: slot.slotDuration,
-              day: slot.dayofWeek, // Ensure this matches the API field
-            }));
-
-            setAvailableTimeSlots(formattedSlots);
-            console.log('Formatted Slots:', formattedSlots);
-
-            // Optionally, if a date is selected, update slots for that date:
-            if (selectedDate) {
-              handleDateChange(selectedDate, formattedSlots);
-            }
-          } else {
-            console.warn('No matching time slots found for this doctor.');
-            setAvailableTimeSlots([]);
-            setGeneratedTimeSlots([]);
-          }
-        } catch (error) {
-          console.error('Error fetching time slots:', error);
-        }
-      };
-      fetchTimeSlots();
-    }
-  }, [selectedDoctorID]); // Run whenever selectedDoctorID changes
-
-  const handleDateChange = (date: Date | null, slots?: TimeSlotType[]) => {
+  const handleDateChange = async (
+    date: Date | null,
+    slots?: TimeSlotType[],
+  ) => {
     if (!date) return;
 
+    const localDate = formatLocalDate(date);
     setSelectedDate(date);
     setFormData((prev) => ({ ...prev, date }));
 
     const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
     if (!Array.isArray(timeSlots)) {
-      console.error('Invalid timeSlots:', timeSlots); // Ensure no event is passed
+      console.error('Invalid timeSlots:', timeSlots);
       return;
     }
 
-    const dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+    const dayOfWeek = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .trim()
+      .toLowerCase();
+
     const matchedDaySlots = timeSlots.filter(
-      (slot) =>
-        slot.day?.toLowerCase().trim() === dayOfWeek.toLowerCase().trim(),
+      (slot) => slot.day?.toLowerCase().trim() === dayOfWeek,
     );
 
-    if (matchedDaySlots.length) {
+    console.log('All TimeSlots: ', timeSlots);
+    console.log('Selected Day of Week:', dayOfWeek);
+    console.log('Matched Slots for this day:', matchedDaySlots);
+
+    if (matchedDaySlots.length === 0) {
+      console.warn(`Doctor is NOT available on ${dayOfWeek}`);
+      setGeneratedTimeSlots([]);
+      return;
+    }
+
+    try {
+      const response = await api.get('/Appointment/GetAppointment', {
+        params: {
+          DoctorID: selectedDoctorID,
+          StartDate: localDate,
+          EndDate: localDate,
+        },
+      });
+      const data = response.data;
+
+      const appointmentList = Array.isArray(data) ? data : [];
+      const bookedSlots = appointmentList.map((appointment: any) => ({
+        appointmentDate: appointment?.appointmentDate,
+        appointmentTime: appointment?.appointmentTime,
+      }));
+
+      let generated: { time: Date; timeSlotID: number }[] = [];
+
       matchedDaySlots.forEach(
         ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-          generateTimeSlots(fromTime, toTime, slotDuration, timeSlotID);
+          const slots = generateTimeSlots(
+            fromTime,
+            toTime,
+            slotDuration,
+            timeSlotID,
+            bookedSlots,
+            date,
+          );
+          generated = [...generated, ...slots];
         },
       );
+
+      if (Array.isArray(generated)) {
+        setGeneratedTimeSlots(generated);
+      } else {
+        console.error('❌ Generated slots is not a valid array:', generated);
+        setGeneratedTimeSlots([]);
+      }
+
+      console.log(
+        '✅ Final Available Slots:',
+        generated.map((s) => s.time.toTimeString().slice(0, 5)),
+      );
+
       setFormData((prev) => ({
         ...prev,
+        date,
         timeSlotID: matchedDaySlots[0].timeSlotID,
       }));
-    } else {
-      console.warn(`No time slots found for ${dayOfWeek}`);
-      setGeneratedTimeSlots([]);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
     }
   };
 
@@ -411,6 +579,31 @@ useEffect(() => {
     setShowDoctorDropdown(true);
   };
 
+  const selectHospital = (hospital: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      hospital,
+    }));
+    setShowHospitalDropdown(false);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      hospital: '', // Clear error on valid selection
+    }));
+  };
+
+  // Select a doctor from the dropdown
+  const selectDoctor = (doctor: string) => {
+    setFormData((prevData) => ({
+      ...prevData,
+      doctor,
+    }));
+    setShowDoctorDropdown(false);
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      doctor: '', // Clear error on valid selection
+    }));
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -438,24 +631,44 @@ useEffect(() => {
     // Validate the field
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
- useEffect(() => {
-    const userID = sessionStorage.getItem('userID');
-    const roleName = sessionStorage.getItem('roleName');
 
-    if (userID && roleName !== 'Reception') {
-      fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-      )
-        .then((res) => res.json())
-        .then((data) => {
+  const fetchDoctors = async (hospitalId: string) => {
+    try {
+      const response = await api.get('/Doctor', {
+        params: { HospitalID: hospitalId },
+      });
+      const result = response.data;
+
+      if (result.success && Array.isArray(result.data)) {
+        setDoctors(result.data);
+      } else {
+        console.error('Invalid doctor data format:', result.data);
+        setDoctors([]);
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      const userID = sessionStorage.getItem('userID');
+      const roleName = sessionStorage.getItem('roleName');
+
+      if (userID && roleName !== 'Reception') {
+        try {
+          const response = await api.get('/Patient/GetPatientByUserID', {
+            params: { userId: userID },
+          });
+
+          const data = response.data;
+
           if (data.success && data.data) {
             const name = data.data.patientName || '';
             const phoneNumber = data.data.patientPhoneNumber || '';
 
-            // Save it separately
             setPatientData({ name, phoneNumber });
 
-            // Initialize formData if needed
             setFormData((prev) => ({
               ...prev,
               name,
@@ -464,22 +677,68 @@ useEffect(() => {
           } else {
             console.warn('⚠️ Failed to fetch patient data');
           }
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error('❌ Error fetching patient data:', err);
-        });
-    }
+        }
+      }
+    };
+
+    fetchPatientData();
   }, []);
+
+  // ✅ Helper function to reset the form completely
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      relationship: '',
+      hospital: '',
+      phoneNumber: '',
+      doctor: '',
+      reason: '',
+      date: '',
+      time: '',
+      timeSlotID: '',
+    });
+    setSelectedRelationship('');
+    setAppointmentType('');
+    setSelectedHospitalID('');
+    setSelectedDoctorID('');
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setErrors({});
+  };
+
   const [selectedRelationship, setSelectedRelationship] = useState('');
 
   useEffect(() => {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
 
-    if (roleName === 'HostitalAdmin' && unitID) {
-      setSelectedHospital(unitID);
+    if (roleName === 'HospitalAdmin' && unitID) {
+      setSelectedHospitalID(unitID);
+      setFormData((prev) => ({
+        ...prev,
+        hospital: unitID,
+      }));
     }
   }, []);
+
+  const formattedTime =
+    formData.time instanceof Date
+      ? formData.time.toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+        })
+      : formData.time;
+
+  useEffect(() => {
+    console.log('Form Data Updated:', formData);
+  }, [formData]);
+
+  useEffect(() => {
+    console.log('Selected Time Slot ID:', selectedTimeSlotID);
+  }, [selectedTimeSlotID]);
 
   useEffect(() => {
     const selectedOption = options.find(
@@ -489,18 +748,17 @@ useEffect(() => {
     if (selectedOption?.name === 'Self') {
       setIsSelf(true);
       setIsOthers(false);
-
       setFormData((prev) => ({
         ...prev,
-        name: patientData.name, // ✅ refill from stored patient data
+        name: patientData.name,
         phoneNumber: patientData.phoneNumber,
         relationship: selectedOption.appLOVID,
       }));
       setSelectedRelationship(selectedOption.appLOVID);
+      setIsEditable(false); // Disable editing for name and phone number
     } else if (selectedOption?.name === 'Others') {
       setIsSelf(false);
       setIsOthers(true);
-
       setFormData((prev) => ({
         ...prev,
         name: '',
@@ -508,21 +766,29 @@ useEffect(() => {
         relationship: '',
       }));
       setSelectedRelationship('');
+      setIsEditable(true); // Enable editing for name and phone number
     } else {
       setIsSelf(false);
       setIsOthers(false);
+      setIsEditable(true); // Default to editable
     }
   }, [appointmentType, options, patientData]);
 
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
-    setSelectedTime(time);
-    setSelectedTimeSlotID(timeSlotID);
+    console.log('Time Selected:', time);
+    console.log('Time Slot ID Selected:', timeSlotID);
 
     setFormData((prev) => ({
       ...prev,
-      time: time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timeSlotID: timeSlotID, // ✅ Correctly pass timeSlotID
+      time,
+      timeSlotID, // Ensure this is set correctly
     }));
+
+    setSelectedTime(time);
+    setSelectedTimeSlotID(timeSlotID);
+
+    const timeError = validateField('time', time);
+    setErrors((prev) => ({ ...prev, time: timeError }));
   };
 
   const validateField = (name: string, value: string | Date | null): string => {
@@ -534,11 +800,20 @@ useEffect(() => {
     }
 
     if (name === 'name' && !value) error = 'Name is required.';
-    if (name === 'hospital' && !value) error = 'Hospital is required.';
+    if (name === 'hospital') {
+      if (!value) {
+        return 'Hospital is required.';
+      }
+    }
+
     // if (name === 'doctor' && !value) error = 'Doctor is required.';
     if (name === 'doctor' && !selectedDoctorID) error = 'Doctor is required.';
 
-    if (name === 'reason' && !value) error = 'Reason is required.';
+    if (name === 'reason') {
+      return typeof value === 'string' && value.trim().length > 0
+        ? ''
+        : 'Reason is required';
+    }
 
     if (name === 'phoneNumber') {
       if (!value) {
@@ -550,11 +825,16 @@ useEffect(() => {
 
     // Date validation
     if (name === 'date') {
-      const dateValue = formData.date; // Use formData.date for consistency
-      if (!dateValue) {
+      const dateValue = formData.date;
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Clear time for accurate comparison
+
+      if (!formData.date) {
         error = 'Date is required.';
       } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
         error = 'Invalid date.';
+      } else if (dateValue < today) {
+        error = 'Past dates are not allowed.';
       } else {
         error = ''; // Clear error when valid
       }
@@ -562,19 +842,37 @@ useEffect(() => {
 
     // Time validation
     if (name === 'time') {
-      if (!value) {
+      console.log('Validating Time:', value, typeof value);
+
+      if (!value || !(value instanceof Date)) {
         error = 'Time is required.';
-      } else if (value instanceof Date && isNaN(value.getTime())) {
+      } else if (isNaN(value.getTime())) {
         error = 'Invalid time.';
+      } else if (formData.date) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const selectedDate = new Date(formData.date);
+        selectedDate.setHours(0, 0, 0, 0);
+
+        if (selectedDate.getTime() === today.getTime() && value < new Date()) {
+          error = 'Past time is not allowed for today.';
+        }
       }
     }
 
     return error;
   };
 
+  const [notes, setNotes] = useState(formData.reason || '');
+
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, reason: notes }));
+  }, [notes]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    console.log('Hospital in formData at submit:', formData.hospital);
     const userID = sessionStorage.getItem('userID');
 
     if (!userID) {
@@ -582,10 +880,14 @@ useEffect(() => {
       return;
     }
 
+    // Validate all fields and collect errors
     const newErrors = {
       name: validateField('name', formData.name),
       relationship: validateField('relationship', selectedRelationship),
-      hospital: validateField('hospital', selectedHospitalID),
+      hospitalID:
+        appointmentType === 'create'
+          ? validateField('hospitalID', formData.hospitalID)
+          : '',
       phoneNumber: validateField('phoneNumber', formData.phoneNumber),
       doctor: validateField('doctor', formData.doctor),
       reason: validateField('reason', formData.reason),
@@ -593,85 +895,85 @@ useEffect(() => {
       time: validateField('time', formData.time),
     };
 
+    // Log errors for debugging
+    console.log('Validation Errors:', newErrors);
+
     setErrors(newErrors);
 
-    if (Object.values(newErrors).every((error) => error === '')) {
-      try {
-        const patientRes = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-        );
+    // Check if all errors are falsy (no error)
+    const isValid = Object.values(newErrors).every((error) => !error);
 
-        if (!patientRes.ok) {
-          throw new Error('Failed to fetch patient ID');
-        }
-
-        const patientData = await patientRes.json();
-        const patientID = patientData?.data?.patientID;
-
-        if (!patientID) {
-          toast.error('Patient ID not found for the logged-in user.');
-          return;
-        }
-
-        const appointmentTimeFormatted = formData.time
-          ? convertTo24HourFormat(formData.time)
-          : '00:00:00';
-
-        const formatDateYYYYMMDD = (dateString: string) => {
-          const date = new Date(dateString);
-          const year = date.getFullYear();
-          const month = `0${date.getMonth() + 1}`.slice(-2);
-          const day = `0${date.getDate()}`.slice(-2);
-          return `${year}-${month}-${day}`;
-        };
-        console.log('Form Data:', formData);
-        const payload = {
-          createdBy: userID,
-          isActive: true,
-          doctorID: formData.doctor,
-          patientID: patientID,
-          timeSlotID: formData.timeSlotID, // Pass this correctly
-          appointmentDate: formData.date
-            ? formatDateYYYYMMDD(formData.date)
-            : null,
-          appointmentTime: appointmentTimeFormatted,
-          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-          notes: formData.reason?.trim() || 'No additional notes',
-          toWhom: appointmentType,
-          relationShip: selectedRelationship,
-          phoneNumber: formData.phoneNumber || '',
-        };
-
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Appointment',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          },
-        );
-
-        const responseData = await response.json();
-
-        if (response.ok) {
-          const message =
-            responseData?.message || 'Appointment booked successfully!';
-          toast.success(message);
-          console.log('Form Submitted:', payload);
-          resetForm();
-        } else {
-          const message =
-            responseData?.message || 'Submission failed. Please try again.';
-          toast.error(message);
-        }
-      } catch (error) {
-        console.error('Error during submission:', error);
-        toast.error('An error occurred. Please try again later.');
-      }
-    } else {
+    if (!isValid) {
+      console.log('❌ Validation failed. Not submitting.');
       toast.warning('Please fix the highlighted errors before submitting.');
+      return; // stop submission if validation failed
+    }
+
+    console.log('✅ All validations passed. Submitting form...');
+
+    try {
+      // Fetch patient data using axios api
+      const patientRes = await api.get('/Patient/GetPatientByUserID', {
+        params: { userId: userID },
+      });
+
+      const patientData = patientRes.data;
+      const patientID = patientData?.data?.patientID;
+
+      if (!patientID) {
+        toast.error('Patient ID not found for the logged-in user.');
+        return;
+      }
+
+      // Convert time to 24-hour format or default to '00:00:00'
+      const appointmentTimeFormatted = formData.time
+        ? convertTo24HourFormat(formData.time)
+        : '00:00:00';
+
+      // Use your existing date formatter here
+      const formatDateYYYYMMDD = (dateString: string) => {
+        const date = new Date(dateString);
+        const year = date.getFullYear();
+        const month = `${date.getMonth() + 1}`.padStart(2, '0');
+        const day = `${date.getDate()}`.padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
+      const payload = {
+        createdBy: userID,
+        isActive: true,
+        doctorID: formData.doctor,
+        patientID: patientID,
+        timeSlotID: formData.timeSlotID,
+        appointmentDate: formData.date
+          ? formatDateYYYYMMDD(formData.date)
+          : null,
+        appointmentTime: appointmentTimeFormatted,
+        statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+        notes: formData.reason?.trim() || 'No additional notes',
+        toWhom: appointmentType,
+        relationShip: selectedRelationship,
+        phoneNumber: formData.phoneNumber || '',
+      };
+
+      // Submit the appointment via axios api post
+      const response = await api.post('/Appointment', payload);
+
+      if (response.status >= 200 && response.status < 300) {
+        const message =
+          response.data?.message || 'Appointment booked successfully!';
+        toast.success(message);
+        console.log('Form Confirmed:', payload);
+        resetForm();
+        closePopup();
+      } else {
+        const message =
+          response.data?.message || 'Submission failed. Please try again.';
+        toast.error(message);
+      }
+    } catch (error: any) {
+      console.error('Error during submission:', error);
+      toast.error('An error occurred. Please try again later.');
     }
   };
 
@@ -681,6 +983,7 @@ useEffect(() => {
       `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
     );
   };
+
   useEffect(() => {
     if (!appointmentType && options.length > 0) {
       const defaultOption = options.find((opt) => opt.name === 'Self');
@@ -704,40 +1007,36 @@ useEffect(() => {
       return;
     }
 
-    let apiUrl = 'https://predart003-001-site1.anytempurl.com/api/Doctor?';
-    const queryParams: string[] = [];
+    const queryParams: Record<string, string> = {};
 
     // Hospital ID logic (optional)
     if (roleName === 'Patient' && selectedHospital) {
-      queryParams.push(`hospitalId=${selectedHospital}`);
+      queryParams.hospitalId = selectedHospital;
     } else if (roleName === 'HostitalAdmin' && unitID) {
-      queryParams.push(`hospitalId=${unitID}`);
+      queryParams.hospitalId = unitID;
     }
 
     if (selectedSpecializationID) {
-      queryParams.push(`SpecializationId=${selectedSpecializationID}`);
+      queryParams.SpecializationId = selectedSpecializationID;
     }
 
     if (DoctorName.trim()) {
-      queryParams.push(`DoctorName=${encodeURIComponent(DoctorName.trim())}`);
+      queryParams.DoctorName = DoctorName.trim();
     }
 
     if (mobile.trim()) {
-      queryParams.push(`MobileNo=${encodeURIComponent(mobile.trim())}`);
+      queryParams.MobileNo = mobile.trim();
     }
 
-    const finalUrl = apiUrl + queryParams.join('&');
-    console.log('Doctor Search API:', finalUrl);
-
     try {
-      const response = await fetch(finalUrl);
-      const result = await response.json();
+      const response = await api.get('/Doctor', { params: queryParams });
+      const result = response.data;
 
       if (result?.data && Array.isArray(result.data)) {
-        setDoctorData(result.data); // <-- this updates what UI uses
+        setDoctorData(result.data);
       } else {
         console.error('Unexpected response format:', result);
-        setDoctorData([]); // empty result still updates the screen
+        setDoctorData([]);
       }
     } catch (error) {
       console.error('API fetch error:', error);
@@ -771,96 +1070,97 @@ useEffect(() => {
         </h1>
 
         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-  <div>
-    <select
-      id="hospital"
-      value={selectedHospital}
-      disabled={sessionStorage.getItem('roleName') === 'HostitalAdmin'}
-      className={`w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <div>
+            <select
+              id="hospital"
+              value={selectedHospital}
+              disabled={sessionStorage.getItem('roleName') === 'HostitalAdmin'}
+              className={`w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary
         ${sessionStorage.getItem('roleName') === 'HostitalAdmin' ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}`}
-      onChange={(e) => setSelectedHospital(e.target.value)}
-    >
-      {sessionStorage.getItem('roleName') === 'HostitalAdmin' ? (
-        <option value={selectedHospital}>
-          {hospitals[selectedHospital] || 'Selected Hospital'}
-        </option>
-      ) : (
-        <>
-          <option value="">-- Select Hospital --</option>
-          {Object.entries(hospitals).map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </>
-      )}
-    </select>
-  </div>
+              onChange={(e) => setSelectedHospital(e.target.value)}
+            >
+              {sessionStorage.getItem('roleName') === 'HostitalAdmin' ? (
+                <option value={selectedHospital}>
+                  {hospitals[selectedHospital] || 'Selected Hospital'}
+                </option>
+              ) : (
+                <>
+                  <option value="">-- Select Hospital --</option>
+                  {Object.entries(hospitals).map(([id, name]) => (
+                    <option key={id.appLOVID} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </>
+              )}
+            </select>
+          </div>
 
-  <div>
-    <input
-      type="text"
-      value={DoctorName}
-      onChange={(e) => setDoctorName(e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <div>
+            <input
+              type="text"
+              value={DoctorName}
+              maxLength={20}
+             onChange={handleDoctorNameChange}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-      placeholder="Enter Doctor Name"
-    />
-  </div>
+              placeholder="Enter Doctor Name"
+            />
+             {doctorNameError && <p className="text-red-500 text-sm">{doctorNameError}</p>}
+          </div>
 
-  <div>
-    <input
-      type="tel"
-      inputMode="numeric"
-      pattern="[0-9]*"
-      maxLength={10}
-      value={mobile}
-      onChange={(e) => setMobile(e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <div>
+            <input
+              type="tel"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={10}
+              value={mobile}
+                 onChange={handleMobileChange}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-      placeholder="Enter Mobile Number"
-    />
-  </div>
+              placeholder="Enter Mobile Number"
+            />
+                {mobileError && <p className="text-red-500 text-sm">{mobileError}</p>}
+          </div>
 
-  <div>
-    <select
-      value={selectedSpecializationID}
-      onChange={(e) => setSelectedSpecializationID(e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+          <div>
+            <select
+              value={selectedSpecializationID}
+              onChange={(e) => setSelectedSpecializationID(e.target.value)}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="">-- Select Specialization --</option>
-      {Object.entries(specializations).map(([id, name]) => (
-        <option key={id} value={id}>
-          {name}
-        </option>
-      ))}
-    </select>
-  </div>
+            >
+              <option value="">-- Select Specialization --</option>
+              {Object.entries(specializations).map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-  {/* Button group aligned to the left of next grid column */}
-  <div className="flex items-center gap-4 mt-2 lg:col-span-3">
-    <CustomButton onClick={handleSearch} className="h-10 px-6">
-      Search
-    </CustomButton>
+          {/* Button group aligned to the left of next grid column */}
+          <div className="flex items-center gap-4 mt-2 lg:col-span-3">
+            <CustomButton onClick={handleSearch} className="h-10 px-6">
+              Search
+            </CustomButton>
 
-    <CustomButton
-      onClick={handleReset}
-      className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-2"
-    >
-      Reset
-    </CustomButton>
+            <CustomButton
+              onClick={handleReset}
+              className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-2"
+            >
+              Reset
+            </CustomButton>
 
-    <ToastContainer position="top-right" autoClose={3000} />
-  </div>
-</form>
-
-
+            <ToastContainer position="top-right" autoClose={3000} />
+          </div>
+        </form>
       </div>
       <h1 className="text-2xl p-2 font-semibold text-black mb-6 mt-4">
         List of Doctor's
@@ -905,7 +1205,7 @@ useEffect(() => {
               </div>
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
-                <input
+                  <input
                     type="text"
                     name="name"
                     maxLength={30}
@@ -922,7 +1222,7 @@ useEffect(() => {
                   )}
                 </div>
                 <div className="relative w-1/2">
-                <input
+                  <input
                     type="text"
                     name="phoneNumber"
                     maxLength={10}
@@ -987,13 +1287,17 @@ useEffect(() => {
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
                   <select
-                    value={hospitalID}
-                    disabled
-                    onChange={(e) => setHospitalID(e.target.value)}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 
-                  pl-6 pr-10 text-black outline-none focus:border-primary
-                   dark:border-form-strokedark dark:bg-form-input dark:text-white
-                    dark:focus:border-primary"
+                    name="hospital"
+                    value={selectedHospitalID}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedHospitalID(value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        hospital: hospitalId,
+                      }));
+                    }}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
                     {Object.entries(hospitals).map(([id, name]) => (
                       <option key={id} value={id}>
@@ -1007,8 +1311,11 @@ useEffect(() => {
                   <select
                     name="doctor"
                     value={selectedDoctorID}
-                    disabled
-                    // Make sure this updates selectedDoctorID accordingly if the user changes the selection manually
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedDoctorID(value);
+                      setFormData((prev) => ({ ...prev, doctor: value }));
+                    }}
                     className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                   >
                     <option value="">Select Doctor</option>
@@ -1022,6 +1329,7 @@ useEffect(() => {
                       <option disabled>No doctors available</option>
                     )}
                   </select>
+
                   {errors.doctor && (
                     <p className="text-red-500 text-sm">{errors.doctor}</p>
                   )}
@@ -1033,7 +1341,9 @@ useEffect(() => {
                 <div className="relative w-1/2">
                   <DatePicker
                     selected={selectedDate}
-                    onChange={(date) => handleDateChange(date)}
+                    onChange={(date) =>
+                      handleDateChange(date, availableTimeSlots)
+                    }
                     placeholderText="Select Date"
                     minDate={new Date()} // Disable past dates
                     className={`w-full rounded-lg border border-stroke py-4 pl-4 pr-12 text-black outline-none focus:border-primary ${errors.date ? 'border-red-500' : ''}`}
@@ -1116,6 +1426,7 @@ useEffect(() => {
 
                 <button
                   type="submit"
+                  onClick={handleSubmit}
                   className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
                 >
                   Confirm
@@ -1137,7 +1448,7 @@ const DoctorCard = ({
   onBookNow,
 }) => {
   const [showMore, setShowMore] = useState(false);
-const navigate = useNavigate();
+  const navigate = useNavigate();
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
       {loading ? (
@@ -1231,24 +1542,21 @@ const navigate = useNavigate();
                     </span>
                   </div>
                 </div>
-                
-
- <div className="flex justify-end mb-2 mr-2">
- <button
-  onClick={() =>
-    navigate("/ProfileDoctor", {
-      state: {
-        doctorID: doctor.doctorID,
-        doctorName: doctor.doctorName,
-      },
-    })
-  }
-  className="text-blue-600 hover:underline text-sm font-semibold"
->
-  View More Profile Info
-</button>
-</div>
-
+                <div className="flex justify-end mb-2 mr-2">
+                  <button
+                    onClick={() =>
+                      navigate('/ProfileDoctor', {
+                        state: {
+                          doctorID: doctor.doctorID,
+                          doctorName: doctor.doctorName,
+                        },
+                      })
+                    }
+                    className="text-blue-600 hover:underline text-sm font-semibold"
+                  >
+                    View More Profile Info
+                  </button>
+                </div>
               </div>
             </div>
           );

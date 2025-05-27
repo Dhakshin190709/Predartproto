@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 const LabRegistration: React.FC = () => {
     const [formData, setFormData] = useState({
         
@@ -23,56 +24,68 @@ const [labFacilities, setLabFacilities] = useState("");
 const [selectedFacilitiesType, setSelectedFacilitiesType] = useState("");
 
  const [facilitiesTypes, setFacilitiesTypes] = useState([]);
- useEffect(() => {
-     fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
-       .then((response) => response.json())
-       .then((data) => {
-         const filteredAddressTypes = data.data.filter(
-           (item) => item.type === "Address"
-         );
-         const filteredLabTypes = data.data.filter(
-           (item) => item.type === "LabType"
-         );
-         const filteredFacilitiesTypes = data.data.filter(
-           (item) => item.type === "FacilitiesType"
-         );
- 
-         setAddressTypes(filteredAddressTypes);
-         setLabTypes(filteredLabTypes);
-         setFacilitiesTypes(filteredFacilitiesTypes);
-       })
-       .catch((error) => console.error("Error fetching data:", error));
- }, []);
 
-    useEffect(() => {
-      fetch('https://predart003-001-site1.anytempurl.com/api/Hospital')
-        .then((response) => response.json())
-        .then((data) => {
-          if (data && data.data) {
-            setHospitals(data.data); // Assuming `data.data` contains the list
-          }
-        })
-        .catch((error) => console.error('Error fetching hospitals:', error));
-    }, []);
-  
+useEffect(() => {
+  const fetchAppLOVTypes = async () => {
+    try {
+      const response = await api.get('/AppLOV');
+      const data = response.data;
+
+      if (!Array.isArray(data.data)) {
+        console.error('Unexpected format: Expected an array in data.data');
+        return;
+      }
+
+      const addressTypes = data.data.filter((item: any) => item.type === 'Address');
+      const labTypes = data.data.filter((item: any) => item.type === 'LabType');
+      const facilitiesTypes = data.data.filter((item: any) => item.type === 'FacilitiesType');
+
+      setAddressTypes(addressTypes);
+      setLabTypes(labTypes);
+      setFacilitiesTypes(facilitiesTypes);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  fetchAppLOVTypes();
+}, []);
+
+   useEffect(() => {
+  const fetchHospitals = async () => {
+    try {
+      const response = await api.get('/Hospital/list');
+      const data = response.data;
+
+      if (data && data.data) {
+        setHospitals(data.data); // Assuming `data.data` contains the hospital list
+      }
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+    }
+  };
+
+  fetchHospitals();
+}, []);
+
     // Fetch tenant data
-    useEffect(() => {
-      fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
-        .then((response) => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok');
-          }
-          return response.json();
-        })
-        .then((data) => {
-          console.log('Tenant Data:', data);
-          setTenants(data.data || data); // Adjust based on the API structure
-        })
-        .catch((error) => {
-          console.error('Error fetching tenant data:', error);
-        });
-    }, []);
+   useEffect(() => {
+  const fetchTenants = async () => {
+    try {
+      const response = await api.get('/Tenant');
+      const data = response.data;
 
+      console.log('Tenant Data:', data);
+
+      // Adjust if the API returns `data.data` or directly `data`
+      setTenants(data.data || data);
+    } catch (error) {
+      console.error('Error fetching tenant data:', error);
+    }
+  };
+
+  fetchTenants();
+}, []);
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     // Handle the form submission
@@ -109,56 +122,9 @@ const [addressTypes, setAddressTypes] = useState([]);
     setAddresses(updatedAddresses);
   };
 
-  const handleAddressSubmit = () => {
+ 
 
-    // Retrieve userID from sessionStorage
-  const userID = sessionStorage.getItem("userID");
-  if (!userID) {
-    console.error("User ID not found in session storage.");
-    alert("User not logged in. Please log in again.");
-    return;
-  }
-    // Add patientID and createdBy to each address dynamically
-    const addressData = addresses.map((address) => ({
-      ...address,
-      id: patientID,
-      createdBy: userID,
-  
-    }));
-  
-    // Validate required fields for all addresses
-    const requiredFields = ["addressType", "address1", "city", "zipCode", "type"];
-    const invalidAddresses = addressData.filter((address) =>
-      requiredFields.some((field) => !address[field])
-    );
-  
-    if (invalidAddresses.length > 0) {
-      console.error("Missing required fields in some addresses:", invalidAddresses);
-      alert(`Some addresses are missing required fields. Please check your input.`);
-      return;
-    }
-  
-    // Make API call
-    axios
-      .post(
-        "https://predart003-001-site1.anytempurl.com/api/Patient/SaveAddress",
-        addressData
-      )
-      .then((response) => {
-        console.log("Addresses saved successfully:", response.data);
-        alert("Addresses saved successfully!");
-      })
-      .catch((error) => {
-        console.error("Error saving addresses:", error);
-        alert("Failed to save addresses.");
-      });
-  };
-
-
-  const handleLabSubmit = async () => {
-   
-
-    // Retrieve userID from sessionStorage
+const handleAddressSubmit = () => {
   const userID = sessionStorage.getItem("userID");
   if (!userID) {
     console.error("User ID not found in session storage.");
@@ -166,40 +132,78 @@ const [addressTypes, setAddressTypes] = useState([]);
     return;
   }
 
-    // Find the corresponding ID for the selected labType
-    // const selectedLab = labTypes.find((type) => type.name === selectedLabType);
+  // Add patientID and createdBy to each address
+  const addressData = addresses.map((address) => ({
+    ...address,
+    id: patientID,
+    createdBy: userID,
+  }));
 
-    const payload = {
-      createdBy: userID, // Replace with actual logged-in user ID
-      tenantID: formData.tenant, // Ensure this is an ID
-      hospitalID: formData.hospitalType, // Ensure this is an ID
-      labName: labName,
-      labCode: labCode,
-      // labType: selectedLab ? selectedLab.appLOVID : null, // Convert name to ID
-      labType: selectedLabType,
-      labFacilities: selectedFacilitiesType,
-    };
+  // Validate required fields
+  const requiredFields = ["addressType", "address1", "city", "zipCode", "type"];
+  const invalidAddresses = addressData.filter((address) =>
+    requiredFields.some((field) => !address[field])
+  );
 
-    try {
-      const response = await axios.post(
-        "https://predart003-001-site1.anytempurl.com/api/Laboratory",
-        payload,
-        { headers: { "Content-Type": "application/json" } }
-      );
+  if (invalidAddresses.length > 0) {
+    console.error("Missing required fields in some addresses:", invalidAddresses);
+    alert("Some addresses are missing required fields. Please check your input.");
+    return;
+  }
 
-      console.log("Lab Created Successfully:", response.data);
-      alert("Lab Created Successfully!");
-      
-      // Reset Form
-      setLabName("");
-      setLabCode("");
-      setSelectedLabType("");
-      setLabFacilities("");
-    } catch (error) {
-      console.error("Error creating lab:", error);
-      
-    } 
+  // API call using Axios instance
+  api.post('/Patient/SaveAddress', addressData)
+    .then((response) => {
+      console.log("Addresses saved successfully:", response.data);
+      alert("Addresses saved successfully!");
+    })
+    .catch((error) => {
+      console.error("Error saving addresses:", error);
+      alert("Failed to save addresses.");
+    });
+};
+
+
+
+
+
+const handleLabSubmit = async () => {
+  const userID = sessionStorage.getItem("userID");
+  if (!userID) {
+    console.error("User ID not found in session storage.");
+    alert("User not logged in. Please log in again.");
+    return;
+  }
+
+  const payload = {
+    createdBy: userID,
+    tenantID: formData.tenant,
+    hospitalID: formData.hospitalType,
+    labName: labName,
+    labCode: labCode,
+    labType: selectedLabType,
+    labFacilities: selectedFacilitiesType,
   };
+
+  try {
+    const response = await api.post('/Laboratory', payload); // Reuses baseURL + headers
+
+    console.log("Lab Created Successfully:", response.data);
+    alert("Lab Created Successfully!");
+
+    // Reset Form
+    setLabName("");
+    setLabCode("");
+    setSelectedLabType("");
+    setLabFacilities("");
+  } catch (error) {
+    console.error("Error creating lab:", error);
+    alert("Failed to create lab. Please try again.");
+  }
+};
+
+
+
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
     {/* Right Section */}

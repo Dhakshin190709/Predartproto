@@ -24,6 +24,7 @@ import {
   FaFilePdf,
 } from 'react-icons/fa';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 
 const AppointmentReport: React.FC = () => {
   const [hospitalName, setHospitalName] = useState<string>('');
@@ -52,115 +53,100 @@ const AppointmentReport: React.FC = () => {
   const [rowData, setRowData] = useState<any[]>([]); // Sample appointment data
   const doctorID = sessionStorage.getItem('doctorID');
 
-  const handleSearch = async () => {
-    const role = sessionStorage.getItem('roleName')?.toLowerCase();
+ 
+const handleSearch = async () => {
+  const role = sessionStorage.getItem('roleName')?.toLowerCase();
 
-    const storedUnitID = sessionStorage.getItem('unitID');
-    const storedDoctorID = sessionStorage.getItem('doctorID');
+  const storedUnitID = sessionStorage.getItem('unitID');
+  const storedDoctorID = sessionStorage.getItem('doctorID');
 
-    const hospitalID = role === 'Doctor' ? storedUnitID : selectedHospitalID;
-    const doctorID = role === 'Doctor' ? storedDoctorID : selectedDoctorID;
+  const hospitalID = role === 'doctor' ? storedUnitID : selectedHospitalID;
+  const doctorID = role === 'doctor' ? storedDoctorID : selectedDoctorID;
 
-    let baseUrl =
-      'https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport?';
-    let queryParams = [];
+  // Build query params object instead of string
+  let params: Record<string, string> = {};
 
-    // Always push HospitalID if available
-    if (hospitalID) {
-      queryParams.push(`HospitalID=${hospitalID}`);
+  if (hospitalID) {
+    params.HospitalID = hospitalID;
+  }
+
+  if (doctorID) {
+    params.DoctorID = doctorID;
+  }
+
+  // Determine if all filters are filled
+  const hasFullFilter =
+    hospitalID &&
+    doctorID &&
+    selectedStatus &&
+    filterFromDate &&
+    filterToDate;
+
+  if (hasFullFilter) {
+    params.StatusID = selectedStatus;
+    params.StartDate = filterFromDate;
+    params.EndDate = filterToDate;
+  } else {
+    if (selectedStatus) {
+      params.StatusID = selectedStatus;
     }
 
-    // Add DoctorID if present
-    if (doctorID) {
-      queryParams.push(`DoctorID=${doctorID}`);
+    if (filterFromDate && filterToDate) {
+      params.StartDate = filterFromDate;
+      params.EndDate = filterToDate;
+    } else if (filterFromDate && doctorID && hospitalID) {
+      params.StartDate = filterFromDate;
     }
+  }
 
-    // Check if all filters are filled
-    const hasFullFilter =
-      hospitalID &&
-      doctorID &&
-      selectedStatus &&
-      filterFromDate &&
-      filterToDate;
+  let hasAnyFilter = false;
 
-    if (hasFullFilter) {
-      queryParams.push(`StatusID=${selectedStatus}`);
-      queryParams.push(`StartDate=${filterFromDate}`);
-      queryParams.push(`EndDate=${filterToDate}`);
-    } else {
-      // Fallback combinations
-      if (selectedStatus) {
-        queryParams.push(`StatusID=${selectedStatus}`);
-      }
+  if (role === 'doctor') {
+    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
+  } else if (role === 'reception' || role === 'hostitaladmin') {
+    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID;
+  } else {
+    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID || !!hospitalID;
+  }
 
-      if (filterFromDate && filterToDate) {
-        queryParams.push(`StartDate=${filterFromDate}`);
-        queryParams.push(`EndDate=${filterToDate}`);
-      } else if (filterFromDate && doctorID && hospitalID) {
-        queryParams.push(`StartDate=${filterFromDate}`);
-      }
-    }
+  if (!hasAnyFilter) {
+    toast.warning('Please select at least one filter before searching.');
+    return;
+  }
 
-    let hasAnyFilter = false;
+  try {
+    // Using axios with params object automatically encodes query parameters
+    const response = await api.get('/Appointment/AppointmentReport', { params });
+    console.log('Search Results:', response.data);
+    setRowData(response.data);
+  } catch (error) {
+    console.error('Error fetching appointment report:', error);
+    toast.error('Failed to fetch appointment report. Please try again later.');
+  }
+};
 
-    if (role === 'doctor') {
-      hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
-    } else if (role === 'reception') {
-      hasAnyFilter =
-        !!selectedStatus ||
-        !!filterFromDate ||
-        !!filterToDate ||
-        !!doctorID ;
-       
-    } else if (role === 'hostitaladmin') {
-      hasAnyFilter =
-        !!selectedStatus ||
-        !!filterFromDate ||
-        !!filterToDate ||
-        !!doctorID ;
-      
-    } else {
-      hasAnyFilter =
-        !!selectedStatus ||
-        !!filterFromDate ||
-        !!filterToDate ||
-        !!doctorID ||
-        !!hospitalID;
-    }
-    
-    if (!hasAnyFilter) {
-      toast.warning('Please select at least one filter before searching.');
-      return;
-    }
-    const url = baseUrl + queryParams.join('&');
-
-    try {
-      const response = await fetch(url);
-      const data = await response.json();
-      console.log('Search Results:', data);
-      setRowData(data);
-    } catch (error) {
-      console.error('Error fetching appointment report:', error);
-    }
-  };
 
   const handleReset = () => {
-    const role = sessionStorage.getItem('roleName')?.toLowerCase();
-  
-    setSelectedStatus('');
-    setFilterFromDate('');
-    setFilterToDate('');
+  const role = sessionStorage.getItem('roleName')?.toLowerCase();
+
+  setSelectedStatus('');
+  setFilterFromDate('');
+  setFilterToDate('');
+
+  if (role !== 'doctor') {
     setSelectedDoctorID('');
-  
-    // Only reset hospital if it's not prefilled/disabled
-    const isHospitalPrefilled = !!sessionStorage.getItem('unitID');
-    if (!isHospitalPrefilled) {
-      setSelectedHospitalID('');
-    }
-  
-    setRowData([]);
-    fetchAppointmentReport();
-  };
+  }
+
+  // Only reset hospital if it's not prefilled (for doctor role, hospital is prefilled and disabled)
+  const isHospitalPrefilled = !!sessionStorage.getItem('unitID');
+  if (!isHospitalPrefilled && role !== 'doctor') {
+    setSelectedHospitalID('');
+  }
+
+  setRowData([]);
+  fetchAppointmentReport();
+};
+
   
   
   
@@ -280,54 +266,52 @@ const AppointmentReport: React.FC = () => {
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-        );
-        const data = await response.json();
+ useEffect(() => {
+  const fetchHospitals = async () => {
+    try {
+      const response = await api.get('/Hospital/List');
+      const data = response.data;
 
-        // Filter only active hospitals
-        const activeHospitals = data.filter(
-          (hospital) => hospital.isActive === true,
-        );
+      // Filter only active hospitals
+      const activeHospitals = data.filter(
+        (hospital) => hospital.isActive === true,
+      );
 
-        setHospitals(activeHospitals);
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
+      setHospitals(activeHospitals);
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+    }
+  };
+
+  fetchHospitals();
+}, []);
+
+ useEffect(() => {
+  const fetchDoctors = async () => {
+    if (!selectedHospitalID) return; // Wait until hospital is selected
+
+    try {
+      const response = await api.get('/Doctor', {
+        params: { hospitalId: selectedHospitalID },
+      });
+      const result = response.data;
+
+      if (result?.success && Array.isArray(result.data)) {
+        // Filter only active doctors
+        const activeDoctors = result.data.filter(
+          (doctor) => doctor.isActive === true,
+        );
+        setDoctors(activeDoctors);
+      } else {
+        console.error('Unexpected doctor data format:', result);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
 
-    fetchHospitals();
-  }, []);
-
-  useEffect(() => {
-    const fetchDoctors = async () => {
-      if (!selectedHospitalID) return; // Wait until hospital is selected
-
-      try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`,
-        );
-        const result = await response.json();
-
-        if (result?.success && Array.isArray(result.data)) {
-          // Filter only active doctors
-          const activeDoctors = result.data.filter(
-            (doctor) => doctor.isActive === true,
-          );
-          setDoctors(activeDoctors);
-        } else {
-          console.error('Unexpected doctor data format:', result);
-        }
-      } catch (error) {
-        console.error('Error fetching doctors:', error);
-      }
-    };
-
-    fetchDoctors();
-  }, [selectedHospitalID]); // Runs when hospital selection changes
+  fetchDoctors();
+}, [selectedHospitalID]);
 
   const [isDoctorLoggedIn, setIsDoctorLoggedIn] = useState(false);
 
@@ -445,26 +429,23 @@ const fetchAppointmentReport = async () => {
   const doctorID = sessionStorage.getItem('doctorID');
   const unitID = sessionStorage.getItem('unitID');
 
-  let url = 'https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentReport';
+  const params: Record<string, string> = {};
 
-  // Build query params based on role
-  const params = new URLSearchParams();
   if (role === 'Doctor' && doctorID && unitID) {
-    params.append('DoctorID', doctorID);
-    params.append('HospitalID', unitID);
+    params['DoctorID'] = doctorID;
+    params['HospitalID'] = unitID;
   } else if ((role === 'Reception' || role === 'HostitalAdmin') && unitID) {
-    params.append('HospitalID', unitID);
+    params['HospitalID'] = unitID;
   }
 
   try {
-    const response = await axios.get(`${url}?${params.toString()}`);
+    const response = await api.get('/Appointment/AppointmentReport', { params });
     console.log('Appointment rowData:', response.data);
     setRowData(response.data);
   } catch (error) {
     console.error('Error fetching appointment data:', error);
   }
 };
-
 useEffect(() => {
   fetchAppointmentReport();
 }, []);
@@ -475,13 +456,14 @@ useEffect(() => {
 
 const fetchStatusOptions = async () => {
   try {
-    const response = await axios.get(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts',
-    );
+    const response = await api.get('/AppLOV', {
+      params: { type: 'AppointmentStauts' },
+    });
+
     const data = response.data?.data || [];
     setStatusOptions(data);
 
-    const statusMap = data.reduce((acc: any, item: any) => {
+    const statusMap = data.reduce((acc: Record<string, string>, item: any) => {
       acc[item.appLOVID] = item.name;
       return acc;
     }, {});
@@ -493,13 +475,18 @@ const fetchStatusOptions = async () => {
 
 const fetchToWhomOptions = async () => {
   try {
-    const response = await axios.get(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
+    const response = await api.get('/AppLOV', {
+      params: { type: 'toWhom' },
+    });
+
+    const toWhomMap = (response.data.data || []).reduce(
+      (acc: Record<string, string>, item: any) => {
+        acc[item.appLOVID] = item.name;
+        return acc;
+      },
+      {},
     );
-    const toWhomMap = response.data.data.reduce((acc: any, item: any) => {
-      acc[item.appLOVID] = item.name;
-      return acc;
-    }, {});
+
     setToWhomMapping(toWhomMap);
   } catch (error) {
     console.error('Error fetching toWhom data:', error);

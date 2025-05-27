@@ -5,6 +5,7 @@ import ClockIcon from '../../images/icon/Clock (1).svg';
 import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
 import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
 import { FaArrowRight, FaArrowLeft } from "react-icons/fa";
+import api from "../../api/request";
 
 interface Appointment {
   doctorID: string;
@@ -29,18 +30,16 @@ const UpcomingAppointments: React.FC = () => {
       try {
         const unitID = sessionStorage.getItem("unitID");
         const today = new Date().toISOString().split("T")[0];
-  
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}&StartDate=${today}&EndDate=${today}`
+
+        const response = await api.get(
+          `/Appointment/GetAppointment?HospitalID=${unitID}&StartDate=${today}&EndDate=${today}`
         );
-  
-        const result = await response.json();
-        console.log("Fetched appointments:", result);
-  
-        const fetchedAppointments = result || [];
-  
+
+        console.log("Fetched appointments:", response.data);
+
+        const fetchedAppointments = response.data || [];
         const currentDateTime = new Date();
-  
+
         const upcomingAppointments = fetchedAppointments
           .filter((appointment) => {
             const appointmentDate = new Date(appointment.appointmentDate);
@@ -52,14 +51,14 @@ const UpcomingAppointments: React.FC = () => {
             const dateA = new Date(a.appointmentDate);
             const [hoursA, minutesA] = a.appointmentTime.split(":");
             dateA.setHours(parseInt(hoursA), parseInt(minutesA), 0, 0);
-  
+
             const dateB = new Date(b.appointmentDate);
             const [hoursB, minutesB] = b.appointmentTime.split(":");
             dateB.setHours(parseInt(hoursB), parseInt(minutesB), 0, 0);
-  
+
             return dateA - dateB;
           });
-  
+
         setAppointments(upcomingAppointments);
       } catch (error) {
         console.error("Error:", error);
@@ -68,10 +67,9 @@ const UpcomingAppointments: React.FC = () => {
         setLoading(false);
       }
     };
-  
+
     fetchAppointments();
   }, []);
-  
   
 
   // Pagination Logic: Show 2 cards at a time

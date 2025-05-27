@@ -8,6 +8,7 @@ import { faEnvelope, faPhone } from '@fortawesome/free-solid-svg-icons';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import MySVG from '../components/MySvgComponent';
 import CustomButton from '../components/CustomButton';
+import api from '../api/request';
 type ResultWithPayload = {
   valid: boolean;
   method: string; // 'method' is required
@@ -24,7 +25,7 @@ type ResultWithoutPayload = {
 };
 
 type Result = ResultWithPayload | ResultWithoutPayload;
-const BASE_URL = 'https://predart003-001-site1.anytempurl.com';
+
 
 const Login: React.FC = () => {
   const [emailOrMobile, setEmailOrMobile] = useState('');
@@ -216,28 +217,25 @@ const Login: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${BASE_URL}/api/login/SendOTP`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(result.payload),
-      });
+       const response = await api.post('/login/SendOTP', result.payload);
 
-      const data = await response.json();
 
-      if (response.ok) {
-        toast.success(
-          `OTP has been sent to your ${result.method.toLowerCase()}..!`,
-        );
-        setIsSendOtpDisabled(true);
+      
 
-        setTimeout(() => {
-          setIsOtpSent(true);
-          setCooldown(30);
-          setIsResendEnabled(false);
-        }, 1000);
-      } else {
-        toast.error(data.message || 'Failed to send OTP. Please try again.');
-      }
+     if (response.status === 200) {
+      toast.success(
+        `OTP has been sent to your ${result.method.toLowerCase()}..!`,
+      );
+      setIsSendOtpDisabled(true);
+
+      setTimeout(() => {
+        setIsOtpSent(true);
+        setCooldown(30);
+        setIsResendEnabled(false);
+      }, 1000);
+    } else {
+      toast.error(response.data.message || 'Failed to send OTP. Please try again.');
+    }
     } catch (error) {
       console.error('Error sending OTP:', error);
       toast.error('An error occurred while sending OTP. Please try again.');
@@ -246,181 +244,182 @@ const Login: React.FC = () => {
     }
   };
 
-  const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
-    e?.preventDefault();
+ const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
+  e?.preventDefault();
 
-    if (isSubmitting) return;
-    setIsSubmitting(true);
+  if (isSubmitting) return;
+  setIsSubmitting(true);
 
-    if (rememberMe) {
-      toast.info('Your login info will be saved securely by the browser.');
-    }
+  if (rememberMe) {
+    toast.info('Your login info will be saved securely by the browser.');
+  }
 
-    if (!emailOrMobile) {
-      toast.error('Please enter your email or mobile number.');
-      setIsSubmitting(false);
-      return;
-    }
+  if (!emailOrMobile) {
+    toast.error('Please enter your email or mobile number.');
+    setIsSubmitting(false);
+    return;
+  }
 
-    if (isOtp && (!otp || otp.some((digit) => digit === ''))) {
-      toast.error('Please enter the complete OTP.');
-      setIsSubmitting(false);
-      return;
-    }
+  if (isOtp && (!otp || otp.some((digit) => digit === ''))) {
+    toast.error('Please enter the complete OTP.');
+    setIsSubmitting(false);
+    return;
+  }
 
-    if (!isOtp && !password) {
-      toast.error('Please enter your password.');
-      setIsSubmitting(false);
-      return;
-    }
+  if (!isOtp && !password) {
+    toast.error('Please enter your password.');
+    setIsSubmitting(false);
+    return;
+  }
 
-    const isMobileNumber = /^\d{10}$/.test(emailOrMobile);
-    const loginType = isMobileNumber ? 'Mobile' : 'Email';
+  const isMobileNumber = /^\d{10}$/.test(emailOrMobile);
+  const loginType = isMobileNumber ? 'Mobile' : 'Email';
 
-    const payload = isOtp
-      ? {
-          method: loginType,
-          [loginType.toLowerCase()]: emailOrMobile,
-          otp: otp.join(''),
-          loginType,
-        }
-      : {
-          username: emailOrMobile,
-          password,
-          loginType,
-        };
+  const payload = isOtp
+    ? {
+        method: loginType,
+        [loginType.toLowerCase()]: emailOrMobile,
+        otp: otp.join(''),
+        loginType,
+      }
+    : {
+        username: emailOrMobile,
+        password,
+        loginType,
+      };
 
-    const endpoint = isOtp
-      ? `${BASE_URL}/api/login/ValidateOTP`
-      : `${BASE_URL}/api/login`;
+  const endpoint = isOtp
+    ? '/login/ValidateOTP'
+    : '/login';
 
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+  try {
+    const response = await api.post(endpoint, payload);  // using the api instance
+
+    const responseBody = response.data;  // response.data is where axios stores the response data
+
+    const keysToStore = [
+      'userPlan',
+      'tenantID',
+      'unitID',
+      'unitType',
+      'userID',
+      'username',
+    ];
+
+    if (
+      (isOtp || (response.status === 200 && responseBody.status !== 'OTP Invalid')) &&
+      responseBody.data
+    ) {
+      keysToStore.forEach((key) => {
+        const value = responseBody.data?.[key] || '';
+        sessionStorage.setItem(key, value);
+        console.log(`${key}:`, value);
       });
 
-      const responseBody = await response.json();
+      const unitID = responseBody.data?.unitID;
+      if (unitID) {
+        sessionStorage.setItem('unitID', unitID);
+        console.log('unitID from session:', unitID);
+      }
 
-      const keysToStore = [
-        'userPlan',
-        'tenantID',
-        'unitID',
-        'unitType',
-        'userID',
-        'username',
-      ];
+      // Store the token in localStorage
+      const token = responseBody.data?.token?.result?.value;
+      if (token) {
+        // Store the token in localStorage
+        localStorage.setItem('authToken', token);
+        console.log('Token saved in localStorage:', token);
 
-      if (
-        (isOtp || (response.ok && responseBody.status !== 'OTP Invalid')) &&
-        responseBody.data
-      ) {
-        keysToStore.forEach((key) => {
-          const value = responseBody.data?.[key] || '';
-          sessionStorage.setItem(key, value);
-          console.log(`${key}:`, value);
-        });
+        // Optionally, set the token in the axios headers for subsequent requests
+        api.defaults.headers['Authorization'] = `Bearer ${token}`;
+        console.log('Authorization header set for future requests');
+      }
 
-        const unitID = responseBody.data?.unitID;
-        if (unitID) {
-          sessionStorage.setItem('unitID', unitID);
-          console.log('unitID from session:', unitID);
-        }
+      const userID = responseBody.data?.userID;
+      if (userID) {
+        const roleResponse = await api.get(`/UserRoles/${userID}`);
+        const roleResponseBody = roleResponse.data;
 
-        const userID = responseBody.data?.userID;
-        if (userID) {
-          const roleResponse = await fetch(
-            `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
-          );
-          const roleResponseBody = await roleResponse.json();
+        if (
+          roleResponse.status === 200 &&
+          roleResponseBody.success &&
+          roleResponseBody.data?.length > 0
+        ) {
+          const roleID = roleResponseBody.data[0].roleID;
+          console.log('User Role ID:', roleID);
+          sessionStorage.setItem('roleID', roleID);
+
+          const roleDetailsResponse = await api.get(`/Role/${roleID}`);
+          const roleDetailsResponseBody = roleDetailsResponse.data;
 
           if (
-            roleResponse.ok &&
-            roleResponseBody.success &&
-            roleResponseBody.data?.length > 0
+            roleDetailsResponse.status === 200 &&
+            roleDetailsResponseBody.success &&
+            roleDetailsResponseBody.data
           ) {
-            const roleID = roleResponseBody.data[0].roleID;
-            console.log('User Role ID:', roleID);
-            sessionStorage.setItem('roleID', roleID);
+            const roleName = roleDetailsResponseBody.data.roleName;
+            console.log('Role Name:', roleName);
+            sessionStorage.setItem('roleName', roleName);
 
-            const roleDetailsResponse = await fetch(
-              `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
-            );
-            const roleDetailsResponseBody = await roleDetailsResponse.json();
-
-            if (
-              roleDetailsResponse.ok &&
-              roleDetailsResponseBody.success &&
-              roleDetailsResponseBody.data
-            ) {
-              const roleName = roleDetailsResponseBody.data.roleName;
-              console.log('Role Name:', roleName);
-              sessionStorage.setItem('roleName', roleName);
-
-              if (roleName === 'Patient') {
-                const patientResponse = await fetch(
-                  `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-                );
-                const patientResponseBody = await patientResponse.json();
-                if (
-                  patientResponse.ok &&
-                  patientResponseBody.success &&
-                  patientResponseBody.data
-                ) {
-                  const patientID = patientResponseBody.data.patientID;
-                  console.log('Patient ID:', patientID);
-                  sessionStorage.setItem('patientID', patientID);
-                } else {
-                  console.error('Failed to fetch patient details');
-                }
-              } else if (roleName === 'Doctor') {
-                const doctorResponse = await fetch(
-                  `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorsByUserID?userId=${userID}`,
-                );
-                const doctorResponseBody = await doctorResponse.json();
-                if (
-                  doctorResponse.ok &&
-                  doctorResponseBody.success &&
-                  doctorResponseBody.data
-                ) {
-                  const doctorID = doctorResponseBody.data.doctorID;
-                  console.log('Doctor ID:', doctorID);
-                  sessionStorage.setItem('doctorID', doctorID);
-                } else {
-                  console.error('Failed to fetch doctor details');
-                }
+            if (roleName === 'Patient') {
+              const patientResponse = await api.get(`/Patient/GetPatientByUserID?userId=${userID}`);
+              const patientResponseBody = patientResponse.data;
+              if (
+                patientResponse.status === 200 &&
+                patientResponseBody.success &&
+                patientResponseBody.data
+              ) {
+                const patientID = patientResponseBody.data.patientID;
+                console.log('Patient ID:', patientID);
+                sessionStorage.setItem('patientID', patientID);
               } else {
-                console.log('User is neither a Patient nor a Doctor');
+                console.error('Failed to fetch patient details');
               }
-
-              toast.success(responseBody.message || 'Login successful!');
-              setTimeout(() => {
-                if (roleName === 'HostitalAdmin') {
-                  navigate('/homePage');
-                } else {
-                  navigate('/dashboard');
-                }
-              }, 1000);
+            } else if (roleName === 'Doctor') {
+              const doctorResponse = await api.get(`/Doctor/GetDoctorsByUserID?userId=${userID}`);
+              const doctorResponseBody = doctorResponse.data;
+              if (
+                doctorResponse.status === 200 &&
+                doctorResponseBody.success &&
+                doctorResponseBody.data
+              ) {
+                const doctorID = doctorResponseBody.data.doctorID;
+                console.log('Doctor ID:', doctorID);
+                sessionStorage.setItem('doctorID', doctorID);
+              } else {
+                console.error('Failed to fetch doctor details');
+              }
             } else {
-              console.error(
-                'Failed to fetch role details or role data is empty',
-              );
+              console.log('User is neither a Patient nor a Doctor');
             }
+
+            toast.success(responseBody.message || 'Login successful!');
+            setTimeout(() => {
+              if (roleName === 'HostitalAdmin') {
+                navigate('/homePage');
+              } else {
+                navigate('/dashboard');
+              }
+            }, 1000);
           } else {
-            console.error('Failed to fetch user role ID or role data is empty');
+            console.error(
+              'Failed to fetch role details or role data is empty',
+            );
           }
+        } else {
+          console.error('Failed to fetch user role ID or role data is empty');
         }
-      } else {
-        toast.error(responseBody.message || 'Login failed. Please try again.');
       }
-    } catch (error) {
-      console.error('Login Error:', error);
-      toast.error('An error occurred while processing your request.');
-    } finally {
-      setIsSubmitting(false);
+    } else {
+      toast.error(responseBody.message || 'Login failed. Please try again.');
     }
-  };
+  } catch (error) {
+    console.error('Login Error:', error);
+    toast.error('An error occurred while processing your request.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   const handleOtpChange = (index: number, value: string) => {
     if (/^\d?$/.test(value)) {
@@ -461,52 +460,51 @@ const Login: React.FC = () => {
     e.preventDefault();
   };
 
-  const handleResendOtp = async () => {
-    const trimmedInput = emailOrMobile.trim();
-  
-    if (!trimmedInput) {
-      toast.error('Please enter your email or mobile number.', { autoClose: 2000 });
-      return;
+ const handleResendOtp = async () => {
+  const trimmedInput = emailOrMobile.trim();
+
+  if (!trimmedInput) {
+    toast.error('Please enter your email or mobile number.', { autoClose: 2000 });
+    return;
+  }
+
+  const { method, payload, isMobile, error } = getLoginMethodPayload(trimmedInput);
+
+  if (error) {
+    toast.error(error, { autoClose: 2000 });
+    return;
+  }
+
+  setIisMobile(isMobile);
+  console.log(`Identified as ${method}. Resending OTP...`);
+
+  try {
+    // ✅ Use Axios instance instead of fetch
+    const response = await api.post('/login/SendOTP', payload);
+
+    if (response.status === 200) {
+      toast.success(`OTP has been resent to your ${method.toLowerCase()}..!`, { autoClose: 2000 });
+      setCooldown(30);
+      setIsResendEnabled(false);
+
+      // ✅ Clear OTP fields
+      setOtp(['', '', '', '', '', '']);
+
+      // Focus the first OTP input
+      const firstInput = document.getElementById('otp-0');
+      firstInput?.focus();
+    } else {
+      toast.error(response.data.message || 'Failed to resend OTP. Please try again.', { autoClose: 2000 });
     }
-  
-    const { method, payload, isMobile, error } = getLoginMethodPayload(trimmedInput);
-  
-    if (error) {
-      toast.error(error, { autoClose: 2000 });
-      return;
-    }
-  
-    setIisMobile(isMobile);
-    console.log(`Identified as ${method}. Resending OTP...`);
-  
-    try {
-      const response = await fetch(`${BASE_URL}/api/login/SendOTP`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-  
-      const result = await response.json();
-  
-      if (response.ok) {
-        toast.success(`OTP has been resent to your ${method.toLowerCase()}..!`, { autoClose: 2000 });
-        setCooldown(30);
-        setIsResendEnabled(false);
-  
-        // ✅ Clear OTP fields
-        setOtp(['', '', '', '', '', '']);
-  
-        // Focus the first OTP input
-        const firstInput = document.getElementById('otp-0');
-        firstInput?.focus();
-      } else {
-        toast.error(result.message || 'Failed to resend OTP. Please try again.', { autoClose: 2000 });
-      }
-    } catch (error) {
-      console.error('Error resending OTP:', error);
-      toast.error('An error occurred while resending OTP. Please try again.', { autoClose: 2000 });
-    }
-  };
+  } catch (error: any) {
+    console.error('Error resending OTP:', error);
+    toast.error(
+      error.response?.data?.message || 'An error occurred while resending OTP. Please try again.',
+      { autoClose: 2000 }
+    );
+  }
+};
+
   
 
   useEffect(() => {

@@ -4,6 +4,7 @@ import { User, Phone, Mail, Calendar, Ruler, Weight, Droplet } from "lucide-reac
 import { FaMale, FaFemale } from "react-icons/fa";  // Importing Gender icons
 
 import Profile from '../images/icon/profile.svg';
+import api from "../api/request";
 
 interface BloodGroup {
   appLOVID: string;
@@ -47,96 +48,99 @@ const navigate = useNavigate();
     addressType: ""
   });
 
-  useEffect(() => {
+ 
+
+useEffect(() => {
+  if (!patientID) return;
+
+  // Fetch basic patient info
+  api.get(`/Patient/${patientID}`)
+    .then(({ data: result }) => {
+      if (result.success && result.data) {
+        const { patientName, patientPhoneNumber, patientDateOfBirth, patientEmail, patientGender } = result.data;
+        setBasicInfo({
+          name: patientName,
+          phone: patientPhoneNumber,
+          dob: patientDateOfBirth?.split("T")[0],
+          email: patientEmail,
+          gender: patientGender,
+        });
+      }
+    })
+    .catch(error => console.error("Error fetching patient data:", error));
+
+  // Fetch medical information
+  api.get(`/Patient/GetMedicalInformation`, { params: { PatientID: patientID } })
+    .then(({ data: result }) => {
+      if (result.success && result.data?.length > 0) {
+        setMedicalInfo(result.data[0]);
+      }
+    })
+    .catch(error => console.error('Error fetching medical info:', error));
+
+  // Fetch blood group options
+  api.get(`/AppLOV`, { params: { type: 'bloodGroup' } })
+    .then(({ data: result }) => {
+      if (result.success && result.data) {
+        setBloodGroups(result.data);
+      }
+    })
+    .catch(error => console.error('Error fetching blood groups:', error));
+
+  // Fetch family info
+  api.get(`/Patient/GetFamily`, { params: { PatientID: patientID } })
+    .then(({ data: result }) => {
+      if (result.success && Array.isArray(result.data)) {
+        const uniqueMap = new Map();
+        result.data.forEach((item) => {
+          const key = `${item.name}-${item.phoneNumber}`;
+          if (!uniqueMap.has(key)) {
+            uniqueMap.set(key, item);
+          }
+        });
+        setFamily(Array.from(uniqueMap.values()));
+      }
+    })
+    .catch(error => console.error("Error fetching family data:", error));
+
+}, [patientID]);
+
+
+ 
+
+useEffect(() => {
+  const fetchAddress = async () => {
+    const patientID = location.state?.patientID;
     if (!patientID) return;
 
-    fetch(`https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && result.data) {
-          const { patientName, patientPhoneNumber, patientDateOfBirth, patientEmail, patientGender } = result.data;
-          setBasicInfo({
-            name: patientName,
-            phone: patientPhoneNumber,
-            dob: patientDateOfBirth?.split("T")[0],
-            email: patientEmail,
-            gender: patientGender, 
-          });
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching patient data:", error);
+    try {
+      const { data: result } = await api.get('/Address/getaddress', {
+        params: {
+          id: patientID,
+          Type: 'Patient',
+        },
       });
 
-    fetch(`https://predart003-001-site1.anytempurl.com/api/Patient/GetMedicalInformation?PatientID=${patientID}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && result.data?.length > 0) {
-          setMedicalInfo(result.data[0]); 
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching medical info:', error);
-      });
-
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV?type=bloodGroup")
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && result.data) {
-          setBloodGroups(result.data);
-        }
-      });
-
-    fetch(`https://predart003-001-site1.anytempurl.com/api/Patient/GetFamily?PatientID=${patientID}`)
-      .then((res) => res.json())
-      .then((result) => {
-        if (result.success && Array.isArray(result.data)) {
-          const uniqueMap = new Map();
-          result.data.forEach((item) => {
-            const key = `${item.name}-${item.phoneNumber}`;
-            if (!uniqueMap.has(key)) {
-              uniqueMap.set(key, item);
-            }
-          });
-          const uniqueFamily = Array.from(uniqueMap.values());
-          setFamily(uniqueFamily); 
-        }
-      })
-      .catch((error) => {
-        console.error("Error fetching family data:", error);
-      });
-
-  }, [patientID]);
-
-  useEffect(() => {
-    const fetchAddress = async () => {
-      const patientID = location.state?.patientID;
-      if (!patientID) return;
-
-      try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Address/getaddress?id=${patientID}&Type=Patient`
-        );
-        const result = await response.json();
-        if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-          const address = result.data[0]; 
-          setAddress({
-            address1: address.address1 || "",
-            address2: address.address2 || "",
-            city: address.city || "",
-            district: address.district || "",
-            state: address.state || "",
-            zipCode: address.zipCode || "",
-            addressType: address.addressType || ""
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching address data:", error);
+      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+        const address = result.data[0];
+        setAddress({
+          address1: address.address1 || "",
+          address2: address.address2 || "",
+          city: address.city || "",
+          district: address.district || "",
+          state: address.state || "",
+          zipCode: address.zipCode || "",
+          addressType: address.addressType || ""
+        });
       }
-    };
+    } catch (error) {
+      console.error("Error fetching address data:", error);
+    }
+  };
 
-    fetchAddress();
-  }, [location.state?.patientID]);
+  fetchAddress();
+}, [location.state?.patientID]);
+
 
   const getBloodGroupNameById = (id: string) => {
     const group = bloodGroups.find((bg) => bg.appLOVID === id);

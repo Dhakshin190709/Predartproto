@@ -10,6 +10,7 @@ import {
   FaXRay,
 } from 'react-icons/fa';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 
 const SearchLab: React.FC = () => {
   const [labs, setLabs] = useState<any[]>([]);
@@ -50,69 +51,83 @@ const SearchLab: React.FC = () => {
 
   const [expanded, setExpanded] = useState({});
 
-  // const toggleView = (index) => {
-  //   setExpanded((prev) => ({ ...prev, [index]: !prev[index] }));
-  // };
-  // Fetch AppLOV data and create a mapping (id → name)
-  useEffect(() => {
-    fetch(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=facilitiestype',
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('API Response:', data); // Debugging
-        if (data && Array.isArray(data.data)) {
-          const facilitiesList = data.data.map((facility: any) => ({
-            id: facility.appLOVID,
-            name: facility.name,
-          }));
-          setLabFacilities(facilitiesList);
-        } else {
-          console.error('Expected an array inside "data" but got:', data);
-        }
-      })
-      .catch((error) => console.error('Error fetching AppLOV:', error));
-  }, []);
 
-  useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV?type=LabType')
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.data)) {
-          const typesList = data.data.map((lab: any) => ({
-            id: lab.appLOVID,
-            name: lab.name,
-          }));
-          setLabTypes(typesList);
-        } else {
-          console.error('Expected an array inside "data" but got:', data);
-        }
-      })
-      .catch((error) => console.error('Error fetching Lab Types:', error));
-  }, []);
+ useEffect(() => {
+  const fetchFacilitiesType = async () => {
+    try {
+      const response = await api.get('/AppLOV?type=facilitiestype');
+      const data = response.data;
+
+      console.log('API Response:', data); // Debugging
+
+      if (data && Array.isArray(data.data)) {
+        const facilitiesList = data.data.map((facility: any) => ({
+          id: facility.appLOVID,
+          name: facility.name,
+        }));
+        setLabFacilities(facilitiesList);
+      } else {
+        console.error('Expected an array inside "data" but got:', data);
+      }
+    } catch (error) {
+      console.error('Error fetching AppLOV:', error);
+    }
+  };
+
+  fetchFacilitiesType();
+}, []);
+
+ useEffect(() => {
+  const fetchLabTypes = async () => {
+    try {
+      const response = await api.get('/AppLOV?type=LabType');
+      const data = response.data;
+
+      if (data.success && Array.isArray(data.data)) {
+        const typesList = data.data.map((lab: any) => ({
+          id: lab.appLOVID,
+          name: lab.name,
+        }));
+        setLabTypes(typesList);
+      } else {
+        console.error('Expected an array inside "data" but got:', data);
+      }
+    } catch (error) {
+      console.error('Error fetching Lab Types:', error);
+    }
+  };
+
+  fetchLabTypes();
+}, []);
+
 
   // Fetch Labs and replace labFacilities ID with the corresponding name
-  useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Laboratory')
-      .then((response) => response.json())
-      .then((data) => {
-        if (data && Array.isArray(data.data)) {
-          const updatedLabs = data.data.map((lab: any) => ({
-            ...lab,
-            labFacilities: lab.labFacilities
-              .split(',') // If multiple facilities are stored as comma-separated IDs
-              .map((id: string) => labFacilitiesMap[id.trim()] || id) // Replace ID with name
-              .join(', '),
-          }));
-          setLabs(updatedLabs);
-          setFilteredLabs(updatedLabs); // Initialize filteredLabs
-        } else {
-          console.error("Expected an array inside 'data' but got:", data);
-        }
-      })
-      .catch((error) => console.error('Error fetching labs:', error));
-  }, [labFacilitiesMap]); // Re-fetch labs when mapping is updated
+ useEffect(() => {
+  const fetchLabs = async () => {
+    try {
+      const response = await api.get('/Laboratory');
+      const data = response.data;
 
+      if (data && Array.isArray(data.data)) {
+        const updatedLabs = data.data.map((lab: any) => ({
+          ...lab,
+          labFacilities: lab.labFacilities
+            .split(',')
+            .map((id: string) => labFacilitiesMap[id.trim()] || id)
+            .join(', '),
+        }));
+        setLabs(updatedLabs);
+        setFilteredLabs(updatedLabs);
+      } else {
+        console.error("Expected an array inside 'data' but got:", data);
+      }
+    } catch (error) {
+      console.error('Error fetching labs:', error);
+    }
+  };
+
+  fetchLabs();
+}, [labFacilitiesMap]);
   // Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -150,9 +165,7 @@ const SearchLab: React.FC = () => {
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
-      <h1 className="text-3xl font-semibold text-black mb-6">
-        Search Lab
-      </h1>
+      <h1 className="text-3xl font-semibold text-black mb-6">Search Lab</h1>
 
       {/* Search Form */}
       <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -219,78 +232,70 @@ const SearchLab: React.FC = () => {
 
         {/* Search Button */}
         <div>
-         
-       
-          <CustomButton  onClick={handleSearch}>
-      Search
-    </CustomButton>
+          <CustomButton onClick={handleSearch}>Search</CustomButton>
         </div>
       </form>
-      <h1 className="text-2xl font-semibold text-black mt-4  mb-6">List of Lab's</h1>
+      <h1 className="text-2xl font-semibold text-black mt-4  mb-6">
+        List of Lab's
+      </h1>
 
+      {/* Lab Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+        {filteredLabs.length > 0 ? (
+          filteredLabs.map((lab, index) => {
+            const { icon, color } = getLabIcon(lab.labType);
+            const isExpanded = expandedIndex === index;
 
-     {/* Lab Cards */}
-<div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-  {filteredLabs.length > 0 ? (
-    filteredLabs.map((lab, index) => {
-      const { icon, color } = getLabIcon(lab.labType);
-      const isExpanded = expandedIndex === index;
+            return (
+              <div
+                key={index}
+                className="bg-white p-5 rounded-lg shadow border border-blue-400 relative transition hover:shadow-lg"
+              >
+                {/* Icon Badge - Top Left */}
+                <div className="absolute top-0 left-0 bg-blue-300 w-10 h-10 rounded-br-lg rounded-tl-lg flex items-center justify-center">
+                  <span className="text-white text-xl">{icon}</span>
+                </div>
 
-      return (
-        <div
-          key={index}
-          className="bg-white p-5 rounded-lg shadow border border-blue-400 relative transition hover:shadow-lg"
-        >
-          {/* Icon Badge - Top Left */}
-          <div className="absolute top-0 left-0 bg-blue-300 w-10 h-10 rounded-br-lg rounded-tl-lg flex items-center justify-center">
-            <span className="text-white text-xl">{icon}</span>
-          </div>
+                {/* Info Row */}
+                <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 pl-12">
+                  {' '}
+                  {/* pl-12 to avoid overlapping the icon */}
+                  {/* Lab Name + Code */}
+                  <h2 className="text-base font-bold text-gray-800">
+                    {lab.labName} ({lab.labCode})
+                  </h2>
+                  {/* Lab Type */}
+                  <p className="text-sm font-medium">{lab.labType}</p>
+                  {/* View More / Less */}
+                  <button
+                    onClick={() => toggleView(index)}
+                    className="text-blue-500 text-sm hover:underline"
+                  >
+                    {isExpanded ? 'View Less' : 'View More'}
+                  </button>
+                </div>
 
-          {/* Info Row */}
-          <div className="grid grid-cols-[1fr_1fr_auto] items-center gap-4 pl-12"> {/* pl-12 to avoid overlapping the icon */}
-            {/* Lab Name + Code */}
-            <h2 className="text-base font-bold text-gray-800">
-              {lab.labName} ({lab.labCode})
-            </h2>
-
-            {/* Lab Type */}
-            <p className="text-sm font-medium">
-              {lab.labType}
-            </p>
-
-            {/* View More / Less */}
-            <button
-              onClick={() => toggleView(index)}
-              className="text-blue-500 text-sm hover:underline"
-            >
-              {isExpanded ? "View Less" : "View More"}
-            </button>
-          </div>
-
-          {/* Facilities Section */}
-          {isExpanded && (
-            <div className="mt-3 text-gray-600 text-sm font-medium text-center">
-              {lab.labFacilities
-                .split(",")
-                .map((id) => {
-                  const facility = labFacilities.find(
-                    (f) => f.id.toString() === id.trim()
-                  );
-                  return facility ? facility.name : id;
-                })
-                .join(", ")}
-            </div>
-          )}
-        </div>
-      );
-    })
-  ) : (
-    <p className="text-lg font-semibold text-gray-700">No labs found</p>
-  )}
-</div>
-
-
-
+                {/* Facilities Section */}
+                {isExpanded && (
+                  <div className="mt-3 text-gray-600 text-sm font-medium text-center">
+                    {lab.labFacilities
+                      .split(',')
+                      .map((id) => {
+                        const facility = labFacilities.find(
+                          (f) => f.id.toString() === id.trim(),
+                        );
+                        return facility ? facility.name : id;
+                      })
+                      .join(', ')}
+                  </div>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <p className="text-lg font-semibold text-gray-700">No labs found</p>
+        )}
+      </div>
     </div>
   );
 };

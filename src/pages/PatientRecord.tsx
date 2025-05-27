@@ -10,6 +10,7 @@ import { toast } from 'react-toastify'; // Import the toast library
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
 import { FaFemale, FaGenderless, FaMale } from 'react-icons/fa';
+import api from '../api/request';
 interface Patient {
   hospitalName: string;
   patientDateOfBirth: string;
@@ -46,7 +47,8 @@ const ProfileSection: React.FC = () => {
   const [selectedPatientID, setSelectedPatientID] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-  
+
+  const [errors, setErrors] = useState({ patient: '', mobile: '' });
   const [patientID, setPatientID] = useState<string | null>(null);
   const doctorID = sessionStorage.getItem('doctorID');
 
@@ -120,17 +122,17 @@ const ProfileSection: React.FC = () => {
     },
   ];
 
-  const fetchPatientData = (patientID: string) => {
-    console.log('Fetching data for patient ID:', patientID);
-    axios
-      .get(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`,
-      )
-      .then((res) => {
-        console.log('Fetched patient data:', res.data.data);
-        setPatientData(res.data.data);
-      })
-      .catch((err) => console.error('Error fetching patient:', err));
+  const fetchPatientData = async (patientID: string) => {
+    try {
+      console.log('Fetching data for patient ID:', patientID);
+      const res = await api.get(`/Patient/${patientID}`);
+      console.log('Fetched patient data:', res.data.data);
+      setPatientData(res.data.data);
+    } catch (err) {
+      console.error('Error fetching patient:', err);
+      // Optionally, show a toast or alert for user feedback
+      // toast.error('Failed to fetch patient data. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -151,44 +153,53 @@ const ProfileSection: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'appointment' && roleName) {
-      const idToUse = roleName === 'Patient' ? patientID : doctorID;
+    if (activeTab !== 'appointment' || !roleName) return;
 
-      if (idToUse) {
-        let apiUrl = '';
+    const idToUse = roleName.toLowerCase() === 'patient' ? patientID : doctorID;
 
-        if (roleName === 'Patient') {
-          // Patient role: only patientID
-          apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?PatientID=${idToUse}`;
-        } else if (roleName === 'Doctor' && selectedPatientID) {
-          // Doctor role: both doctorID and selected patient
-          apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}&PatientID=${selectedPatientID}`;
-        }
+    if (!idToUse) return;
 
-        if (apiUrl) {
-          axios
-            .get(apiUrl)
-            .then((res) => {
-              console.log('Full response:', res);
+    let apiUrl = '';
 
-              const formattedData = (res.data || []).map(
-                (item: any, index: number) => ({
-                  sNo: index + 1,
-                  hospitalName: item.hospitalName,
-                  appointmentDate: item.appointmentDate?.slice(0, 10),
-                  doctorName: item.doctorName,
-                  notes: item.notes,
-                }),
-              );
-
-              console.log('Formatted Appointment Data:', formattedData);
-              setAppointmentData(formattedData);
-            })
-            .catch((err) => console.error('Error fetching appointments:', err));
-        }
-      }
+    if (roleName.toLowerCase() === 'patient') {
+      apiUrl = `/Appointment/GetAppointment?PatientID=${idToUse}`;
+    } else if (roleName.toLowerCase() === 'doctor' && selectedPatientID) {
+      apiUrl = `/Appointment/GetAppointment?DoctorID=${doctorID}&PatientID=${selectedPatientID}`;
     }
-  }, [activeTab, patientID, doctorID, roleName, selectedPatientID]); // <-- added selectedPatientID dependency
+
+    if (!apiUrl) return;
+
+    let isMounted = true;
+
+    const fetchAppointments = async () => {
+      try {
+        const res = await api.get(apiUrl);
+        if (!isMounted) return;
+
+        const formattedData = (res.data || []).map(
+          (item: any, index: number) => ({
+            sNo: index + 1,
+            hospitalName: item.hospitalName,
+            appointmentDate: item.appointmentDate?.slice(0, 10),
+            doctorName: item.doctorName,
+            notes: item.notes,
+          }),
+        );
+
+        console.log('Formatted Appointment Data:', formattedData);
+        setAppointmentData(formattedData);
+      } catch (err) {
+        console.error('Error fetching appointments:', err);
+      }
+    };
+
+    fetchAppointments();
+
+    return () => {
+      isMounted = false; // Cleanup flag to prevent state update after unmount
+    };
+  }, [activeTab, patientID, doctorID, roleName, selectedPatientID]);
+  // <-- added selectedPatientID dependency
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -200,79 +211,76 @@ const ProfileSection: React.FC = () => {
               style={{ height: '350px', width: '100%' }}
             >
               <AgGridReact
-  rowData={appointmentData.map((row, index) => ({
-    ...row,
-    sNo: index + 1,
-  }))}
-  pagination={true}
-  paginationPageSize={5}
-  domLayout="autoHeight"
-  suppressPaginationPanel={false}
-  paginationPageSizeSelector={[10, 20, 50, 100, 5]}
-  columnDefs={[
-    {
-      headerName: 'S.No',
-      field: 'sNo',
-      width: 100,
-      sortable: false,
-      filter: false,
-    },
-    {
-      headerName: 'Appointment Date',
-      field: 'appointmentDate',
-      width: 150,
-      sortable: true,
-      filter: true,
-    },
-    {
-      headerName: 'Hospital Name',
-      field: 'hospitalName',
-      flex: 1.5,
-      sortable: true,
-      filter: true,
-    },
-    // Conditionally render 'Doctor Name' column based on roleName
-    ...(roleName === 'Patient'
-      ? [
-          {
-            headerName: 'Doctor Name',
-            field: 'doctorName',
-            flex: 1.5,
-            sortable: true,
-            filter: true,
-          },
-        ]
-      : []),
-    {
-      headerName: 'Reason',
-      field: 'notes',
-      flex: 2,
-      sortable: true,
-      filter: true,
-    },
-    {
-      headerName: 'View',
-      field: 'view',
-      cellRenderer: (params: any) => (
-        <a
-          href="#"
-          onClick={(e) => {
-            e.preventDefault(); // Prevents navigation
-            setModalMessage('Development in progress');
-            setIsModalOpen(true); // Opens the modal
-          }}
-          className="text-blue-600 underline"
-        >
-          View
-        </a>
-      ),
-      width: 100,
-    },
-    
-  ]}
-/>
-
-             
+                rowData={appointmentData.map((row, index) => ({
+                  ...row,
+                  sNo: index + 1,
+                }))}
+                pagination={true}
+                paginationPageSize={5}
+                domLayout="autoHeight"
+                suppressPaginationPanel={false}
+                paginationPageSizeSelector={[10, 20, 50, 100, 5]}
+                columnDefs={[
+                  {
+                    headerName: 'S.No',
+                    field: 'sNo',
+                    width: 100,
+                    sortable: false,
+                    filter: false,
+                  },
+                  {
+                    headerName: 'Appointment Date',
+                    field: 'appointmentDate',
+                    width: 150,
+                    sortable: true,
+                    filter: true,
+                  },
+                  {
+                    headerName: 'Hospital Name',
+                    field: 'hospitalName',
+                    flex: 1.5,
+                    sortable: true,
+                    filter: true,
+                  },
+                  // Conditionally render 'Doctor Name' column based on roleName
+                  ...(roleName === 'Patient'
+                    ? [
+                        {
+                          headerName: 'Doctor Name',
+                          field: 'doctorName',
+                          flex: 1.5,
+                          sortable: true,
+                          filter: true,
+                        },
+                      ]
+                    : []),
+                  {
+                    headerName: 'Reason',
+                    field: 'notes',
+                    flex: 2,
+                    sortable: true,
+                    filter: true,
+                  },
+                  {
+                    headerName: 'View',
+                    field: 'view',
+                    cellRenderer: (params: any) => (
+                      <a
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault(); // Prevents navigation
+                          setModalMessage('Development in progress');
+                          setIsModalOpen(true); // Opens the modal
+                        }}
+                        className="text-blue-600 underline"
+                      >
+                        View
+                      </a>
+                    ),
+                    width: 100,
+                  },
+                ]}
+              />
             </div>
           </div>
         );
@@ -461,9 +469,6 @@ const ProfileSection: React.FC = () => {
                   ),
                   width: 120,
                 },
-
-               
-                
               ]}
             />
           </div>
@@ -552,46 +557,116 @@ const ProfileSection: React.FC = () => {
     }
   };
 
-  const handleSearch = async () => {
-   
-  
-    if (!selectedPatient.trim() && !mobileNumber.trim()) {
-      toast.warn('Please enter any one field'); 
-      return;
+  // Handle Patient Name Validation
+  const handlePatientChange = (value: string) => {
+    const nameRegex = /^[A-Za-z]{1,}[A-Za-z0-9]{0,19}$/;
+    const repeatDigitsRegex = /(.)\1{2,}/; // Repeating characters more than 2
+
+    if (!nameRegex.test(value) || repeatDigitsRegex.test(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        patient: 'Enter valid name (letters and non-repeating digits only)',
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, patient: '' }));
     }
 
-    try {
-      console.log('Selected Patient:', selectedPatient);
-      console.log('Mobile Number:', mobileNumber);
-
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Patient?PatientName=${encodeURIComponent(selectedPatient)}&MobileNo=${encodeURIComponent(mobileNumber)}`,
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch patient data');
-      }
-
-      const result = await response.json();
-      console.log('API Response:', result);
-
-      if (
-        result.success &&
-        Array.isArray(result.data) &&
-        result.data.length > 0
-      ) {
-        setPatientData(result.data); // Store the patient data as an array
-        setIsSearchPerformed(true); // Mark the search as performed
-      } else {
-        setPatientData([]); // Set to empty array if no data found
-        setIsSearchPerformed(true); // Mark search as performed
-        toast.error('No patient found with given details.'); // Display an error toast
-      }
-    } catch (error) {
-      console.error('Error during search:', error);
-      toast.error('Something went wrong while searching.'); // Display a general error toast
-    }
+    setSelectedPatient(value);
   };
+
+  // Handle Mobile Number Validation
+  const handleMobileChange = (value: string) => {
+    const mobileRegex = /^[6-9]\d{9}$/;
+
+    if (!mobileRegex.test(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        mobile: 'Enter valid 10-digit mobile number (starts with 6-9)',
+      }));
+    } else {
+      setErrors((prev) => ({ ...prev, mobile: '' }));
+    }
+
+    setMobileNumber(value.replace(/\D/g, '')); // Only keep digits
+  };
+
+  const [loading, setLoading] = React.useState(false);
+
+const handleSearch = async () => {
+  const patient = selectedPatient.trim();
+  const mobile = mobileNumber.trim();
+  const tenantID = sessionStorage.getItem('tenantID');
+
+  const newErrors: { patient?: string; mobile?: string } = {};
+
+  // At least one field must be filled
+  if (!patient && !mobile) {
+    toast.warn('Please enter at least one field');
+    return;
+  }
+
+  // Re-run validations even if they were run earlier
+  if (patient) {
+    if (patient.length > 20) {
+      newErrors.patient = 'Maximum 20 characters allowed';
+    } else if (!/^[a-zA-Z\s]+$/.test(patient)) {
+      newErrors.patient = 'Patient name must contain only letters';
+    }
+  }
+
+  if (mobile) {
+    if (!/^\d{10}$/.test(mobile)) {
+      newErrors.mobile = 'Mobile number must be 10 digits';
+    }
+  }
+
+  // Merge new validation errors into state
+  setErrors((prev) => ({ ...prev, ...newErrors }));
+
+  // Check if any error exists in new or existing errors
+  const hasErrors =
+    Object.values({ ...errors, ...newErrors }).filter((val) => val).length > 0;
+
+  if (hasErrors) {
+    return; // Block the search
+  }
+
+  if (!tenantID) {
+    toast.error('Tenant ID is missing from session');
+    return;
+  }
+
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+    params.append('tenantID', tenantID);
+    if (patient) params.append('PatientName', patient);
+    if (mobile) params.append('MobileNo', mobile);
+
+    const response = await api.get(`/Patient?${params.toString()}`);
+
+    if (
+      response.data.success &&
+      Array.isArray(response.data.data) &&
+      response.data.data.length > 0
+    ) {
+      setPatientData(response.data.data);
+      setIsSearchPerformed(true);
+    } else {
+      setPatientData([]);
+      setIsSearchPerformed(true);
+      toast.error('No patient found with given details.');
+    }
+  } catch (error) {
+    console.error('Error during search:', error);
+    toast.error('Something went wrong while searching.');
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
 
   const viewPatientRecord = (patientID: string) => {
     setSelectedPatientID(patientID);
@@ -602,334 +677,350 @@ const ProfileSection: React.FC = () => {
 
   return (
     <div className="p-4 space-y-4">
-    <h1 className="text-3xl font-semibold text-black mb-6">
-      Patient Record
-    </h1>
-    <div className="h-screen flex flex-col">
-      {/* Top Search Bar */}
-      {roleName === 'Doctor' && !selectedPatientID && (
-        <div className="p-4 flex items-center gap-4 bg-gray-100 mb-6">
-          {/* Patient Name Input */}
-          <input
-            type="text"
-            value={selectedPatient}
-            onChange={(e) => setSelectedPatient(e.target.value)}
-            className="w-[40%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-            placeholder="Enter Patient Name"
-          />
-
-          {/* Mobile Number Input */}
-          <input
-            type="text"
-            value={mobileNumber}
-            onChange={(e) => setMobileNumber(e.target.value)}
-            placeholder="Enter Mobile Number"
-            className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-4
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-
-          {/* Search Button */}
-          <CustomButton onClick={handleSearch} className='w-[10%] py-3'>Search</CustomButton>
-          <CustomButton
-            onClick={() => {
-              // Reset search fields and states
-              setSelectedPatient(''); // Clear patient name input
-              setMobileNumber(''); // Clear mobile number input
-              setPatientData([]); // Clear patient data
-              setIsSearchPerformed(false); // Reset search performed state
-              setSelectedPatientID(null); // Reset selected patient ID (if any)
-            }}
-            className="opacity-60 hover:opacity-100 border py-3 w-[10%] border-gray-300 flex justify-center items-center gap-2"
-
-           
-          
-          >
-            Reset
-          </CustomButton>
-        </div>
-      )}
-
-      {roleName === 'Doctor' && !isSearchPerformed && (
-        <div className="text-center">
-          {/* Display message when doctor hasn't searched yet */}
-          <p>Please search for a patient to view their details.</p>
-        </div>
-      )}
-      <ToastContainer />
-      <div className="p-6">
-        {roleName === 'Patient' && patientData && (
-          <>
-            {/* Top 25% Profile */}
-            <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
-              <div className="flex-shrink-0 pr-8 h-full flex items-center">
-                <img
-                  src={Profile}
-                  alt="Profile"
-                  className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
-                />
-              </div>
-
-              <div className="pl-8 grid grid-cols-2 gap-x-12 gap-y-4 w-full text-gray-900 text-lg">
-                <div className="flex space-x-2 items-center max-w-full">
-                  <span className="font-semibold text-gray-600">Name:</span>
-                  <span
-                    className="font-bold truncate max-w-[20rem] inline-flex items-center"
-                    title={`${patientData.patientName} (${patientData.patientGender})`}
-                  >
-                    {patientData.patientName} (
-                    {['F', 'Female'].includes(patientData.patientGender) && (
-                      <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
-                    )}
-                    {['M', 'Male'].includes(patientData.patientGender) && (
-                      <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
-                    )}
-                    {['O', 'Other', 'Others'].includes(
-                      patientData.patientGender,
-                    ) && (
-                      <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
-                    )}
-                    )
-                  </span>
-                </div>
-
-                <div className="flex space-x-2">
-                  <span className="font-semibold text-gray-600">
-                    Date of Birth:
-                  </span>
-                  <span className="font-bold">
-                    {patientData.patientDateOfBirth?.slice(0, 10)}
-                  </span>
-                </div>
-
-                <div className="flex space-x-2">
-                  <span className="font-semibold text-gray-600">Phone:</span>
-                  <span className="font-bold">
-                    {patientData.patientPhoneNumber}
-                  </span>
-                </div>
-
-                <div className="flex space-x-2 items-center max-w-full">
-                  <span className="font-semibold text-gray-600">Email:</span>
-                  <span
-                    className="font-bold truncate max-w-[20rem]"
-                    title={patientData.patientEmail}
-                  >
-                    {patientData.patientEmail}
-                  </span>
-                </div>
+      <h1 className="text-3xl font-semibold text-black mb-6">Patient Record</h1>
+      <div className="h-screen flex flex-col">
+        {/* Top Search Bar */}
+        {roleName === 'Doctor' && !selectedPatientID && (
+          <div className="p-4 flex items-start gap-4 bg-gray-100 mb-2 flex-wrap">
+            {/* Patient Name Input with Error Placeholder */}
+            <div className="flex flex-col w-[40%]">
+              <input
+                type="text"
+                value={selectedPatient}
+                onChange={(e) => handlePatientChange(e.target.value)}
+                placeholder="Enter Patient Name"
+                maxLength={20}
+                className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+              />
+              <div className="text-sm mt-2 min-h-[20px] text-red-500">
+                {errors.patient || '\u00A0'}
               </div>
             </div>
 
-            {/* Bottom 75% Tabs */}
-            <div className="h-3/4 p-6 overflow-y-auto">
-              <div className="flex space-x-4 mb-4 border-b pb-2">
-                {[
-                  'appointment',
-                  'chronic disease',
-                  'medical',
-                  'medical documents',
-                  'payment',
-                ].map((tab) => (
-                  <button
-                    key={tab}
-                    className={`px-4 py-2 rounded-t capitalize font-medium transition ${
-                      activeTab === tab
-                        ? 'bg-blue-400 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => setActiveTab(tab)}
-                  >
-                    {tab}
-                  </button>
-                ))}
+            {/* Mobile Number Input with Error Placeholder */}
+            <div className="flex flex-col w-[30%]">
+              <input
+                type="text"
+                value={mobileNumber}
+                onChange={(e) => handleMobileChange(e.target.value)}
+                placeholder="Enter Mobile Number"
+                maxLength={10}
+                className="rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-4
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+              />
+              <div className="text-sm mt-2 min-h-[20px] text-red-500">
+                {errors.mobile || '\u00A0'}
               </div>
-
-              <div className="p-4">{renderTabContent()}</div>
             </div>
-          </>
+
+            {/* Search Button (Vertically Aligned with Input) */}
+            <div className="flex flex-col justify-end w-[10%]">
+              <CustomButton onClick={handleSearch} className="py-3">
+                Search
+              </CustomButton>
+              {/* Empty space to match error area height */}
+              <div className="mt-2 min-h-[20px]">&nbsp;</div>
+            </div>
+
+            {/* Reset Button (Vertically Aligned with Input) */}
+            <div className="flex flex-col justify-end w-[10%]">
+              <CustomButton
+                onClick={() => {
+                  setSelectedPatient('');
+                  setMobileNumber('');
+                  setPatientData([]);
+                  setIsSearchPerformed(false);
+                  setSelectedPatientID(null);
+                  setErrors({ patient: '', mobile: '' });
+                }}
+                className="opacity-60 hover:opacity-100 border py-3 border-gray-300 flex justify-center items-center gap-2"
+              >
+                Reset
+              </CustomButton>
+              {/* Empty space to match error area height */}
+              <div className="mt-2 min-h-[20px]">&nbsp;</div>
+            </div>
+          </div>
         )}
 
-        {/* Back to Patient List Link */}
-        {roleName === 'Doctor' && selectedPatientID && patientData && (
-          <a
-            onClick={() => {
-              setSelectedPatientID(null); // Reset the selected patient ID to return to the list
-              setActiveTab(null); // Reset the tab selection if necessary
-            }}
-            className="mb-4 inline-flex items-center text-blue-500 font-semibold hover:text-gray-600 cursor-pointer"
-          >
-            Back <span className="ml-2">{' >'}</span>
-          </a>
+        {roleName === 'Doctor' && !isSearchPerformed && (
+          <div className="text-center">
+            {/* Display message when doctor hasn't searched yet */}
+            <p>Please search for a patient to view their details.</p>
+          </div>
         )}
-
-        {/* Patient Cards Display */}
-        {roleName === 'Doctor' &&
-          isSearchPerformed &&
-          patientArray.length > 0 &&
-          !selectedPatientID && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
-              {patientArray.map((patient) => (
-                <div
-                  key={patient.patientID}
-                  className="card p-4 border-2 border-blue-100 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700"
-                >
-                  {/* Image */}
+        <ToastContainer />
+        <div className="p-6">
+          {roleName === 'Patient' && patientData && (
+            <>
+              {/* Top 25% Profile */}
+              <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
+                <div className="flex-shrink-0 pr-8 h-full flex items-center">
                   <img
                     src={Profile}
-                    alt={`${patient.patientName}'s profile`}
-                    className="w-16 h-16 rounded-full mb-4 object-cover mx-auto"
+                    alt="Profile"
+                    className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
                   />
-
-                  {/* Patient Name */}
-                  <h3 className="text-xl font-semibold text-center">
-                    {patient.patientName}
-                  </h3>
-
-                  {/* Patient Contact Info */}
-                  <p className="text-sm text-center">
-                    {/* Phone */}
-                    <span className="block">
-                      Phone: {patient.patientPhoneNumber}
-                    </span>
-
-                    {/* Email with truncation */}
-                    <span
-                      className="block truncate max-w-[15rem]"
-                      title={patient.patientEmail}
-                    >
-                      Email: {patient.patientEmail}
-                    </span>
-                  </p>
-
-                 {/* View Record Button */}
-<div className="flex justify-center mt-4">
-  <button
-    onClick={() => viewPatientRecord(patient.patientID)} // Call function to view patient details
-    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-800"
-  >
-    View Record
-  </button>
-</div>
-
                 </div>
-              ))}
-            </div>
+
+                <div className="pl-8 grid grid-cols-2 gap-x-12 gap-y-4 w-full text-gray-900 text-lg">
+                  <div className="flex space-x-2 items-center max-w-full">
+                    <span className="font-semibold text-gray-600">Name:</span>
+                    <span
+                      className="font-bold truncate max-w-[20rem] inline-flex items-center"
+                      title={`${patientData.patientName} (${patientData.patientGender})`}
+                    >
+                      {patientData.patientName} (
+                      {['F', 'Female'].includes(patientData.patientGender) && (
+                        <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
+                      )}
+                      {['M', 'Male'].includes(patientData.patientGender) && (
+                        <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
+                      )}
+                      {['O', 'Other', 'Others'].includes(
+                        patientData.patientGender,
+                      ) && (
+                        <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
+                      )}
+                      )
+                    </span>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <span className="font-semibold text-gray-600">
+                      Date of Birth:
+                    </span>
+                    <span className="font-bold">
+                      {patientData.patientDateOfBirth?.slice(0, 10)}
+                    </span>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <span className="font-semibold text-gray-600">Phone:</span>
+                    <span className="font-bold">
+                      {patientData.patientPhoneNumber}
+                    </span>
+                  </div>
+
+                  <div className="flex space-x-2 items-center max-w-full">
+                    <span className="font-semibold text-gray-600">Email:</span>
+                    <span
+                      className="font-bold truncate max-w-[20rem]"
+                      title={patientData.patientEmail}
+                    >
+                      {patientData.patientEmail}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom 75% Tabs */}
+              <div className="h-3/4 p-6 overflow-y-auto">
+                <div className="flex space-x-4 mb-4 border-b pb-2">
+                  {[
+                    'appointment',
+                    'chronic disease',
+                    'medical',
+                    'medical documents',
+                    'payment',
+                  ].map((tab) => (
+                    <button
+                      key={tab}
+                      className={`px-4 py-2 rounded-t capitalize font-medium transition ${
+                        activeTab === tab
+                          ? 'bg-blue-400 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4">{renderTabContent()}</div>
+              </div>
+            </>
           )}
 
-        {/* Patient Profile Details */}
-        {roleName === 'Doctor' && selectedPatientID && patientData && (
-          <>
-            {/* Patient Profile Section */}
-            <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
-              <div className="flex-shrink-0 pr-8 h-full flex items-center">
-                <img
-                  src={Profile}
-                  alt="Profile"
-                  className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
-                />
-              </div>
-              <div className="pl-8 grid grid-cols-2 gap-x-12 gap-y-4 w-full text-gray-900 text-lg">
-                <div className="flex space-x-2 items-center max-w-full">
-                  <span className="font-semibold text-gray-600">Name:</span>
-                  <span
-                    className="font-bold truncate max-w-[20rem] inline-flex items-center"
-                    title={`${patientData.patientName} (${patientData.patientGender})`}
-                  >
-                    {patientData.patientName} (
-                    {['F', 'Female'].includes(patientData.patientGender) && (
-                      <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
-                    )}
-                    {['M', 'Male'].includes(patientData.patientGender) && (
-                      <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
-                    )}
-                    {['O', 'Other', 'Others'].includes(
-                      patientData.patientGender,
-                    ) && (
-                      <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
-                    )}
-                    )
-                  </span>
-                </div>
-                <div className="flex space-x-2">
-                  <span className="font-semibold text-gray-600">
-                    Date of Birth:
-                  </span>
-                  <span className="font-bold">
-                    {patientData.patientDateOfBirth?.slice(0, 10)}
-                  </span>
-                </div>
-                <div className="flex space-x-2">
-                  <span className="font-semibold text-gray-600">Phone:</span>
-                  <span className="font-bold">
-                    {patientData.patientPhoneNumber}
-                  </span>
-                </div>
-                <div className="flex space-x-2 items-center max-w-full">
-                  <span className="font-semibold text-gray-600">Email:</span>
-                  <span
-                    className="font-bold truncate max-w-[20rem]"
-                    title={patientData.patientEmail}
-                  >
-                    {patientData.patientEmail}
-                  </span>
-                </div>
-              </div>
-            </div>
+          {/* Back to Patient List Link */}
+          {roleName === 'Doctor' && selectedPatientID && patientData && (
+            <a
+              onClick={() => {
+                setSelectedPatientID(null); // Reset the selected patient ID to return to the list
+                setActiveTab(null); // Reset the tab selection if necessary
+              }}
+              className="mb-4 inline-flex items-center text-blue-500 font-semibold hover:text-gray-600 cursor-pointer"
+            >
+              Back <span className="ml-2">{' >'}</span>
+            </a>
+          )}
 
-            {/* Bottom 75% Tabs */}
-            <div className="h-3/4 p-6 overflow-y-auto">
-              <div className="flex space-x-4 mb-4 border-b pb-2">
-                {[
-                  'appointment',
-                  'chronic disease',
-                  'medical',
-                  'medical documents',
-                  'payment',
-                ].map((tab) => (
-                  <button
-                    key={tab}
-                    className={`px-4 py-2 rounded-t capitalize font-medium transition ${
-                      activeTab === tab
-                        ? 'bg-blue-400 text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                    onClick={() => setActiveTab(tab)}
+          {/* Patient Cards Display */}
+          {roleName === 'Doctor' &&
+            isSearchPerformed &&
+            patientArray.length > 0 &&
+            !selectedPatientID && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                {patientArray.map((patient) => (
+                  <div
+                    key={patient.patientID}
+                    className="card p-4 border-2 border-blue-100 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
-                    {tab}
-                  </button>
+                    {/* Image */}
+                    <img
+                      src={Profile}
+                      alt={`${patient.patientName}'s profile`}
+                      className="w-16 h-16 rounded-full mb-4 object-cover mx-auto"
+                    />
+
+                    {/* Patient Name */}
+                    <h3 className="text-xl font-semibold text-center">
+                      {patient.patientName}
+                    </h3>
+
+                    {/* Patient Contact Info */}
+                    <p className="text-sm text-center">
+                      {/* Phone */}
+                      <span className="block">
+                        Phone: {patient.patientPhoneNumber}
+                      </span>
+
+                      {/* Email with truncation */}
+                      <span
+                        className="block truncate max-w-[15rem]"
+                        title={patient.patientEmail}
+                      >
+                        Email: {patient.patientEmail}
+                      </span>
+                    </p>
+
+                    {/* View Record Button */}
+                    <div className="flex justify-center mt-4">
+                      <button
+                        onClick={() => viewPatientRecord(patient.patientID)} // Call function to view patient details
+                        className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-800"
+                      >
+                        View Record
+                      </button>
+                    </div>
+                  </div>
                 ))}
               </div>
+            )}
 
-              <div className="p-4">{renderTabContent()}</div>
+          {/* Patient Profile Details */}
+          {roleName === 'Doctor' && selectedPatientID && patientData && (
+            <>
+              {/* Patient Profile Section */}
+              <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
+                <div className="flex-shrink-0 pr-8 h-full flex items-center">
+                  <img
+                    src={Profile}
+                    alt="Profile"
+                    className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
+                  />
+                </div>
+                <div className="pl-8 grid grid-cols-2 gap-x-12 gap-y-4 w-full text-gray-900 text-lg">
+                  <div className="flex space-x-2 items-center max-w-full">
+                    <span className="font-semibold text-gray-600">Name:</span>
+                    <span
+                      className="font-bold truncate max-w-[20rem] inline-flex items-center"
+                      title={`${patientData.patientName} (${patientData.patientGender})`}
+                    >
+                      {patientData.patientName} (
+                      {['F', 'Female'].includes(patientData.patientGender) && (
+                        <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
+                      )}
+                      {['M', 'Male'].includes(patientData.patientGender) && (
+                        <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
+                      )}
+                      {['O', 'Other', 'Others'].includes(
+                        patientData.patientGender,
+                      ) && (
+                        <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
+                      )}
+                      )
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <span className="font-semibold text-gray-600">
+                      Date of Birth:
+                    </span>
+                    <span className="font-bold">
+                      {patientData.patientDateOfBirth?.slice(0, 10)}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2">
+                    <span className="font-semibold text-gray-600">Phone:</span>
+                    <span className="font-bold">
+                      {patientData.patientPhoneNumber}
+                    </span>
+                  </div>
+                  <div className="flex space-x-2 items-center max-w-full">
+                    <span className="font-semibold text-gray-600">Email:</span>
+                    <span
+                      className="font-bold truncate max-w-[20rem]"
+                      title={patientData.patientEmail}
+                    >
+                      {patientData.patientEmail}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom 75% Tabs */}
+              <div className="h-3/4 p-6 overflow-y-auto">
+                <div className="flex space-x-4 mb-4 border-b pb-2">
+                  {[
+                    'appointment',
+                    'chronic disease',
+                    'medical',
+                    'medical documents',
+                    'payment',
+                  ].map((tab) => (
+                    <button
+                      key={tab}
+                      className={`px-4 py-2 rounded-t capitalize font-medium transition ${
+                        activeTab === tab
+                          ? 'bg-blue-400 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                      onClick={() => setActiveTab(tab)}
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="p-4">{renderTabContent()}</div>
+              </div>
+            </>
+          )}
+        </div>
+        {isModalOpen && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-header"></div>
+              <div className="modal-body">
+                <p>{modalMessage}</p>
+              </div>
+              <div className="modal-footer">
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </>
+          </div>
         )}
-      </div>
-      {isModalOpen && (
-  <div className="modal-overlay">
-    <div className="modal">
-      <div className="modal-header">
-        
-      </div>
-      <div className="modal-body">
-        <p>{modalMessage}</p>
-      </div>
-      <div className="modal-footer">
-        <button
-          onClick={() => setIsModalOpen(false)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-)}
- <style>
-      {`
+        <style>
+          {`
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -967,8 +1058,8 @@ const ProfileSection: React.FC = () => {
           font-size: 16px;
         }
       `}
-    </style>
-    </div>
+        </style>
+      </div>
     </div>
   );
 };

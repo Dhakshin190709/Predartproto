@@ -18,6 +18,7 @@ import EventMaster from './pages/Masters/EventMaster';
 import CampMaster from './pages/Masters/CampMaster';
 import SurveyMaster from './pages/Masters/SurveyMaster';
 import FeedBackMaster from './pages/Masters/FeedBackMaster';
+import MedicineMaster from './pages/Masters/MedicineMaster';
 import OffersMaster from './pages/Masters/OffersMaster';
 import Users from '../src/pages/UsersManagement/Users';
 import Role from '../src/pages/UsersManagement/Role';
@@ -26,7 +27,7 @@ import Menus from './pages/UsersManagement/Menus';
 // import ManageAvailability from './pages/ManageAvailability';
 // import PaymentGateway from './pages/PaymentGateway';
 // import CheckInCheckOut from './pages/CheckInCheckOut';
-// import MedicalPrescription from './pages/MedicalPrescription';
+ import MedicalPrescription from './pages/MedicalPrescription';
 import Settings from './pages/Settings';
 import Tables from './pages/Tables';
 import Alerts from './pages/UiElements/Alerts';
@@ -62,6 +63,8 @@ import PatientProfile from './pages/PatientProfile';
 import DoctorProfile from './pages/DoctorProfile';
 import HospitalProfile from './pages/HospitalProfile';
 import ProfileHospital from './pages/ProfileHospital';
+import PharmacyCreation from './pages/PharmacyDetails/PharmacyCreation';
+import PharmacyMedicine from './pages/PharmacyDetails/PharmacyMedicine';
 
 
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
@@ -69,6 +72,8 @@ import Membership from './pages/Membership';
 import PatientRegistration from './pages/Registration/PatientRegistration';
 import PatientFormWizard from './pages/Profile/PatientFormWizard';
 import DoctorFormWizard from './pages/DoctorFormWizard';
+import DiagnosisPage from './pages/DiagnosisPage';
+import HospitalFormWizard from './pages/Profile/HospitalFormWizard';
 import DevelopmentInProgress from './pages/DevelopmentInProgress';
 
 import PrescriptionAnswers from './pages/PrescriptionAnswers';
@@ -98,6 +103,10 @@ import SurveyReport from './pages/Reports/SurveyReport';
 import EventReport from './pages/Reports/EventReport';
 import ConsolidatedReport from './pages/Reports/ConsolidatedReport';
 import MISReport from './pages/Reports/MISReport';
+import ExpiringStockReport from './pages/Reports/ExpiringStockReport';
+import LowStockReport from './pages/Reports/LowStockReport';
+import StockSummaryReport from './pages/Reports/StockSummaryReport';
+import RazorPay from './pages/RazorPay';
 
 import FeedBack from './pages/FeedBack';
 import Offers from './pages/Offers';
@@ -115,19 +124,13 @@ import Hospital from './pages/Registration/HospitalPage';
 import LabProfile from './pages/Profile/LabProfile';
 import Timeslot from './pages/Timeslot';
 import Notification from './pages/Settings/Notifications';
-import MainDoctor from './pages/DoctorProfile/MainDoctor';
-import BasicDetails from './pages/DoctorProfile/BasicDetails';
-import Education from './pages/DoctorProfile/Education';
-import Awards from './pages/DoctorProfile/Awards';
-import Skills from './pages/DoctorProfile/Skills';
-import Experience from './pages/DoctorProfile/Experience';
-import Address from './pages/DoctorProfile/Address';
-import Language from './pages/DoctorProfile/Language';
+
 // import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
 import AccountSettings from './pages/AccountSettings';
 
 import RescheduleModel from './pages/RescheduleModel';
 import DocumentUpload from './pages/DocumentUpload';
+import FeedBackForm from './pages/FeedBack/FeedBackForm';
 import MyContacts from './pages/MyContacts';
 import PatientCardNavigation from './pages/PatientCardNavigation';
 interface RootState {
@@ -142,10 +145,7 @@ function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const { pathname } = useLocation();
 
-  // const PrivateRoute = ({ children }: any) => {
-  //   const isAuthenticated = useSelector((state:any) => state.auth.isAuthenticated);
-  //   return isAuthenticated ? children : <Navigate to="/AppointmentBooking" />;
-  // };
+ 
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -174,7 +174,7 @@ function App() {
           path="/signin"
           element={
             <>
-              <PageTitle title="Signin | CarePoint Pro" />
+              <PageTitle title="Signin | PreCare" />
               <SignIn />
             </>
           }
@@ -186,7 +186,7 @@ function App() {
           path="/chart"
           element={
             <>
-              <PageTitle title="Chart | CarePoint Pro" />
+              <PageTitle title="Chart | PreCare" />
               <Chart />
             </>
           }
@@ -198,7 +198,7 @@ function App() {
           path="/admissionpage" 
           element={
             <>
-              <PageTitle title="AdmissionPage | CarePoint Pro" />
+              <PageTitle title="AdmissionPage | PreCare" />
               <AdmissionPage />
               </>
           }
@@ -207,7 +207,7 @@ function App() {
           path="/admissionDetails" 
           element={
             <>
-              <PageTitle title="AdmissionDetails | CarePoint Pro" />
+              <PageTitle title="AdmissionDetails | PreCare" />
               <AdmissionDetails />
               </>
           }
@@ -229,7 +229,7 @@ function App() {
           path="/templateui"
           element={
             <>
-              <PageTitle title="TemplateUI | CarePoint Pro" />
+              <PageTitle title="TemplateUI | PreCare" />
               <TemplateUI />
             </>
           }
@@ -243,7 +243,7 @@ function App() {
           path="/signup"
           element={
             <>
-              <PageTitle title="Signup | CarePoint Pro" />
+              <PageTitle title="Signup | PreCare" />
               <SignUp />
             </>
           }
@@ -252,7 +252,7 @@ function App() {
           path="/forgotpassword" 
           element={
             <>
-              <PageTitle title="Forgot Password | CarePoint Pro" />
+              <PageTitle title="Forgot Password | PreCare" />
               <ForgotPassword />
               </>
           }
@@ -262,7 +262,7 @@ function App() {
           path="/LoginPage"
           element={
             <>
-              <PageTitle title="Login page | CarePoint Pro" />
+              <PageTitle title="Login page | PreCare" />
               <Login />
             </>
             
@@ -273,7 +273,7 @@ function App() {
           path="/ResetPassword" 
           element={
             <>
-              <PageTitle title="Reset Password | CarePoint Pro" />
+              <PageTitle title="Reset Password | PreCare" />
               <ResetPassword />
             </>
           }
@@ -287,7 +287,7 @@ function App() {
           path="/dashboard"
           element={
             <>
-              <PageTitle title="Dashboard | CarePoint Pro" />
+              <PageTitle title="Dashboard | PreCare" />
               
                 <Dashboard />
              
@@ -298,7 +298,7 @@ function App() {
           path="/reschedule"
           element={
             <>
-              <PageTitle title="RescheduleModel | CarePoint Pro" />
+              <PageTitle title="RescheduleModel | PreCare" />
               
                 <RescheduleModel isOpen={false} onClose={function (): void {
                 throw new Error('Function not implemented.');
@@ -316,7 +316,7 @@ function App() {
 
           element={
             <>
-              <PageTitle title="LabRegistration | CarePoint Pro" />
+              <PageTitle title="LabRegistration | PreCare" />
               <LabRegistration />
             </>
           }
@@ -325,7 +325,7 @@ function App() {
           path="/homepage"
           element={
             <>
-              <PageTitle title="HomePage | CarePoint Pro" />
+              <PageTitle title="HomePage | PreCare" />
               <HomePage />
             </>
           }
@@ -334,7 +334,7 @@ function App() {
           path="/roombooking" 
           element={
             <>
-              <PageTitle title="RoomBooking | CarePoint Pro" />
+              <PageTitle title="RoomBooking | PreCare" />
               <RoomBooking />
               </>
           }
@@ -343,7 +343,7 @@ function App() {
           path="/ordertracking" 
           element={
             <>
-              <PageTitle title="OrderTracking | CarePoint Pro" />
+              <PageTitle title="OrderTracking | PreCare" />
               <OrderTracking />
               </>
           }
@@ -352,7 +352,7 @@ function App() {
           path="/tenant" 
           element={
             <>
-              <PageTitle title="Tenant | CarePoint Pro" />
+              <PageTitle title="Tenant | PreCare" />
               <Tenant />
               </>
           }
@@ -361,7 +361,7 @@ function App() {
           path="/Settings" 
           element={
             <>
-              <PageTitle title="Settings | CarePoint Pro" />
+              <PageTitle title="Settings | PreCare" />
               <Settings />
               </>
           }
@@ -371,7 +371,7 @@ function App() {
           path="/PatientRegistration"
           element={
             <>
-              <PageTitle title="PatientRegistration | CarePoint Pro" />
+              <PageTitle title="PatientRegistration | PreCare" />
               <PatientRegistration />
             </>
           }
@@ -380,7 +380,7 @@ function App() {
           path="/doctorProfile" 
           element={
             <>
-              <PageTitle title="DoctorProfile | CarePoint Pro" />
+              <PageTitle title="DoctorProfile | PreCare" />
               <MainDoctor />
               </>
           }
@@ -389,7 +389,7 @@ function App() {
           path="/AccountSettings" 
           element={
             <>
-              <PageTitle title="AccountSettings | CarePoint Pro" />
+              <PageTitle title="AccountSettings | PreCare" />
               <AccountSettings />
               </>
           }
@@ -398,7 +398,7 @@ function App() {
           path="/DevelopmentInProgress" 
           element={
             <>
-              <PageTitle title="DevelopmentInProgress | CarePoint Pro" />
+              <PageTitle title="DevelopmentInProgress | PreCare" />
               <DevelopmentInProgress />
               </>
           }
@@ -408,7 +408,7 @@ function App() {
           path="/DoctorRegistration"
           element={
             <>
-              <PageTitle title="DoctorRegistration | CarePoint Pro" />
+              <PageTitle title="DoctorRegistration | PreCare" />
               <DoctorRegistration />
             </>
           }
@@ -417,7 +417,7 @@ function App() {
           path="doctorProfile/BasicDetails" 
           element={
             <>
-              <PageTitle title="BasicDetails | CarePoint Pro" />
+              <PageTitle title="BasicDetails | PreCare" />
               <BasicDetails />
               </>
           }
@@ -426,7 +426,7 @@ function App() {
           path="doctorProfile/Education" 
           element={
             <>
-              <PageTitle title="Education | CarePoint Pro" />
+              <PageTitle title="Education | PreCare" />
               <Education />
               </>
           }
@@ -435,7 +435,7 @@ function App() {
           path="doctorProfile/Awards" 
           element={
             <>
-              <PageTitle title="Awards | CarePoint Pro" />
+              <PageTitle title="Awards | PreCare" />
               <Awards />
               </>
           }
@@ -444,7 +444,7 @@ function App() {
           path="doctorProfile/Experience" 
           element={
             <>
-              <PageTitle title="Experience | CarePoint Pro" />
+              <PageTitle title="Experience | PreCare" />
               <Experience />
               </>
           }
@@ -453,7 +453,7 @@ function App() {
           path="doctorProfile/Address" 
           element={
             <>
-              <PageTitle title="Address | CarePoint Pro" />
+              <PageTitle title="Address | PreCare" />
               <Address />
               </>
           }
@@ -462,7 +462,7 @@ function App() {
           path="doctorProfile/Language" 
           element={
             <>
-              <PageTitle title="Language | CarePoint Pro" />
+              <PageTitle title="Language | PreCare" />
               <Language />
               </>
           }
@@ -471,7 +471,7 @@ function App() {
           path="doctorProfile/Skills" 
           element={
             <>
-              <PageTitle title="Skills | CarePoint Pro" />
+              <PageTitle title="Skills | PreCare" />
               <Skills />
               </>
           }
@@ -480,7 +480,7 @@ function App() {
           path="doctorProfile/DocumentUpload" 
           element={
             <>
-              <PageTitle title="DocumentUpload | CarePoint Pro" />
+              <PageTitle title="DocumentUpload | PreCare" />
               <DocumentUpload />
               </>
           }
@@ -489,7 +489,7 @@ function App() {
           path="/DocumentUpload" 
           element={
             <>
-              <PageTitle title="DocumentUpload | CarePoint Pro" />
+              <PageTitle title="DocumentUpload | PreCare" />
               <DocumentUpload />
               </>
           }
@@ -498,7 +498,7 @@ function App() {
           path="/usersmanagement/users"
           element={
             <>
-              <PageTitle title="Users | CarePoint Pro" />
+              <PageTitle title="Users | PreCare" />
                 <Users />
             </>
           }
@@ -507,7 +507,7 @@ function App() {
           path="/usersmanagement/roles"
           element={
             <>
-              <PageTitle title="Role | CarePoint Pro" />
+              <PageTitle title="Role | PreCare" />
                 <Role />
             </>
           }
@@ -516,7 +516,7 @@ function App() {
           path="/usersmanagement/rights"
           element={
             <>
-              <PageTitle title="Rights | CarePoint Pro" />
+              <PageTitle title="Rights | PreCare" />
                 <Rights />
             </>
           }
@@ -525,8 +525,26 @@ function App() {
           path="/Masters/LovMasters"
           element={
             <>
-              <PageTitle title="LovMasters | CarePoint Pro" />
+              <PageTitle title="LovMasters | PreCare" />
                 <LovMasters />
+            </>
+          }
+        />
+        <Route
+          path="/Masters/MedicineMaster"
+          element={
+            <>
+              <PageTitle title="MedicineMaster | PreCare" />
+                <MedicineMaster />
+            </>
+          }
+        />
+        <Route
+          path="/FeedBack/FeedBackForm"
+          element={
+            <>
+              <PageTitle title="FeedBackForm | PreCare" />
+                <FeedBackForm />
             </>
           }
         />
@@ -535,7 +553,7 @@ function App() {
           path="/hospital"
           element={
             <>
-              <PageTitle title="Hospital| CarePoint Pro" />
+              <PageTitle title="Hospital| PreCare" />
                 <Hospital />
             </>
           }
@@ -544,7 +562,7 @@ function App() {
           path="/usersmanagement/assignrole"
           element={
             <>
-              <PageTitle title="Assignrole | CarePoint Pro" />
+              <PageTitle title="Assignrole | PreCare" />
                 <Assignrole />
             </>
           }
@@ -553,7 +571,7 @@ function App() {
           path="/usersmanagement/menus"
           element={
             <>
-              <PageTitle title="Menus | CarePoint Pro" />
+              <PageTitle title="Menus | PreCare" />
                 <Menus />
             </>
           }
@@ -565,16 +583,17 @@ function App() {
 
           element={
             <>
-              <PageTitle title="ViewAvailableSlots | CarePoint Pro" />
+              <PageTitle title="ViewAvailableSlots | PreCare" />
               <ViewAvailableSlots />
             </>
           }
         />
+
         {/* <Route
           path="/manage-availability"
           element={
             <>
-              <PageTitle title="ManageAvailability | CarePoint Pro" />
+              <PageTitle title="ManageAvailability | PreCare" />
                 <ManageAvailability />
             </>
           }
@@ -583,7 +602,7 @@ function App() {
           path="Notification"
           element={
             <>
-              <PageTitle title="Notification | CarePoint Pro" />
+              <PageTitle title="Notification | PreCare" />
                 <Notification />
             </>
           }
@@ -592,7 +611,7 @@ function App() {
           path="/payment"
           element={
             <>
-              <PageTitle title="PaymentGateway | CarePoint Pro" />
+              <PageTitle title="PaymentGateway | PreCare" />
                 <PaymentGateway />
             </>
           }
@@ -601,7 +620,7 @@ function App() {
           path="/check-in-check-out"
           element={
             <>
-              <PageTitle title="CheckInCheckOut | CarePoint Pro" />
+              <PageTitle title="CheckInCheckOut | PreCare" />
                 <CheckInCheckOut />
             </>
           }
@@ -611,7 +630,7 @@ function App() {
 
           element={
             <>
-              <PageTitle title="LabProfile | CarePoint Pro" />
+              <PageTitle title="LabProfile | PreCare" />
               <LabProfile />
             </>
           }
@@ -621,7 +640,7 @@ function App() {
 
           element={
             <>
-              <PageTitle title="Timeslot | CarePoint Pro" />
+              <PageTitle title="Timeslot | PreCare" />
               <Timeslot />
             </>
           }
@@ -632,7 +651,7 @@ function App() {
           path="/PatientFormWizard"
           element={
             <>
-              <PageTitle title="PatientFormWizard | CarePoint Pro" />
+              <PageTitle title="PatientFormWizard | PreCare" />
               <PatientFormWizard />
             </>
           }
@@ -641,7 +660,7 @@ function App() {
           path="/ProfilePatient"
           element={
             <>
-              <PageTitle title="ProfilePatient | CarePoint Pro" />
+              <PageTitle title="ProfilePatient | PreCare" />
               <ProfilePatient />
             </>
           }
@@ -650,7 +669,7 @@ function App() {
           path="/PatientProfile"
           element={
             <>
-              <PageTitle title="PatientProfile | CarePoint Pro" />
+              <PageTitle title="PatientProfile | PreCare" />
               <PatientProfile />
             </>
           }
@@ -659,7 +678,7 @@ function App() {
           path="/DoctorProfile"
           element={
             <>
-              <PageTitle title="DoctorProfile | CarePoint Pro" />
+              <PageTitle title="DoctorProfile | PreCare" />
               <DoctorProfile />
             </>
           }
@@ -668,7 +687,7 @@ function App() {
           path="/HospitalProfile"
           element={
             <>
-              <PageTitle title="HospitalProfile | CarePoint Pro" />
+              <PageTitle title="HospitalProfile | PreCare" />
               <HospitalProfile />
             </>
           }
@@ -677,7 +696,7 @@ function App() {
           path="/ProfileHospital"
           element={
             <>
-              <PageTitle title="ProfileHospital | CarePoint Pro" />
+              <PageTitle title="ProfileHospital | PreCare" />
               <ProfileHospital />
             </>
           }
@@ -687,7 +706,7 @@ function App() {
           path="/PatientCardNavigation"
           element={
             <>
-              <PageTitle title="PatientCardNavigation | CarePoint Pro" />
+              <PageTitle title="PatientCardNavigation | PreCare" />
               <PatientCardNavigation />
             </>
           }
@@ -696,8 +715,26 @@ function App() {
           path="/DoctorFormWizard"
           element={
             <>
-              <PageTitle title="DoctorFormWizard | CarePoint Pro" />
+              <PageTitle title="DoctorFormWizard | PreCare" />
               <DoctorFormWizard />
+            </>
+          }
+        />
+        <Route
+          path="/DiagnosisPage"
+          element={
+            <>
+              <PageTitle title="DiagnosisPage | PreCare" />
+              <DiagnosisPage />
+            </>
+          }
+        />
+        <Route
+          path="/HospitalFormWizard"
+          element={
+            <>
+              <PageTitle title="HospitalFormWizard | PreCare" />
+              <HospitalFormWizard />
             </>
           }
         />
@@ -705,7 +742,7 @@ function App() {
           path="/ProfileDoctor"
           element={
             <>
-              <PageTitle title="ProfileDoctor | CarePoint Pro" />
+              <PageTitle title="ProfileDoctor | PreCare" />
               <ProfileDoctor />
             </>
           }
@@ -714,7 +751,7 @@ function App() {
           path="/subscription"
           element={
             <>
-              <PageTitle title="Membership | CarePoint Pro" />
+              <PageTitle title="Membership | PreCare" />
               <Membership />
             </>
           }
@@ -727,7 +764,7 @@ function App() {
           path="/eventcreation"
           element={
             <>
-              <PageTitle title="EventCreation | CarePoint Pro" />
+              <PageTitle title="EventCreation | PreCare" />
               <EventCreation />
             </>
           }
@@ -736,7 +773,7 @@ function App() {
           path="/events/conference"
           element={
             <>
-              <PageTitle title="ConferenceRegistration | CarePoint Pro" />
+              <PageTitle title="ConferenceRegistration | PreCare" />
               <ConferenceRegistration />
             </>
           }
@@ -746,7 +783,7 @@ function App() {
           path="/events/medicalcamp"
           element={
             <>
-              <PageTitle title="MedicalCampRegistration | CarePoint Pro" />
+              <PageTitle title="MedicalCampRegistration | PreCare" />
               <MedicalCampRegistration />
             </>
           }
@@ -755,7 +792,7 @@ function App() {
           path="/events/survey"
           element={
             <>
-              <PageTitle title="Survey | CarePoint Pro" />
+              <PageTitle title="Survey | PreCare" />
               <Survey />
             </>
           }
@@ -764,7 +801,7 @@ function App() {
           path="/masters/eventmaster"
           element={
             <>
-              <PageTitle title="EventMaster | CarePoint Pro" />
+              <PageTitle title="EventMaster | PreCare" />
               <EventMaster />
             </>
           }
@@ -773,7 +810,7 @@ function App() {
           path="masters/campmaster"
           element={
             <>
-              <PageTitle title="CampMaster | CarePoint Pro" />
+              <PageTitle title="CampMaster | PreCare" />
               <CampMaster />
             </>
           }
@@ -782,7 +819,7 @@ function App() {
           path="/campcreation"
           element={
             <>
-              <PageTitle title="CampCreation | CarePoint Pro" />
+              <PageTitle title="CampCreation | PreCare" />
               <CampCreation />
             </>
           }
@@ -791,7 +828,7 @@ function App() {
           path="/masters/surveymaster"
           element={
             <>
-              <PageTitle title="SurveyMaster | CarePoint Pro" />
+              <PageTitle title="SurveyMaster | PreCare" />
               <SurveyMaster />
             </>
           }
@@ -801,7 +838,7 @@ function App() {
 
           element={
             <>
-              <PageTitle title="BookAppointment | CarePoint Pro" />
+              <PageTitle title="BookAppointment | PreCare" />
               <BookAppointment />
             </>
           }
@@ -810,7 +847,7 @@ function App() {
           path="/surveycreation"
           element={
             <>
-              <PageTitle title="SurveyCreation | CarePoint Pro" />
+              <PageTitle title="SurveyCreation | PreCare" />
               <SurveyCreation />
             </>
           }
@@ -819,7 +856,7 @@ function App() {
           path="/masters/feedback"
           element={
             <>
-              <PageTitle title="FeedBackMaster | CarePoint Pro" />
+              <PageTitle title="FeedBackMaster | PreCare" />
               <FeedBackMaster />
             </>
           }
@@ -828,7 +865,7 @@ function App() {
           path="/offers"
           element={
             <>
-              <PageTitle title="Offers | CarePoint Pro" />
+              <PageTitle title="Offers | PreCare" />
               <Offers />
             </>
           }
@@ -837,7 +874,7 @@ function App() {
           path="/masters/offersmaster"
           element={
             <>
-              <PageTitle title="OffersMaster | CarePoint Pro" />
+              <PageTitle title="OffersMaster | PreCare" />
               <OffersMaster />
             </>
           }
@@ -846,7 +883,7 @@ function App() {
           path="/offerscreation"
           element={
             <>
-              <PageTitle title="OffersCreation | CarePoint Pro" />
+              <PageTitle title="OffersCreation | PreCare" />
               <OffersCreation />
             </>
           }
@@ -855,8 +892,35 @@ function App() {
           path="/patientRecord"
           element={
             <>
-              <PageTitle title="PatientRecord | CarePoint Pro" />
+              <PageTitle title="PatientRecord | PreCare" />
               <PatientRecord />
+            </>
+          }
+        />
+        <Route
+          path="/RazorPay"
+          element={
+            <>
+              <PageTitle title="RazorPay | PreCare" />
+              <RazorPay />
+            </>
+          }
+        />
+        <Route
+          path="/PharmacyDetails/PharmacyCreation"
+          element={
+            <>
+              <PageTitle title="PharmacyCreation | PreCare" />
+              <PharmacyCreation />
+            </>
+          }
+        />
+        <Route
+          path="/PharmacyDetails/PharmacyMedicine"
+          element={
+            <>
+              <PageTitle title="PharmacyMedicine | PreCare" />
+              <PharmacyMedicine />
             </>
           }
         />
@@ -864,7 +928,7 @@ function App() {
           path="reports/doctorreport"
           element={
             <>
-              <PageTitle title="DoctorReport | CarePoint Pro" />
+              <PageTitle title="DoctorReport | PreCare" />
               <DoctorReport />
             </>
           }
@@ -873,8 +937,35 @@ function App() {
           path="reports/appointmentreport"
           element={
             <>
-              <PageTitle title="AppointmentReport | CarePoint Pro" />
+              <PageTitle title="AppointmentReport | PreCare" />
               <AppointmentReport />
+            </>
+          }
+        />
+        <Route
+          path="reports/ExpiringStockReport"
+          element={
+            <>
+              <PageTitle title="ExpiringStockReport | PreCare" />
+              <ExpiringStockReport />
+            </>
+          }
+        />
+        <Route
+          path="reports/LowStockReport"
+          element={
+            <>
+              <PageTitle title="LowStockReport | PreCare" />
+              <LowStockReport />
+            </>
+          }
+        />
+        <Route
+          path="reports/StockSummaryReport"
+          element={
+            <>
+              <PageTitle title="StockSummaryReport | PreCare" />
+              <StockSummaryReport />
             </>
           }
         />
@@ -882,7 +973,7 @@ function App() {
           path="reports/paymentreport"
           element={
             <>
-              <PageTitle title="PaymentReport | CarePoint Pro" />
+              <PageTitle title="PaymentReport | PreCare" />
               <PaymentReport />
             </>
           }
@@ -891,7 +982,7 @@ function App() {
           path="reports/chargereport"
           element={
             <>
-              <PageTitle title="DischargeReport | CarePoint Pro" />
+              <PageTitle title="DischargeReport | PreCare" />
               <DischargeReport />
             </>
           }
@@ -900,7 +991,7 @@ function App() {
           path="/consolidatedReport"
           element={
             <>
-              <PageTitle title="ConsolidatedReport | CarePoint Pro" />
+              <PageTitle title="ConsolidatedReport | PreCare" />
               <ConsolidatedReport />
             </>
           }
@@ -909,7 +1000,7 @@ function App() {
           path="/MISReport"
           element={
             <>
-              <PageTitle title="MISReport | CarePoint Pro" />
+              <PageTitle title="MISReport | PreCare" />
               <MISReport />
             </>
           }
@@ -918,7 +1009,7 @@ function App() {
           path="reports/surveyreport"
           element={
             <>
-              <PageTitle title="SurveyReport | CarePoint Pro" />
+              <PageTitle title="SurveyReport | PreCare" />
               <SurveyReport />
             </>
           }
@@ -927,7 +1018,7 @@ function App() {
           path="reports/eventreport"
           element={
             <>
-              <PageTitle title="EventReport | CarePoint Pro" />
+              <PageTitle title="EventReport | PreCare" />
               <EventReport />
             </>
           }
@@ -936,7 +1027,7 @@ function App() {
           path="/feedback"
           element={
             <>
-              <PageTitle title="FeedBack | CarePoint Pro" />
+              <PageTitle title="FeedBack | PreCare" />
               <FeedBack />
             </>
           }
@@ -945,7 +1036,7 @@ function App() {
         
         
         
-        {/* <Route path="/medical" element={<MedicalPrescription />} /> */}
+        <Route path="/medical" element={<MedicalPrescription />} />
         <Route path="/prescription" element={<PrescriptionAnswers />} />
         
       
@@ -953,7 +1044,7 @@ function App() {
           path="/profile"
           element={
             <>
-              <PageTitle title="Profile | CarePoint Pro" />
+              <PageTitle title="Profile | PreCare" />
                 <Profile />
             </>
           }
@@ -962,7 +1053,7 @@ function App() {
           path="/myContacts"
           element={
             <>
-              <PageTitle title="MyContacts | CarePoint Pro" />
+              <PageTitle title="MyContacts | PreCare" />
                 <MyContacts />
             </>
           }
@@ -971,7 +1062,7 @@ function App() {
           path="/masters/lovmaster" 
           element={
             <>
-              <PageTitle title="LovMasters | CarePoint Pro" />
+              <PageTitle title="LovMasters | PreCare" />
               <LovMasters />
             </>
           }
@@ -980,7 +1071,7 @@ function App() {
           path="/masters/specialization" 
           element={
             <>
-              <PageTitle title="Specialization | CarePoint Pro" />
+              <PageTitle title="Specialization | PreCare" />
               <Specialization />
             </>
           }
@@ -989,7 +1080,7 @@ function App() {
           path="/search/patient" 
           element={
             <>
-              <PageTitle title="SearchPatient | CarePoint Pro" />
+              <PageTitle title="SearchPatient | PreCare" />
               <SearchPatient />
             </>
           }
@@ -998,7 +1089,7 @@ function App() {
           path="/search/appointment" 
           element={
             <>
-              <PageTitle title="SearchAppointment | CarePoint Pro" />
+              <PageTitle title="SearchAppointment | PreCare" />
               <SearchAppointment />
             </>
           }
@@ -1007,7 +1098,7 @@ function App() {
           path="/search/hospital" 
           element={
             <>
-              <PageTitle title="SearchHospital | CarePoint Pro" />
+              <PageTitle title="SearchHospital | PreCare" />
               <SearchHospital />
             </>
           }
@@ -1016,7 +1107,7 @@ function App() {
           path="/search/doctors" 
           element={
             <>
-              <PageTitle title="SearchDoctors | CarePoint Pro" />
+              <PageTitle title="SearchDoctors | PreCare" />
               <SearchDoctors />
             </>
           }
@@ -1026,7 +1117,7 @@ function App() {
           path="/search/lab" 
           element={
             <>
-              <PageTitle title="SearchLab | CarePoint Pro" />
+              <PageTitle title="SearchLab | PreCare" />
               <SearchLab />
             </>
           }
@@ -1035,7 +1126,7 @@ function App() {
           path="/search/medicals" 
           element={
             <>
-              <PageTitle title="SearchMedicals | CarePoint Pro" />
+              <PageTitle title="SearchMedicals | PreCare" />
               <SearchMedicals />
             </>
           }
@@ -1045,7 +1136,7 @@ function App() {
           path="/history/appointmenthistory" 
           element={
             <>
-              <PageTitle title="AppointmentHistory | CarePoint Pro" />
+              <PageTitle title="AppointmentHistory | PreCare" />
               <AppointmentHistory />
             </>
           }
@@ -1054,7 +1145,7 @@ function App() {
           path="/history/PatientHistory" 
           element={
             <>
-              <PageTitle title="PatientHistory | CarePoint Pro" />
+              <PageTitle title="PatientHistory | PreCare" />
               <PatientHistory />
             </>
           }
@@ -1065,7 +1156,7 @@ function App() {
           path="/patient-record" 
           element={
             <>
-              <PageTitle title="TreatmentDetails | CarePoint Pro" />
+              <PageTitle title="TreatmentDetails | PreCare" />
               <TreatmentDetails />
             </>
           }
@@ -1076,7 +1167,7 @@ function App() {
           path="/FindDoctor"
           element={
             <>
-              <PageTitle title="FindDoctor | CarePoint Pro" />
+              <PageTitle title="FindDoctor | PreCare" />
               <FindDoctor />
             </>
           }
@@ -1085,7 +1176,7 @@ function App() {
           path="/Dermatologist"
           element={
             <>
-              <PageTitle title="Dermatologist | CarePoint Pro" />
+              <PageTitle title="Dermatologist | PreCare" />
               <Dermatologist />
             </>
           }
@@ -1094,7 +1185,7 @@ function App() {
           path="/Dentist"
           element={
             <>
-              <PageTitle title="Dentist | CarePoint Pro" />
+              <PageTitle title="Dentist | PreCare" />
               <Dentist />
             </>
           }
@@ -1103,7 +1194,7 @@ function App() {
           path="/Pediatrician"
           element={
             <>
-              <PageTitle title="Pediatrician | CarePoint Pro" />
+              <PageTitle title="Pediatrician | PreCare" />
               <Pediatrician />
             </>
           }
@@ -1112,7 +1203,7 @@ function App() {
           path="/Medicine"
           element={
             <>
-              <PageTitle title="Medicines | CarePoint Pro" />
+              <PageTitle title="Medicines | PreCare" />
               <Medicine />
             </>
           }
@@ -1121,7 +1212,7 @@ function App() {
           path="/LabTest"
           element={
             <>
-              <PageTitle title="LabTest | CarePoint Pro" />
+              <PageTitle title="LabTest | PreCare" />
               <LabTest />
             </>
           }
@@ -1130,7 +1221,7 @@ function App() {
           path="/calendar" 
           element={
             <>
-              <PageTitle title="Calendar | CarePoint Pro" />
+              <PageTitle title="Calendar | PreCare" />
               <Calendar />
             </>
           }

@@ -10,6 +10,7 @@ import {
   checkPhoneAvailability,
   checkUsernameAvailability,
 } from '../Utils/validationUtils';
+import api from '../../api/request';
 
 const DoctorRegistration: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -142,40 +143,48 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     }
 
     // API checks for duplicates
-    try {
-      if (!newErrors.name) {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckUserNameExist?UserName=${formData.name}`,
-        );
-        const result = await res.json();
-        if (result.success === true) newErrors.name = 'Name already exists.';
-      }
+     // API checks for duplicates (only if no error exists)
+  try {
+    const apiPromises = [];
 
-      if (!newErrors.email) {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckEmailExist?Email=${formData.email}`,
-        );
-        const result = await res.json();
-        if (result.success === true) newErrors.email = 'Email already exists.';
-      }
-
-      if (!newErrors.phone) {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckMobileExist?Mobile=${formData.phone}`,
-        );
-        const result = await res.json();
-        if (result.success === true)
-          newErrors.phone = 'Mobile number already exists.';
-      }
-    } catch (err) {
-      console.error('Error checking duplicates:', err);
+    // Check for duplicate name
+    if (!newErrors.name) {
+      apiPromises.push(
+        api.get(`/Login/CheckUserNameExist?UserName=${formData.name}`).then((res) => {
+          if (res.data.success) newErrors.name = 'Name already exists.';
+        })
+      );
     }
 
-    setErrors(newErrors);
+    // Check for duplicate email
+    if (!newErrors.email) {
+      apiPromises.push(
+        api.get(`/Login/CheckEmailExist?Email=${formData.email}`).then((res) => {
+          if (res.data.success) newErrors.email = 'Email already exists.';
+        })
+      );
+    }
 
-    // If any field has an error, return false
-    return Object.values(newErrors).every((error) => error === '');
-  };
+    // Check for duplicate phone
+    if (!newErrors.phone) {
+      apiPromises.push(
+        api.get(`/Login/CheckMobileExist?Mobile=${formData.phone}`).then((res) => {
+          if (res.data.success) newErrors.phone = 'Mobile number already exists.';
+        })
+      );
+    }
+
+    // Wait for all API requests to finish
+    await Promise.all(apiPromises);
+  } catch (err) {
+    console.error('Error checking duplicates:', err);
+  }
+
+  setErrors(newErrors);
+
+  // If any field has an error, return false
+  return Object.values(newErrors).every((error) => error === '');
+};
 
   const handleRegister = async () => {
     const userID = sessionStorage.getItem('userID');
@@ -212,17 +221,9 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     };
 
     try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctor',
-        requestData,
-        {
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+       const response = await api.post('/Doctor/SaveDoctor', requestData); // Using the axios instance
 
-      console.log('API Response:', response);
+    console.log('API Response:', response);
 
       if (response.status === 200 || response.status === 201) {
         const doctorID = response.data.data;
@@ -278,62 +279,74 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
 
 
   const checkAadhaarExists = async (uid: string) => {
-    try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Login/CheckUIDExist?UID=${uid}`,
-      );
-      const data = await response.json();
-      setAadhaarExists(data.success); // success: false → available; true → exists
-    } catch (error) {
-      console.error('Error checking Aadhaar:', error);
-      setAadhaarExists(null); // fallback
-    }
-  };
-
-  const checkPanExists = async (pan: string) => {
   try {
-    const response = await fetch(`https://predart003-001-site1.anytempurl.com/api/Login/CheckPANExist?PanNumber=${pan}`);
-    const data = await response.json();
-    setPanExists(data.success); // true = exists, false = available
+    const response = await api.get(`/Login/CheckUIDExist?UID=${uid}`);
+    const data = response.data;
+
+    setAadhaarExists(data.success); // success: false → available; true → exists
   } catch (error) {
-    console.error("Error checking PAN:", error);
-    setPanExists(null);
+    console.error('Error checking Aadhaar:', error);
+    setAadhaarExists(null); // fallback to null in case of error
   }
 };
 
-  useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
-      .then((response) => response.json())
-      .then((data) => {
+  const checkPanExists = async (pan: string) => {
+  try {
+    const response = await api.get(`/Login/CheckPANExist?PanNumber=${pan}`);
+    const data = response.data;
+
+    // Assuming 'data.success' indicates whether PAN exists or not
+    setPanExists(data.success); // true = exists, false = available
+  } catch (error) {
+    console.error("Error checking PAN:", error);
+    setPanExists(null); // Set to null in case of error
+  }
+};
+
+   useEffect(() => {
+    const fetchAppLOV = async () => {
+      try {
+        const response = await api.get('/AppLOV');
+        const data = response.data;
+
         if (data) {
-          // Filter and set state
-          setQualifications(
-            data.data.filter((item) => item.type === 'Qualification'),
-          );
-          setSpecializations(
-            data.data.filter((item) => item.type === 'Specializations'),
-          );
-          setGenders(data.data.filter((item) => item.type === 'Gender'));
+          // Filter and set state based on item type
+          setQualifications(data.data.filter((item: { type: string }) => item.type === 'Qualification'));
+          setSpecializations(data.data.filter((item: { type: string }) => item.type === 'Specializations'));
+          setGenders(data.data.filter((item: { type: string }) => item.type === 'Gender'));
         }
-      })
-      .catch((error) => console.error('Error fetching data:', error));
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchAppLOV();
   }, []);
 
+
+ 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('API Response:', data); // This will show the array of hospital objects
+    const fetchHospitals = async () => {
+      try {
+        const response = await api.get('/Hospital/List');
+        const data = response.data;
+
+        console.log('API Response:', data); // Log the array of hospital objects
         if (Array.isArray(data)) {
           // Filter hospitals to only include active ones
-          const activeHospitals = data.filter((hospital) => hospital.isActive);
+          const activeHospitals = data.filter((hospital: { isActive: boolean }) => hospital.isActive);
           setHospitals(activeHospitals); // Set only active hospitals
         } else {
           console.warn('Unexpected response format:', data);
         }
-      })
-      .catch((error) => console.error('Error fetching hospitals:', error));
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+      }
+    };
+
+    fetchHospitals();
   }, []);
+
 
   // Prefill the dropdown with hospital from session
   useEffect(() => {
@@ -358,77 +371,74 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
       return;
     }
 
-    const fetchUserRoles = async () => {
+    
+const fetchUserRoles = async () => {
+  try {
+    // Fetch user roles
+    const roleResponse = await api.get(`/UserRoles/${userID}`);
+
+    if (!roleResponse.data.success || !Array.isArray(roleResponse.data.data) || roleResponse.data.data.length === 0) {
+      throw new Error('No user roles found.');
+    }
+
+    const roleIDs = roleResponse.data.data.map((item: { roleID: number }) => item.roleID);
+
+    // Fetch role names for each role ID
+    const roleNamesPromises = roleIDs.map(async (roleID: number) => {
       try {
-        const roleResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
-        );
-        if (!roleResponse.ok) {
-          throw new Error('Failed to fetch user roles.');
-        }
-        const roleData = await roleResponse.json();
-
-        if (
-          roleData.success &&
-          Array.isArray(roleData.data) &&
-          roleData.data.length > 0
-        ) {
-          const roleIDs = roleData.data.map((item) => item.roleID);
-
-          // Fetch role names for each role ID
-          const roleNamesPromises = roleIDs.map(async (roleID) => {
-            const roleResponse = await fetch(
-              `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
-            );
-            if (!roleResponse.ok) {
-              console.error(`Failed to fetch role for roleID: ${roleID}`);
-              return null;
-            }
-            const roleInfo = await roleResponse.json();
-            return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
-          });
-
-          const resolvedRoleNames = await Promise.all(roleNamesPromises);
-          // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
-          setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
-        }
+        const roleResponse = await api.get(`/Role/${roleID}`);
+        return roleResponse.data.data?.roleName || `Unknown Role (${roleID})`;
       } catch (error) {
-        console.error('Error fetching user roles:', error);
+        console.error(`Failed to fetch role for roleID: ${roleID}`);
+        return null; // Handle failure gracefully
       }
-    };
+    });
+
+    const resolvedRoleNames = await Promise.all(roleNamesPromises);
+
+    // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
+    setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
+
+  } catch (error) {
+    console.error('Error fetching user roles:', error);
+  }
+};
+
 
     fetchUserRoles();
   }, []);
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error('Network response was not ok');
-        }
-        return response.json();
-      })
-      .then((data) => {
-        console.log('Tenant Data:', data);
-        const tenantList = data.data || data; // Adjust based on API structure
+    const fetchTenantData = async () => {
+      try {
+        // Using axios to fetch tenant data
+        const response = await api.get('/Tenant');  // '/Tenant' is the endpoint
+        console.log('Tenant Data:', response.data);
+
+        const tenantList = response.data.data || response.data;  // Adjust based on your response structure
         setTenants(tenantList);
 
+        // Check for stored tenantID in sessionStorage
         const storedTenantID = sessionStorage.getItem('tenantID');
         if (storedTenantID) {
           const tenantExists = tenantList.find(
             (tenant) =>
               tenant.tenantID === storedTenantID ||
-              tenant.id === storedTenantID,
+              tenant.id === storedTenantID
           );
+          
           if (tenantExists) {
             setFormData((prev) => ({ ...prev, tenant: storedTenantID }));
           }
         }
-      })
-      .catch((error) => {
+      } catch (error) {
         console.error('Error fetching tenant data:', error);
-      });
-  }, []);
+      }
+    };
+
+    fetchTenantData();
+  }, []);  // Empty dependency array means this will run once when the component mounts
+
 
   const handleUsernameBlur = async () => {
     setTouchedFields((prev) => ({ ...prev, name: true }));

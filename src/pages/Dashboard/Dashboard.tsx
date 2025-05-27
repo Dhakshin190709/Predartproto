@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import patientIcon from '../../images/icon/Patient profile people (3).svg';
 import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
 import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
+
 import ClockIcon from '../../images/icon/Clock (1).svg';
 import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
 import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
@@ -15,6 +16,8 @@ import CustomButton from '../../components/CustomButton';
 import { CalendarCheck } from 'lucide-react';
 import { inputFieldClass } from '../../components/FormStyles';
 import DatePicker from 'react-datepicker';
+import api from '../../api/request';
+
 interface Appointment {
   doctorName: string;
   patientName: string;
@@ -26,7 +29,20 @@ interface Appointment {
   appointmentTime: string;
   hospitalName: string;
 }
+interface Patient {
+  patientID: string;
+  patientName: string;
+  patientDateOfBirth: string;
+  patientGender: string;
+  patientPhoneNumber: string;
+  patientEmail: string;
+  uhid: string;
+}
 
+interface ReceptionPanelProps {
+  roleName: string;
+  handleAddPatientClick: () => void;
+}
 const AppointmentCard: React.FC = () => {
   const [appointments, setAppointments] = useState([]);
   const navigate = useNavigate();
@@ -39,12 +55,25 @@ const AppointmentCard: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [appointmentDate, setAppointmentDate] = useState('');
   const [statusList, setStatusList] = useState<Status[]>([]);
-const [showReasonModal, setShowReasonModal] = useState(false);
-const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
-const [selectedNewDoctorID, setSelectedNewDoctorID] = useState('');
+  const [showReasonModal, setShowReasonModal] = useState(false);
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [selectedNewDoctorID, setSelectedNewDoctorID] = useState('');
+  const [checkAttempted, setCheckAttempted] = useState(false);
+  const emailRegex =
+    /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
+  const phoneRegex = /^(?!.*(\d)\1{9})[6-9]\d{9}$/;
 
-const [selectedAppointmentId, setSelectedAppointmentId] = useState('');
-const [reasonText, setReasonText] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [mobileNo, setMobileNo] = useState('');
+  const [email, setEmail] = useState('');
+
+  const unitID = sessionStorage.getItem('unitID'); // or from props/state
+
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState('');
+  const [reasonText, setReasonText] = useState('');
 
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [availableTimeSlots, setAvailableTimeSlots] = useState<string[]>([]);
@@ -105,9 +134,7 @@ const [reasonText, setReasonText] = useState('');
 
   const fetchPatients = async () => {
     try {
-      const res = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/Patient',
-      );
+      const res = await api.get('/Patient'); // 🔗 Relative to baseURL
       console.log('Patient API Response:', res.data);
       setPatients(res.data.data);
     } catch (error) {
@@ -149,28 +176,109 @@ const [reasonText, setReasonText] = useState('');
     }
   };
 
+  const handleCheckPatientClick = async () => {
+  if (!mobileNo && !email) {
+    toast.warning('Please enter phone number or email.');
+    return;
+  }
+
+  setCheckAttempted(true);
+  setLoading(true);
+
+  try {
+    const params = {};
+    if (mobileNo) params.MobileNo = mobileNo;
+    if (email) params.Email = email;
+
+    const res = await api.get('/Patient/CheckPatientExist', { params });
+
+    if (res.data.success) {
+      setPatients(res.data.data || []);
+    } else {
+      setPatients([]);
+      toast.info('Patient not found.');
+    }
+  } catch (error) {
+    console.error('Check patient error:', error);
+    toast.error('An error occurred while checking the patient.');
+    setPatients([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+ 
+const handleEnrollPatient = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    if (!tenantID) {
+      toast.error('Tenant ID not found in session.');
+      return;
+    }
+
+    if (!patients || patients.length === 0) {
+      toast.warning('No patient data available to enroll.');
+      return;
+    }
+
+    const payload = {
+      patientTenantID: patients[0].patientTenantID,
+      patientID: patients[0].patientID,
+      tenantID: tenantID,
+      isActive: true,
+    };
+
+    const response = await api.post('/Patient/EnrollPatient', payload);
+    const result = response.data;
+
+    if (response.status === 200) {
+      if (result.success) {
+        toast.success('Patient enrolled successfully.');
+        setIsModalOpen(false);
+      } else {
+        toast.warn('Patient is already enrolled.');
+      }
+    } else {
+      toast.error('Enrollment failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('Enroll error:', error);
+    toast.error('An error occurred while enrolling the patient.');
+  }
+};
+
+
+  const handleAddPatientClick = () => {
+    if (unitID) {
+      navigate(`/signup`, { state: { unitID } });
+    } else {
+      console.warn('unitID is missing');
+    }
+  };
+
   const fetchAppointmentsBasedOnRole = async (userID: string, role: string) => {
     setLoading(true);
     setAppointments([]); // Clear previous appointments
 
     try {
-      let apiUrl = '';
+      let endpoint = '/Appointment/GetAppointment';
+
       if (role === 'Patient') {
         const patientID = sessionStorage.getItem('patientID');
         if (!patientID) {
           console.warn('⚠️ patientID not found in sessionStorage.');
           return;
         }
-
-        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?PatientID=${patientID}`;
+        endpoint += `?PatientID=${patientID}`;
       } else if (role === 'Doctor') {
         const doctorID = sessionStorage.getItem('doctorID');
         if (!doctorID) {
           console.warn('⚠️ doctorID not found in sessionStorage.');
           return;
         }
-
-        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${doctorID}`;
+        endpoint += `?DoctorID=${doctorID}`;
       } else if (
         ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
       ) {
@@ -180,46 +288,37 @@ const [reasonText, setReasonText] = useState('');
           return;
         }
 
-        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?HospitalID=${unitID}`;
+        endpoint += `?HospitalID=${unitID}`;
 
-        if (role === 'Medical') {
-          const statusID = 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396';
-          apiUrl += `&StatusID=${statusID}`;
-        }
+        const statusMap: Record<string, string> = {
+          Medical: 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396',
+          LABIncharge: 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396',
+          Cash: '5855b16d-1447-4856-b4be-08dd57ac7396',
+        };
 
-        if (role === 'LABIncharge') {
-          const statusID = 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396';
-          apiUrl += `&StatusID=${statusID}`;
+        if (statusMap[role]) {
+          endpoint += `&StatusID=${statusMap[role]}`;
         }
-
-        if (role === 'Cash') {
-          const statusID = '5855b16d-1447-4856-b4be-08dd57ac7396';
-          apiUrl += `&StatusID=${statusID}`;
-        }
-      } else {
-        apiUrl = `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment`;
       }
 
-      const apptRes = await fetch(apiUrl);
-      const apptData = await apptRes.json();
+      const response = await api.get(endpoint);
+      const apptData = response.data;
 
-      // Ensure the response is valid and an array
+      // Filter appointments for today
       if (Array.isArray(apptData)) {
-        // Get today's date in local time zone (without the time part)
-        const currentDate = new Date();
-        const todayStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${currentDate.getDate().toString().padStart(2, '0')}`;
+        const todayStr = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
 
-        const filteredAppointments = apptData.filter((appointment: any) => {
-          const appointmentDate = new Date(appointment.appointmentDate);
-          const appointmentDateStr = `${appointmentDate.getFullYear()}-${(appointmentDate.getMonth() + 1).toString().padStart(2, '0')}-${appointmentDate.getDate().toString().padStart(2, '0')}`;
-
-          return appointmentDateStr === todayStr;
+        const filtered = apptData.filter((appt: any) => {
+          const apptDateStr = new Date(appt.appointmentDate)
+            .toISOString()
+            .split('T')[0];
+          return apptDateStr === todayStr;
         });
 
-        setAppointments(filteredAppointments);
-        setNoAppointments(filteredAppointments.length === 0); // 👈 Set message flag
+        setAppointments(filtered);
+        setNoAppointments(filtered.length === 0);
       } else {
-        setAppointments([]); // Fallback if data isn't valid
+        setAppointments([]);
         setNoAppointments(true);
       }
     } catch (error) {
@@ -244,16 +343,14 @@ const [reasonText, setReasonText] = useState('');
       return;
     }
 
-    const appointmentDate = selectedAppointment.appointmentDate?.split('T')[0]; // Ensure only YYYY-MM-DD
+    const appointmentDate = selectedAppointment.appointmentDate?.split('T')[0];
     const appointmentTime = selectedAppointment.appointmentTime;
 
-    // ✅ Validate both values are present
     if (!appointmentDate || !appointmentTime) {
       alert('Appointment date or time is missing.');
       return;
     }
 
-    // ✅ Optional: Convert time to 24-hour if needed
     const convertTo24HourFormat = (time12h: string): string => {
       if (!time12h.includes(' ')) return time12h; // already 24h
 
@@ -275,7 +372,6 @@ const [reasonText, setReasonText] = useState('');
       return;
     }
 
-    // ✅ Manually build the Date object with date and time
     const [hours, minutes, seconds] = timeFormatted.split(':').map(Number);
     const [year, month, day] = appointmentDate.split('-').map(Number);
     const appointmentDateObj = new Date(
@@ -303,12 +399,12 @@ const [reasonText, setReasonText] = useState('');
       doctorID: selectedAppointment.doctorID,
       patientID: selectedAppointment.patientID,
       timeSlotID: selectedAppointment.timeSlotID,
-      appointmentDate: appointmentDate, // ✔ original date
-      appointmentTime: timeFormatted, // ✔ converted time
+      appointmentDate,
+      appointmentTime: timeFormatted,
       statusID:
-    roleName === "Doctor"
-      ? "82d2585e-3e84-404d-b4c2-08dd57ac7396"
-      : selectedAppointment.statusID,
+        role === 'Doctor'
+          ? '82d2585e-3e84-404d-b4c2-08dd57ac7396'
+          : selectedAppointment.statusID,
       phoneNumber: selectedAppointment.phoneNumber,
       notes: selectedAppointment.notes,
       toWhom: selectedAppointment.toWhom,
@@ -323,31 +419,12 @@ const [reasonText, setReasonText] = useState('');
     console.log('📦 Payload:', payload);
 
     try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Appointment/${selectedAppointment.appointmentID}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
+      const response = await api.put(
+        `/Appointment/${selectedAppointment.appointmentID}`,
+        payload,
       );
 
-      if (!response.ok) throw new Error('Failed to update appointment');
-
-      // ✅ Handle JSON or text response safely
-      const contentType = response.headers.get('content-type');
-      let data;
-
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      } else {
-        data = await response.text(); // fallback for plain text like "updated success"
-      }
-
-      console.log('✅ Updated:', data);
-
+      console.log('✅ Updated:', response.data);
       toast.success('Appointment updated successfully!');
       setTimeout(() => setIsEditModalOpen(false), 100);
       fetchAppointmentsBasedOnRole(loggedInUserID, role);
@@ -399,18 +476,16 @@ const [reasonText, setReasonText] = useState('');
   useEffect(() => {
     const fetchStatusList = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=appointmentstauts',
-        );
-        // Filter data to only include entries where isActive is true
+        const response = await api.get('/AppLOV?type=appointmentstauts');
+        // Filter only active items
         if (Array.isArray(response.data?.data)) {
           const activeStatusList = response.data.data.filter(
             (item: any) => item.isActive === true,
           );
           setStatusList(activeStatusList);
         }
-      } catch {
-        console.error('Failed to fetch status list.');
+      } catch (error) {
+        console.error('Failed to fetch status list.', error);
       }
     };
 
@@ -418,20 +493,19 @@ const [reasonText, setReasonText] = useState('');
   }, []);
 
   useEffect(() => {
-    axios
-      .get("https://predart003-001-site1.anytempurl.com/api/Doctor")
+    api
+      .get('/Doctor')
       .then((response) => {
         if (response.data.success && Array.isArray(response.data.data)) {
           setDoctors(response.data.data);
         } else {
-          console.error("Invalid data format");
+          console.error('Invalid data format');
         }
       })
       .catch((error) => {
-        console.error("Error fetching doctors:", error);
+        console.error('Error fetching doctors:', error);
       });
   }, []);
-
 
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
@@ -481,53 +555,55 @@ const [reasonText, setReasonText] = useState('');
     setIsEditModalOpen(true);
   };
 
-  const handleDoctorChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-  const doctorID = e.target.value;
-  setSelectedDoctorID(doctorID);
-  setFormData((prev) => ({ ...prev, doctor: doctorID }));
+  const handleDoctorChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const doctorID = e.target.value;
+    setSelectedDoctorID(doctorID);
+    setFormData((prev) => ({ ...prev, doctor: doctorID }));
 
-  // ✅ Update selectedAppointment too
-  setSelectedAppointment((prev) => ({
-    ...prev,
-    doctorID,
-  }));
+    // ✅ Update selectedAppointment too
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      doctorID,
+    }));
 
-  if (!doctorID) return;
+    if (!doctorID) return;
 
-  try {
-    const timeSlotResponse = await fetch(
-      `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-    );
-    const timeSlotData = await timeSlotResponse.json();
-    const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
+    try {
+      const timeSlotResponse = await api.get(
+        `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+      );
+      const timeSlotData = timeSlotResponse.data;
 
-    const matchedTimeSlots = data.filter(
-      (slot) => String(slot.doctorID) === doctorID,
-    );
+      const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
 
-    if (matchedTimeSlots.length) {
-      const formattedSlots = matchedTimeSlots.map((slot) => ({
-        timeSlotID: slot.timeSlotID,
-        fromTime: slot.fromTime,
-        toTime: slot.toTime,
-        slotDuration: slot.slotDuration,
-        day: slot.dayofWeek,
-      }));
+      const matchedTimeSlots = data.filter(
+        (slot) => String(slot.doctorID) === doctorID,
+      );
 
-      setAvailableTimeSlots(formattedSlots);
+      if (matchedTimeSlots.length) {
+        const formattedSlots = matchedTimeSlots.map((slot) => ({
+          timeSlotID: slot.timeSlotID,
+          fromTime: slot.fromTime,
+          toTime: slot.toTime,
+          slotDuration: slot.slotDuration,
+          day: slot.dayofWeek,
+        }));
 
-      if (selectedDate) {
-        handleDateChange(selectedDate, formattedSlots); // Pass updated slots
+        setAvailableTimeSlots(formattedSlots);
+
+        if (selectedDate) {
+          handleDateChange(selectedDate, formattedSlots); // Pass updated slots
+        }
+      } else {
+        setAvailableTimeSlots([]);
+        setGeneratedTimeSlots([]);
       }
-    } else {
-      setAvailableTimeSlots([]);
-      setGeneratedTimeSlots([]);
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
     }
-  } catch (error) {
-    console.error('Error fetching time slots:', error);
-  }
-};
-
+  };
 
   const openEditModal = (appointment) => {
     setSelectedDoctor(appointment.doctorID); // Set default doctor ID
@@ -573,10 +649,10 @@ const [reasonText, setReasonText] = useState('');
 
     if (matchedDaySlots.length) {
       try {
-        const appointmentResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        const appointmentResponse = await api.get(
+          `/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
         );
-        const appointmentData = await appointmentResponse.json();
+        const appointmentData = appointmentResponse.data;
 
         const appointmentList = Array.isArray(appointmentData)
           ? appointmentData
@@ -750,6 +826,7 @@ const [reasonText, setReasonText] = useState('');
 
     return error;
   };
+
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     console.log('Time Selected:', time);
     console.log('Time Slot ID Selected:', timeSlotID);
@@ -784,88 +861,78 @@ const [reasonText, setReasonText] = useState('');
     // Perform the save logic here
     setIsEditModalOpen(false);
   };
-const [reason, setReason] = useState('');
+  const [reason, setReason] = useState('');
 
-const handleStatusChange = async (
-  appointmentID: string,
-  newStatusID: string,
-  reason: string,
-   newDoctorID?: string // ⬅️ Add this
-) => {
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    alert('User not logged in. Please log in again.');
-    return;
-  }
+  const handleStatusChange = async (
+    appointmentID: string,
+    newStatusID: string,
+    reason: string,
+    newDoctorID?: string, // ⬅️ Add this
+  ) => {
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      alert('User not logged in. Please log in again.');
+      return;
+    }
 
-  const appointment = appointments.find(
-    (appt) => appt.appointmentID === appointmentID
-  );
-
-  if (!appointment) {
-    alert('Appointment not found.');
-    return;
-  }
-
-  const now = new Date().toISOString();
-
-  const payload = {
-    ...appointment,
-    statusID: newStatusID,
-    reason: reason,
-    updatedBy: userID,
-    updatedOn: now,
-    createdBy: appointment.createdBy || userID,
-    createdOn: appointment.createdOn || now,
-    assignToID:
-  newStatusID === '71cb1b67-af86-48f0-b4c5-08dd57ac7396' && newDoctorID
-    ? newDoctorID
-    : appointment.doctorID,
-
-
-  };
-
-  // ✅ Log the full payload
-  console.log('Payload being sent:', payload);
-
-  try {
-    const response = await axios.post(
-      'https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentStatus',
-      payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      }
+    const appointment = appointments.find(
+      (appt) => appt.appointmentID === appointmentID,
     );
 
-    if (response.status === 200) {
-  setAppointments((prevAppointments) =>
-    prevAppointments.map((appt) =>
-      appt.appointmentID === appointmentID
-        ? { ...appt, statusID: newStatusID }
-        : appt
-    )
-  );
-
-  // ✅ Reset modals and state
-  setShowReasonModal(false);
-  setShowDoctorDropdown(false);
-  setReasonText('');
-  setSelectedNewDoctorID('');
-
-  // ✅ Toast or alert
-  alert('Status updated successfully');
-}
- else {
-      alert('Failed to update status');
+    if (!appointment) {
+      alert('Appointment not found.');
+      return;
     }
-  } catch (error) {
-    console.error('Error updating status:', error);
-    alert('An error occurred while updating the status');
-  }
-};
 
+    const now = new Date().toISOString();
+
+    const payload = {
+      ...appointment,
+      statusID: newStatusID,
+      reason: reason,
+      updatedBy: userID,
+      updatedOn: now,
+      createdBy: appointment.createdBy || userID,
+      createdOn: appointment.createdOn || now,
+      assignToID:
+        newStatusID === '71cb1b67-af86-48f0-b4c5-08dd57ac7396' && newDoctorID
+          ? newDoctorID
+          : appointment.doctorID,
+    };
+
+    // ✅ Log the full payload
+    console.log('Payload being sent:', payload);
+
+    try {
+      const response = await api.post(
+        '/Appointment/AppointmentStatus',
+        payload,
+      );
+
+      if (response.status === 200) {
+        setAppointments((prevAppointments) =>
+          prevAppointments.map((appt) =>
+            appt.appointmentID === appointmentID
+              ? { ...appt, statusID: newStatusID }
+              : appt,
+          ),
+        );
+
+        // Reset modals and state
+        setShowReasonModal(false);
+        setShowDoctorDropdown(false);
+        setReasonText('');
+        setSelectedNewDoctorID('');
+
+        alert('Status updated successfully');
+      } else {
+        alert('Failed to update status');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      alert('An error occurred while updating the status');
+    }
+  };
 
   const formatLocalDateTime = (date, isEnd = false) => {
     const d = new Date(date);
@@ -901,9 +968,7 @@ const handleStatusChange = async (
     setAppointments([]);
 
     try {
-      let apiUrl =
-        'https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?';
-      const queryParams = [];
+      const params: Record<string, string> = {};
 
       if (
         roleName !== 'Patient' &&
@@ -916,7 +981,7 @@ const handleStatusChange = async (
           setLoading(false);
           return;
         }
-        queryParams.push(`HospitalID=${unitID}`);
+        params.HospitalID = unitID;
       }
 
       if (roleName === 'Doctor' || roleName === 'Reception') {
@@ -928,14 +993,11 @@ const handleStatusChange = async (
         }
 
         if (roleName === 'Doctor') {
-          queryParams.push(`DoctorID=${doctorID}`);
+          params.DoctorID = doctorID!;
         }
 
-        // Use PatientName instead of PatientID
         if (selectedPatientID) {
-          queryParams.push(
-            `PatientName=${encodeURIComponent(selectedPatientID.trim())}`,
-          );
+          params.PatientName = selectedPatientID.trim();
         }
       } else if (roleName === 'Patient') {
         const patientID = sessionStorage.getItem('patientID');
@@ -944,37 +1006,31 @@ const handleStatusChange = async (
           setLoading(false);
           return;
         }
-        queryParams.push(`PatientID=${patientID}`);
+        params.PatientID = patientID;
 
         if (selectedDoctorID) {
-          queryParams.push(`DoctorID=${selectedDoctorID}`);
+          params.DoctorID = selectedDoctorID;
         }
       } else {
-        // Admin or other roles
         if (selectedPatientID) {
-          queryParams.push(`PatientID=${selectedPatientID}`);
+          params.PatientID = selectedPatientID;
         }
       }
 
       if (selectedStatusID) {
-        queryParams.push(`StatusID=${selectedStatusID}`);
+        params.StatusID = selectedStatusID;
       }
 
       if (fromTime) {
-        const formattedStart = formatLocalDateTime(fromTime);
-        queryParams.push(`StartDate=${encodeURIComponent(formattedStart)}`);
+        params.StartDate = formatLocalDateTime(fromTime);
       }
 
       if (toTime) {
-        const formattedEnd = formatLocalDateTime(toTime, true);
-        queryParams.push(`EndDate=${encodeURIComponent(formattedEnd)}`);
+        params.EndDate = formatLocalDateTime(toTime, true);
       }
 
-      apiUrl += queryParams.join('&');
-      console.log('Final API URL:', apiUrl);
-
-      const response = await fetch(apiUrl);
-      const result = await response.json();
+      const response = await api.get('/Appointment/GetAppointment', { params });
+      const result = response.data;
 
       if (Array.isArray(result)) {
         setAppointments(result);
@@ -996,98 +1052,145 @@ const handleStatusChange = async (
     console.log('Selected Doctor ID:', selectedId); // 👈 Log selected doctor ID
     setSelectedDoctorID(selectedId);
   };
+  const [error, setError] = useState("");
 
+  const handleChange = (e) => {
+    let val = e.target.value;
+
+    // Check length
+    if (val.length > 20) {
+      setError("Maximum 20 characters allowed");
+      return;
+    } else {
+      setError(""); // clear error if length is okay
+    }
+
+    // Check for special characters or emojis (allow only letters and digits)
+    if (/[^a-zA-Z0-9]/.test(val)) {
+      setError("Only letters and numbers allowed (no special chars or emojis)");
+      return;
+    } else {
+      setError("");
+    }
+
+    // Check repeated digits
+    const digits = val.match(/\d/g) || [];
+    const digitsSet = new Set(digits);
+    if (digits.length !== digitsSet.size) {
+      setError("Repeated digits are not allowed");
+      return;
+    } else {
+      setError("");
+    }
+
+    setSelectedPatientID(val);
+  };
   return (
     <div className="p-4">
       {/* Wrap both in a common column grid */}
       <div className="grid grid-cols-1 md:grid-cols-1 gap-4 ml-5">
-        <div className="flex items-center gap-x-4 mb-4">
-          {/* Doctor Dropdown (only for Patient) */}
-          {roleName === 'Patient' && (
-            <select
-              onChange={handleDoctorSelect}
-              value={selectedDoctorID}
-              className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
-              <option value="">Select Doctor</option>
-              {doctors.map((doctor) => (
-                <option key={doctor.doctorID} value={doctor.doctorID}>
-                  {doctor.doctorName}
-                </option>
-              ))}
-            </select>
-          )}
+       <div className="flex items-start gap-x-4 mb-4">
+  {/* Doctor Dropdown (only for Patient) */}
+  {roleName === 'Patient' && (
+    <select
+      onChange={handleDoctorSelect}
+      value={selectedDoctorID}
+      className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">Select Doctor</option>
+      {doctors.map((doctor) => (
+        <option key={doctor.doctorID} value={doctor.doctorID}>
+          {doctor.doctorName}
+        </option>
+      ))}
+    </select>
+  )}
 
-          {/* Patient Dropdown (for non-Patient roles) */}
-          {roleName !== 'Patient' && (
-            <input
-              type="text"
-              placeholder="Enter Patient Name"
-              value={selectedPatientID}
-              onChange={(e) => setSelectedPatientID(e.target.value)}
-              className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-            />
-          )}
+  {/* Patient Dropdown (for non-Patient roles) */}
+  {roleName !== "Patient" && (
+    <div className="flex flex-col w-full min-w-0">
+      <input
+        type="text"
+        placeholder="Enter Patient Name"
+        value={selectedPatientID}
+        onChange={handleChange}
+        className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+      {error && (
+        <p className="mt-1 text-sm text-red-600">{error}</p>
+      )}
+    </div>
+  )}
 
-          <select
-            value={selectedStatusID}
-            onChange={(e) => setSelectedStatusID(e.target.value)}
-            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          >
-            <option value="">-- Select Status --</option>
-            {statusList.map((item) => (
-              <option key={item.appLOVID} value={item.appLOVID}>
-                {item.name}
-              </option>
-            ))}
-          </select>
+  <select
+    value={selectedStatusID}
+    onChange={(e) => setSelectedStatusID(e.target.value)}
+    className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  >
+    <option value="">-- Select Status --</option>
+    {statusList.map((item) => (
+      <option key={item.appLOVID} value={item.appLOVID}>
+        {item.name}
+      </option>
+    ))}
+  </select>
 
-          {/* Date Pickers */}
-          <input
-            type="text"
-            placeholder="From Date"
-            value={fromTime ? fromTime.split('T')[0] : ''}
-            onFocus={(e) => (e.target.type = 'date')}
-            onBlur={(e) => {
-              if (!fromTime) e.target.type = 'text';
-            }}
-            onChange={(e) => setFromTime(e.target.value)}
-            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          <input
-            type="text"
-            placeholder="To Date"
-            value={toTime ? toTime.split('T')[0] : ''}
-            onFocus={(e) => {
-              e.target.type = 'date';
-              e.target.min = fromTime
-                ? new Date(fromTime).toISOString().split('T')[0]
-                : new Date().toISOString().split('T')[0]; // Set min to From Date if available, else today
-            }}
-            onBlur={(e) => {
-              if (!toTime) e.target.type = 'text';
-            }}
-            onChange={(e) => setToTime(e.target.value)}
-            className="w-[50%] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
+  {/* Date Pickers */}
+  <input
+    type="text"
+    placeholder="From Date"
+    value={fromTime ? fromTime.split('T')[0] : ''}
+    onFocus={(e) => (e.target.type = 'date')}
+    onBlur={(e) => {
+      if (!fromTime) e.target.type = 'text';
+    }}
+    onChange={(e) => setFromTime(e.target.value)}
+    className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  />
+  <input
+    type="text"
+    placeholder="To Date"
+    value={toTime ? toTime.split('T')[0] : ''}
+    onFocus={(e) => {
+      e.target.type = 'date';
+      e.target.min = fromTime
+        ? new Date(fromTime).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+    }}
+    onBlur={(e) => {
+      if (!toTime) e.target.type = 'text';
+    }}
+    onChange={(e) => setToTime(e.target.value)}
+    className="w-[50%] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  />
 
-          {/* Buttons */}
-          <CustomButton onClick={handleSearch}>Search</CustomButton>
+  {/* Buttons */}
+  <CustomButton onClick={handleSearch}>Search</CustomButton>
 
-          <CustomButton
-            onClick={() => {
-              setSelectedDoctorID('');
-              setFromTime('');
-              setToTime('');
-              setSelectedPatientID('');
-              setSelectedStatusID(''); // Reset the status field
-              fetchAppointmentsBasedOnRole(userID, roleName);
-            }}
-            className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
-          >
-            Reset
-          </CustomButton>
-        </div>
+  <CustomButton
+    onClick={() => {
+      setSelectedDoctorID('');
+      setFromTime('');
+      setToTime('');
+      setSelectedPatientID('');
+      setSelectedStatusID('');
+      fetchAppointmentsBasedOnRole(userID, roleName);
+    }}
+    className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
+  >
+    Reset
+  </CustomButton>
+</div>
+
+
+
+        {roleName === 'Reception' && (
+          <div className="flex space-x-5">
+            <CustomButton onClick={() => setIsModalOpen(true)}>
+              Check Patient
+            </CustomButton>
+          </div>
+        )}
       </div>
 
       <ToastContainer position="top-right" />
@@ -1238,104 +1341,99 @@ const handleStatusChange = async (
 
               {/* Status Dropdown */}
               {dropdownVisible[index] && (
-              <select
-  className="w-full rounded-lg mt-1 border border-stroke bg-white dark:bg-form-input p-2 text-black dark:text-white outline-none"
-  style={{ height: '40px' }}
-  onChange={(e) => {
-  const status = e.target.value;
-  if (!status) return;
+                <select
+                  className="w-full rounded-lg mt-1 border border-stroke bg-white dark:bg-form-input p-2 text-black dark:text-white outline-none"
+                  style={{ height: '40px' }}
+                  onChange={(e) => {
+                    const status = e.target.value;
+                    if (!status) return;
 
-  setSelectedStatus(status);
-  setSelectedAppointmentId(appointment.appointmentID);
+                    setSelectedStatus(status);
+                    setSelectedAppointmentId(appointment.appointmentID);
 
-  if (status === '82d2585e-3e84-404d-b4c2-08dd57ac7396') {
-    // Reschedule
-    setSelectedAppointment(appointment);
-    setIsEditModalOpen(true);
-  } else if (status === '71cb1b67-af86-48f0-b4c5-08dd57ac7396') {
-    // Consult Another Doctor
-    setShowDoctorDropdown(true);
-    setShowReasonModal(true);
-  } else {
-    // Other statuses
-    setShowDoctorDropdown(false);
-    setShowReasonModal(true);
-  }
-}}
-
->
-  <option value="">Select Status</option>
-  {statusList.map((status) => (
-    <option key={status.appLOVID} value={status.appLOVID}>
-      {status.name}
-    </option>
-  ))}
-</select>
-
-
+                    if (status === '82d2585e-3e84-404d-b4c2-08dd57ac7396') {
+                      // Reschedule
+                      setSelectedAppointment(appointment);
+                      setIsEditModalOpen(true);
+                    } else if (
+                      status === '71cb1b67-af86-48f0-b4c5-08dd57ac7396'
+                    ) {
+                      // Consult Another Doctor
+                      setShowDoctorDropdown(true);
+                      setShowReasonModal(true);
+                    } else {
+                      // Other statuses
+                      setShowDoctorDropdown(false);
+                      setShowReasonModal(true);
+                    }
+                  }}
+                >
+                  <option value="">Select Status</option>
+                  {statusList.map((status) => (
+                    <option key={status.appLOVID} value={status.appLOVID}>
+                      {status.name}
+                    </option>
+                  ))}
+                </select>
               )}
-
             </div>
           ))}
-{showReasonModal && (
-  <div className="modal-overlay">
-    <div className="modal">
-      <div className="modal-header">
-        <h2 className="font-bold text-xl">Enter Reason</h2>
-      </div>
-       {showDoctorDropdown && (
-          <select
-            className="w-full mt-4 border rounded p-2"
-            value={selectedNewDoctorID}
-            onChange={(e) => setSelectedNewDoctorID(e.target.value)}
-          >
-            <option value="">Select New Doctor</option>
-            {doctors.map((doc) => (
-              <option key={doc.doctorID} value={doc.doctorID}>
-                {doc.doctorName}
-              </option>
-            ))}
-          </select>
-        )}
-      <div className="modal-body mt-4">
-        <textarea
-          className="w-full border rounded p-2"
-          placeholder="Enter reason"
-          value={reasonText}
-          onChange={(e) => setReasonText(e.target.value)}
-        />
-
-       
-      </div>
-      <div className="modal-footer flex justify-end mt-4">
-        <button
-          className="bg-gray-300 px-4 py-2 rounded mr-2"
-          onClick={() => {
-            setShowReasonModal(false);
-            setShowDoctorDropdown(false);
-            setReasonText('');
-          }}
-        >
-          Cancel
-        </button>
-       <button
-  className="bg-blue-500 text-white px-4 py-2 rounded"
-  onClick={() =>
-    handleStatusChange(
-      selectedAppointmentId,
-      selectedStatus,
-      reasonText ,// ✅ This can be empty
-       selectedNewDoctorID
-    )
-  }
->
-  Submit
-</button>
-
-      </div>
-    </div>
-  </div>
-)}
+          {showReasonModal && (
+            <div className="modal-overlay">
+              <div className="modal">
+                <div className="modal-header">
+                  <h2 className="font-bold text-xl">Enter Reason</h2>
+                </div>
+                {showDoctorDropdown && (
+                  <select
+                    className="w-full mt-4 border rounded p-2"
+                    value={selectedNewDoctorID}
+                    onChange={(e) => setSelectedNewDoctorID(e.target.value)}
+                  >
+                    <option value="">Select New Doctor</option>
+                    {doctors.map((doc) => (
+                      <option key={doc.doctorID} value={doc.doctorID}>
+                        {doc.doctorName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <div className="modal-body mt-4">
+                  <textarea
+                    className="w-full border rounded p-2"
+                    placeholder="Enter reason"
+                    value={reasonText}
+                    onChange={(e) => setReasonText(e.target.value)}
+                  />
+                </div>
+                <div className="modal-footer flex justify-end mt-4">
+                  <button
+                    className="bg-gray-300 px-4 py-2 rounded mr-2"
+                    onClick={() => {
+                      setShowReasonModal(false);
+                      setShowDoctorDropdown(false);
+                      setReasonText('');
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    className="bg-blue-500 text-white px-4 py-2 rounded"
+                    onClick={() =>
+                      handleStatusChange(
+                        selectedAppointmentId,
+                        selectedStatus,
+                        reasonText, // ✅ This can be empty
+                        selectedNewDoctorID,
+                      )
+                    }
+                  >
+                    Submit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Modal Popup */}
           {isEditModalOpen && selectedAppointment && (
@@ -1346,19 +1444,18 @@ const handleStatusChange = async (
                 </div>
                 <div className="modal-body mt-4">
                   {/* Doctor Selection */}
-                 <select
-  onChange={handleDoctorChange}
-  value={selectedDoctorID}
-  className={`${inputFieldClass} mb-4`}
->
-  <option value="">Select Doctor</option>
-  {doctors.map((doctor) => (
-    <option key={doctor.doctorID} value={doctor.doctorID}>
-      {doctor.doctorName}
-    </option>
-  ))}
-</select>
-
+                  <select
+                    onChange={handleDoctorChange}
+                    value={selectedDoctorID}
+                    className={`${inputFieldClass} mb-4`}
+                  >
+                    <option value="">Select Doctor</option>
+                    {doctors.map((doctor) => (
+                      <option key={doctor.doctorID} value={doctor.doctorID}>
+                        {doctor.doctorName}
+                      </option>
+                    ))}
+                  </select>
 
                   {/* Appointment Date */}
                   <input
@@ -1538,6 +1635,159 @@ const handleStatusChange = async (
       
       `}
           </style>
+        </div>
+      )}
+      {/* Modal Backdrop */}
+      {isModalOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setIsModalOpen(false)}
+        >
+          {/* Modal Content */}
+          <div
+            className="bg-white rounded-lg p-6 w-full max-w-md shadow-lg"
+            onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside modal
+          >
+            <h2 className="text-xl font-semibold mb-4">Check Patient</h2>
+            <div>
+              <input
+                type="text"
+                placeholder="Enter Phone Number"
+                maxLength={10}
+                value={mobileNo}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setMobileNo(value);
+                  if (value && !phoneRegex.test(value)) {
+                    setPhoneError(
+                      'Enter a valid 10-digit phone number starting with 6-9',
+                    );
+                  } else {
+                    setPhoneError('');
+                  }
+                }}
+                className={`w-full mb-3 p-2 border ${phoneError ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-400`}
+              />
+              {phoneError && (
+                <p className="text-red-500 text-sm mb-2">{phoneError}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="email"
+                placeholder="Enter Email"
+                value={email}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setEmail(value);
+                  if (value && !emailRegex.test(value)) {
+                    setEmailError('Enter a valid email address');
+                  } else {
+                    setEmailError('');
+                  }
+                }}
+                className={`w-full mb-3 p-2 border ${emailError ? 'border-red-500' : 'border-gray-300'} rounded focus:outline-none focus:ring-2 focus:ring-blue-400`}
+              />
+              {emailError && (
+                <p className="text-red-500 text-sm mb-2">{emailError}</p>
+              )}
+            </div>
+            <button
+              onClick={handleCheckPatientClick}
+              disabled={
+                loading ||
+                (!mobileNo && !email) ||
+                (mobileNo && phoneError) ||
+                (email && emailError)
+              }
+              className={`w-full bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+    hover:from-[#007BFF] hover:to-[#004A99] text-white 
+    transition duration-150 ease-out hover:ease-in 
+    py-2 px-5 rounded-lg ${
+      loading ||
+      (!mobileNo && !email) ||
+      (mobileNo && phoneError) ||
+      (email && emailError)
+        ? 'opacity-50 cursor-not-allowed'
+        : ''
+    }`}
+            >
+              {loading ? 'Checking...' : 'Check Now'}
+            </button>
+
+            {/* Patient Cards */}
+            <div className="mt-6 max-h-72 overflow-y-auto space-y-4">
+              {patients.map((patient) => (
+                <div
+                  key={patient.patientID}
+                  className="border rounded p-4 shadow-sm hover:shadow-md transition"
+                >
+                  <p>
+                    <span className="font-semibold">Name:</span>{' '}
+                    {patient.patientName}
+                  </p>
+                  <p>
+                    <span className="font-semibold">DOB:</span>{' '}
+                    {new Date(patient.patientDateOfBirth).toLocaleDateString()}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Gender:</span>{' '}
+                    {patient.patientGender}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Phone:</span>{' '}
+                    {patient.patientPhoneNumber}
+                  </p>
+                  <p>
+                    <span className="font-semibold">Email:</span>{' '}
+                    {patient.patientEmail}
+                  </p>
+                  <p>
+                    <span className="font-semibold">UHID:</span> {patient.uhid}
+                  </p>
+                </div>
+              ))}
+
+              {checkAttempted && !loading && (
+                <div className="mt-4 text-center text-gray-600">
+                  {patients.length === 0 ? (
+                    <p>No patients found, please register.</p>
+                  ) : (
+                    <p>Please click Enroll.</p>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* Action Button based on API response */}
+            <div className="mt-4 flex justify-between items-center space-x-4">
+              {checkAttempted && patients.length === 0 && !loading ? (
+                <CustomButton
+                  onClick={handleAddPatientClick}
+                  className="flex-1"
+                >
+                  Add New Patient
+                </CustomButton>
+              ) : (
+                checkAttempted &&
+                patients.length > 0 &&
+                !loading && (
+                  <CustomButton
+                    className="flex-1"
+                    onClick={handleEnrollPatient}
+                  >
+                    Enroll
+                  </CustomButton>
+                )
+              )}
+
+              <CustomButton
+                onClick={() => setIsModalOpen(false)}
+                className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
+              >
+                Close
+              </CustomButton>
+            </div>
+          </div>
         </div>
       )}
     </div>

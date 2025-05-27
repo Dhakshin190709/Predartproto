@@ -17,6 +17,7 @@ import {
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
+import api from '../../api/request';
 interface RowData {
   userID: number;
   tenantName: string;
@@ -105,49 +106,47 @@ const Users: React.FC = () => {
       gridApi.current.paginationSetPageSize(newSize);
     }
   };
-  const fetchHospitalData = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Hospital',
-      );
-      const data = await response.json();
-      console.log('Fetched Hospitals:', data);
 
-      // ✅ Ensure state updates correctly
-      setSecondDropdownData(data);
-      return data;
-    } catch (error) {
-      console.error('Error fetching hospitals:', error);
+ const fetchHospitalData = async () => {
+  try {
+    const response = await api.get('/Hospital/List');
+    const data = response.data;
+
+    console.log('Fetched Hospitals:', data);
+
+    // If your API returns hospitals inside data.data or similar, adjust here
+    const hospitals = Array.isArray(data) ? data : data.data || [];
+
+    setSecondDropdownData(hospitals);
+    return hospitals;
+  } catch (error) {
+    console.error('Error fetching hospitals:', error);
+    return [];
+  }
+};
+
+ const fetchLaboratoryData = async () => {
+  try {
+    const response = await api.get('/Laboratory');
+    const result = response.data;
+
+    if (Array.isArray(result)) {
+      console.log('Fetched Laboratory Data:', result);
+      setSecondDropdownData(result);
+      return result;
+    } else if (result.success && Array.isArray(result.data)) {
+      console.log('Fetched Laboratory Data:', result.data);
+      setSecondDropdownData(result.data);
+      return result.data;
+    } else {
+      console.error('Unexpected response format:', result);
       return [];
     }
-  };
-
-  const fetchLaboratoryData = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Laboratory',
-      );
-      const result = await response.json();
-
-      // ✅ Check if the response has the correct structure
-      if (Array.isArray(result)) {
-        console.log('Fetched Laboratory Data:', result);
-        setSecondDropdownData(result);
-        return result;
-      } else if (result.success && Array.isArray(result.data)) {
-        console.log('Fetched Laboratory Data:', result.data);
-        setSecondDropdownData(result.data);
-        return result.data;
-      } else {
-        console.error('Unexpected response format:', result);
-        return [];
-      }
-    } catch (error) {
-      console.error('Error fetching laboratory data:', error);
-      return [];
-    }
-  };
-
+  } catch (error) {
+    console.error('Error fetching laboratory data:', error);
+    return [];
+  }
+};
   useEffect(() => {
     console.log('Updated secondDropdownData:', secondDropdownData);
   }, [secondDropdownData]);
@@ -157,25 +156,26 @@ const Users: React.FC = () => {
   const [editData, setEditData] = useState(null);
 
   // Fetch Unit Types
-  const fetchUnitTypes = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=UnitType',
-      );
-      const result = await response.json();
+  
 
-      console.log('Unit Types API Response:', result);
+const fetchUnitTypes = async () => {
+  try {
+    const response = await api.get('/AppLOV', { params: { type: 'UnitType' } });
+    const result = response.data;
 
-      if (result.success && Array.isArray(result.data)) {
-        setUnitTypes(result.data);
-      } else {
-        setUnitTypes([]);
-      }
-    } catch (error) {
-      console.error('Error fetching unit types:', error);
+    console.log('Unit Types API Response:', result);
+
+    if (result.success && Array.isArray(result.data)) {
+      setUnitTypes(result.data);
+    } else {
       setUnitTypes([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching unit types:', error);
+    setUnitTypes([]);
+  }
+};
+
 
   useEffect(() => {
     fetchUnitTypes();
@@ -186,6 +186,7 @@ const Users: React.FC = () => {
   const [unitNames, setUnitNames] = useState<Record<string, string>>({});
 
   const unitNamesRef = useRef<{ [key: string]: string }>({});
+
   const fetchUnitName = async (unitType: string, unitID: string) => {
     // Check if data is already in cache
     const cachedName = unitNamesRef.current[unitID];
@@ -214,26 +215,25 @@ const Users: React.FC = () => {
     }
 
     // 🔄 Determine API URL
-    let apiUrl = '';
-    if (normalizedType === 'hospital') {
-      apiUrl = `https://predart003-001-site1.anytempurl.com/api/Hospital/${unitID}`;
-    } else if (normalizedType === 'lab') {
-      apiUrl = `https://predart003-001-site1.anytempurl.com/api/Laboratory/${unitID}`;
-    } else {
-      console.warn(`❌ Invalid unitType provided: ${unitType}`);
-      return 'N/A';
-    }
-
+     let apiUrl = '';
+  if (normalizedType === 'hospital') {
+    apiUrl = `/Hospital/List/${unitID}`;
+  } else if (normalizedType === 'lab') {
+    apiUrl = `/Laboratory/${unitID}`;
+  } else {
+    console.warn(`❌ Invalid unitType provided: ${unitType}`);
+    return 'N/A';
+  }
     console.log(`🔗 Fetching from API: ${apiUrl}`);
 
     try {
-      const response = await fetch(apiUrl);
-      if (!response.ok) {
-        console.error(`⚠️ API Request Failed: ${response.statusText}`);
-        return 'N/A';
-      }
+       const response = await api.get(apiUrl); // Using Axios to make the GET request
+    if (response.status !== 200) {
+      console.error(`⚠️ API Request Failed: ${response.statusText}`);
+      return 'N/A';
+    }
 
-      const result = await response.json();
+     const result = response.data;
       console.log(`✅ API Response for ${unitID}:`, result);
 
       let unitName = 'N/A';
@@ -361,52 +361,55 @@ const Users: React.FC = () => {
 
   // Fetch data on component mount (only once)
 
-  const fetchAllUserData = async () => {
-    try {
-      let url = 'https://predart003-001-site1.anytempurl.com/api/User';
-      const roleName = sessionStorage.getItem('roleName');
-      const unitID = sessionStorage.getItem('unitID');
+ const fetchAllUserData = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
 
-      if (roleName === 'HostitalAdmin' && unitID) {
-        url += `?hospitalId=${unitID}`;
-      }
-
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch data');
-
-      const data = await response.json();
-
-      if (Array.isArray(data)) {
-        setApiData(data);
-        setRowData(data);
-        setFilteredData(data); // Also update grid data
-      } else {
-        throw new Error('Invalid API response');
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Failed to fetch user data.');
+    let endpoint = '/User';
+    if (roleName === 'HostitalAdmin' && unitID) {
+      endpoint += `?hospitalId=${unitID}`;
     }
-  };
+
+    const response = await api.get(endpoint);
+
+    // Axios puts response data inside response.data
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      setApiData(data);
+      setRowData(data);
+      setFilteredData(data);
+    } else {
+      throw new Error('Invalid API response');
+    }
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    toast.error('Failed to fetch user data.');
+  }
+};
 
   useEffect(() => {
     fetchAllUserData();
   }, []);
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/Tenant')
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('Tenant API Response:', data); // Debugging
+    const fetchTenants = async () => {
+      try {
+        const response = await api.get('/Tenant');
+        console.log('Tenant API Response:', response.data); // Debugging
 
-        if (data.data) {
-          setTenants(data.data); // Adjusting if API response contains { data: [...] }
-        } else {
-          setTenants(data);
-        }
-      })
-      .catch((error) => console.error('Error fetching tenant data:', error));
+        // Handle API shape: { data: [...] } or [...]
+        const data = response.data;
+        setTenants(data.data ? data.data : data);
+      } catch (error) {
+        console.error('Error fetching tenant data:', error);
+      }
+    };
+
+    fetchTenants();
   }, []);
+
   useEffect(() => {
     if (formData.userID !== 0 && formData.tenantID) {
       setSelectedTenant(formData.tenantID);
@@ -579,13 +582,8 @@ const Users: React.FC = () => {
     };
 
     try {
-      const response = await axios.patch(
-        'https://predart003-001-site1.anytempurl.com/api/User',
-        payload,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        },
-      );
+      const response = await api.patch('/User', payload);
+
 
       if (response.status === 200) {
         console.log('User status updated successfully:', response.data);
@@ -638,20 +636,8 @@ const Users: React.FC = () => {
   const confirmDelete = async () => {
     try {
       // Send DELETE request to API to delete the user by userID
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/User/${deleteRowId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to delete the user');
-      }
-
+       await api.delete(`/User/${deleteRowId}`);
+     
       // If the delete request is successful, filter the rowData to remove the deleted user
       const updatedData = rowData.filter((item) => item.userID !== deleteRowId);
       setRowData(updatedData);
@@ -677,23 +663,12 @@ const Users: React.FC = () => {
       const updatedStatus = !currentStatus;
 
       // Send PATCH request to API to update isActive status of the user
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/User/${userID}/status`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            isActive: updatedStatus,
-          }),
-        },
-      );
+      await api.patch(`/User/${userID}/status`, {
+  isActive: updatedStatus,
+});
 
-      if (!response.ok) {
-        throw new Error('Failed to update status');
-      }
 
+    
       // Update the rowData and filteredData states with the new status
       const updatedData = rowData.map((item) =>
         item.userID === userID ? { ...item, isActive: updatedStatus } : item,
@@ -845,15 +820,10 @@ const Users: React.FC = () => {
 
     const fetchUserRoles = async () => {
       try {
-        const roleResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/UserRoles/${userID}`,
-        );
+       const roleResponse = await api.get(`/UserRoles/${userID}`);
 
-        if (!roleResponse.ok) {
-          throw new Error('Failed to fetch user roles.');
-        }
 
-        const roleData = await roleResponse.json();
+       const roleData = roleResponse.data;
 
         if (
           roleData.success &&
@@ -863,17 +833,16 @@ const Users: React.FC = () => {
           const roleIDs = roleData.data.map((item) => item.roleID);
 
           // Fetch role names
-          const roleNamesPromises = roleIDs.map(async (roleID) => {
-            const roleResponse = await fetch(
-              `https://predart003-001-site1.anytempurl.com/api/Role/${roleID}`,
-            );
-            if (!roleResponse.ok) {
-              console.error(`Failed to fetch role name for roleID: ${roleID}`);
-              return null;
-            }
-            const roleInfo = await roleResponse.json();
-            return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
-          });
+         const roleNamesPromises = roleIDs.map(async (roleID) => {
+  try {
+    const roleResponse = await api.get(`/Role/${roleID}`);
+    const roleInfo = roleResponse.data;
+    return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
+  } catch (error) {
+    console.error(`Failed to fetch role name for roleID: ${roleID}`, error);
+    return null;
+  }
+});
 
           const resolvedRoleNames = await Promise.all(roleNamesPromises);
 
@@ -953,9 +922,9 @@ const Users: React.FC = () => {
 
       const isActiveBoolean = formData.isActive === 'Active';
       const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
-      const url = 'https://predart003-001-site1.anytempurl.com/api/User';
+    
 
-      const body = JSON.stringify({
+      const payload  = JSON.stringify({
         userID: formData.userID !== 0 ? formData.userID : undefined,
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -970,50 +939,51 @@ const Users: React.FC = () => {
         userPlan: formData.userPlan || 'Free',
       });
 
-      console.log('Final Payload:', body); // Debugging
+      console.log('Final Payload:', payload);  // Debugging
 
-      try {
-        const response = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body,
-        });
-
-        const data = await response.json();
-        console.log('Response Status:', response.status);
-        console.log('API Full Response:', data);
-
-        if (response.ok) {
-          console.log('User added/updated successfully.');
-          setShowForm(false);
-          setFormData({
-            userID: 0,
-            username: '',
-            email: '',
-            phone: '',
-            isActive: 'Active',
-            tenantID: '',
-            createdBy: '',
-            password: '',
-            userPlan: 'Free',
-          });
-          setSelectedTenant('');
-        } else {
-          let errorMessage = 'An error occurred. Please try again.';
-          if (data.errors) {
-            errorMessage = Object.keys(data.errors)
-              .map((key) => `${key}: ${data.errors[key].join(', ')}`)
-              .join(', ');
-          } else if (data.message) {
-            errorMessage = data.message;
-          }
-          console.error('API Error:', errorMessage);
-          alert(errorMessage);
-        }
-      } catch (error) {
-        console.error('Network Error:', error);
-        alert('An unexpected error occurred. Please try again later.');
+     try {
+      let response;
+      if (method === 'POST') {
+        response = await api.post('/User', payload);
+      } else {
+        response = await api.put('/User', payload);
       }
+
+      const data = response.data;
+      console.log('Response Status:', response.status);
+      console.log('API Full Response:', data);
+
+      if (response.status === 200 || response.status === 201) {
+        console.log('User added/updated successfully.');
+        setShowForm(false);
+        setFormData({
+          userID: 0,
+          username: '',
+          email: '',
+          phone: '',
+          isActive: 'Active',
+          tenantID: '',
+          createdBy: '',
+          password: '',
+          userPlan: 'Free',
+        });
+        setSelectedTenant('');
+      } else {
+        let errorMessage = 'An error occurred. Please try again.';
+        if (data.errors) {
+          errorMessage = Object.keys(data.errors)
+            .map((key) => `${key}: ${data.errors[key].join(', ')}`)
+            .join(', ');
+        } else if (data.message) {
+          errorMessage = data.message;
+        }
+        console.error('API Error:', errorMessage);
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('Network Error:', error);
+      alert('An unexpected error occurred. Please try again later.');
+    }
     } else {
       console.log('Form has validation errors.');
       return;
@@ -1126,15 +1096,13 @@ const Users: React.FC = () => {
     }
 
     try {
-      const response = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/User',
-        {
-          params: {
-            userName: name || undefined, // Avoid sending empty string
-            isActive: isActive ? true : undefined,
-          },
-        },
-      );
+      const response = await api.get('/User', {
+  params: {
+    userName: name || undefined,
+    isActive: isActive ? true : undefined,
+  },
+});
+
 
       if (response.data?.length > 0) {
         setFilteredData(response.data);

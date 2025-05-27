@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker'; // Assuming you're using react-datepicker for time selection
 import "react-datepicker/dist/react-datepicker.css";
+import api from '../api/request';
 
 // Type for each time slot entry
 interface TimeSlot {
@@ -27,15 +28,24 @@ const [formData, setFormData] = useState<RowData>({
 
 
 useEffect(() => {
-    fetch("https://predart003-001-site1.anytempurl.com/api/AppLOV")
-      .then((response) => response.json())
-      .then((data) => {
-        // Filter for "Hospital" type
-        const filteredTypes = data.data.filter((item) => item.type === "Hospital");
-        setHospitalTypes(filteredTypes); // Set filtered options
-      })
-      .catch((error) => console.error("Error fetching data:", error));
-  }, []);
+  const fetchHospitalTypes = async () => {
+    try {
+      const response = await api.get('/AppLOV');
+      const result = response.data;
+
+      if (result && Array.isArray(result.data)) {
+        const filteredTypes = result.data.filter((item) => item.type === 'Hospital');
+        setHospitalTypes(filteredTypes);
+      } else {
+        console.error('Unexpected response format:', result);
+      }
+    } catch (error) {
+      console.error('Error fetching hospital types:', error);
+    }
+  };
+
+  fetchHospitalTypes();
+}, []);
 
   // Initialize time slots with 7 days on component mount
   useEffect(() => {

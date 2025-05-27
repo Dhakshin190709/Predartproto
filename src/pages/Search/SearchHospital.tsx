@@ -4,6 +4,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { fetchHospitalAPI } from '../../Utils';
 import HospitalIcon from '../../images/icon/Hospital solid (2).svg';
+import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
+import EmailIcon from '../../images/icon/Email.svg';
 import { useLocation } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -20,6 +22,7 @@ import {
   FaPlusSquare,
 } from 'react-icons/fa';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -99,7 +102,7 @@ const HospitalCards = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
   const [showModal, setShowModal] = useState(false);
-const navigate = useNavigate();
+  const navigate = useNavigate();
 
   const [selectedHospitalID, setSelectedHospitalID] = useState(null);
 
@@ -159,21 +162,23 @@ const navigate = useNavigate();
 
   const fetchRelationships = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-      );
-      const result = await response.json();
+      const response = await api.get('/AppLOV', {
+        params: {
+          type: 'Relationship',
+        },
+      });
 
-      console.log('API Response:', result); // Check the response structure
+      console.log('API Response:', response.data); // Check the response structure
 
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
+      if (Array.isArray(response.data.data)) {
+        setRelationships(response.data.data);
       } else {
-        console.error('Invalid relationship data format:', result.data);
+        console.error('Invalid relationship data format:', response.data.data);
         setRelationships([]);
       }
     } catch (error) {
       console.error('Error fetching relationships:', error);
+      setRelationships([]);
     }
   };
 
@@ -185,9 +190,10 @@ const navigate = useNavigate();
   useEffect(() => {
     const fetchOptions = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-        );
+        const response = await api.get('/AppLOV', {
+          params: { type: 'toWhom' },
+        });
+
         console.log('API Response:', response.data);
         setOptions(response.data?.data ?? []);
       } catch (error) {
@@ -228,14 +234,12 @@ const navigate = useNavigate();
 
   const fetchDoctors = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor',
-      );
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setDoctors(result.data);
+      const response = await api.get('/Doctor');
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        setDoctors(response.data.data);
       } else {
-        console.error('Invalid doctor data format:', result.data);
+        console.error('Invalid doctor data format:', response.data.data);
       }
     } catch (error) {
       console.error('Error fetching doctors:', error);
@@ -258,28 +262,33 @@ const navigate = useNavigate();
 
   const fetchHospitals = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-      );
-      const result = await response.json();
+      const response = await api.get('/Hospital/List');
 
-      console.log('API Response:', result); // Verify response format
+      console.log('API Response:', response.data); // Verify response format
 
-      if (Array.isArray(result)) {
-        // Map the data without any trimming
-        const hospitalData = result.map((hospital) => ({
+      if (Array.isArray(response.data)) {
+        const hospitalData = response.data.map((hospital) => ({
           hospitalID: hospital.hospitalID || '',
-          hospitalName: hospital.hospitalName || 'Unknown Hospital', // No trimming here
-          hospitalType: hospital.hospitalType || 'Unknown Type', // No trimming here
+          tenantID: hospital.tenantID || '',
+          hospitalName: hospital.hospitalName || 'Unknown Hospital',
+          hospitalCode: hospital.hospitalCode || '',
+          hospitalType: hospital.hospitalType || 'Unknown Type',
+          email: hospital.email || '',
+          mobile: hospital.mobile || '',
+          landline: hospital.landline || '',
+          gst: hospital.gst || '',
+
+          isActive: hospital.isActive ?? false,
         }));
-        setHospitals(hospitalData); // Set hospitals data to state
+
+        setHospitals(hospitalData);
       } else {
-        console.error('Invalid hospital data format:', result);
-        setHospitals([]); // Set empty data if format is invalid
+        console.error('Invalid hospital data format:', response.data);
+        setHospitals([]);
       }
     } catch (error) {
       console.error('Error fetching hospitals:', error);
-      setHospitals([]); // Set empty data if fetch fails
+      setHospitals([]);
     }
   };
 
@@ -424,15 +433,11 @@ const navigate = useNavigate();
 
     if (Object.values(newErrors).every((error) => error === '')) {
       try {
-        const patientRes = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-        );
+        const patientRes = await api.get('/Patient/GetPatientByUserID', {
+          params: { userId: userID },
+        });
+        const patientData = patientRes.data;
 
-        if (!patientRes.ok) {
-          throw new Error('Failed to fetch patient ID');
-        }
-
-        const patientData = await patientRes.json();
         const patientID = patientData?.data?.patientID;
 
         if (!patientID) {
@@ -469,20 +474,10 @@ const navigate = useNavigate();
           phoneNumber: formData.phoneNumber || '',
         };
 
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Appointment',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          },
-        );
+        const response = await api.post('/Appointment', payload);
+        const responseData = response.data;
 
-        const responseData = await response.json();
-
-        if (response.ok) {
+        if (response) {
           const message =
             responseData?.message || 'Appointment booked successfully!';
           toast.success(message);
@@ -542,16 +537,15 @@ const navigate = useNavigate();
     if (hospitalType) queryParams.append('hospitalType', hospitalType); // If hospitalType is not empty
 
     try {
-      const res = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Hospital?${queryParams.toString()}`,
-      );
+      const res = await api.get('/Hospital/List', {
+        params: {
+          hospitalName: hospitalName || undefined,
+          hospitalType: hospitalType || undefined,
+        },
+      });
 
-      if (!res.ok) {
-        toast.error('Failed to fetch hospital data.');
-        return;
-      }
+      const data = res.data;
 
-      const data = await res.json();
       console.log('Search Results:', data);
       setHospitals(data); // Set the fetched hospital data
     } catch (err) {
@@ -609,10 +603,10 @@ const navigate = useNavigate();
 
     try {
       // Fetch the time slots for the selected doctor using the correct API
-      const timeSlotResponse = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-      );
-      const timeSlotData = await timeSlotResponse.json();
+      const timeSlotResponse = await api.get('/Doctor/GetDoctorTimeSlot', {
+        params: { doctorId: doctorID },
+      });
+      const timeSlotData = timeSlotResponse.data;
 
       console.log('Fetched Time Slot Data:', timeSlotData);
 
@@ -682,10 +676,18 @@ const navigate = useNavigate();
       console.log('Doctor is available on this date based on their schedule.');
 
       try {
-        const appointmentResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        const appointmentResponse = await api.get(
+          '/Appointment/GetAppointment',
+          {
+            params: {
+              DoctorID: selectedDoctorID,
+              StartDate: localDate,
+              EndDate: localDate,
+            },
+          },
         );
-        const appointmentData = await appointmentResponse.json();
+        const appointmentData = appointmentResponse.data;
+
         console.log('Raw Appointment Data:', appointmentData);
 
         const appointmentList = Array.isArray(appointmentData)
@@ -832,15 +834,18 @@ const navigate = useNavigate();
   }, [appointmentType, options, patientData]);
 
   useEffect(() => {
-    const userID = sessionStorage.getItem('userID');
-    const roleName = sessionStorage.getItem('roleName');
+    const fetchPatientData = async () => {
+      const userID = sessionStorage.getItem('userID');
+      const roleName = sessionStorage.getItem('roleName');
 
-    if (userID && roleName !== 'Reception') {
-      fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID?userId=${userID}`,
-      )
-        .then((res) => res.json())
-        .then((data) => {
+      if (userID && roleName !== 'Reception') {
+        try {
+          const response = await api.get('/Patient/GetPatientByUserID', {
+            params: { userId: userID },
+          });
+
+          const data = response.data;
+
           if (data.success && data.data) {
             const name = data.data.patientName || '';
             const phoneNumber = data.data.patientPhoneNumber || '';
@@ -857,11 +862,13 @@ const navigate = useNavigate();
           } else {
             console.warn('⚠️ Failed to fetch patient data');
           }
-        })
-        .catch((err) => {
+        } catch (err) {
           console.error('❌ Error fetching patient data:', err);
-        });
-    }
+        }
+      }
+    };
+
+    fetchPatientData();
   }, []);
 
   return (
@@ -921,7 +928,7 @@ const navigate = useNavigate();
         </div>
       </form>
 
-      <h1 className="text-2xl font-semibold text-gray-800 mt-4  mb-6">
+      <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
         List of Hospital's
       </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 relative">
@@ -933,7 +940,7 @@ const navigate = useNavigate();
         transition-transform transform hover:scale-105 hover:shadow-lg"
             >
               {/* Icon Badge - Top Left */}
-              <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-tl-lg rounded-br-md flex items-center justify-center">
+              <div className="absolute top-0 left-0 bg-blue-300 w-10 h-10 rounded-tl-lg rounded-br-md flex items-center justify-center">
                 <img
                   src={HospitalIcon}
                   alt="hospital"
@@ -952,34 +959,78 @@ const navigate = useNavigate();
               </div>
 
               {/* Info Grid: Hospital Name & Type */}
-              <div className="grid grid-cols-2 gap-x-4 text-sm text-gray-800">
-                <div className="flex items-center gap-2">
-                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
-                  <span className="font-medium text-gray-600">Name:</span>{' '}
-                  {hospital.hospitalName}
-                </div>
-                <div className="flex items-center gap-2">
-                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5 " />
-                  <span className="font-medium text-gray-600">Type:</span>{' '}
-                  {hospital.hospitalType}
-                </div>
-              </div>
-            <div className="flex justify-end mb-2 mr-2">
-  <button
-    onClick={() =>
-      navigate("/ProfileHospital", {
-        state: {
-          hospitalID: hospital.hospitalID,
-          hospitalName: hospital.hospitalName,
-        },
-      })
-    }
-    className="text-blue-600 hover:underline text-sm font-semibold"
-  >
-    View More Profile Info
-  </button>
+             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-800">
+  <div className="flex items-center gap-2">
+    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Name: <span className="font-normal">{hospital.hospitalName}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Type: <span className="font-normal">{hospital.hospitalType}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Code: <span className="font-normal">{hospital.hospitalCode}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={EmailIcon} alt="email" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Email: <span className="font-normal">{hospital.email || 'N/A'}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={PhoneIcon} alt="phone" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Mobile: <span className="font-normal">{hospital.mobile || 'N/A'}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      Landline: <span className="font-normal">{hospital.landline || 'N/A'}</span>
+    </span>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+    <span className="text-black font-medium">
+      GST: <span className="font-normal">{hospital.gst || 'N/A'}</span>
+    </span>
+  </div>
 </div>
 
+
+
+              <div className="flex justify-end mb-2 mr-2">
+                <button
+                  onClick={() => {
+                    console.log('Navigating with state:', {
+                      hospitalID: hospital.hospitalID,
+                      hospitalName: hospital.hospitalName,
+                    });
+                    navigate('/ProfileHospital', {
+                      state: {
+                        hospitalID: hospital.hospitalID,
+                        hospitalName: hospital.hospitalName,
+                      },
+                    });
+                  }}
+                  className="text-blue-600 hover:underline text-sm font-semibold"
+                >
+                  View More Profile Info
+                </button>
+              </div>
             </div>
           ))
         ) : (

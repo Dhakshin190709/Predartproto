@@ -4,6 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from 'axios';
+import api from '../../api/request';
 const HospitalDropdown = () => {
   const [hospitals, setHospitals] = useState<any[]>([]);
   const [selectedHospital, setSelectedHospital] = useState<string>('');
@@ -19,28 +20,29 @@ const HospitalDropdown = () => {
  const [selectedStatus, setSelectedStatus] = useState('');
    const [statusOptions, setStatusOptions] = useState([]);
    const [statusMapping, setStatusMapping] = useState({});
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital',
-        );
-        const data = await response.json();
-        const activeHospitals = data.filter(
-          (hospital: any) => hospital.isActive === true,
-        );
-        setHospitals(activeHospitals);
 
-        const unitID = sessionStorage.getItem('unitID');
-        setSelectedHospital(unitID || '');
-        setSelectedHospitalId(unitID || '');
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
+ useEffect(() => {
+  const fetchHospitals = async () => {
+    try {
+      const response = await api.get('/Hospital/List');
+      const hospitals = response.data; // directly an array
+      
+      const activeHospitals = hospitals.filter(
+        (hospital: any) => hospital.isActive === true,
+      );
+      setHospitals(activeHospitals);
 
-    fetchHospitals();
-  }, []);
+      const unitID = sessionStorage.getItem('unitID') || '';
+      setSelectedHospital(unitID);
+      setSelectedHospitalId(unitID);
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+    }
+  };
+
+  fetchHospitals();
+}, []);
+
 
   useEffect(() => {
     if (selectedHospitalId) {
@@ -48,49 +50,55 @@ const HospitalDropdown = () => {
     }
   }, [selectedHospitalId]);
 
-  const fetchDoctors = async (hospitalId: string) => {
-    try {
-      if (!hospitalId) return;
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${hospitalId}`,
+ const fetchDoctors = async (hospitalId: string) => {
+  try {
+    if (!hospitalId) return;
+
+    const response = await api.get(`/Doctor`, {
+      params: { hospitalId },
+    });
+
+    const data = response.data;
+
+    if (data.success && Array.isArray(data.data)) {
+      setDoctors(
+        data.data.map((doctor: { doctorName: string; doctorID: string }) => ({
+          doctorName: doctor.doctorName,
+          doctorID: doctor.doctorID,
+        })),
       );
-      const data = await response.json();
-      if (data.success && Array.isArray(data.data)) {
-        setDoctors(
-          data.data.map((doctor: { doctorName: string; doctorID: string }) => ({
-            doctorName: doctor.doctorName,
-            doctorID: doctor.doctorID,
-          })),
-        );
-      } else {
-        setDoctors([]);
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
+    } else {
+      setDoctors([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    setDoctors([]);
+  }
+};
 
 useEffect(() => {
   fetchStatusOptions();
   
 }, []);
+
   const fetchStatusOptions = async () => {
-    try {
-      const response = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts',
-      );
-      const data = response.data?.data || [];
-      setStatusOptions(data);
-  
-      const statusMap = data.reduce((acc: any, item: any) => {
-        acc[item.appLOVID] = item.name;
-        return acc;
-      }, {});
-      setStatusMapping(statusMap);
-    } catch (error) {
-      console.error('Error fetching status data:', error);
-    }
-  };
+  try {
+    const response = await api.get('/AppLOV', {
+      params: { type: 'AppointmentStauts' },
+    });
+    const data = response.data?.data || [];
+    setStatusOptions(data);
+
+    const statusMap = data.reduce((acc: any, item: any) => {
+      acc[item.appLOVID] = item.name;
+      return acc;
+    }, {});
+    setStatusMapping(statusMap);
+  } catch (error) {
+    console.error('Error fetching status data:', error);
+  }
+};
+
   const handleDoctorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDoctor(event.target.value);
   };
@@ -103,65 +111,67 @@ useEffect(() => {
     setSelectedHospitalId(hospitalId);
   };
 
-  const handleSearch = async () => {
-    setLoading(true);
-    try {
-      let url = `https://predart003-001-site1.anytempurl.com/api/Appointment/MISReport?`;
-  
-      const params = new URLSearchParams();
-      if (selectedHospitalId) params.append('HospitalID', selectedHospitalId);
-      if (selectedDoctor) params.append('DoctorID', selectedDoctor);
-      if (fromTime) params.append('StartDate', fromTime);
-      if (toTime) params.append('EndDate', toTime);
-      if (selectedStatus) params.append('StatusID', selectedStatus);
-  
-      url += params.toString();
-  
-      const response = await fetch(url);
-      const data = await response.json();
-  
-      if (Array.isArray(data) && data.length > 0) {
-        const groupedByPatient: Record<string, any> = {};
-  
-        data.forEach((appointment: any) => {
-          const key = appointment.patientID;
-  
-          if (groupedByPatient[key]) {
-            groupedByPatient[key].count += 1;
-  
-            const currFrom = new Date(groupedByPatient[key].fromDate);
-            const currTo = new Date(groupedByPatient[key].toDate);
-            const apptDate = new Date(appointment.appointmentDate);
-  
-            if (apptDate < currFrom) groupedByPatient[key].fromDate = appointment.appointmentDate;
-            if (apptDate > currTo) groupedByPatient[key].toDate = appointment.appointmentDate;
-          } else {
-            groupedByPatient[key] = {
-              hospitalName: appointment.hospitalName || '-',
-              doctorName: appointment.doctorName || '-',
-              patientName: appointment.patientName || '-',
-              patientID: appointment.patientID,
-              fromDate: appointment.appointmentDate,
-              toDate: appointment.appointmentDate,
-              status: appointment.statusID || '',
-              count: 1,
-            };
-          }
-        });
-  
-        const groupedAppointmentsArray = Object.values(groupedByPatient);
-        setAppointments(groupedAppointmentsArray);
-      } else {
-        setAppointments([]);
-      }
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
+
+
+const handleSearch = async () => {
+  setLoading(true);
+  try {
+    const params = new URLSearchParams();
+
+    if (selectedHospitalId) params.append('HospitalID', selectedHospitalId);
+    if (selectedDoctor) params.append('DoctorID', selectedDoctor);
+    if (fromTime) params.append('StartDate', fromTime);
+    if (toTime) params.append('EndDate', toTime);
+    if (selectedStatus) params.append('StatusID', selectedStatus);
+
+    const response = await api.get(`/Appointment/MISReport?${params.toString()}`);
+    const data = response.data;
+
+    // Assuming the API returns the array directly in data.data or data.result, adjust accordingly
+    const appointmentsData = Array.isArray(data) ? data : data.data || data.result || [];
+
+    if (Array.isArray(appointmentsData) && appointmentsData.length > 0) {
+      const groupedByPatient: Record<string, any> = {};
+
+      appointmentsData.forEach((appointment: any) => {
+        const key = appointment.patientID;
+
+        if (groupedByPatient[key]) {
+          groupedByPatient[key].count += 1;
+
+          const currFrom = new Date(groupedByPatient[key].fromDate);
+          const currTo = new Date(groupedByPatient[key].toDate);
+          const apptDate = new Date(appointment.appointmentDate);
+
+          if (apptDate < currFrom) groupedByPatient[key].fromDate = appointment.appointmentDate;
+          if (apptDate > currTo) groupedByPatient[key].toDate = appointment.appointmentDate;
+        } else {
+          groupedByPatient[key] = {
+            hospitalName: appointment.hospitalName || '-',
+            doctorName: appointment.doctorName || '-',
+            patientName: appointment.patientName || '-',
+            patientID: appointment.patientID,
+            fromDate: appointment.appointmentDate,
+            toDate: appointment.appointmentDate,
+            status: appointment.statusID || '',
+            count: 1,
+          };
+        }
+      });
+
+      const groupedAppointmentsArray = Object.values(groupedByPatient);
+      setAppointments(groupedAppointmentsArray);
+    } else {
       setAppointments([]);
-    } finally {
-      setLoading(false);
     }
-  };
-  
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    setAppointments([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
   
   
   

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, ChangeEvent } from 'react';
 import { fetchMenus, fetchRolePermissions, fetchRoles } from '../../Utils';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 
 interface Role {
   roleID: string;
@@ -103,48 +104,42 @@ const RoleDropdownAndMenu: React.FC = () => {
     });
   };
 
-  const handleSave = async () => {
-    if (!selectedRole) {
-      alert('Please select a role before saving.');
-      return;
+ const handleSave = async () => {
+  if (!selectedRole) {
+    alert('Please select a role before saving.');
+    return;
+  }
+  if (selectedMenus.length === 0) {
+    alert('Please select at least one menu.');
+    return;
+  }
+  const selectedRoleData = roles.find(role => role.roleName === selectedRole);
+  const roleID = selectedRoleData ? selectedRoleData.roleID : null;
+  if (!roleID) {
+    console.error('Role ID not found.');
+    alert('Role ID not found.');
+    return;
+  }
+  const payload = selectedMenus.map(menuID => ({
+    roleID,
+    menuID,
+  }));
+
+  try {
+    const response = await api.post('/RoleMenuRights/AssignRights', payload);
+
+    // Axios automatically parses JSON, response.data holds the data
+    if (response.data.success) {
+      alert('Permissions assigned successfully!');
+    } else {
+      alert('Failed to assign permissions.');
     }
-    if (selectedMenus.length === 0) {
-      alert('Please select at least one menu.');
-      return;
-    }
-    const selectedRoleData = roles.find(
-      (role) => role.roleName === selectedRole,
-    );
-    const roleID = selectedRoleData ? selectedRoleData.roleID : null;
-    if (!roleID) {
-      console.error('Role ID not found.');
-      alert('Role ID not found.');
-      return;
-    }
-    const payload = selectedMenus.map((menuID) => ({
-      roleID,
-      menuID,
-    }));
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/RoleMenuRights/AssignRights',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        },
-      );
-      const result = await response.json();
-      if (result.success) {
-        alert('Permissions assigned successfully!');
-      } else {
-        alert('Failed to assign permissions.');
-      }
-    } catch (error) {
-      console.error('Error saving data:', error);
-      alert('An error occurred while saving.');
-    }
-  };
+  } catch (error) {
+    console.error('Error saving data:', error);
+    alert('An error occurred while saving.');
+  }
+};
+
 
   const groupedMenus = menus.reduce(
     (acc, menu) => {

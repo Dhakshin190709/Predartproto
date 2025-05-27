@@ -9,6 +9,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import axios from 'axios';
 import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
 type GenderOption = {
   code: string;
   name: string;
@@ -136,6 +137,7 @@ const PatientFormWizard: React.FC = () => {
       zipCode: '',
       city: '',
       type: 'patient',
+      isPrimary: false,
     },
   ]);
   const [sections, setSections] = useState([
@@ -155,9 +157,16 @@ const PatientFormWizard: React.FC = () => {
   const [bloodGroups, setBloodGroups] = useState([]);
 
   useEffect(() => {
-    axios
-      .get('https://predart003-001-site1.anytempurl.com/api/Address/states')
-      .then((res) => setStates(res.data.data));
+    const fetchStates = async () => {
+      try {
+        const response = await api.get('/Address/states');
+        setStates(response.data.data);
+      } catch (error) {
+        console.error('Error fetching states:', error);
+      }
+    };
+
+    fetchStates();
   }, []);
 
   const handleStateChange = (
@@ -176,16 +185,18 @@ const PatientFormWizard: React.FC = () => {
     updateAddress(index, 'zipCode', '');
     updateAddress(index, 'city', '');
 
-    axios
-      .get(
-        `https://predart003-001-site1.anytempurl.com/api/Address/districts?StateCode=${stateCode}`,
-      )
+    api
+      .get(`/Address/districts?StateCode=${stateCode}`)
       .then((res) => {
         setDistricts(res.data.data);
         const uniquePincodes = Array.from(
           new Set(res.data.data.map((d: District) => d.pinCode)),
         );
         setPincodes(uniquePincodes);
+      })
+      .catch((error) => {
+        console.error('Failed to fetch districts:', error);
+        // Optionally handle error UI here
       });
   };
 
@@ -200,7 +211,6 @@ const PatientFormWizard: React.FC = () => {
     // Update district in address list
     updateAddress(index, 'district', districtName);
     updateAddress(index, 'zipCode', ''); // ✅ correct
-
     updateAddress(index, 'city', '');
 
     const filteredPins = districts
@@ -209,10 +219,8 @@ const PatientFormWizard: React.FC = () => {
 
     setPincodes(filteredPins);
 
-    axios
-      .get(
-        `https://predart003-001-site1.anytempurl.com/api/Address/cities?districtName=${districtName}`,
-      )
+    api
+      .get(`/Address/cities?districtName=${districtName}`)
       .then((res) => {
         const cityData = res.data.data;
         if (cityData.length === 0) {
@@ -221,71 +229,100 @@ const PatientFormWizard: React.FC = () => {
         } else {
           setCities(cityData);
         }
+      })
+      .catch((error) => {
+        console.error('Failed to fetch cities:', error);
+        // Optionally handle error display here
       });
   };
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
-      .then((response) => response.json())
-      .then((data) => {
-        console.log('Fetched data:', data); // Check the structure
-        const filteredBloodGroups = data.data.filter(
+    api
+      .get('/AppLOV')
+      .then((response) => {
+        console.log('Fetched data:', response.data);
+        const filteredBloodGroups = response.data.data.filter(
           (item) => item.type === 'Bloodgroup',
         );
         setBloodGroups(filteredBloodGroups);
       })
-      .catch((error) => console.error('Error fetching blood groups:', error));
+      .catch((error) => {
+        console.error('Error fetching blood groups:', error);
+      });
   }, []);
 
   const [addressTypes, setAddressTypes] = useState([]);
 
   useEffect(() => {
-    fetch('https://predart003-001-site1.anytempurl.com/api/AppLOV')
-      .then((response) => response.json())
-      .then((data) => {
-        const filteredAddressTypes = data.data.filter(
+    api
+      .get('/AppLOV')
+      .then((response) => {
+        const filteredAddressTypes = response.data.data.filter(
           (item) => item.type === 'Address',
         );
         setAddressTypes(filteredAddressTypes);
       })
-      .catch((error) => console.error('Error fetching address types:', error));
+      .catch((error) => {
+        console.error('Error fetching address types:', error);
+      });
   }, []);
 
-useEffect(() => {
-  const fetchFamilyData = async () => {
-    const patientID = sessionStorage.getItem('patientID');
-    try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/GetFamily?PatientID=${patientID}`,
-      );
-      const result = await response.json();
+  useEffect(() => {
+    const fetchFamilyData = async () => {
+      const patientID = sessionStorage.getItem('patientID');
+      try {
+        const response = await api.get(
+          `/Patient/GetFamily?PatientID=${patientID}`,
+        );
+        const result = response.data;
 
-      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
-        const uniqueMap = new Map();
+        if (
+          result.success &&
+          Array.isArray(result.data) &&
+          result.data.length > 0
+        ) {
+          const uniqueMap = new Map();
 
-        result.data.forEach((item) => {
-          const key = `${item.name}-${item.phoneNumber}`; // composite key
-          if (!uniqueMap.has(key)) {
-            uniqueMap.set(key, {
-              name: item.name || '',
-              email: item.email || '',
-              phoneNumber: item.phoneNumber || '',
-              patientDateOfBirth: item.dateOfBirth
-                ? item.dateOfBirth.split('T')[0]
-                : '',
-              bloodGroup: item.bloodGroupID || '',
-              height: item.height || '',
-              weight: item.weight || '',
+          result.data.forEach((item) => {
+            const key = `${item.name}-${item.phoneNumber}`; // composite key
+            if (!uniqueMap.has(key)) {
+              uniqueMap.set(key, {
+                name: item.name || '',
+                email: item.email || '',
+                phoneNumber: item.phoneNumber || '',
+                patientDateOfBirth: item.dateOfBirth
+                  ? item.dateOfBirth.split('T')[0]
+                  : '',
+                bloodGroup: item.bloodGroupID || '',
+                height: item.height || '',
+                weight: item.weight || '',
+                showDateInput: false,
+                errors: {},
+              });
+            }
+          });
+
+          const mappedBoxes = Array.from(uniqueMap.values());
+          setBoxes(mappedBoxes); // ✅ Set fetched family data
+        } else {
+          // No data returned, show default single box
+          setBoxes([
+            {
+              name: '',
+              email: '',
+              phoneNumber: '',
+              patientDateOfBirth: '',
+              bloodGroup: '',
+              height: '',
+              weight: '',
               showDateInput: false,
               errors: {},
-            });
-          }
-        });
-
-        const mappedBoxes = Array.from(uniqueMap.values());
-        setBoxes(mappedBoxes); // ✅ Set fetched family data
-      } else {
-        // No data returned, show default single box
+            },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error fetching family data:', error);
+        // On error also show single default box
         setBoxes([
           {
             name: '',
@@ -300,36 +337,17 @@ useEffect(() => {
           },
         ]);
       }
-    } catch (error) {
-      console.error('Error fetching family data:', error);
-      // On error also show single default box
-      setBoxes([
-        {
-          name: '',
-          email: '',
-          phoneNumber: '',
-          patientDateOfBirth: '',
-          bloodGroup: '',
-          height: '',
-          weight: '',
-          showDateInput: false,
-          errors: {},
-        },
-      ]);
-    }
-  };
+    };
 
-  fetchFamilyData();
-}, []);
+    fetchFamilyData();
+  }, []);
 
   useEffect(() => {
     const patientID = sessionStorage.getItem('patientID');
     if (!patientID) return;
 
-    axios
-      .get(
-        `https://predart003-001-site1.anytempurl.com/api/Patient/GetPreferences?PatientID=${patientID}`,
-      )
+    api
+      .get(`/Patient/GetPreferences?PatientID=${patientID}`)
       .then((res) => {
         const data = res.data?.data;
         if (!data) return;
@@ -404,8 +422,17 @@ useEffect(() => {
         state: '',
         zipCode: '',
         type: '',
+        isPrimary: false,
       },
     ]);
+  };
+
+  const handlePrimaryCheckbox = (selectedIndex: number) => {
+    const updated = addresses.map((addr, idx) => ({
+      ...addr,
+      isPrimary: idx === selectedIndex, // Only one true
+    }));
+    setAddresses(updated);
   };
 
   // Remove an address row
@@ -456,10 +483,9 @@ useEffect(() => {
   useEffect(() => {
     const fetchGenderOptions = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV',
-          { params: { type: 'gender' } },
-        );
+        const response = await api.get('/AppLOV', {
+          params: { type: 'gender' },
+        });
 
         if (response.data && response.data.data) {
           console.log('Gender Options:', response.data.data); // 👈 Add this line
@@ -596,15 +622,15 @@ useEffect(() => {
               ? ''
               : 'Invalid email format.';
 
-     case 'patientPhoneNumber':
-case 'phoneNumber':
-  return !value
-    ? 'Phone number is required.'
-    : emojiRegex.test(value)
-      ? 'Emojis are not allowed in phone number.'
-      : /^[6-9]\d{9}$/.test(value)
-        ? ''
-        : 'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
+      case 'patientPhoneNumber':
+      case 'phoneNumber':
+        return !value
+          ? 'Phone number is required.'
+          : emojiRegex.test(value)
+            ? 'Emojis are not allowed in phone number.'
+            : /^[6-9]\d{9}$/.test(value)
+              ? ''
+              : 'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
 
       case 'patientDateOfBirth':
         if (!value) return 'Date of Birth is required.';
@@ -682,10 +708,9 @@ case 'phoneNumber':
       const patientID = sessionStorage.getItem('patientID');
       try {
         const userID = sessionStorage.getItem('userID');
-        const response = await axios.get(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetPatientByUserID`,
-          { params: { userId: userID } },
-        );
+        const response = await api.get('/Patient/GetPatientByUserID', {
+          params: { userId: userID },
+        });
 
         const data = response.data.data;
 
@@ -728,10 +753,10 @@ case 'phoneNumber':
       if (!patientID) return;
 
       try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Patient/GetMedicalInformation?PatientID=${patientID}`,
+        const res = await api.get(
+          `/Patient/GetMedicalInformation?PatientID=${patientID}`,
         );
-        const data = await response.json();
+        const data = res.data;
 
         if (data.success && Array.isArray(data.data) && data.data.length > 0) {
           const info = data.data[0];
@@ -763,91 +788,85 @@ case 'phoneNumber':
     if (bloodGroups.length > 0) {
       fetchMedicalInfo();
     }
-  }, [bloodGroups]); // Re-run when bloodGroups changes
+  }, [bloodGroups]);
 
   // ✅ No patientID here, use sessionStorage directly
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const userID = sessionStorage.getItem('userID');
-  const patientID = sessionStorage.getItem('patientID');
+    const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
 
-  if (!userID || !patientID) {
-    toast.error('User ID or Patient ID is missing.');
-    return;
-  }
+    if (!userID || !patientID) {
+      toast.error('User ID or Patient ID is missing.');
+      return;
+    }
 
-  console.log('🧠 userID from session:', userID);
-  console.log('🧠 patientID from session:', patientID);
+    console.log('🧠 userID from session:', userID);
+    console.log('🧠 patientID from session:', patientID);
 
-  const matchedGender = genderOptions.find(
-    (g) => g.name.toLowerCase() === formData.patientGender?.toLowerCase(),
-  );
-
-  // Prepare the form data with updated values
-  const updatedFormData = {
-    ...formData,
-    patientID: formData.patientID || patientID,
-    patientDateOfBirth: new Date(formData.patientDateOfBirth).toISOString(),
-    userID,
-    createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646',
-    isActive: true,
-    patientGender: formData.patientGender
-      ? formData.patientGender
-      : matchedGender?.code || '',
-    updatedBy: userID,
-  };
-
-  console.log('📝 Submitting form with:', updatedFormData);
-
-  // Check if any actual changes have been made
-  const hasChanges = 
-    formData.patientGender !== updatedFormData.patientGender ||
-    formData.patientDateOfBirth !== updatedFormData.patientDateOfBirth;
-
-  if (!hasChanges) {
-    toast.info('No changes detected. No need to save.');
-    return; // Prevent submission if no changes
-  }
-
-  try {
-    const response = await axios.put(
-      `https://predart003-001-site1.anytempurl.com/api/Patient/${patientID}`,
-      updatedFormData,
+    const matchedGender = genderOptions.find(
+      (g) => g.name.toLowerCase() === formData.patientGender?.toLowerCase(),
     );
 
-    console.log('✅ SaveBasicDetails Response:', response.data);
+    // Prepare the form data with updated values
+    const updatedFormData = {
+      ...formData,
+      patientID: formData.patientID || patientID,
+      patientDateOfBirth: new Date(formData.patientDateOfBirth).toISOString(),
+      userID,
+      createdBy: 'eb50fd87-2ef9-4d12-fb2e-08dd175f4646',
+      isActive: true,
+      patientGender: formData.patientGender
+        ? formData.patientGender
+        : matchedGender?.code || '',
+      updatedBy: userID,
+    };
 
-    if (response.data?.success && response.data?.data) {
-      toast.success('Basic details updated successfully!');
-      return {
-        isValid: true,
-        errors: {},
-      };
-    } else {
-      toast.error(response.data?.message || 'Failed to save basic details');
+    console.log('📝 Submitting form with:', updatedFormData);
+
+    // Check if any actual changes have been made
+    const hasChanges =
+      formData.patientGender !== updatedFormData.patientGender ||
+      formData.patientDateOfBirth !== updatedFormData.patientDateOfBirth;
+
+    if (!hasChanges) {
+      toast.info('No changes detected. No need to save.');
+      return; // Prevent submission if no changes
+    }
+
+    try {
+      const response = await api.put(`/Patient/${patientID}`, updatedFormData);
+
+      console.log('✅ SaveBasicDetails Response:', response.data);
+
+      if (response.data?.success && response.data?.data) {
+        toast.success('Basic details updated successfully!');
+        return {
+          isValid: true,
+          errors: {},
+        };
+      } else {
+        toast.error(response.data?.message || 'Failed to save basic details');
+        return {
+          isValid: false,
+          errors: {
+            general: response.data?.message || 'Failed to save basic details',
+          },
+        };
+      }
+    } catch (error) {
+      console.error('🚨 Error saving basic details:', error);
+      toast.error('Network or server error while saving basic details.');
       return {
         isValid: false,
         errors: {
-          general: response.data?.message || 'Failed to save basic details',
+          general: 'Network or server error while saving basic details.',
         },
       };
     }
-  } catch (error) {
-    console.error('🚨 Error saving basic details:', error);
-    toast.error('Network or server error while saving basic details.');
-    return {
-      isValid: false,
-      errors: {
-        general: 'Network or server error while saving basic details.',
-      },
-    };
-  }
-};
-
-
-
+  };
 
   const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
@@ -872,354 +891,345 @@ const handleSubmit = async (e: React.FormEvent) => {
     validateAddress(addresses[index], index);
   };
 
-  
-const handleAddressSubmit = async () => {
-  const allErrors: { [index: number]: { [field: string]: string } } = {};
-  const userID = sessionStorage.getItem('userID');
-  const patientID = sessionStorage.getItem('patientID');
+  const handleAddressSubmit = async () => {
+    const allErrors: { [index: number]: { [field: string]: string } } = {};
+    const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
+    const hasPrimary = addresses.some((addr) => addr.isPrimary);
 
-  if (!patientID) {
-    toast.error('Patient ID is missing. Please save patient details first.');
-    return {
-      isValid: false,
-      errors: { general: 'Patient ID is required.' },
+    if (!hasPrimary) {
+      toast.error('Please select a primary address before submitting.');
+      return;
+    }
+
+    if (!patientID) {
+      toast.error('Patient ID is missing. Please save patient details first.');
+      return {
+        isValid: false,
+        errors: { general: 'Patient ID is required.' },
+      };
+    }
+
+    let hasError = false;
+    const addressPayloads: any[] = [];
+
+    // Regex patterns
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
+    const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
+    const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/;
+    const onlyAlphabets = /^[a-zA-Z\s]+$/;
+
+    const hasAddressChanged = (current: any, original: any) => {
+      const fields = [
+        'address1',
+        'address2',
+        'city',
+        'district',
+        'state',
+        'zipCode',
+        'addressType',
+      ];
+      return fields.some((field) => current[field] !== original[field]);
     };
-  }
 
-  let hasError = false;
-  const promises = [];
+    for (let index = 0; index < addresses.length; index++) {
+      const address = addresses[index];
+      const errors: { [key: string]: string } = {};
 
-  // Regex patterns
-  const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-  const noOnlySpaces = /\S/;
-  const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
-  const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/;
-  const onlyAlphabets = /^[a-zA-Z\s]+$/;
+      // Skip if already saved and no changes
+      if (
+        address.isSaved &&
+        !hasAddressChanged(address, address.original || {})
+      ) {
+        console.log(
+          `Skipping address at index ${index} - already saved and unchanged.`,
+        );
+        continue;
+      }
 
-  const hasAddressChanged = (current: any, original: any) => {
-    const fields = [
-      'address1',
-      'address2',
-      'city',
-      'district',
-      'state',
-      'zipCode',
-      'addressType',
-    ];
-    return fields.some((field) => current[field] !== original[field]);
-  };
+      const validateField = (
+        field: string,
+        fieldName: string,
+        pattern: RegExp,
+        minLength: number = 1,
+        message = 'Invalid format.',
+      ) => {
+        if (!field || !noOnlySpaces.test(field)) {
+          errors[fieldName] = 'This field is required.';
+        } else if (!noEmojis.test(field)) {
+          errors[fieldName] = 'No emojis allowed.';
+        } else if (!notRepeatedChar.test(field)) {
+          errors[fieldName] = 'No repetitive characters.';
+        } else if (!pattern.test(field) || field.length < minLength) {
+          errors[fieldName] = message;
+        }
+      };
 
-  for (let index = 0; index < addresses.length; index++) {
-    const address = addresses[index];
-    const errors: { [key: string]: string } = {};
+      const validateAddressLine = (field: string, fieldName: string) => {
+        const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
+        const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
+        const atLeastOneLetter = /[a-zA-Z]/;
+        const containsNumber = /\d/;
 
-    // Skip if already saved and no changes
-    if (
-      address.isSaved &&
-      !hasAddressChanged(address, address.original || {})
-    ) {
-      console.log(
-        `Skipping address at index ${index} - already saved and unchanged.`,
+        if (!field || !noOnlySpaces.test(field)) {
+          errors[fieldName] = 'This field is required.';
+        } else if (!noEmojis.test(field)) {
+          errors[fieldName] = 'No emojis allowed.';
+        } else if (!alphaNumericSlash.test(field)) {
+          errors[fieldName] =
+            'Only alphanumeric characters, spaces, and slashes allowed.';
+        } else if (field.length < 3) {
+          errors[fieldName] = 'Minimum 3 characters required.';
+        } else if (!atLeastOneLetter.test(field)) {
+          errors[fieldName] = 'Must contain at least one alphabet letter.';
+        } else if (!containsNumber.test(field)) {
+          errors[fieldName] = 'Must contain at least one number.';
+        } else if (!noTripleRepeat.test(field)) {
+          errors[fieldName] =
+            'No character should repeat more than twice consecutively.';
+        }
+      };
+
+      // Address 1 & 2
+      validateAddressLine(address.address1, 'address1');
+      validateAddressLine(address.address2, 'address2');
+
+      if (!address.city || address.city.trim() === '') {
+        errors.city = 'City is required.';
+      } else if (showCityInput) {
+        if (!noEmojis.test(address.city)) {
+          errors.city = 'No emojis allowed.';
+        } else if (!onlyAlphabets.test(address.city)) {
+          errors.city = 'Only alphabets and spaces allowed.';
+        } else if (address.city.trim().length < 2) {
+          errors.city = 'City must be at least 2 characters.';
+        }
+      }
+
+      if (!address.state) errors.state = 'Please select a state.';
+      if (!address.district) errors.district = 'Please select a district.';
+      if (!address.zipCode) errors.zipCode = 'Please select a pincode.';
+
+      validateField(
+        address.addressType,
+        'addressType',
+        onlyAlphaNumericAndSpaces,
+        1,
+        'Only alphanumeric characters and spaces allowed.',
       );
-      continue;
-    }
 
-    const validateField = (
-      field: string,
-      fieldName: string,
-      pattern: RegExp,
-      minLength: number = 1,
-      message = 'Invalid format.',
-    ) => {
-      if (!field || !noOnlySpaces.test(field)) {
-        errors[fieldName] = 'This field is required.';
-      } else if (!noEmojis.test(field)) {
-        errors[fieldName] = 'No emojis allowed.';
-      } else if (!notRepeatedChar.test(field)) {
-        errors[fieldName] = 'No repetitive characters.';
-      } else if (!pattern.test(field) || field.length < minLength) {
-        errors[fieldName] = message;
+      if (Object.keys(errors).length > 0) {
+        allErrors[index] = errors;
+        hasError = true;
+        continue;
       }
-    };
 
-const validateAddressLine = (field: string, fieldName: string) => {
-  const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
-  const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
-  const atLeastOneLetter = /[a-zA-Z]/;
-  const containsNumber = /\d/;
-
-  if (!field || !noOnlySpaces.test(field)) {
-    errors[fieldName] = 'This field is required.';
-  } else if (!noEmojis.test(field)) {
-    errors[fieldName] = 'No emojis allowed.';
-  } else if (!alphaNumericSlash.test(field)) {
-    errors[fieldName] = 'Only alphanumeric characters, spaces, and slashes allowed.';
-  } else if (field.length < 3) {
-    errors[fieldName] = 'Minimum 3 characters required.';
-  } else if (!atLeastOneLetter.test(field)) {
-    errors[fieldName] = 'Must contain at least one alphabet letter.';
-  } else if (!containsNumber.test(field)) {
-    errors[fieldName] = 'Must contain at least one number.';
-  } else if (!noTripleRepeat.test(field)) {
-    errors[fieldName] = 'No character should repeat more than twice consecutively.';
-  }
-};
-
-
-    // Address 1 & 2
-    validateAddressLine(address.address1, 'address1');
-    validateAddressLine(address.address2, 'address2');
-
-    if (!address.city || !noOnlySpaces.test(address.city)) {
-  errors.city = 'City is required.';
-} else if (!noEmojis.test(address.city)) {
-  errors.city = 'No emojis allowed.';
-} else if (!onlyAlphabets.test(address.city)) {
-  errors.city = 'Only alphabets and spaces allowed.';
-} else if (address.city.length < 2) {
-  errors.city = 'City must be at least 2 characters.';
-}
-
-    // State, district, and zip validations
-    if (!address.state) errors.state = 'Please select a state.';
-    if (!address.district) errors.district = 'Please select a district.';
-    if (!address.zipCode) errors.zipCode = 'Please select a pincode.';
-
-    // Address Type
-    validateField(
-      address.addressType,
-      'addressType',
-      onlyAlphaNumericAndSpaces,
-      1,
-      'Only alphanumeric characters and spaces allowed.',
-    );
-
-    if (Object.keys(errors).length > 0) {
-      allErrors[index] = errors;
-      hasError = true;
-      continue;
+      addressPayloads.push({
+        createdBy: userID,
+        updatedBy: userID,
+        isActive: true,
+        id: patientID,
+        type: 'Patient',
+        addressType: address.addressType || '',
+        address1: address.address1 || '',
+        address2: address.address2 || '',
+        city: address.city || '',
+        district: address.district || '',
+        state: address.state || '',
+        zipCode: address.zipCode || '',
+        isPrimary: !!address.isPrimary,
+      });
     }
 
-    const addressPayload = {
-      createdBy: userID,
-      updatedBy: userID,
-      isActive: true,
-      id: patientID,
-      type: 'Patient',
-      addressType: address.addressType || '',
-      address1: address.address1 || '',
-      address2: address.address2 || '',
-      city: address.city || '',
-      district: address.district || '',
-      state: address.state || '',
-      zipCode: address.zipCode || '',
-    };
-
-    // Add axios POST request to promises array
-    promises.push(
-      axios
-        .post(
-          'https://predart003-001-site1.anytempurl.com/api/Address',
-          addressPayload,
-        )
-        .then(() => {
-          addresses[index].isSaved = true;
-          addresses[index].original = { ...address };
-        })
-        .catch((error) => {
-          console.error(`Failed to save address at index ${index}:`, error);
-          allErrors[index] = { general: 'Failed to save this address.' };
-          hasError = true;
-        }),
-    );
-  }
-
-  // Wait for all promises to resolve
-  await Promise.all(promises);
-
-  setFormErrors(allErrors);
-
-  if (hasError) {
-    return {
-      isValid: false,
-      errors: allErrors,
-    };
-  }
-
-  toast.success('All addresses saved successfully!');
-  return {
-    isValid: true,
-    errors: {},
-  };
-};
-
-
-const handleMedicalSubmit = async () => {
-  const updatedErrors: { [index: number]: { [field: string]: string } } = {};
-  const patientID = sessionStorage.getItem('patientID');
-
-  // Regex to disallow emojis, special characters, and whitespace
-  const onlyDigits = /^\d+(\.\d+)?$/; // allows numbers and optional decimal
-  const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-  const noOnlySpaces = /\S/;
-
-  sections.forEach((section, index) => {
-    const fieldErrors: { [field: string]: string } = {};
-
-    // Height validation
-    if (!section.height || !noOnlySpaces.test(section.height)) {
-      fieldErrors.height = 'Height is required.';
-    } else if (!onlyDigits.test(section.height)) {
-      fieldErrors.height = 'Height must contain digits only.';
-    } else if (!noEmojis.test(section.height)) {
-      fieldErrors.height = 'Emojis are not allowed.';
-    } else {
-      const heightValue = parseFloat(section.height);
-      if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
-        fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
+    // API call moved **outside the loop**, send entire array once:
+    if (addressPayloads.length > 0) {
+      try {
+        await api.post('/Address', addressPayloads);
+        setAddresses((prev) =>
+          prev.map((addr) => ({
+            ...addr,
+            isSaved: true,
+            original: { ...addr },
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to save address array:', error);
+        toast.error('Failed to save addresses. Please try again.');
+        setFormErrors(allErrors);
+        return {
+          isValid: false,
+          errors: allErrors,
+        };
       }
     }
 
-    // Weight validation
-    if (!section.weight || !noOnlySpaces.test(section.weight)) {
-      fieldErrors.weight = 'Weight is required.';
-    } else if (!onlyDigits.test(section.weight)) {
-      fieldErrors.weight = 'Weight must contain digits only.';
-    } else if (!noEmojis.test(section.weight)) {
-      fieldErrors.weight = 'Emojis are not allowed.';
-    } else {
-      const weightValue = parseFloat(section.weight);
-      if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
-        fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
-      }
+    setFormErrors(allErrors);
+
+    if (hasError) {
+      return {
+        isValid: false,
+        errors: allErrors,
+      };
     }
 
-    // Blood Group validation
-    if (!section.bloodGroup) {
-      fieldErrors.bloodGroup = 'Blood Group is required.';
-    }
-
-    if (Object.keys(fieldErrors).length > 0) {
-      updatedErrors[index] = fieldErrors;
-    }
-  });
-
-  setFormErrors(updatedErrors);
-
-  // Stop if any errors
-  if (Object.keys(updatedErrors).length > 0) {
-    toast.error('Please correct the errors before submitting.'); // Toast error for validation issues
-    return {
-      isValid: false,
-      errors: updatedErrors,
-    };
-  }
-
-  // If valid, save data
-  try {
-    const medicalInfo = {
-      patientsID: patientID,
-      height: parseFloat(sections[0].height),
-      weight: parseFloat(sections[0].weight),
-      bloodGroupID: bloodGroups.find(
-        (group) => group.name === sections[0].bloodGroup,
-      )?.appLOVID,
-      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
-    };
-
-    await axios.post(
-      'https://predart003-001-site1.anytempurl.com/api/Patient/SaveMedicalInformation',
-      medicalInfo,
-    );
-
-    toast.success('Medical Information saved successfully!'); // Toast success for successful submission
+    toast.success('All addresses saved successfully!');
     return {
       isValid: true,
       errors: {},
     };
-  } catch (error: any) {
-    const errorMessage = error?.response?.data?.message
-      ? `Failed: ${error.response.data.message}`
-      : 'Failed to save Medical Information.';
+  };
 
-    toast.error(errorMessage); // Toast error for failure
-    return {
-      isValid: false,
-      errors: { general: 'Error saving Medical Information' },
-    };
-  }
-};
+  const handleMedicalSubmit = async () => {
+    const updatedErrors: { [index: number]: { [field: string]: string } } = {};
+    const patientID = sessionStorage.getItem('patientID');
 
+    // Regex to disallow emojis, special characters, and whitespace
+    const onlyDigits = /^\d+(\.\d+)?$/; // allows numbers and optional decimal
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
 
- const handleFormSubmit = async (e) => {
-  e.preventDefault();
+    sections.forEach((section, index) => {
+      const fieldErrors: { [field: string]: string } = {};
 
-  const patientID = sessionStorage.getItem('patientID');
+      // Height validation
+      if (!section.height || !noOnlySpaces.test(section.height)) {
+        fieldErrors.height = 'Height is required.';
+      } else if (!onlyDigits.test(section.height)) {
+        fieldErrors.height = 'Height must contain digits only.';
+      } else if (!noEmojis.test(section.height)) {
+        fieldErrors.height = 'Emojis are not allowed.';
+      } else {
+        const heightValue = parseFloat(section.height);
+        if (isNaN(heightValue) || heightValue < 50 || heightValue > 250) {
+          fieldErrors.height = 'Height must be between 50 cm and 250 cm.';
+        }
+      }
 
-  if (!patientID) {
-    toast.error('Patient ID is missing.');
-    return;
-  }
+      // Weight validation
+      if (!section.weight || !noOnlySpaces.test(section.weight)) {
+        fieldErrors.weight = 'Weight is required.';
+      } else if (!onlyDigits.test(section.weight)) {
+        fieldErrors.weight = 'Weight must contain digits only.';
+      } else if (!noEmojis.test(section.weight)) {
+        fieldErrors.weight = 'Emojis are not allowed.';
+      } else {
+        const weightValue = parseFloat(section.weight);
+        if (isNaN(weightValue) || weightValue < 10 || weightValue > 200) {
+          fieldErrors.weight = 'Weight must be between 10 kg and 200 kg.';
+        }
+      }
 
-  const updatedBoxes = boxes.map((box) => {
-    const updatedErrors = {};
-    Object.keys(box).forEach((field) => {
-      if (field !== 'errors') {
-        updatedErrors[field] = validateField(field, box[field]);
+      // Blood Group validation
+      if (!section.bloodGroup) {
+        fieldErrors.bloodGroup = 'Blood Group is required.';
+      }
+
+      if (Object.keys(fieldErrors).length > 0) {
+        updatedErrors[index] = fieldErrors;
       }
     });
-    return { ...box, errors: updatedErrors };
-  });
 
-  setBoxes(updatedBoxes);
+    setFormErrors(updatedErrors);
 
-  const hasErrors = updatedBoxes.some((box) =>
-    Object.values(box.errors).some((err) => err),
-  );
+    // Stop if any errors
+    if (Object.keys(updatedErrors).length > 0) {
+      toast.error('Please correct the errors before submitting.'); // Toast error for validation issues
+      return {
+        isValid: false,
+        errors: updatedErrors,
+      };
+    }
 
-  if (hasErrors) {
-    toast.warn('Please fix the validation errors before submitting.');
-    return;
-  }
+    // If valid, save data
+    try {
+      const medicalInfo = {
+        patientsID: patientID,
+        height: parseFloat(sections[0].height),
+        weight: parseFloat(sections[0].weight),
+        bloodGroupID: bloodGroups.find(
+          (group) => group.name === sections[0].bloodGroup,
+        )?.appLOVID,
+        createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+      };
 
-  const payload = updatedBoxes.map((box) => ({
-    createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
-    patientsID: patientID,
-    isActive: true,
-    name: box.name,
-    height: parseFloat(box.height) || 0,
-    weight: parseFloat(box.weight) || 0,
-    dateOfBirth: box.patientDateOfBirth || new Date().toISOString(),
-    bloodGroupID: box.bloodGroup,
-    email: box.email || '',
-    phoneNumber: box.phoneNumber || '',
-  }));
+      await api.post('/Patient/SaveMedicalInformation', medicalInfo);
 
-  try {
-    const response = await fetch(
-      'https://predart003-001-site1.anytempurl.com/api/Patient/SaveFamily',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      }
+      toast.success('Medical Information saved successfully!'); // Toast success for successful submission
+      return {
+        isValid: true,
+        errors: {},
+      };
+    } catch (error: any) {
+      const errorMessage = error?.response?.data?.message
+        ? `Failed: ${error.response.data.message}`
+        : 'Failed to save Medical Information.';
+
+      toast.error(errorMessage); // Toast error for failure
+      return {
+        isValid: false,
+        errors: { general: 'Error saving Medical Information' },
+      };
+    }
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault();
+
+    const patientID = sessionStorage.getItem('patientID');
+
+    if (!patientID) {
+      toast.error('Patient ID is missing.');
+      return;
+    }
+
+    const updatedBoxes = boxes.map((box) => {
+      const updatedErrors = {};
+      Object.keys(box).forEach((field) => {
+        if (field !== 'errors') {
+          updatedErrors[field] = validateField(field, box[field]);
+        }
+      });
+      return { ...box, errors: updatedErrors };
+    });
+
+    setBoxes(updatedBoxes);
+
+    const hasErrors = updatedBoxes.some((box) =>
+      Object.values(box.errors).some((err) => err),
     );
 
-    const result = await response.json();
-
-    if (result.success) {
-      toast.success('Family information saved successfully!');
-    } else {
-      toast.error('Failed to save family information.');
+    if (hasErrors) {
+      toast.warn('Please fix the validation errors before submitting.');
+      return;
     }
-  } catch (error) {
-    console.error('Error saving family information:', error);
-    toast.error('An error occurred while saving.');
-  }
-};
 
+    const payload = updatedBoxes.map((box) => ({
+      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+      patientsID: patientID,
+      isActive: true,
+      name: box.name,
+      height: parseFloat(box.height) || 0,
+      weight: parseFloat(box.weight) || 0,
+      dateOfBirth: box.patientDateOfBirth || new Date().toISOString(),
+      bloodGroupID: box.bloodGroup,
+      email: box.email || '',
+      phoneNumber: box.phoneNumber || '',
+    }));
+
+    try {
+      const { data: result } = await api.post('/Patient/SaveFamily', payload);
+
+      if (result.success) {
+        toast.success('Family information saved successfully!');
+      } else {
+        toast.error('Failed to save family information.');
+      }
+    } catch (error) {
+      console.error('Error saving family information:', error);
+      toast.error('An error occurred while saving.');
+    }
+  };
 
   const handleChange = (index: number, field: string, value: string) => {
     const updatedSections = [...sections];
@@ -1257,57 +1267,55 @@ const handleMedicalSubmit = async () => {
 
   // Submit the preferences to the API
 
- const handlePreferencesSubmit = async (event: React.FormEvent) => {
-  event.preventDefault();
+  const handlePreferencesSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
 
-  const userID = sessionStorage.getItem('userID');
-  const patientID = sessionStorage.getItem('patientID');
+    const userID = sessionStorage.getItem('userID');
+    const patientID = sessionStorage.getItem('patientID');
 
-  const isAnySelected = Object.values(preferences).some((value) => value);
+    const isAnySelected = Object.values(preferences).some((value) => value);
 
-  if (!isAnySelected) {
-    setError('Please select at least one preference.');
-    toast.error('Please select at least one preference.'); // Toast error for validation
-    return {
-      isValid: false,
-      errors: { preferences: 'Please select at least one preference.' },
+    if (!isAnySelected) {
+      setError('Please select at least one preference.');
+      toast.error('Please select at least one preference.'); // Toast error for validation
+      return {
+        isValid: false,
+        errors: { preferences: 'Please select at least one preference.' },
+      };
+    } else {
+      setError('');
+    }
+
+    const preferencesData = {
+      patientsID: patientID,
+      updatedBy: userID,
+      isActive: true,
+      ...preferences,
+      createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
     };
-  } else {
-    setError('');
-  }
 
-  const preferencesData = {
-    patientsID: patientID,
-    updatedBy: userID,
-    isActive: true,
-    ...preferences,
-    createdBy: 'dd606a34-6e0a-4b0f-8cfd-8e9138267627',
+    try {
+      const response = await api.post(
+        '/Patient/SavePreferences',
+        preferencesData,
+      );
+      console.log('Preferences saved successfully:', response.data);
+      toast.success('Preferences saved successfully!'); // Toast success for successful submission
+
+      return {
+        isValid: true,
+        errors: {},
+      };
+    } catch (error) {
+      console.error('Error saving preferences:', error);
+      toast.error('Failed to save preferences.'); // Toast error for failure
+
+      return {
+        isValid: false,
+        errors: { general: 'Failed to save preferences.' },
+      };
+    }
   };
-
-  try {
-    const response = await axios.post(
-      'https://predart003-001-site1.anytempurl.com/api/Patient/SavePreferences',
-      preferencesData,
-    );
-
-    console.log('Preferences saved successfully:', response.data);
-    toast.success('Preferences saved successfully!'); // Toast success for successful submission
-
-    return {
-      isValid: true,
-      errors: {},
-    };
-  } catch (error) {
-    console.error('Error saving preferences:', error);
-    toast.error('Failed to save preferences.'); // Toast error for failure
-
-    return {
-      isValid: false,
-      errors: { general: 'Failed to save preferences.' },
-    };
-  }
-};
-
 
   const [currentStep, setCurrentStep] = useState(1); // Track the active step
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -1319,7 +1327,6 @@ const handleMedicalSubmit = async () => {
     Object.values(formErrors).every((error) => error === '') &&
     Object.values(formData).every((value) => value !== '');
 
- 
   const finishButtonTemplate = (handleComplete: () => void) => (
     <button className="finish-button" onClick={handleComplete}>
       Finish
@@ -1353,8 +1360,8 @@ const handleMedicalSubmit = async () => {
     }
 
     try {
-      const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Address/getaddress?id=${patientID}&Type=Patient`,
+      const response = await api.get(
+        `/Address/getaddress?id=${patientID}&Type=Patient`,
       );
 
       if (response.data?.success && Array.isArray(response.data.data)) {
@@ -1390,6 +1397,7 @@ const handleMedicalSubmit = async () => {
           state: addr.state || '',
           zipCode: addr.zipCode || '',
           type: addr.type || '',
+          isPrimary: addr.isPrimary || false, // Add this line
         }));
 
         setAddresses((prevAddresses) => {
@@ -1419,9 +1427,10 @@ const handleMedicalSubmit = async () => {
         const address = formatted[0];
 
         if (address.state) {
-          const districtRes = await axios.get(
-            `https://predart003-001-site1.anytempurl.com/api/Address/districts?StateCode=${address.state}`,
+          const districtRes = await api.get(
+            `/Address/districts?StateCode=${address.state}`,
           );
+
           const districtData = districtRes.data.data || [];
           setDistricts(districtData);
 
@@ -1432,9 +1441,10 @@ const handleMedicalSubmit = async () => {
         }
 
         if (address.district) {
-          const cityRes = await axios.get(
-            `https://predart003-001-site1.anytempurl.com/api/Address/cities?districtName=${address.district}`,
+          const cityRes = await api.get(
+            `/Address/cities?districtName=${address.district}`,
           );
+
           const cityData = cityRes.data.data || [];
           setCities(cityData);
 
@@ -1716,6 +1726,7 @@ const handleMedicalSubmit = async () => {
                         <div>
                           <input
                             type="text"
+                            maxLength={20}
                             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={address.address1}
                             onChange={(e) =>
@@ -1732,6 +1743,7 @@ const handleMedicalSubmit = async () => {
                         <div>
                           <input
                             type="text"
+                            maxLength={20}
                             className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                             value={address.address2}
                             onChange={(e) =>
@@ -1827,6 +1839,7 @@ const handleMedicalSubmit = async () => {
                                 <input
                                   type="text"
                                   value={address.city || ''}
+                                  maxLength={20}
                                   onChange={(e) => {
                                     updateAddress(
                                       index,
@@ -1871,6 +1884,21 @@ const handleMedicalSubmit = async () => {
                             )}
                           </div>
                         </div>
+                      </div>
+                      <div className="flex justify-end items-end space-x-2 mt-4">
+                        <input
+                          type="checkbox"
+                          checked={address.isPrimary}
+                          onChange={() => handlePrimaryCheckbox(index)}
+                          id={`primary-checkbox-${index}`}
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                        />
+                        <label
+                          htmlFor={`primary-checkbox-${index}`}
+                          className="text-sm text-black"
+                        >
+                          Set as Primary
+                        </label>
                       </div>
                     </div>
                   ))}
@@ -2285,13 +2313,13 @@ const handleMedicalSubmit = async () => {
               </div>
             </div>
           )}
-<ToastContainer
-  position="top-right"
-  autoClose={2000}
-  hideProgressBar={false}
-  closeOnClick
-  pauseOnHover
-/>
+          <ToastContainer
+            position="top-right"
+            autoClose={2000}
+            hideProgressBar={false}
+            closeOnClick
+            pauseOnHover
+          />
 
           {/* Inline styles */}
           <style>{`

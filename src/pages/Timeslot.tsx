@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import api from "../api/request";
 
 const Timeslot = () => {
   const [hospitals, setHospitals] = useState([]);
@@ -15,32 +16,28 @@ const Timeslot = () => {
   }, []);
 
   const fetchHospitals = async () => {
-    try {
-      const response = await fetch(
-        "https://predart003-001-site1.anytempurl.com/api/Hospital"
-      );
-      const data = await response.json();
-      if (data && data.data) {
-        setHospitals(data.data);
-      }
-    } catch (error) {
-      console.error("Error fetching hospitals:", error);
+  try {
+    const response = await api.get('/Hospital/list'); // Use the Axios instance
+    const data = response.data;
+    if (data && data.data) {
+      setHospitals(data.data);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching hospitals:", error);
+  }
+};
 
-  const fetchWeekdays = async () => {
-    try {
-      const response = await fetch(
-        "https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Weekday"
-      );
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setWeekdays(result.data);
-      }
-    } catch (error) {
-      console.error("Error fetching weekdays:", error);
+ const fetchWeekdays = async () => {
+  try {
+    const response = await api.get('/AppLOV?type=Weekday'); // Use the Axios instance with the appropriate endpoint
+    const result = response.data;
+    if (result.success && Array.isArray(result.data)) {
+      setWeekdays(result.data);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching weekdays:", error);
+  }
+};
 
   const addNewRow = () => {
     setTimeSlots([
@@ -60,54 +57,48 @@ const Timeslot = () => {
   
 
   
-  const handleSubmit = async () => {
-     // Retrieve userID from sessionStorage
+ 
+
+const handleSubmit = async () => {
+  // Retrieve userID from sessionStorage
   const userID = sessionStorage.getItem("userID");
   if (!userID) {
     console.error("User ID not found in session storage.");
     alert("User not logged in. Please log in again.");
     return;
   }
-    const doctorID = "ee7462c5-55a1-46cd-0610-08dd40f5dca2"; // Replace dynamically if needed
-   
-    const timestamp = new Date().toISOString(); // Generate current timestamp
-  
-    const payload = timeSlots.map((slot) => ({
-      createdBy:userID,
-      createdOn: timestamp,
-      updatedBy: userID, // Assuming the same user updates
-      updatedOn: timestamp,
-      doctorID,
-      hospitalID: slot.hospital, // Ensure this is the hospital ID
-      dayofWeek: slot.day, // Ensure this is the weekday name
-      fromTime: slot.fromTime ? slot.fromTime.toLocaleTimeString("en-US", { hour12: false }) : "00:00:00",
-      toTime: slot.toTime ? slot.toTime.toLocaleTimeString("en-US", { hour12: false }) : "00:00:00",
-      slotDuration: slot.duration.toString(), // Convert to string explicitly
-      isActive: true, // Default to active
-    }));
-  
-    console.log("Payload:", JSON.stringify(payload, null, 2)); // Debug payload
-  
-    try {
-      const response = await fetch("https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorTimeSlot", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-  
-      const result = await response.json();
-      if (response.ok) {
-        console.log("Time slots saved successfully!", result);
-      } else {
-        console.error("Failed to save time slots:", result);
-      }
-    } catch (error) {
-      console.error("Error submitting time slots:", error);
-    }
-  };
-  
+
+  const doctorID = "ee7462c5-55a1-46cd-0610-08dd40f5dca2"; // Replace dynamically if needed
+  const timestamp = new Date().toISOString(); // Generate current timestamp
+
+  const payload = timeSlots.map((slot) => ({
+    createdBy: userID,
+    createdOn: timestamp,
+    updatedBy: userID, // Assuming the same user updates
+    updatedOn: timestamp,
+    doctorID,
+    hospitalID: slot.hospital, // Ensure this is the hospital ID
+    dayofWeek: slot.day, // Ensure this is the weekday name
+    fromTime: slot.fromTime ? slot.fromTime.toLocaleTimeString("en-US", { hour12: false }) : "00:00:00",
+    toTime: slot.toTime ? slot.toTime.toLocaleTimeString("en-US", { hour12: false }) : "00:00:00",
+    slotDuration: slot.duration.toString(), // Convert to string explicitly
+    isActive: true, // Default to active
+  }));
+
+  console.log("Payload:", JSON.stringify(payload, null, 2)); // Debug payload
+
+  try {
+    // Use axios to make the POST request
+    const response = await api.post("/Doctor/SaveDoctorTimeSlot", payload); // Use the relative endpoint
+    
+    console.log("Time slots saved successfully!", response.data); // Assuming the response has a `data` field
+    
+  } catch (error) {
+    console.error("Error submitting time slots:", error);
+    // Optionally handle error status here (e.g., response.error, response.status)
+  }
+};
+
   return (
     <div className="col-span-2">
       {timeSlots.map((slot, index) => (

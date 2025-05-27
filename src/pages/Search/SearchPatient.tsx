@@ -8,7 +8,7 @@ import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
 import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-
+import HospitalIcon from '../../images/icon/Hospital solid (2).svg';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
@@ -22,6 +22,7 @@ import {
   FaMapMarkerAlt,
   FaDirections,
 } from 'react-icons/fa';
+import api from '../../api/request';
 
 interface RowData {
   id: number;
@@ -166,25 +167,33 @@ const SearchPatient: React.FC = () => {
   }, [isModalOpen, selectedPatient]); // Runs every time modal opens with a new patient
 
   const fetchPatients = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Patient',
-      );
-      const result = await response.json();
+  setLoading(true);
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      if (result.success && Array.isArray(result.data)) {
-        setPatientData(result.data);
-      } else {
-        console.error('Invalid data format:', result);
-        setPatientData([]); // ✅ corrected
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-      setPatientData([]); // ✅ corrected
-    } finally {
-      setLoading(false);
+    if (!tenantID) {
+      console.error('tenantID not found in session storage');
+      setPatientData([]);
+      return;
     }
-  };
+
+    const response = await api.get(`/Patient?tenantID=${tenantID}`);
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setPatientData(result.data);
+    } else {
+      console.error('Invalid data format:', result);
+      setPatientData([]);
+    }
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+    setPatientData([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchPatients();
@@ -193,10 +202,8 @@ const SearchPatient: React.FC = () => {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-        );
-        const result = await response.json();
+        const response = await api.get('/Hospital/List');
+        const result = response.data;
 
         // Filter only active hospitals
         const activeHospitals = Array.isArray(result)
@@ -211,6 +218,46 @@ const SearchPatient: React.FC = () => {
 
     fetchHospitals();
   }, []);
+
+ const handlePatientNameChange = (value: string) => {
+  const nameRegex = /^[A-Za-z][A-Za-z0-9]{0,19}$/;
+  const repeatedNumberPattern = /(\d)\1{5,}/; // detects 6+ repeated digits like 000000
+
+  setPatientName(value);
+
+  if (!value) {
+    setErrors((prev) => ({ ...prev, patientName: 'Patient Name is required' }));
+  } else if (!nameRegex.test(value)) {
+    setErrors((prev) => ({
+      ...prev,
+      patientName: 'Only letters and numbers allowed, must start with a letter, max 20 characters',
+    }));
+  } else if (repeatedNumberPattern.test(value)) {
+    setErrors((prev) => ({
+      ...prev,
+      patientName: 'Do not use repetitive numbers like 000000 or 111111',
+    }));
+  } else {
+    setErrors((prev) => ({ ...prev, patientName: '' }));
+  }
+};
+
+
+const handleMobileNoChange = (value: string) => {
+  const regex = /^[6-9][0-9]{0,9}$/; // starts with 6-9, up to 10 digits
+  if (regex.test(value) || value === '') {
+    setMobileNo(value);
+    if (value.length === 10) {
+      setErrors(prev => ({ ...prev, mobileNo: '' }));
+    } else {
+      setErrors(prev => ({ ...prev, mobileNo: 'Mobile number must be 10 digits' }));
+    }
+  } else {
+    setErrors(prev => ({ ...prev, mobileNo: 'Invalid mobile number. Must start with 6–9 and have 10 digits' }));
+  }
+};
+
+
   useEffect(() => {
     const fetchDoctors = async () => {
       if (!selectedHospitalID) {
@@ -219,14 +266,14 @@ const SearchPatient: React.FC = () => {
       }
 
       try {
-        const response = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`,
+        const response = await api.get(
+          `/Doctor?hospitalId=${selectedHospitalID}`,
         );
-        const result = await response.json();
+        const result = response.data;
 
         if (result.success && Array.isArray(result.data)) {
           setDoctors(result.data);
-          setFilteredDoctors(result.data); // Directly use the filtered list
+          setFilteredDoctors(result.data);
         } else {
           console.error('Invalid doctor data format:', result);
           setDoctors([]);
@@ -426,28 +473,17 @@ const SearchPatient: React.FC = () => {
           phoneNumber: phoneNumber, // ✅ Use stored phone number here
         };
 
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Appointment',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          },
-        );
+        const response = await api.post('/Appointment', payload);
 
-        const responseData = await response.json();
-
-        if (response.ok) {
+        if (response.status >= 200 && response.status < 300) {
           const message =
-            responseData?.message || 'Appointment booked successfully!';
+            response.data?.message || 'Appointment booked successfully!';
           toast.success(message);
           resetForm(); // Reset form after successful submission
           setIsModalOpen(false);
         } else {
           const message =
-            responseData?.message || 'Submission failed. Please try again.';
+            response.data?.message || 'Submission failed. Please try again.';
           toast.error(message);
         }
       } catch (error) {
@@ -547,12 +583,10 @@ const SearchPatient: React.FC = () => {
     if (!doctorID) return;
 
     try {
-      // Fetch the time slots for the selected doctor using the correct API
-      const timeSlotResponse = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-      );
-      const timeSlotData = await timeSlotResponse.json();
-
+      const timeSlotResponse = await api.get(`/Doctor/GetDoctorTimeSlot`, {
+        params: { doctorId: doctorID },
+      });
+      const timeSlotData = timeSlotResponse.data;
       console.log('Fetched Time Slot Data:', timeSlotData);
 
       const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
@@ -621,10 +655,14 @@ const SearchPatient: React.FC = () => {
       console.log('Doctor is available on this date based on their schedule.');
 
       try {
-        const appointmentResponse = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+        const appointmentResponse = await api.get(
+          '/Appointment/GetAppointment',
+          {
+            params: { DoctorID, StartDate, EndDate },
+          },
         );
-        const appointmentData = await appointmentResponse.json();
+        const appointmentData = appointmentResponse.data;
+
         console.log('Raw Appointment Data:', appointmentData);
 
         const appointmentList = Array.isArray(appointmentData)
@@ -747,16 +785,22 @@ const SearchPatient: React.FC = () => {
       toast.warning('Please enter any one field.');
       return;
     }
+
+    const tenantID = sessionStorage.getItem('tenantID');
+    if (!tenantID) {
+      toast.error('Tenant ID not found. Please log in again.');
+      return;
+    }
+
     try {
-      const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Patient`,
-        {
-          params: {
-            PatientName: patientName,
-            MobileNo: mobileNo,
-          },
+      const response = await api.get('/Patient', {
+        params: {
+          tenantID, // ✅ Inject tenantID into request
+          PatientName: patientName,
+          MobileNo: mobileNo,
         },
-      );
+      });
+
       console.log('Search Results:', response.data);
 
       if (response.data?.data?.length > 0) {
@@ -766,6 +810,7 @@ const SearchPatient: React.FC = () => {
       }
     } catch (error) {
       console.error('Error fetching patient data:', error);
+      toast.error('Error fetching patient data.');
       setPatientData([]);
     }
   };
@@ -784,37 +829,55 @@ const SearchPatient: React.FC = () => {
 
       {/* Filters Section (Type, Code, Active) */}
       <div className="flex gap-4 flex-col mb-4">
-        <div className="flex gap-4 items-center">
-          <input
-            type="text"
-            value={patientName}
-            onChange={(e) => setPatientName(e.target.value)}
-            placeholder="Enter Patient Name"
-            className="w-full md:w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          <input
-            type="text"
-            value={mobileNo}
-            onChange={(e) => setMobileNo(e.target.value)}
-            placeholder="Enter Mobile Number"
-            className="w-full md:w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          <button
-            onClick={handleSearch}
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg"
-          >
-            Search
-          </button>
+  <div className="flex gap-4 flex-wrap items-start">
+    {/* Patient Name Input */}
+    <div className="flex flex-col w-full md:w-[30%]">
+      <input
+        type="text"
+        value={patientName}
+        onChange={(e) => handlePatientNameChange(e.target.value)}
+        placeholder="Enter Patient Name"
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+      {errors.patientName && (
+        <div className="text-red-500 text-sm mt-1">{errors.patientName}</div>
+      )}
+    </div>
 
-          <button
-            onClick={handleReset}
-            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg
-          border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
+    {/* Mobile Number Input */}
+    <div className="flex flex-col w-full md:w-[30%]">
+      <input
+        type="text"
+        value={mobileNo}
+        onChange={(e) => handleMobileNoChange(e.target.value)}
+        placeholder="Enter Mobile Number"
+        maxLength={10}
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+      {errors.mobileNo && (
+        <div className="text-red-500 text-sm mt-1">{errors.mobileNo}</div>
+      )}
+    </div>
+
+    {/* Search Button */}
+    <button
+      onClick={handleSearch}
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0"
+    >
+      Search
+    </button>
+
+    {/* Reset Button */}
+    <button
+      onClick={handleReset}
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0
+        border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
+    >
+      Reset
+    </button>
+  </div>
+</div>
+
 
       <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
         List of patients
@@ -849,17 +912,19 @@ const SearchPatient: React.FC = () => {
                     </div>
 
                     {/* Top Right: Book Now Button */}
-                    <div className="flex justify-end mt-2 mr-2 ">
-                      <button
-                        className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                        onClick={() => handleBookNow(patient)}
-                      >
-                        Book Now
-                      </button>
-                    </div>
+                    {sessionStorage.getItem('roleName') !== 'Doctor' && (
+                      <div className="flex justify-end mt-2 mr-2">
+                        <button
+                          className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                          onClick={() => handleBookNow(patient)}
+                        >
+                          Book Now
+                        </button>
+                      </div>
+                    )}
 
                     {/* Second Row: Name | Age */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4 text-sm font-medium text-gray-800 ml-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-10 text-sm font-medium text-gray-800 ml-2">
                       <div className="flex items-center space-x-1 max-w-full">
                         <img
                           src={patientIcon}
@@ -877,13 +942,13 @@ const SearchPatient: React.FC = () => {
 
                       <div className="flex items-center space-x-1 max-w-full">
                         <img
-                          src={CalendarIcon}
+                          src={HospitalIcon}
                           alt="calendar"
                           className="w-6 h-6"
                         />
-                        <span className="text-black">Age:</span>
+                        <span className="text-black">UHID:</span>
                         <span className="text-black">
-                          {calculateAge(patient.patientDateOfBirth)}
+                          {patient.uhid || 'N/A'}
                         </span>
                       </div>
                     </div>

@@ -23,6 +23,7 @@ import ClockIcon from '../../images/icon/Clock (2).svg';
 
 import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
 import { CalendarCheck } from 'lucide-react';
+import api from '../../api/request';
 
 interface Appointment {
   appointmentID: string;
@@ -65,6 +66,7 @@ interface Hospital {
   hospitalPhoneNumber?: string;
 }
 interface AppointmentHistory {
+  reason: string;
   appointmentHistoryID: string;
   createdOn: string;
   username: string;
@@ -94,17 +96,17 @@ const SearchAppointment: React.FC = () => {
   const [trackingData, setTrackingData] = useState<AppointmentHistory[]>([]);
   const [selectedPatientName, setSelectedPatientName] = useState('');
 
+  const [valid, setValid] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [trackingAppointment, setTrackingAppointment] =
     useState<Appointment | null>(null);
   const [endDate, setEndDate] = useState('');
   const [statusList, setStatusList] = useState<Status[]>([]);
+
   useEffect(() => {
     const fetchPatients = async () => {
       try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/Patient',
-        );
+        const response = await api.get('/Patient'); // 🔄 Use base URL from request.ts
         if (Array.isArray(response.data.data)) {
           setPatients(response.data.data);
         } else {
@@ -119,34 +121,46 @@ const SearchAppointment: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (selectedHospitalID) {
-      fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor?hospitalId=${selectedHospitalID}`,
-      )
-        .then((response) => response.json())
-        .then((data) => setDoctors(data.data || []))
-        .catch((error) => console.error('Error fetching doctors:', error));
-    }
+    const fetchDoctors = async () => {
+      if (!selectedHospitalID) return;
+
+      try {
+        const response = await api.get('/Doctor', {
+          params: { hospitalId: selectedHospitalID },
+        });
+        setDoctors(response.data.data || []);
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+      }
+    };
+
+    fetchDoctors();
   }, [selectedHospitalID]);
 
   useEffect(() => {
     const role = sessionStorage.getItem('roleName') || '';
     const unitID = sessionStorage.getItem('unitID') || '';
 
-    setRoleName(role.toLowerCase()); // normalize casing
+    setRoleName(role.toLowerCase());
 
-    fetch('https://predart003-001-site1.anytempurl.com/api/Hospital/List')
-      .then((response) => response.json())
-      .then((data) => {
-        const activeHospitals = data.filter((hospital) => hospital.isActive);
+    const fetchHospitals = async () => {
+      try {
+        const response = await api.get('/Hospital/List');
+        // Assuming response.data is the array of hospitals
+        const activeHospitals = response.data.filter(
+          (hospital: any) => hospital.isActive,
+        );
         setHospitals(activeHospitals);
 
         if (role.toLowerCase() === 'hostitaladmin' && unitID) {
-          // Set hospital dropdown to unitID from session
           setSelectedHospitalID(unitID);
         }
-      })
-      .catch((error) => console.error('Error fetching hospitals:', error));
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+      }
+    };
+
+    fetchHospitals();
   }, []);
 
   const fetchAppointmentsForUser = async () => {
@@ -156,21 +170,20 @@ const SearchAppointment: React.FC = () => {
     const doctorID = sessionStorage.getItem('doctorID');
     const unitID = sessionStorage.getItem('unitID');
 
-    let appointmentURL =
-      'https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment';
+    let params = {};
 
     if (roleName === 'patient' && patientID) {
-      appointmentURL += `?PatientID=${patientID}`;
+      params = { PatientID: patientID };
     } else if (roleName === 'doctor' && doctorID && unitID) {
-      appointmentURL += `?DoctorID=${doctorID}&UnitID=${unitID}`;
+      params = { DoctorID: doctorID, UnitID: unitID };
     } else if (roleName === 'reception' && unitID) {
-      appointmentURL += `?UnitID=${unitID}`;
-    } else if (roleName === 'hostitaladmin' && unitID) {
-      appointmentURL += `?HospitalID=${unitID}`;
+      params = { UnitID: unitID };
+    } else if (roleName === 'hospitaladmin' && unitID) {
+      params = { HospitalID: unitID };
     }
 
     try {
-      const response = await axios.get(appointmentURL);
+      const response = await api.get('/Appointment/GetAppointment', { params });
       const fetchedAppointments = response.data;
 
       if (roleName === 'patient' && patientID) {
@@ -198,14 +211,14 @@ const SearchAppointment: React.FC = () => {
 
   const fetchStatusList = async () => {
     try {
-      const response = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=AppointmentStauts',
-      );
+      const response = await api.get('/AppLOV', {
+        params: { type: 'AppointmentStatus' },
+      });
       if (Array.isArray(response.data?.data)) {
         setStatusList(response.data.data);
       }
-    } catch {
-      console.error('Failed to fetch status list.');
+    } catch (error) {
+      console.error('Failed to fetch status list.', error);
     }
   };
 
@@ -248,102 +261,100 @@ const SearchAppointment: React.FC = () => {
     }
   }, []);
 
-  const handleSearch = async () => {
-    const roleName = sessionStorage.getItem('roleName')?.toLowerCase() || '';
-    const unitID = sessionStorage.getItem('unitID') || '';
-    const doctorID =
-      roleName === 'doctor'
-        ? sessionStorage.getItem('doctorID') || ''
-        : selectedDoctorID;
+const handleSearch = async () => {
+  const roleName = sessionStorage.getItem('roleName')?.toLowerCase() || '';
+  const unitID = sessionStorage.getItem('unitID') || '';
+  const doctorID =
+    roleName === 'doctor'
+      ? sessionStorage.getItem('doctorID') || ''
+      : selectedDoctorID;
 
-    const patientName =
-      roleName === 'patient'
-        ? sessionStorage.getItem('patientName') // Use patientName here
-        : selectedPatientName; // Ensure you set selectedPatientName in the component state
+  const patientID = sessionStorage.getItem('patientID') || '';
 
-    let hasFilters = false;
+  const isDoctor = roleName === 'doctor';
+  const isPatient = roleName === 'patient';
+  const isAdmin = roleName === 'hostitaladmin';
 
-    if (roleName === 'doctor') {
-      hasFilters = !!(startDate || endDate || patientName);
-    } else if (roleName === 'patient') {
-      hasFilters = !!(
-        startDate ||
-        endDate ||
-        selectedHospitalID ||
-        selectedDoctorID
-      );
-    } else if (roleName === 'hostitaladmin') {
-      hasFilters = !!(startDate || endDate || doctorID || patientName);
-    }
+  // ✨ Validation for empty filters (esp. for patient role)
+  const isPatientFiltersEmpty =
+    isPatient &&
+    !selectedHospitalID &&
+    !selectedDoctorID &&
+    !startDate &&
+    !endDate;
 
-    if (!hasFilters) {
-      toast.warning('Please select at least one filter before searching.');
-      return;
-    }
+  if (isPatientFiltersEmpty) {
+    toast.warning('Please select at least one filter before searching.');
+    return;
+  }
 
-    const baseUrl =
-      'https://predart003-001-site1.anytempurl.com/api/Appointment/GetAppointment';
-    const params = new URLSearchParams();
+  const isDoctorFiltersEmpty =
+    isDoctor && !startDate && !endDate && !patientID;
 
-    const formatDateToLocalISOString = (dateString, isStart) => {
-      const date = new Date(dateString);
-      date.setHours(
-        isStart ? 0 : 23,
-        isStart ? 0 : 59,
-        isStart ? 0 : 59,
-        isStart ? 0 : 999,
-      );
-      const pad = (n) => n.toString().padStart(2, '0');
-      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
-        date.getDate(),
-      )}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(
-        date.getSeconds(),
-      )}`;
-    };
+  const isAdminFiltersEmpty =
+    isAdmin && !startDate && !endDate && !doctorID && !patientID;
 
-    if (roleName === 'doctor') {
-      if (unitID) params.append('HospitalID', unitID);
-      if (doctorID) params.append('DoctorID', doctorID);
-      if (patientName) params.append('PatientName', patientName); // Use patientName here
-    }
+  if ((isDoctor && isDoctorFiltersEmpty) || (isAdmin && isAdminFiltersEmpty)) {
+    toast.warning('Please select at least one filter before searching.');
+    return;
+  }
 
-    if (roleName === 'patient') {
-      if (selectedHospitalID) params.append('HospitalID', selectedHospitalID);
-      if (selectedDoctorID) params.append('DoctorID', selectedDoctorID);
-      if (patientName) params.append('PatientName', patientName); // Use patientName here
-    }
-
-    if (roleName === 'hostitaladmin') {
-      if (unitID) params.append('HospitalID', unitID);
-      if (doctorID) params.append('DoctorID', doctorID);
-      if (patientName) params.append('PatientName', patientName); // Use patientName here
-    }
-
-    if (startDate)
-      params.append('StartDate', formatDateToLocalISOString(startDate, true));
-    if (endDate)
-      params.append('EndDate', formatDateToLocalISOString(endDate, false));
-
-    const url = `${baseUrl}?${params.toString()}`;
-
-    try {
-      setAppointments([]); // Clear previous results
-      const res = await axios.get(url);
-      console.log('API Request URL:', url);
-      console.log('Filtered Appointments Response:', res.data);
-      setAppointments(res.data);
-    } catch (error) {
-      console.error('Failed to fetch filtered appointments', error);
-    }
+  const formatDateToLocalISOString = (dateString, isStart) => {
+    const date = new Date(dateString);
+    date.setHours(
+      isStart ? 0 : 23,
+      isStart ? 0 : 59,
+      isStart ? 0 : 59,
+      isStart ? 0 : 999
+    );
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
   };
+
+  const params = {};
+
+  if (isDoctor) {
+    if (unitID) params.HospitalID = unitID;
+    if (doctorID) params.DoctorID = doctorID;
+    if (patientID) params.PatientID = patientID;
+  }
+
+  if (isPatient) {
+    if (selectedHospitalID) params.HospitalID = selectedHospitalID;
+    if (selectedDoctorID) params.DoctorID = selectedDoctorID;
+    if (patientID) params.PatientID = patientID;
+  }
+
+  if (isAdmin) {
+    if (unitID) params.HospitalID = unitID;
+    if (doctorID) params.DoctorID = doctorID;
+    if (patientID) params.PatientID = patientID;
+  }
+
+  if (startDate) params.StartDate = formatDateToLocalISOString(startDate, true);
+  if (endDate) params.EndDate = formatDateToLocalISOString(endDate, false);
+
+  try {
+    setAppointments([]);
+    const res = await api.get('/Appointment/GetAppointment', { params });
+    console.log('API Request Params:', params);
+    console.log('Filtered Appointments Response:', res.data);
+    setAppointments(res.data);
+  } catch (error) {
+    console.error('Failed to fetch filtered appointments', error);
+    toast.error('Failed to fetch appointments. Please try again.');
+  }
+};
+
+
 
   const handleReset = () => {
     const roleName = sessionStorage.getItem('roleName')?.toLowerCase();
-  
+
     // Reset common state
     setStartDate('');
     setEndDate('');
-  
+
     // Reset role-specific state
     switch (roleName) {
       case 'doctor':
@@ -366,11 +377,9 @@ const SearchAppointment: React.FC = () => {
         setSelectedPatientID('');
         setSelectedPatientName('');
     }
-  
+
     fetchAppointmentsForUser();
   };
-  
-  
 
   const handlePatientSelect = (e) => {
     const selectedPatientID = e.target.value;
@@ -390,39 +399,70 @@ const SearchAppointment: React.FC = () => {
 
   const handleTracking = async (appointment: Appointment) => {
     try {
-      const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Appointment/AppointmentHistory/${appointment.appointmentID}`,
+      const response = await api.get(
+        `/Appointment/AppointmentHistory/${appointment.appointmentID}`,
       );
+
       let historyData: AppointmentHistory[] = Array.isArray(response.data)
         ? response.data
         : [];
 
-      // Sort history data by createdOn (latest first)
+      // Sort by createdOn descending (latest first)
       historyData.sort(
         (a, b) =>
           new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime(),
       );
 
-      // Remove duplicate statuses (keep only latest entry for each unique status name)
-      const uniqueStatusMap = new Map();
+      // Map to hold unique status by statusName
+      const uniqueStatusMap = new Map<string, AppointmentHistory>();
+
       historyData.forEach((history) => {
+        // Find matching status for this history item — verify your matching logic
         const matchedStatus = statusList.find(
           (status) => status.appLOVID === history.appointmentHistoryID,
         );
+
+        // Use matched status name if found, else fallback to history.name
         const statusName = matchedStatus ? matchedStatus.name : history.name;
 
+        // Since sorted latest first, only add if not present
         if (!uniqueStatusMap.has(statusName)) {
           uniqueStatusMap.set(statusName, { ...history, name: statusName });
         }
       });
 
       setTrackingAppointment(appointment);
-      setTrackingData(Array.from(uniqueStatusMap.values())); // Convert Map to array
+      setTrackingData(Array.from(uniqueStatusMap.values()));
       setIsTrackingModalOpen(true);
-    } catch {
-      console.error('Failed to fetch appointment history.');
+    } catch (error) {
+      console.error('Failed to fetch appointment history.', error);
     }
   };
+
+  const handleChange = (e) => {
+    const input = e.target.value;
+
+    // Allow only alphabets and numbers (with spaces)
+    const validPattern = /^[a-zA-Z0-9\s]*$/; // letters, digits, spaces allowed
+    const hasEmojiOrSpecialChar = /[^\p{L}\p{N}\s]/u.test(input); // emoji/special chars
+    const numbers = input.match(/\d/g) || [];
+    const hasDuplicateNumbers = new Set(numbers).size !== numbers.length;
+
+    // Validate input
+    if (
+      validPattern.test(input) &&
+      !hasEmojiOrSpecialChar &&
+      !hasDuplicateNumbers
+    ) {
+      setSelectedPatientName(input);
+      setValid(true);
+    } else {
+      // Still update input but mark invalid
+      setSelectedPatientName(input);
+      setValid(false);
+    }
+  };
+
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
       <h1 className="text-3xl font-semibold text-black mb-6">
@@ -430,151 +470,194 @@ const SearchAppointment: React.FC = () => {
       </h1>
 
       <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {/* Patient Role */}
+        {roleName === 'patient' && (
+          <>
+            <select
+              value={selectedHospitalID}
+              onChange={(e) => setSelectedHospitalID(e.target.value)}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              style={{ minHeight: '3.5rem' }}
+            >
+              <option value="">Select Hospital</option>
+              {hospitals.map((hospital) => (
+                <option key={hospital.hospitalID} value={hospital.hospitalID}>
+                  {hospital.hospitalName}
+                </option>
+              ))}
+            </select>
 
-  {/* Patient Role */}
-  {roleName === 'patient' && (
-    <>
-      <select
-        value={selectedHospitalID}
-        onChange={(e) => setSelectedHospitalID(e.target.value)}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-      >
-        <option value="">Select Hospital</option>
-        {hospitals.map((hospital) => (
-          <option key={hospital.hospitalID} value={hospital.hospitalID}>
-            {hospital.hospitalName}
-          </option>
-        ))}
-      </select>
+            <select
+              value={selectedDoctorID}
+              onChange={handleDoctorChange}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              style={{ minHeight: '3.5rem' }}
+            >
+              <option value="">Select Doctor</option>
+              {doctors.map((doctor) => (
+                <option key={doctor.doctorID} value={doctor.doctorID}>
+                  {doctor.doctorName}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
 
-      <select
-        value={selectedDoctorID}
-        onChange={handleDoctorChange}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-      >
-        <option value="">Select Doctor</option>
-        {doctors.map((doctor) => (
-          <option key={doctor.doctorID} value={doctor.doctorID}>
-            {doctor.doctorName}
-          </option>
-        ))}
-      </select>
-    </>
-  )}
+        {/* Reception/Doctor */}
+        {(roleName === 'reception' || roleName === 'doctor') && (
+          <div className="w-full flex flex-col">
+            <input
+              type="text"
+              value={selectedPatientName}
+              maxLength={20}
+              onChange={handleChange}
+              placeholder="Enter patient name"
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary transition-colors duration-200"
+              style={{ minHeight: '3.5rem' }}
+            />
+            <p
+              className={`text-red-500 text-sm mt-1 transition-opacity duration-200 ${
+                valid ? 'opacity-0' : 'opacity-100'
+              }`}
+              style={{ minHeight: '1.25rem' }}
+              aria-live="assertive"
+            >
+              Only letters and non-repeating digits are allowed.
+            </p>
+          </div>
+        )}
 
-  {/* Reception/Doctor */}
-  {(roleName === 'reception' || roleName === 'doctor') && (
-    <input
-      type="text"
-      value={selectedPatientName}
-      onChange={(e) => setSelectedPatientName(e.target.value)}
-      placeholder="Enter patient name"
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-    />
-  )}
+        {/* Hospital Admin */}
+        {roleName === 'hostitaladmin' && (
+          <>
+            <div className="w-full flex flex-col mb-0">
+              <select
+                value={selectedHospitalID}
+                disabled
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                style={{ minHeight: '3.5rem' }}
+              >
+                <option value="">Select Hospital</option>
+                {hospitals.map((hospital) => (
+                  <option key={hospital.hospitalID} value={hospital.hospitalID}>
+                    {hospital.hospitalName}
+                  </option>
+                ))}
+              </select>
+              {/* Empty div to reserve error message space for alignment */}
+              <div style={{ minHeight: '1.25rem' }}></div>
+            </div>
 
-  {/* Hospital Admin */}
-  {roleName === 'hostitaladmin' && (
-    <>
-      <select
-        value={selectedHospitalID}
-        disabled
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-      >
-        <option value="">Select Hospital</option>
-        {hospitals.map((hospital) => (
-          <option key={hospital.hospitalID} value={hospital.hospitalID}>
-            {hospital.hospitalName}
-          </option>
-        ))}
-      </select>
+            <div className="w-full flex flex-col">
+              <select
+                value={selectedDoctorID}
+                onChange={handleDoctorChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                style={{ minHeight: '3.5rem' }}
+              >
+                <option value="">Select Doctor</option>
+                {doctors.map((doctor) => (
+                  <option key={doctor.doctorID} value={doctor.doctorID}>
+                    {doctor.doctorName}
+                  </option>
+                ))}
+              </select>
+              {/* Empty div to reserve error message space for alignment */}
+              <div style={{ minHeight: '1.25rem' }}></div>
+            </div>
 
-      <select
-        value={selectedDoctorID}
-        onChange={handleDoctorChange}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-      >
-        <option value="">Select Doctor</option>
-        {doctors.map((doctor) => (
-          <option key={doctor.doctorID} value={doctor.doctorID}>
-            {doctor.doctorName}
-          </option>
-        ))}
-      </select>
+            <div className="w-full flex flex-col">
+              <input
+                type="text"
+                maxLength={20}
+                value={selectedPatientName}
+                onChange={handleChange}
+                placeholder="Enter patient name"
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary transition-colors duration-200"
+                style={{ minHeight: '3.5rem' }}
+              />
+              <p
+                className={`text-red-500 text-sm mt-1 transition-opacity duration-200 ${
+                  valid ? 'opacity-0' : 'opacity-100'
+                }`}
+                style={{ minHeight: '1.25rem' }}
+                aria-live="assertive"
+              >
+                Only letters and non-repeating digits are allowed.
+              </p>
+            </div>
+          </>
+        )}
 
-      <input
-        type="text"
-        value={selectedPatientName}
-        onChange={(e) => setSelectedPatientName(e.target.value)}
-        placeholder="Enter patient name"
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-      />
-    </>
-  )}
+        {/* Date Inputs */}
+        <div className="w-full">
+          <input
+            type="text"
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => (e.target.type = 'text')}
+            placeholder="From Date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+            style={{ minHeight: '3.5rem' }}
+          />
+        </div>
 
-  {/* Date Inputs */}
-  <input
-    type="text"
-    onFocus={(e) => (e.target.type = 'date')}
-    onBlur={(e) => (e.target.type = 'text')}
-    placeholder="From Date"
-    value={startDate}
-    onChange={(e) => setStartDate(e.target.value)}
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
+        <div className="w-full">
+          <input
+            type="text"
+            onFocus={(e) => (e.target.type = 'date')}
+            onBlur={(e) => (e.target.type = 'text')}
+            placeholder="To Date"
+            value={endDate}
+            onChange={(e) => {
+              const selectedEndDate = e.target.value;
+              if (new Date(selectedEndDate) < new Date(startDate)) {
+                alert('To Date cannot be earlier than From Date');
+                return;
+              }
+              setEndDate(selectedEndDate);
+            }}
+            min={startDate}
+            max={
+              new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+                .toISOString()
+                .split('T')[0]
+            }
+            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+            style={{ minHeight: '3.5rem' }}
+          />
+        </div>
 
-  <input
-    type="text"
-    onFocus={(e) => (e.target.type = 'date')}
-    onBlur={(e) => (e.target.type = 'text')}
-    placeholder="To Date"
-    value={endDate}
-    onChange={(e) => {
-      const selectedEndDate = e.target.value;
-      if (new Date(selectedEndDate) < new Date(startDate)) {
-        alert('To Date cannot be earlier than From Date');
-        return;
-      }
-      setEndDate(selectedEndDate);
-    }}
-    min={startDate}
-    max={new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0]}
-    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-  />
+        {/* Buttons — full row */}
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-wrap gap-4 items-center">
+          <CustomButton className="h-10 px-6" onClick={handleSearch}>
+            Search
+          </CustomButton>
 
-  {/* Buttons — full row */}
-  <div className="col-span-1 md:col-span-2 lg:col-span-3 mt-4 flex flex-wrap gap-4 items-center">
-    <CustomButton className="h-10 px-6" onClick={handleSearch}>
-      Search
-    </CustomButton>
+          <CustomButton
+            onClick={handleReset}
+            className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
+          >
+            Reset
+          </CustomButton>
 
-    <CustomButton
-      onClick={handleReset}
-      className="h-10 px-6 border border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
-    >
-      Reset
-    </CustomButton>
+          {roleName !== 'doctor' && (
+            <button
+              type="button"
+              className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+      hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 
+      ease-out hover:ease-in rounded-lg"
+              onClick={() => navigate('/appointment/booking')}
+            >
+              <CalendarCheck className="w-5 h-5" />
+              <span>Book</span>
+            </button>
+          )}
 
-    {roleName !== 'doctor' && (
-      <button
-        type="button"
-        className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-        hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 
-        ease-out hover:ease-in rounded-lg"
-        onClick={() => navigate('/appointment/booking')}
-      >
-        <CalendarCheck className="w-5 h-5" />
-        <span>Book</span>
-      </button>
-    )}
-
-    <ToastContainer position="top-right" autoClose={3000} />
-  </div>
-</form>
-
-
-     
-
+          <ToastContainer position="top-right" autoClose={3000} />
+        </div>
+      </form>
 
       <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
         List of Appointments
@@ -699,21 +782,48 @@ const SearchAppointment: React.FC = () => {
                 </div>
 
                 {/* Fourth Row - Doctor */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2 text-sm font-medium text-gray-800 ml-4 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-medium text-gray-800 ml-4 mb-4">
                   <div className="flex items-center gap-1">
                     <img src={DoctorIcon} alt="doctor" className="w-4 h-5" />{' '}
                     {/* Optional Icon */}
                     <span className="text-black">Doctor:</span>
                     <span className="text-black">{doctorName}</span>
                   </div>
-                  <div className="mt-2 flex justify-between items-center">
+                  <div className="mt-2 flex justify-end items-center gap-2">
                     <button
                       onClick={() => handleTracking(appointment)}
-                      className="px-3 py-1 ml-2 bg-blue-300 text-white rounded-md hover:bg-blue-300 flex items-center gap-2"
+                      className="px-3 py-1 ml-3 mr-4 bg-blue-300 text-white rounded-md hover:bg-blue-300 flex items-center gap-1"
                     >
                       <FaClipboardList />
                       Tracking
                     </button>
+
+                    {sessionStorage.getItem('roleName') === 'Patient' && (
+                      <button
+                        onClick={() => {
+                          console.log('Navigating to Feedback with:');
+                          console.log('Hospital ID:', appointment.hospitalID);
+                          console.log(
+                            'Hospital Name:',
+                            appointment.hospitalName,
+                          );
+                          console.log('Doctor ID:', appointment.doctorID);
+                          console.log('Doctor Name:', appointment.doctorName);
+
+                          navigate('/FeedBack/FeedBackForm', {
+                            state: {
+                              hospitalID: appointment.hospitalID,
+                              hospitalName: appointment.hospitalName,
+                              doctorID: appointment.doctorID,
+                              doctorName: appointment.doctorName,
+                            },
+                          });
+                        }}
+                        className="px-3 py-1 bg-blue-300 text-white rounded-md hover:bg-blue-300 mr-18"
+                      >
+                        Feedback
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -721,6 +831,7 @@ const SearchAppointment: React.FC = () => {
           })
         )}
       </div>
+
       {isTrackingModalOpen && trackingAppointment && (
         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
           <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full max-h-[80vh] overflow-y-auto">
@@ -765,6 +876,14 @@ const SearchAppointment: React.FC = () => {
                       <span className="text-sm">Updated by:</span>{' '}
                       {item.username}
                     </p>
+
+                    {/* Reason field - shown only if present */}
+                    {item.reason && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        <span className="font-medium">Reason:</span>{' '}
+                        {item.reason}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

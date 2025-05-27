@@ -10,6 +10,7 @@ import axios from 'axios';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
+import api from '../api/request';
 interface AppLOVOption {
   appLOVID: string;
   name: string;
@@ -121,55 +122,53 @@ const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string | null>(null
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (selectedDoctorID) {
-      // Instead of simulating an event, you could call the fetch logic directly:
-      const fetchTimeSlots = async () => {
-        try {
-          const response = await fetch(
-            'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot',
-          );
-          const responseData = await response.json();
-          const data = Array.isArray(responseData.data)
-            ? responseData.data
-            : [];
 
-          console.log('Fetched Time Slots Data:', data);
 
-          const matchedTimeSlots = data.filter(
-            (slot) => String(slot.doctorID) === selectedDoctorID,
-          );
+useEffect(() => {
+  if (!selectedDoctorID) return;
 
-          if (matchedTimeSlots.length) {
-            console.log('Matched Time Slots:', matchedTimeSlots);
+  const fetchTimeSlots = async () => {
+    try {
+      const response = await api.get('/Doctor/GetDoctorTimeSlot');
 
-            const formattedSlots = matchedTimeSlots.map((slot) => ({
-              timeSlotID: slot.timeSlotID,
-              fromTime: slot.fromTime,
-              toTime: slot.toTime,
-              slotDuration: slot.slotDuration,
-              day: slot.dayofWeek, // Ensure this matches the API field
-            }));
+      const data = Array.isArray(response.data.data) ? response.data.data : [];
 
-            setAvailableTimeSlots(formattedSlots);
-            console.log('Formatted Slots:', formattedSlots);
+      console.log('Fetched Time Slots Data:', data);
 
-            // Optionally, if a date is selected, update slots for that date:
-            if (selectedDate) {
-              handleDateChange(selectedDate, formattedSlots);
-            }
-          } else {
-            console.warn('No matching time slots found for this doctor.');
-            setAvailableTimeSlots([]);
-            setGeneratedTimeSlots([]);
-          }
-        } catch (error) {
-          console.error('Error fetching time slots:', error);
+      const matchedTimeSlots = data.filter(
+        (slot) => String(slot.doctorID) === selectedDoctorID
+      );
+
+      if (matchedTimeSlots.length) {
+        console.log('Matched Time Slots:', matchedTimeSlots);
+
+        const formattedSlots = matchedTimeSlots.map((slot) => ({
+          timeSlotID: slot.timeSlotID,
+          fromTime: slot.fromTime,
+          toTime: slot.toTime,
+          slotDuration: slot.slotDuration,
+          day: slot.dayofWeek, // ensure this matches your API field name
+        }));
+
+        setAvailableTimeSlots(formattedSlots);
+        console.log('Formatted Slots:', formattedSlots);
+
+        if (selectedDate) {
+          handleDateChange(selectedDate, formattedSlots);
         }
-      };
-      fetchTimeSlots();
+      } else {
+        console.warn('No matching time slots found for this doctor.');
+        setAvailableTimeSlots([]);
+        setGeneratedTimeSlots([]);
+      }
+    } catch (error) {
+      console.error('Error fetching time slots:', error);
     }
-  }, [selectedDoctorID]);
+  };
+
+  fetchTimeSlots();
+}, [selectedDoctorID]);
+
 
   useEffect(() => {
     const selectedOption = options.find(
@@ -186,24 +185,27 @@ const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string | null>(null
   }, [appointmentType]);
 
   const fetchRelationships = async () => {
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Relationship',
-      );
-      const result = await response.json();
+  try {
+    const response = await api.get('/AppLOV', {
+      params: { type: 'Relationship' }, // ✅ Axios handles query params like this
+    });
 
-      console.log('API Response:', result); // Check the response structure
+    const result = response.data;
 
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
-      } else {
-        console.error('Invalid relationship data format:', result.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
+    console.log('API Response:', result); // Check the response structure
+
+    if (Array.isArray(result.data)) {
+      setRelationships(result.data); // Set the fetched relationships
+    } else {
+      console.error('Invalid relationship data format:', result.data);
+      setRelationships([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching relationships:', error);
+    setRelationships([]);
+  }
+};
+
 
   // Fetch on component mount
   useEffect(() => {
@@ -346,67 +348,65 @@ const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
   fetchDoctorTimeSlots(doctorID);
 };
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Hospital/List',
-        );
-        const result = await response.json();
-
-        let hospitalData = [];
-
-        if (Array.isArray(result)) {
-          hospitalData = result;
-        } else if (Array.isArray(result?.data)) {
-          hospitalData = result.data;
-        } else {
-          console.error('Invalid hospital data format:', result);
-          setHospitals([]);
-          return;
-        }
-
-        // ✅ Filter active hospitals
-        const activeHospitals = hospitalData.filter(
-          (hospital) => hospital.isActive,
-        );
-
-        // ✅ Set hospitals and pre-select the first one
-        setHospitals(activeHospitals);
-
-        if (activeHospitals.length > 0) {
-          setSelectedHospitalID(activeHospitals[0].hospitalID);
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
-
-  const fetchDoctors = async (hospitalID: string) => {
+ useEffect(() => {
+  const fetchHospitals = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor',
-      );
-      const result = await response.json();
+      const response = await api.get('/Hospital/List'); // use relative path with api instance
+      const result = response.data;
 
-      if (result.success && Array.isArray(result.data)) {
-        // Filter doctors based on hospitalID
-        const filteredDoctors = result.data.filter(
-          (doctor) => doctor.hospitalID === hospitalID,
-        );
-        setDoctors(filteredDoctors);
+      let hospitalData = [];
+
+      if (Array.isArray(result)) {
+        hospitalData = result;
+      } else if (Array.isArray(result?.data)) {
+        hospitalData = result.data;
       } else {
-        console.error('Invalid doctor data format:', result.data);
-        setDoctors([]);
+        console.error('Invalid hospital data format:', result);
+        setHospitals([]);
+        return;
+      }
+
+      // ✅ Filter active hospitals
+      const activeHospitals = hospitalData.filter(
+        (hospital) => hospital.isActive,
+      );
+
+      // ✅ Set hospitals and pre-select the first one
+      setHospitals(activeHospitals);
+
+      if (activeHospitals.length > 0) {
+        setSelectedHospitalID(activeHospitals[0].hospitalID);
       }
     } catch (error) {
-      console.error('Error fetching doctors:', error);
-      setDoctors([]);
+      console.error('Error fetching hospitals:', error);
+      setHospitals([]); // fallback
     }
   };
+
+  fetchHospitals();
+}, []);
+
+
+ const fetchDoctors = async (hospitalID: string) => {
+  try {
+    const response = await api.get('/Doctor');
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      // ✅ Filter doctors based on hospitalID
+      const filteredDoctors = result.data.filter(
+        (doctor) => doctor.hospitalID === hospitalID,
+      );
+      setDoctors(filteredDoctors);
+    } else {
+      console.error('Invalid doctor data format:', result.data);
+      setDoctors([]);
+    }
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+    setDoctors([]);
+  }
+};
 
 
   useEffect(() => {
@@ -448,45 +448,48 @@ const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
     setShowDoctorDropdown(true);
   };
 
-  const fetchDoctorAvailability = async (doctorID: string) => {
-    if (!doctorID) return;
+  
 
-    try {
-      const response = await fetch(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-      );
-      const result = await response.json();
+const fetchDoctorAvailability = async (doctorID: string) => {
+  if (!doctorID) return;
 
-      if (result.success && Array.isArray(result.data)) {
-        setDoctorAvailability(result.data);
+  try {
+    const response = await api.get('/Doctor/GetDoctorTimeSlot', {
+      params: { doctorId: doctorID }, // Axios handles query params
+    });
 
-        // Log available time slots with their timeSlotID
-        console.log('Available Time Slots for Doctor:', result.data);
+    const result = response.data;
 
-        result.data.forEach((slot) => {
-          console.log(
-            `TimeSlot ID: ${slot.timeSlotID}, Time: ${slot.startTime} - ${slot.endTime}`,
-          );
-        });
+    if (result.success && Array.isArray(result.data)) {
+      setDoctorAvailability(result.data);
 
-        // Find the slot duration for the selected day
-        const selectedDayOfWeek = selectedDate?.getDay();
-        const availability = result.data.find(
-          (slot) => slot.dayofWeek === selectedDayOfWeek,
+      // Log available time slots with their timeSlotID
+      console.log('Available Time Slots for Doctor:', result.data);
+
+      result.data.forEach((slot) => {
+        console.log(
+          `TimeSlot ID: ${slot.timeSlotID}, Time: ${slot.startTime} - ${slot.endTime}`
         );
+      });
 
-        if (availability && availability.slotDuration) {
-          setTimeInterval(availability.slotDuration);
-        }
-      } else {
-        console.error('Invalid doctor availability format:', result.data);
-        setDoctorAvailability([]);
+      // Find the slot duration for the selected day
+      const selectedDayOfWeek = selectedDate?.getDay();
+      const availability = result.data.find(
+        (slot) => slot.dayofWeek === selectedDayOfWeek
+      );
+
+      if (availability && availability.slotDuration) {
+        setTimeInterval(availability.slotDuration);
       }
-    } catch (error) {
-      console.error('Error fetching doctor availability:', error);
+    } else {
+      console.error('Invalid doctor availability format:', result.data);
       setDoctorAvailability([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching doctor availability:', error);
+    setDoctorAvailability([]);
+  }
+};
 
   const getAvailableTimeRange = () => {
     return {
@@ -545,10 +548,8 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
   if (!doctorID) return;
 
   try {
-    const response = await fetch(
-      `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`
-    );
-    const result = await response.json();
+    const response = await api.get(`/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`);
+    const result = response.data;
 
     console.log('API Response:', result); // Log entire response for debugging
 
@@ -562,10 +563,9 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
       let slotDuration = result.data[0]?.slotDuration || 10; // Default 10 min
 
       // Iterate over the available time slots
-      result.data.forEach((slot) => {
+      result.data.forEach((slot: any) => {
         console.log('Slot:', slot); // Log the entire slot object
 
-        // Ensure that timeSlotID exists and is being accessed correctly
         if (slot.timeSlotID) {
           console.log('TimeslotID:', slot.timeSlotID); // Log timeslotID for debugging
         } else {
@@ -586,7 +586,7 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
       setTimeInterval(10);
       setAvailableTimeRange({
         fromTime: new Date('1970-01-01T00:00:00'), // Default 12 AM
-        toTime: new Date('1970-01-01T23:50:00'), // Default 11:50 PM
+        toTime: new Date('1970-01-01T23:50:00'),   // Default 11:50 PM
       });
     }
   } catch (error) {
@@ -598,6 +598,7 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
     });
   }
 };
+
 
 
 
@@ -660,95 +661,82 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const userID = sessionStorage.getItem('userID');
 
-    if (!userID) {
-      alert('User not logged in. Please log in again.');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  const userID = sessionStorage.getItem('userID');
 
-    const appointmentDate =
-      formData.date || selectedEvent.start.toISOString().split('T')[0];
-    console.log('Selected Appointment Date:', appointmentDate);
+  if (!userID) {
+    alert('User not logged in. Please log in again.');
+    return;
+  }
 
-    const appointmentDay = new Date(appointmentDate).toLocaleDateString(
-      'en-US',
-      { weekday: 'long' },
-    );
-    console.log('Converted Appointment Day:', appointmentDay);
+  const appointmentDate =
+    formData.date || selectedEvent.start.toISOString().split('T')[0];
+  console.log('Selected Appointment Date:', appointmentDate);
 
-   const selectedSlot = doctorAvailability.find(
-  (slot) => slot.dayofWeek.toLowerCase() === appointmentDay.toLowerCase(),
-);
+  const appointmentDay = new Date(appointmentDate).toLocaleDateString('en-US', {
+    weekday: 'long',
+  });
+  console.log('Converted Appointment Day:', appointmentDay);
 
-    console.log('Selected Slot:', selectedSlot);
+  const selectedSlot = doctorAvailability.find(
+    (slot) => slot.dayofWeek.toLowerCase() === appointmentDay.toLowerCase(),
+  );
 
-    if (!selectedSlot) {
-      alert('No available timeslot found for the selected date.');
-      return;
-    }
+  console.log('Selected Slot:', selectedSlot);
 
-    const payload = {
-      createdBy: userID,
-      isActive: true,
-      doctorID: formData.doctor || selectedDoctor,
-      patientID: '1e3b8a00-d9c7-453d-aa97-005281e76f80',
-      timeSlotID: selectedSlot.timeSlotID,
-      appointmentDate,
-      appointmentTime:
-        formData.time || selectedEvent.start.toTimeString().split(' ')[0],
-      statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-      notes: formData.reason || '',
-      toWhom: appointmentType,
-      relationship: selectedRelationship,
-      phoneNumber: formData.phoneNumber || '',
-    };
+  if (!selectedSlot) {
+    alert('No available timeslot found for the selected date.');
+    return;
+  }
 
-    try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Appointment',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      if (response.ok) {
-        setSuccessMessage('Form submitted successfully!');
-        console.log('Form Submitted:', payload);
-
-        // ✅ Reset form fields
-        setFormData({
-          doctor: '',
-          date: '',
-          time: '',
-          reason: '',
-          phoneNumber: '',
-        });
-
-        // ✅ Reset other states
-        setSelectedDoctor('');
-        setSelectedHospitalID('');
-        setSelectedRelationship('');
-        setAppointmentType('');
-
-        // ✅ Close the form (if using a modal)
-        setShowAddModal(false);
-      } else {
-        const errorData = await response.json();
-        console.error('Submission failed:', errorData);
-        setSuccessMessage('Submission failed. Please try again.');
-      }
-    } catch (error) {
-      console.error('Error during submission:', error);
-      setSuccessMessage('An error occurred. Please try again later.');
-    }
+  const payload = {
+    createdBy: userID,
+    isActive: true,
+    doctorID: formData.doctor || selectedDoctor,
+    patientID: '1e3b8a00-d9c7-453d-aa97-005281e76f80',
+    timeSlotID: selectedSlot.timeSlotID,
+    appointmentDate,
+    appointmentTime:
+      formData.time || selectedEvent.start.toTimeString().split(' ')[0],
+    statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+    notes: formData.reason || '',
+    toWhom: appointmentType,
+    relationship: selectedRelationship,
+    phoneNumber: formData.phoneNumber || '',
   };
+
+  try {
+    const response = await api.post('/Appointment', payload);
+
+    if (response.status === 200 || response.status === 201) {
+      setSuccessMessage('Form submitted successfully!');
+      console.log('Form Submitted:', payload);
+
+      // Reset form and states
+      setFormData({
+        doctor: '',
+        date: '',
+        time: '',
+        reason: '',
+        phoneNumber: '',
+      });
+      setSelectedDoctor('');
+      setSelectedHospitalID('');
+      setSelectedRelationship('');
+      setAppointmentType('');
+      setShowAddModal(false);
+    } else {
+      console.error('Submission failed:', response.data);
+      setSuccessMessage('Submission failed. Please try again.');
+    }
+  } catch (error: any) {
+    console.error('Error during submission:', error);
+    setSuccessMessage('An error occurred. Please try again later.');
+  }
+};
+
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
@@ -791,21 +779,20 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
   };
 
   useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=toWhom',
-        );
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
+  const fetchOptions = async () => {
+    try {
+      const response = await api.get('/AppLOV', {
+        params: { type: 'toWhom' }, // use params instead of query string in URL
+      });
+      console.log('API Response:', response.data);
+      setOptions(response.data?.data ?? []);
+    } catch (error) {
+      console.error('Error fetching options:', error);
+    }
+  };
 
-    fetchOptions();
-  }, []);
-
+  fetchOptions();
+}, []);
   const handleOptionChange = (selectedOption: AppLOVOption) => {
     setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
     console.log(
@@ -998,22 +985,31 @@ const fetchDoctorTimeSlots = async (doctorID: string) => {
 };
 
  const [patients, setPatients] = useState([]);
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/Patient',
-        );
 
-        const activePatients = response.data.data.filter((p) => p.isActive);
-        setPatients(activePatients);
-      } catch (error) {
-        console.error('Failed to fetch patients', error);
+ useEffect(() => {
+  const fetchPatients = async () => {
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
+      if (!tenantID) {
+        console.warn('No tenantID found in sessionStorage');
+        setPatients([]);
+        return;
       }
-    };
 
-    fetchPatients();
-  }, []);
+      const response = await api.get(`/Patient?tenantID=${tenantID}`);
+
+      // Since there's no `isActive` field, just use the full data
+      setPatients(response.data.data);
+    } catch (error) {
+      console.error('Failed to fetch patients', error);
+    }
+  };
+
+  fetchPatients();
+}, []);
+
+
+
   return (
     <div className="h-screen flex justify-center items-center bg-gray-100">
       <div className="w-full max-w-full lg:h-full">

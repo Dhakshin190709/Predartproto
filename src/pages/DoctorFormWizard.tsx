@@ -2,11 +2,15 @@ import FormWizard from 'react-form-wizard-component';
 import 'react-form-wizard-component/dist/style.css';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useRef } from 'react';
 import { X } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { Trash2 } from 'lucide-react';
 import { Eye } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import api from '../api/request';
+import CustomButton from '../components/CustomButton';
 import axios from 'axios';
 import {
   isValidName,
@@ -47,17 +51,47 @@ const initialState = {
   gender: '',
 };
 
-const initialEntry = {
-  UG: '',
-  highestEducation: false,
+const initialEducationEntry = {
   degree: '',
+  UG: '',
   specialization: '',
   location: '',
   university: '',
-  startDate: null,
-  endDate: null,
-  errors: {},
+  startDate: '',
+  endDate: '',
+  highestEducation: false,
 };
+
+interface State {
+  id: number;
+  stateName: string;
+  stateCode: string;
+}
+
+interface District {
+  id: number;
+  pinCode: string;
+  districtName: string;
+  stateCode: string;
+}
+
+interface City {
+  id: number;
+  cityName: string;
+}
+
+interface Address {
+  addressID?: string | null;
+  id?: string | null;
+  addressType?: string;
+  address1?: string;
+  address2?: string;
+  city?: string;
+  district?: string;
+  state?: string;
+  zipCode?: string;
+  type?: string; // Optional or required, based on your use case
+}
 
 const DoctorForm: React.FC = () => {
   const [form, setForm] = useState(initialState);
@@ -94,20 +128,52 @@ const DoctorForm: React.FC = () => {
   const [languageOptions, setLanguageOptions] = useState<string[]>([]);
   const userID = localStorage.getItem('userID'); // or sessionStorage or from context
   const newId = uuidv4();
+  const [startDate, setStartDate] = useState([]);
+  const [endDate, setEndDate] = useState([]);
+  const [employmentType, setEmploymentType] = useState([]);
+  const [hospital, setHospital] = useState([]);
   const [selectedPartTime, setSelectedPartTime] = useState<string[]>([]);
   const [specialization, setSpecialization] = useState<string | null>(null);
   const [hospitalName, setHospitalName] = useState<string>('');
   const [joinDate, setJoinDate] = useState<string>('');
   const [leaveDate, setLeaveDate] = useState<string>('');
+  const [currentStep, setCurrentStep] = useState(1); // Track the active step
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [showCityInput, setShowCityInput] = useState(false);
+  const [steps, setSteps] = useState<{ label: string }[]>([]);
+  const [selectedLanguages, setSelectedLanguages] = useState([]);
+  const [skillOptions, setSkillOptions] = useState([]);
+  const [skill, setSkill] = useState([]); // This is your skills data
+ const [existingTimeSlots, setExistingTimeSlots] = useState([]); // Existing slots (editable, not submitted)
+   const [newTimeSlots, setNewTimeSlots] = useState([
+     { day: "", hospital: "", duration: "", fromTime: null, toTime: null },
+   ]); // New slots (only these are submitted)
+   const [existingEducation, setExistingEducation] = useState([]);
+
+  // this persists between renders
+
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+
+  const [manualCity, setManualCity] = useState('');
   const [awards, setAwards] = useState([
     { name: '', year: '', description: '', errors: {} },
   ]);
+  const [touchedFields, setTouchedFields] = useState<{
+    [key: string]: boolean;
+  }>({});
   //  const [isAddDisabled, setIsAddDisabled] = useState(false);
   // const [skillErrors, setSkillErrors] = useState([]);
 
   // const [errors, setErrors] = useState<any[]>([]);
   const today = new Date().toISOString().split('T')[0]; // today's date in yyyy-mm-dd
-  const [educationList, setEducationList] = useState([initialEntry]);
+  const [educationErrors, setEducationErrors] = useState([{}]);
+  const [educationList, setEducationList] = useState([initialEducationEntry]); 
+      const [experienceList, setExperienceList] = useState<
+    { id: number; name: string }[]
+  >([]);
   const [qualifications, setQualifications] = useState<
     { id: number; name: string }[]
   >([]);
@@ -119,6 +185,64 @@ const DoctorForm: React.FC = () => {
     [],
   );
 
+  const [addresses, setAddresses] = useState<Address[]>([
+    {
+      addressType: '',
+      address1: '',
+      address2: '',
+      state: '',
+      district: '',
+      zipCode: '',
+      city: '',
+      type: 'patient',
+    },
+  ]);
+
+  const addAddress = () => {
+    setAddresses((prevAddresses) => [
+      ...prevAddresses,
+      {
+        addressID: '',
+        addressType: '',
+        address1: '',
+        address2: '',
+        city: '',
+        district: '',
+        state: '',
+        zipCode: '',
+        type: '',
+      },
+    ]);
+  };
+
+  // Remove an address row
+  const removeAddress = (index) => {
+    const updatedAddresses = addresses.filter((_, i) => i !== index);
+    setAddresses(updatedAddresses);
+  };
+
+  const [formErrors, setFormErrors] = useState<{
+    district: any;
+    pincode: any;
+    city: any;
+    state: any;
+    patientName: string;
+    patientEmail: string;
+    patientPhoneNumber: string;
+    patientDateOfBirth: string;
+    patientGender: string;
+  }>({
+    patientName: '',
+    patientEmail: '',
+    patientPhoneNumber: '',
+    patientDateOfBirth: '',
+    patientGender: '',
+    state: '',
+    district: '',
+    pincode: '',
+    city: '',
+  });
+
   const currentYear = new Date().getFullYear();
   const [weekdays, setWeekdays] = useState([]);
   const [timeSlots, setTimeSlots] = useState([
@@ -128,24 +252,24 @@ const DoctorForm: React.FC = () => {
   useEffect(() => {
     fetchHospitals();
     fetchWeekdays();
+    fetchDoctorTimeSlots();
   }, []);
 
   const fetchHospitals = async () => {
     try {
       const unitID = sessionStorage.getItem('unitID');
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Hospital',
-      );
-      const result = await response.json();
-
+      const response = await api.get('/Hospital/List'); // ✅ Axios handles base URL and response parsing
+  
+      const result = response.data;
+  
       if (result && Array.isArray(result)) {
         const filteredHospitals = result
-          .filter((hospital: any) => hospital.isActive) // remove unitID filter if not needed
+          .filter((hospital: any) => hospital.isActive)
           .map((hospital: any) => ({
             id: hospital.hospitalID,
             name: hospital.hospitalName,
           }));
-
+  
         setHospitals(filteredHospitals);
       }
     } catch (error) {
@@ -154,95 +278,292 @@ const DoctorForm: React.FC = () => {
   };
 
   const fetchWeekdays = async () => {
+  try {
+    const response = await api.get('/AppLOV?type=Weekday'); // ✅ Only relative path
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setWeekdays(result.data);
+    }
+  } catch (error) {
+    console.error('Error fetching weekdays:', error);
+  }
+};
+
+  const handleTimeChange = (slots, setSlots, index, field, value) => {
+    const updatedSlots = [...slots];
+    updatedSlots[index][field] = value;
+    setSlots(updatedSlots);
+  };
+  
+   const addNewRow = () => {
+    setNewTimeSlots([...newTimeSlots, { day: "", hospital: "", duration: "", fromTime: null, toTime: null }]);
+  };
+
+  useEffect(() => {
+    fetchDoctorTimeSlots();
+  }, []);
+  
+
+  const fetchDoctorTimeSlots = async () => {
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Weekday',
-      );
-      const result = await response.json();
-      if (result.success && Array.isArray(result.data)) {
-        setWeekdays(result.data);
+      const doctorID = sessionStorage.getItem("doctorID");
+      if (!doctorID) return;
+  
+      const response = await api.get(`/Doctor/GetDoctorTimeSlot?doctorID=${doctorID}`);
+      console.log("🔍 Fetching slots for doctorID:", doctorID);
+      if (response.data?.success) {
+        const formattedSlots = response.data.data.map(slot => ({
+          ...slot,
+          fromTime: new Date(`1970-01-01T${slot.fromTime}`),
+          toTime: new Date(`1970-01-01T${slot.toTime}`),
+          hospital: slot.hospitalID, // align with your `newTimeSlots` format
+          day: slot.dayofWeek
+        }));
+        setExistingTimeSlots(formattedSlots);
       }
     } catch (error) {
-      console.error('Error fetching weekdays:', error);
+      console.error("Error fetching doctor time slots", error);
     }
   };
-
-  const addNewRow = () => {
-    setTimeSlots([
-      ...timeSlots,
-      { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
-    ]);
+  
+  const validateTimeSlots = (slots) => {
+    let hasError = false;
+  
+    const errors = slots.map((slot) => {
+      const slotErrors = {};
+  
+      if (!slot.day) {
+        slotErrors.day = "Day is required";
+        hasError = true;
+      }
+  
+      if (!slot.hospital) {
+        slotErrors.hospital = "Hospital is required";
+        hasError = true;
+      }
+  
+      // Validate duration
+      if (!slot.duration) {
+        slotErrors.duration = "Duration is required";
+        hasError = true;
+      } else if (!/^\d{1,2}$/.test(slot.duration)) {
+        slotErrors.duration = "Duration must be a number (1-2 digits only)";
+        hasError = true;
+      } else if (!["1", "15", "30", "45"].includes(slot.duration)) {
+        slotErrors.duration = "Duration must be 1, 15, 30, or 45";
+        hasError = true;
+      }
+  
+      if (!slot.fromTime) {
+        slotErrors.fromTime = "From Time is required";
+        hasError = true;
+      }
+  
+      if (!slot.toTime) {
+        slotErrors.toTime = "To Time is required";
+        hasError = true;
+      }
+  
+      return slotErrors;
+    });
+  
+    return { isValid: !hasError, errors };
   };
+  
+  
 
-  const handleTimeChange = (index, field, value) => {
-    const updatedSlots = [...timeSlots];
-    updatedSlots[index][field] = value;
-    setTimeSlots(updatedSlots);
-  };
 
-  const handleTimeSubmit = async () => {
-    // Retrieve userID from sessionStorage
-    const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      console.error('User ID not found in session storage.');
-      alert('User not logged in. Please log in again.');
+  const handleTimeSubmit = async (e) => {
+    e.preventDefault();
+  
+    const userID = sessionStorage.getItem("userID");
+    const doctorID = sessionStorage.getItem("doctorID");
+  
+    if (!userID || !doctorID) {
+      alert("🚨 User or Doctor not logged in. Please log in again.");
       return;
     }
-    const doctorID = 'ee7462c5-55a1-46cd-0610-08dd40f5dca2'; // Replace dynamically if needed
-
-    const timestamp = new Date().toISOString(); // Generate current timestamp
-
-    const payload = timeSlots.map((slot) => ({
+  
+    const { isValid, errors: validationErrors } = validateTimeSlots(newTimeSlots);
+    if (!isValid) {
+      setErrors(validationErrors);
+      alert("⚠️ Please fill all the required data before saving.");
+      return;
+    }
+  
+    // Filter out duplicate time slots
+    const isDuplicate = (slot) => {
+      const fromTimeStr = slot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
+      const toTimeStr = slot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
+    
+      return existingTimeSlots.some((existingSlot) => {
+        const existingFrom = existingSlot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
+        const existingTo = existingSlot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
+    
+        return (
+          existingSlot.day === slot.day &&
+          existingSlot.hospital === slot.hospital &&
+          existingFrom === fromTimeStr &&
+          existingTo === toTimeStr
+        );
+      });
+    };
+    
+    const uniqueNewSlots = newTimeSlots.filter((slot) => !isDuplicate(slot));
+    
+    if (uniqueNewSlots.length !== newTimeSlots.length) {
+      alert("🚫 Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.");
+      return;
+    }
+    
+  
+    const timestamp = new Date().toISOString();
+  
+    const payload = uniqueNewSlots.map((slot) => ({
       createdBy: userID,
       createdOn: timestamp,
-      updatedBy: userID, // Assuming the same user updates
+      updatedBy: userID,
       updatedOn: timestamp,
-      doctorID,
-      hospitalID: slot.hospital, // Ensure this is the hospital ID
-      dayofWeek: slot.day, // Ensure this is the weekday name
-      fromTime: slot.fromTime
-        ? slot.fromTime.toLocaleTimeString('en-US', { hour12: false })
-        : '00:00:00',
-      toTime: slot.toTime
-        ? slot.toTime.toLocaleTimeString('en-US', { hour12: false })
-        : '00:00:00',
-      slotDuration: slot.duration.toString(), // Convert to string explicitly
-      isActive: true, // Default to active
+      doctorID: doctorID,
+      hospitalID: slot.hospital,
+      dayofWeek: slot.day,
+      fromTime: slot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "00:00:00",
+      toTime: slot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "00:00:00",
+      slotDuration: slot.duration?.toString() ?? "0",
+      isActive: true,
     }));
-
-    console.log('Payload:', JSON.stringify(payload, null, 2)); // Debug payload
-
+  
     try {
-      const response = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorTimeSlot',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
-      );
-
-      const result = await response.json();
-      if (response.ok) {
-        console.log('Time slots saved successfully!', result);
+      const response = await api.post('/Doctor/SaveDoctorTimeSlot', payload); // ✅ uses full URL from request.js
+  
+      if (response.status === 200) {
+        toast.success("Unique new time slots saved successfully!");
+        setNewTimeSlots([{ day: "", hospital: "", duration: "", fromTime: null, toTime: null }]);
+        fetchDoctorTimeSlots(); // Refresh the list
       } else {
-        console.error('Failed to save time slots:', result);
+        toast.error("❌ Failed to save time slots.");
+        console.error("❌ Server responded with error:", response.data);
       }
     } catch (error) {
-      console.error('Error submitting time slots:', error);
+      toast.error("🚨 Network error while submitting time slots.");
+      console.error("🚨 Error submitting time slots:", error);
     }
   };
 
+
+  const renderTimeSlotRow = (slot, index, slots, setSlots, editable = true) => (
+      <div key={index} 
+     
+        className="flex gap-4 items-center mt-2 rounded-lg border border-stroke bg-transparent 
+        p-4 text-black outline-none focus:border-primary
+               dark:border-form-strokedark dark:bg-form-input
+                dark:text-white dark:focus:border-primary">
+        
+        {/* Day */}
+        <div className="flex flex-col w-[160px]">
+  <select 
+    value={slot.day}
+    disabled={!editable} 
+    onChange={e => handleTimeChange(slots, setSlots, index, "day", e.target.value)} 
+    className="w-full rounded-lg border border-stroke bg-transparent 
+               py-3 px-4 text-black outline-none focus:border-primary
+               dark:border-form-strokedark dark:bg-form-input
+               dark:text-white dark:focus:border-primary"
+  >
+    <option value="">Select Day</option>
+    {weekdays.map(day => (
+      <option key={day.id} value={day.name}>{day.name}</option>
+    ))}
+  </select>
+
+  {errors[index]?.day && (
+    <div className="text-red-500 text-sm mt-1">{errors[index].day}</div>
+  )}
+</div>
+
+        {/* Hospital */}
+        
+        <div className="flex flex-col w-[160px]">
+  <select 
+    value={slot.hospital} 
+    disabled={!editable}
+    onChange={e => handleTimeChange(slots, setSlots, index, "hospital", e.target.value)} 
+    className="w-full rounded-lg border border-stroke bg-transparent 
+               py-3 px-4 text-black outline-none focus:border-primary
+               dark:border-form-strokedark dark:bg-form-input
+               dark:text-white dark:focus:border-primary"
+  >
+    <option value="">Select Hospital</option>
+    {hospitals.map(hospital => (
+      <option key={hospital.id} value={hospital.id}>
+        {hospital.name}
+      </option>
+    ))}
+  </select>
+
+  {errors[index]?.hospital && (
+    <div className="text-red-500 text-sm mt-1">{errors[index].hospital}</div>
+  )}
+</div>
+
+        {/* Duration */}
+        <div className="w-[20%] flex flex-col">
+          <input
+            type="text"
+            placeholder="Duration (mins)"
+            value={slot.duration}
+            disabled={!editable}
+            onChange={(e) =>
+              handleTimeChange(slots, setSlots, index, "duration", e.target.value)
+            }
+            onKeyDown={(e) => {
+              const allowed = ["1", "5", "3", "4", "0", "Backspace", "Delete", "ArrowLeft", "ArrowRight"];
+              if (!allowed.includes(e.key)) e.preventDefault();
+            }}
+            onPaste={(e) => e.preventDefault()}
+            className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
+                      dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+          />
+          {errors[index]?.duration && (
+            <div className="text-red-500 text-sm mt-1">{errors[index].duration}</div>
+          )}
+        </div>
+
+        {/* From Time */}
+        <div className="w-[20%] flex flex-col">
+        <DatePicker selected={slot.fromTime} 
+        onChange={time => handleTimeChange(slots, setSlots, index, "fromTime", time)} 
+        showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
+        placeholderText="From Time" 
+        className={inputFieldClass}
+        disabled={!editable} />
+         {errors[index]?.fromTime && <div className="text-red-500 text-sm mt-1">{errors[index].fromTime}</div>}
+</div>
+  
+        {/* To Time */}
+        <div className="w-[20%] flex flex-col">
+
+        <DatePicker selected={slot.toTime} 
+        onChange={time => handleTimeChange(slots, setSlots, index, "toTime", time)} 
+        showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
+        placeholderText="To Time"
+        className={inputFieldClass}
+         disabled={!editable} />
+         {errors[index]?.toTime && <div className="text-red-500 text-sm mt-1">{errors[index].toTime}</div>}
+        </div>
+        </div>
+    );
+  
+  
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   const fetchDocumentTypes = async () => {
     try {
-      const response = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=documentType',
-      );
+      const response = await api.get('AppLOV?type=documentType'); // ✅ correct
       if (response.data && Array.isArray(response.data.data)) {
-        setDocumentTypes(response.data.data);
+        const active = response.data.data.filter(item => item.isActive);
+        setDocumentTypes(active);
+        console.log("Fetched Document Types:", active);
       } else {
         console.error('Invalid data format:', response.data);
       }
@@ -250,33 +571,37 @@ const DoctorForm: React.FC = () => {
       console.error('Failed to fetch document types:', error);
     }
   };
+  
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
-
   useEffect(() => {
     fetchUploadedDocuments();
   }, []);
+  
 
   // Fetch Uploaded Documents
   const fetchUploadedDocuments = async () => {
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     if (!userID || !doctorID) {
       console.warn('User ID or Doctor ID is missing. Please log in again.');
       return;
     }
-
+  
     try {
-      const response = await axios.get(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}',
+      const response = await api.get(
+        `/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}`
       );
+      
+      
       setUploadedDocuments(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch uploaded documents:', error);
     }
   };
+  
 
   // const handleFileChange = (event) => {
   //   setSelectedFile(event.target.files[0]);
@@ -296,11 +621,42 @@ const DoctorForm: React.FC = () => {
   const handleDocumentTypeChange = (event) => {
     setSelectedDocumentType(event.target.value);
   };
+  
+
+  const normalizeFileName = (name) => {
+    const parts = name.split('_');
+    return parts.length > 1 ? parts.slice(1).join('_') : name;
+  };
+  
+  const normalizeDocumentType = (type) => {
+    return type.toLowerCase().replace(/[^a-z]/gi, ''); // removes spaces, dots etc.
+  };
+  
+  
 
   // Upload Document (POST API)
-  const handleUpload = async () => {
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!selectedFile || !selectedType) {
       alert('Please select a file and document type.');
+      return;
+    }
+
+    const isDuplicate = uploadedDocuments.some(
+      (doc) => normalizeDocumentType(doc.documentType) === normalizeDocumentType(selectedType)
+    );
+
+    if (isDuplicate) {
+      alert('🚫 This document has already been uploaded.');
+      return;
+    }
+
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+
+    if (!userID || !doctorID) {
+      alert('User or Doctor ID missing. Please log in again.');
       return;
     }
 
@@ -310,76 +666,72 @@ const DoctorForm: React.FC = () => {
       const base64String = reader.result?.toString().split(',')[1];
       if (!base64String) {
         console.error('Failed to convert file to Base64');
+        alert('Failed to read file. Please try again.');
         return;
       }
 
-      const userID = sessionStorage.getItem('userID');
-      const doctorID = sessionStorage.getItem('doctorID'); // ✅ Get doctorID from session
-
-      if (!userID || !doctorID) {
-        alert('User or Doctor ID missing. Please log in again.');
-        return;
-      }
-
-      const fileExtension = selectedFile.name.split('.').pop();
+      const fileExtension = selectedFile.name.split('.').pop() || '';
       const filePath = `uploads/${selectedFile.name}`;
 
       const payload = {
+        id: doctorID,
         createdBy: userID,
         isActive: true,
-        id: doctorID,
         type: 'doctor',
         documentType: selectedType,
         fileName: selectedFile.name,
         fileLocation: filePath,
         fileBase64: base64String,
-        fileExtenstion: fileExtension,
+        fileExtension: fileExtension,
       };
 
       try {
-        const response = await axios.post(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDocuments',
-          payload,
-        );
+        const response = await api.post(`/Doctor/SaveDocuments`, payload);
+
         console.log('Upload successful:', response.data);
+
         setSelectedFile(null);
         setPreviewSrc(null);
         setSelectedType('');
+
+        await fetchUploadedDocuments();
+
+        toast.success('Document uploaded successfully!');
       } catch (error: any) {
         console.error('Upload failed:', error);
+        toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
       }
     };
   };
 
-  // View Document in Modal
-  const handleViewDocument = async (documentID, fileName) => {
+   // View Document in Modal
+  const handleViewDocument = async (documentID: string, fileName: string) => {
     try {
       const response = await axios.get(
-        ' https://predart003-001-site1.anytempurl.com/api/Doctor/Documents/${documentID}',
+        `/Doctor/Documents/${documentID}`
       );
-
+  
       if (!response.data?.data?.fileBase64) {
         alert('Invalid file data received.');
         return;
       }
-
+  
       const fileBase64 = response.data.data.fileBase64;
-      const isImageFile = fileName.match(/\.(jpg|jpeg|png|gif)$/i);
-      setIsImage(!!isImageFile);
-
+      const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+      setIsImage(isImageFile);
+  
       const byteCharacters = atob(fileBase64);
       const byteArray = new Uint8Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteArray[i] = byteCharacters.charCodeAt(i);
       }
-
-      const fileType = isImageFile
-        ? `image/${fileName.split('.').pop()}`
-        : 'application/pdf';
-
+  
+      const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
+      const fileType = isImageFile ? `image/${extension}` : 'application/pdf';
+  
       const blob = new Blob([byteArray], { type: fileType });
       const url = URL.createObjectURL(blob);
-
+  
       setDocumentURL(url);
       setModalOpen(true);
     } catch (error) {
@@ -387,162 +739,300 @@ const DoctorForm: React.FC = () => {
       alert('Error loading document.');
     }
   };
-
   // Extract Only Filename (Ignore ID)
   const getFormattedFileName = (fileName) => {
     return fileName.split('_').pop();
   };
 
+
+
+  
+
+  
   // const [awards, setAwards] = useState([
   //   { name: '', year: '', description: '', errors: {} },
   // ]);
 
   const handleAwardChange = (index, field, value) => {
     const updatedAwards = [...awards];
-
+  
     if (field === 'year') {
-      const numericYear = value.replace(/\D/g, '').slice(0, 4); // only digits, max 4
+      const numericYear = value.replace(/\D/g, '').slice(0, 4);
       const currentYear = new Date().getFullYear();
-
-      // If year is 4 digits and in the future, skip update
+  
       if (numericYear.length === 4 && parseInt(numericYear) > currentYear) {
         return;
       }
-
+  
       updatedAwards[index][field] = numericYear;
+    } else if (field === 'description') {
+      // Regex to allow only letters, numbers, spaces, comma, period, apostrophe, quotes, hyphen
+      const validDescriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
+  
+      if (!validDescriptionPattern.test(value)) {
+        // Show error or ignore input
+        // alert('Description cannot contain emojis or special characters except , . \' " -');
+        return;
+      }
+      updatedAwards[index][field] = value;
     } else {
       updatedAwards[index][field] = value;
     }
-
-    setAwards(updatedAwards); // make sure you're using setAwards from useState
+  
+    setAwards(updatedAwards);
   };
-
+  
   const handleAddAward = () => {
     setAwards([...awards, { name: '', year: '', description: '', errors: {} }]);
   };
 
   const validateAwards = () => {
-    const updated = awards.map((award) => {
+    let valid = true;
+    const updatedAwards = [...awards];
+    const descriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
+  
+    updatedAwards.forEach((award, index) => {
       const errors = {};
-
-      if (!award.name.trim()) {
-        errors.name = 'Award name is required';
-      } else if (!/^[A-Za-z\s]+$/.test(award.name)) {
-        errors.name = 'Only letters and spaces are allowed';
+  
+      // Award name validation
+      if (!award.name) {
+        errors.name = 'Award name is required.';
+        valid = false;
+      } else if (award.name.trim().length < 3) {
+        errors.name = 'Award name must be at least 3 characters.';
+        valid = false;
       }
-      if (!award.year) {
-        errors.year = 'Year is required';
-      } else if (!/^\d{4}$/.test(award.year)) {
-        errors.year = 'Year must be exactly 4 digits';
-      } else if (parseInt(award.year) > currentYear) {
-        errors.year = `Year cannot be in the future`;
+  
+      // Award year validation
+      if (!award.year || isNaN(Number(award.year))) {
+        errors.year = 'Valid award year is required.';
+        valid = false;
       }
-
-      if (!award.description.trim()) {
-        errors.description = 'Description is required';
+  
+      // Description validation
+      if (!award.description) {
+        errors.description = 'Description is required.';
+        valid = false;
+      } else if (award.description.trim().length < 10) {
+        errors.description = 'Description must be at least 10 characters.';
+        valid = false;
+      } else if (!descriptionPattern.test(award.description)) {
+        errors.description = 'Description contains invalid characters.';
+        valid = false;
       }
-
-      return { ...award, errors };
+  
+      updatedAwards[index].errors = errors;
     });
-
-    setAwards(updated);
-    return updated.every((a) => Object.keys(a.errors).length === 0);
+  
+    setAwards(updatedAwards);
+    return valid;
   };
 
-  const handleAwardSubmit = (e) => {
-    e.preventDefault();
-    const isValid = validateAwards();
-    if (isValid) {
-      console.log('Awards submitted:', awards);
-      // You can proceed with submitting the form or API call
-    } else {
-      console.log('Validation failed');
+  const removeEmojis = (str) => {
+    return str.replace(
+      /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu,
+      '',
+    );
+  };
+
+  const handleInput = (e) => {
+    const cleaned = removeEmojis(e.target.value);
+    if (e.target.value !== cleaned) {
+      e.target.value = cleaned;
     }
   };
+  
+  const handleAwardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+  
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+  
+    if (!doctorID || !userID) {
+      alert('Missing doctorID or userID in session.');
+      return;
+    }
+  
+    if (!validateAwards()) {
+      return;
+    }
+  
+    const payload = awards.map((award) => ({
+      awardID: uuidv4(),
+      doctorID,
+      awardName: award.name,
+      awardYear: Number(award.year),
+      description: award.description,
+      createdBy: userID,
+      createdOn: new Date().toISOString(),
+      updatedBy: userID,
+      updatedOn: new Date().toISOString(),
+      isActive: true,
+    }));
+  
+    try {
+      const response = await api.post('/Doctor/SaveDoctorAward', payload, {
+        headers: {
+          Accept: '*/*',
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (response.status === 200 || response.status === 201) {
+        console.log('Success:', response.data);
+        toast.success('Award successfully submitted!');
+      } else {
+        console.error('Server error:', response.status, response.data);
+        toast.error('Failed to submit award.');
+      }
+    } catch (error) {
+      console.error('Request failed:', error);
+      toast.error('Request failed. Please try again.');
+    }
+  };
+
   const [skills, setSkills] = useState([
     { skill: '', years: '', months: '', description: '', errors: {} },
   ]);
 
-  const handleSkill = (index, field, value) => {
-    if (field === 'months') {
-      const num = Number(value);
-      if (isNaN(num) || num < 1 || num > 12) {
-        // Optional: show error
-        console.error('Only numbers from 1 to 12 are allowed.');
-        return;
-      }
-    }
-
+  const handleSkill = (index: number, field: 'skill' | 'years' | 'months' | 'description', value: string) => {
     const updatedSkills = [...skills];
-    updatedSkills[index][field] = value;
+  
+    // For 'years' or 'months', restrict to 2 digits only
+    if ((field === 'years' || field === 'months') && !/^\d{0,2}$/.test(value)) {
+      return;
+    }
+  
+    // For 'months', only allow values from 1 to 11
+    if (field === 'months') {
+      if (value === '' || (Number(value) >= 1 && Number(value) <= 11)) {
+        updatedSkills[index][field] = value;
+      } else {
+        return; // Don't update for invalid values like 0 or 12+
+      }
+    } else {
+      updatedSkills[index][field] = value;
+    }
+  
     setSkills(updatedSkills);
   };
+  
 
   const handleAddSkill = () => {
+    if (skills.length >= 5) {
+      alert('You can only add up to 5 skills');
+      return;
+    }
     setSkills([
       ...skills,
       { skill: '', years: '', months: '', description: '', errors: {} },
     ]);
   };
 
-  const validateSkills = () => {
-    const updatedSkills = skills.map((s) => {
-      const errors = {};
 
-      if (!s.skill) errors.skill = 'Please select a skill';
-      if (s.years === '') errors.years = 'years of experience is required';
-      if (s.months === '') errors.months = 'Month of experience is required';
-      if (!s.description.trim()) {
-        errors.description = 'Description is required';
-      }
-
-      return { ...s, errors };
-    });
-
-    setSkills(updatedSkills);
-    return updatedSkills.every((s) => Object.keys(s.errors).length === 0);
+  const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+    const isDigit = /^[0-9]$/.test(e.key);
+    if (!isDigit && !allowedKeys.includes(e.key)) {
+      e.preventDefault(); // Block letters, symbols, emoji, space
+    }
   };
+  
+  const validateSkills = () => {
+    let valid = true;
+    const updatedSkills = [...skills];
+    const specialCharRegex = /^[a-zA-Z0-9\s.,'-]*$/;
+    updatedSkills.forEach((skill, index) => {
+      const errors = {};
+  
+      if (!skill.skill) {
+        errors.skill = 'Skill is required.';
+        valid = false;
+      }
+  
+      if (!skill.years || isNaN(Number(skill.years))) {
+        errors.years = 'years of experience are required.';
+        valid = false;
+      }
+  
+      if (
+        !skill.months ||
+        isNaN(Number(skill.months)) ||
+        Number(skill.months) < 1 ||
+        Number(skill.months) > 12
+      ) {
+        errors.months = 'months of experience are required.';
+        valid = false;
+      }
+  
+      // Description validation: no emojis or special characters allowed
+      if (!skill.description || !specialCharRegex.test(skill.description)) {
+        errors.description = 'Description is required';
+        valid = false;
+      }
+  
+      updatedSkills[index].errors = errors;
+    });
+  
+    setSkills(updatedSkills);
+    return valid;
+  };
+  
+  function validateGUID(guid) {
+    const regex =
+      /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+    return regex.test(guid);
+  }
 
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+  
+    if (!doctorID || !userID) {
+      alert('Missing doctorID or userID in session.');
+      return;
+    }
+  
     if (validateSkills()) {
       const payload = skills.map((entry) => ({
+        doctorID,
         createdBy: userID,
         createdOn: new Date().toISOString(),
         updatedBy: userID,
         updatedOn: new Date().toISOString(),
         isActive: true,
-        skillID: entry.skill, // fixed: must be ID
-        yearOfExperience: Number(entry.years), // fixed
-        monthOfExperience: Number(entry.months), // fixed
-        description: entry.description,
+        skillMasterID: entry.skill,     // skill ID
+        skillID: entry.skill,           // (If this should be skill name, update accordingly)
+        yearOfExperience: Number(entry.years),
+        monthOfExperience: Number(entry.months),
+        description: entry.description || '',
       }));
-
-      console.log('Payload being sent:', payload); // optional for debug
-
+  
+      console.log('Payload:', JSON.stringify(payload, null, 2));
+  
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorSkill',
-          {
-            method: 'POST',
-            headers: {
-              Accept: '*/*',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
+        const response = await api.post('/Doctor/SaveDoctorSkill', payload, {
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
           },
-        );
-
-        if (response.ok) {
-          alert('Skill details submitted successfully!');
+        });
+  
+        if (response.status === 200 || response.status === 201) {
+          console.log('Success:', response.data);
+          toast.success('Successfully submitted Doctor Skills!');
         } else {
-          const result = await response.json();
-          alert(`Error: ${result.message || 'Something went wrong'}`);
+          console.error('Server responded with status:', response.status);
+          toast.error('Failed to submit Doctor Skills.');
         }
       } catch (error) {
-        console.error('Submission error:', error);
-        alert('An error occurred during submission.');
+        console.error('Request failed:', error);
+        toast.error('An error occurred during submission.');
       }
+    } else {
+      toast.info('Please correct the validation errors before submitting.');
     }
   };
 
@@ -553,6 +1043,7 @@ const DoctorForm: React.FC = () => {
       hospitalName: '',
       joinDate: '',
       leaveDate: '',
+      errors: {},
     },
   ]);
 
@@ -571,105 +1062,153 @@ const DoctorForm: React.FC = () => {
         hospitalName: '',
         joinDate: '',
         leaveDate: '',
+        errors: {},
       },
     ]);
   };
 
   const validateExperience = () => {
+    const today = new Date(); // current date (for comparison)
     const newErrors = experiences.map((exp) => {
       const error = {};
+  
       if (!exp.type) error.type = 'Type is required';
-      if (!exp.specialization) {
-        error.specialization = 'Specialization is required';
-      } else if (!/^[A-Za-z\s]+$/.test(exp.specialization)) {
-        error.specialization = 'Only letters allowed';
-      }
+      if (!exp.specialization) error.specialization = 'Specialization is required';
       if (!exp.hospitalName) error.hospitalName = 'Hospital name is required';
-      if (!exp.joinDate) error.joinDate = 'Join date is required';
+  
+      if (!exp.joinDate) {
+        error.joinDate = 'Join date is required';
+      } else {
+        const join = new Date(exp.joinDate);
+        if (join > today) {
+          error.joinDate = 'Join date cannot be in the future';
+        }
+      }
+  
       if (!exp.leaveDate) {
         error.leaveDate = 'Leave date is required';
-      } else if (exp.joinDate && exp.leaveDate < exp.joinDate) {
-        error.leaveDate = 'Leave date must be after join date';
+      } else {
+        const leave = new Date(exp.leaveDate);
+        const join = new Date(exp.joinDate);
+        if (leave < join) {
+          error.leaveDate = 'Leave date must be after join date';
+        } else if (leave > today) {
+          error.leaveDate = 'Leave date cannot be in the future';
+        }
       }
+  
       return error;
     });
-
+  
+    if (experiences.length === 0) {
+      alert('Please add at least one experience.');
+      return false;
+    }
+  
     setErrors(newErrors);
     console.log('Validation errors:', newErrors);
     return newErrors.every((e) => Object.keys(e).length === 0);
   };
+  
 
   useEffect(() => {
     const fetchSkills = async () => {
       try {
-        const res = await axios.get(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Specializations',
-        );
+        const res = await api.get('/AppLOV', { params: { type: 'Specializations' } });
         const activeSkills = res.data.data.filter((item: any) => item.isActive);
-        setSkillsList(activeSkills.map((item: any) => item.name));
+  
+        const formattedSkills = activeSkills.map((item: any) => ({
+          id: item.appLOVID, // MUST be GUID
+          name: item.name,
+        }));
+  
+        console.log(formattedSkills); // Log the skills list here to check
+        setSkillsList(formattedSkills);
       } catch (err) {
         console.error('Error fetching skills:', err);
       }
     };
-
+  
     fetchSkills();
   }, []);
 
   useEffect(() => {
-    // Fetch Employment Types
-    fetch(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=Worktype',
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('📌 Employment Type API Response:', data);
-        if (data?.data) {
-          setEmploymentTypes(data.data); // ✅ Store as employmentTypes
+    const fetchEmploymentTypes = async () => {
+      try {
+        const response = await api.get('/AppLOV', { params: { type: 'Worktype' } });
+        console.log('📌 Employment Type API Response:', response.data);
+  
+        if (response.data?.data) {
+          setEmploymentTypes(response.data.data);
+        } else {
+          console.warn('⚠️ Employment Types response missing data key');
         }
-      })
-      .catch((err) =>
-        console.error('❌ Error fetching Employment Types:', err),
-      );
+      } catch (err) {
+        console.error('❌ Error fetching Employment Types:', err);
+      }
+    };
+  
+    fetchEmploymentTypes();
   }, []);
-
   const handleExperienceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateExperience()) {
-      const payload = {
-        employmentType: selectedPartTime, // example: 'Full-time' or 'Part-time'
-        specialization: specialization, // example: 'Dermatologist'
-        hospitalName: hospitalName,
-        joinDate: joinDate, // format: 'YYYY-MM-DD'
-        leaveDate: leaveDate, // format: 'YYYY-MM-DD'
-        createdBy: userID,
-        createdOn: new Date().toISOString(),
-        updatedBy: userID,
-        updatedOn: new Date().toISOString(),
-        isActive: true,
-      };
-
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorExprience',
-          {
-            method: 'POST',
-            headers: {
-              Accept: '*/*',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
+  
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+  
+    if (!doctorID || !userID) {
+      alert('Missing doctorID or userID in session.');
+      return;
+    }
+  
+    if (!validateExperience()) return;
+  
+    const payload = experiences.map((exp) => ({
+      doctorID,
+      employmentType: exp.type,
+      specializationID: exp.specialization,
+      hospitalName: exp.hospitalName,
+      joinDate: exp.joinDate,
+      leaveDate: exp.leaveDate,
+      exprienceID: exp.experience,
+      createdBy: userID,
+      createdOn: new Date().toISOString(),
+      updatedBy: userID,
+      updatedOn: new Date().toISOString(),
+      isActive: true,
+    }));
+  
+    console.log('Submitting payload:', JSON.stringify(payload, null, 2));
+  
+    try {
+      const response = await api.post('/Doctor/SaveDoctorExprience', payload);
+  
+      if (response.status === 200) {
+        console.log('Server Response:', response.data);
+        toast.success('Experience details submitted successfully!', {
+          position: 'top-right',
+          style: {
+            color: '#155724',
+            border: '1px solid #c3e6cb',
           },
-        );
-
-        if (response.ok) {
-          alert('Experience details submitted successfully!');
+        });
+      } else {
+        console.error('Unexpected response status:', response.status);
+        toast.error('Unexpected server response.');
+      }
+    } catch (error: any) {
+      if (error.response) {
+        const contentType = error.response.headers['content-type'] || '';
+        if (contentType.includes('application/problem+json') && error.response.data.errors) {
+          console.error('Validation Errors:', error.response.data.errors);
+          toast.error('Validation error occurred. Check console for details.');
         } else {
-          const result = await response.json();
-          alert(`Error: ${result.message || 'Something went wrong'}`);
+          console.error('Server error:', error.response.data || error.message);
+          toast.error('Server error occurred. Check console for details.');
         }
-      } catch (error) {
-        console.error('Experience submission error:', error);
-        alert('An error occurred during experience submission.');
+      } else {
+        console.error('Experience submission error:', error.message || error);
+        toast.error('An error occurred during experience submission.');
       }
     }
   };
@@ -678,10 +1217,39 @@ const DoctorForm: React.FC = () => {
     { language: '', read: false, write: false, speak: false, errors: {} },
   ]);
 
-  const handle = (index, field, value) => {
-    const newLanguages = [...languages];
-    newLanguages[index][field] = value;
-    setLanguages(newLanguages);
+  const handle = (index: number, field: string, value: any) => {
+    setLanguages((prevLanguages) => {
+      const updatedLanguages = [...prevLanguages];
+
+      if (!updatedLanguages[index]) return prevLanguages;
+
+      // Ensure language is always a string
+      if (field === 'language' && typeof value === 'object') {
+        value = value.name || '';
+      }
+
+      updatedLanguages[index] = {
+        ...updatedLanguages[index],
+        [field]: value,
+      };
+
+      return updatedLanguages;
+    });
+  };
+
+  const mapFetchedLanguages = (data) => {
+    return data.map((item) => {
+      console.log('Language item:', item);
+
+      return {
+        language:
+          typeof item.name === 'string' ? item.name : item.name?.name || '', // FIX
+        read: item.read,
+        write: item.write,
+        speak: item.speak,
+        errors: {},
+      };
+    });
   };
 
   const handleAddLanguage = () => {
@@ -714,139 +1282,231 @@ const DoctorForm: React.FC = () => {
   };
 
   useEffect(() => {
-    // Fetch Employment Types
-    fetch(
-      'https://predart003-001-site1.anytempurl.com/api/AppLOV?type=LanguageMaster',
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        console.log('📌 Employment Type API Response:', data);
-        if (data?.data) {
-          setLanguageOptions(data.data); // ✅ Store as employmentTypes
+    api.get('/AppLOV?Type=LanguageMaster')
+      .then((res) => {
+        console.log('Language options:', res.data);
+  
+        if (res.data && res.data.data) {
+          setLanguageOptions(res.data.data);
+        } else {
+          console.error('Unexpected response structure:', res.data);
         }
       })
-      .catch((err) =>
-        console.error('❌ Error fetching Employment Types:', err),
-      );
+      .catch((error) => {
+        console.error('Error fetching language options:', error);
+        alert('Error fetching language options');
+      });
   }, []);
 
   const handleLanguageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+  
+    if (!doctorID || !userID) {
+      alert('Missing doctorID or userID in session.');
+      return;
+    }
+  
     if (validateLanguages()) {
-      const payload = languages.map((entry) => ({
-        createdBy: userID,
-        createdOn: new Date().toISOString(),
-        updatedBy: userID,
-        updatedOn: new Date().toISOString(),
-        isActive: true,
-        languageID: entry.language, // Make sure this is the ID
-        id: entry.id,
-        type: 'string',
-        languageMasterID: entry.languageMasterID,
-        read: entry.read,
-        write: entry.write,
-        speak: entry.speak,
-      }));
-
-      try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveLanguage',
-          {
-            method: 'POST',
-            headers: {
-              Accept: '*/*',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(payload),
-          },
-        );
-
-        if (response.ok) {
-          alert('Language details submitted successfully!');
-        } else {
-          const result = await response.json();
-          alert(`Error: ${result.message || 'Something went wrong'}`);
+      const payload = languages.map((entry) => {
+        const langID =
+          languageOptions.find((lang) => lang.name === entry.language)
+            ?.appLOVID || '';
+  
+        if (!langID) {
+          alert(`Invalid language selected: ${entry.language}`);
+          throw new Error('Invalid language');
         }
-      } catch (error) {
+  
+        return {
+          id: doctorID,
+          createdBy: userID,
+          createdOn: new Date().toISOString(),
+          updatedBy: userID,
+          updatedOn: new Date().toISOString(),
+          isActive: true,
+          languageMasterID: langID,
+          read: entry.read,
+          write: entry.write,
+          speak: entry.speak,
+          type: 'Doctor',
+        };
+      });
+  
+      try {
+        const response = await api.post('/Doctor/SaveLanguage', payload);
+  
+        if (response.status >= 200 && response.status < 300) {
+          toast.success('Language details saved successfully!');
+        } else {
+          toast.error(`Error: ${response.data?.message || 'Something went wrong'}`);
+          console.error('Error response:', response.data);
+        }
+      } catch (error: any) {
         console.error('Submission error:', error);
         alert('An error occurred during submission.');
       }
     }
   };
 
-  const isAddDisabled = educationList.some((entry) => entry.highestEducation);
-  const isValidText = (text) => /^[A-Za-z\s]+$/.test(text);
+  const isAddDisabled = educationList.filter(e => e.highestEducation).length >= 1;
+
+    // const isValidText = (text) => /^[A-Za-z\s]+$/.test(text);
+  const isValidText = (value) => {
+    return typeof value === 'string' && /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(value.trim());
+  };  
+
+  const handleKeyDown = (e) => {
+    const allowedKeys = ['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', ' ', '.'];
+  
+    // Allow only English letters, space, and dot
+    if (
+      !allowedKeys.includes(e.key) &&
+      !/^[a-zA-Z.\s]$/.test(e.key)
+    ) {
+      e.preventDefault();
+    }
+  
+    // Additionally block emoji characters (multi-byte)
+    if (e.key.length > 1 && !allowedKeys.includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+  
+  
+  const handlePaste = (e) => {
+    const pastedText = e.clipboardData.getData('text');
+    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(pastedText)) {
+      e.preventDefault();
+    }
+  };
+  
+  useEffect(() => {
+    console.log('Education list:', educationList);
+  }, [educationList]);
+
+  const degreeRegex = /^(Bachelor of (Science|Engineering|Commerce|Medicine|Dental Surgery)|Master of (Science|Technology|Commerce|Computer Applications|Philosophy|Surgery)|MBBS|MDS|BDS|BAMS|BHMS|BUMS|BNYS|PhD|B\.?(Sc|E|Com)|M\.?(Sc|Tech|Com|CA|Phil))$/i;
 
   const validateEntry = (entry) => {
     const errors = {};
 
-    if (!entry.degree || !isValidText(entry.degree)) {
+    if (!entry.degree || !entry.degree.trim()) {
       errors.degree = 'Degree is required';
+    } else if (!degreeRegex.test(entry.degree.trim())) {
+      errors.degree = 'Enter a valid degree name';
     }
 
     if (!entry.location || !isValidText(entry.location)) {
       errors.location = 'Location is required';
     }
 
-    if (!entry.university || !isValidText(entry.spacalization)) {
-      errors.spacalization = 'Spacalization is required';
+    if (!entry.specialization ) {
+      errors.specialization = 'Specialization is required';
     }
 
-    if (!entry.university || !isValidText(entry.university)) {
-      errors.university = 'University name is required';
+    if (!entry.UG) {
+      errors.qualification = 'Qualification is required';
     }
 
-    const today = new Date();
-    if (!entry.startDate || entry.startDate > today) {
-      errors.dates = 'Start date is required';
+    if (!entry.university || !entry.university.trim()) {
+      errors.university = 'University is required';
+    } else if (!/^[a-zA-Z .,&'-]{3,100}$/.test(entry.university.trim())) {
+      errors.university = 'Enter a valid university name';
     }
+    
+    
 
-    if (!entry.endDate) {
-      errors.dates = 'End date is required';
-    } else if (
-      !entry.startDate ||
-      entry.endDate.getFullYear() - entry.startDate.getFullYear() < 4
-    ) {
-      errors.dates = 'End date must be at least 4 years after the start date';
-    }
+
+    const startDate = entry.startDate ? new Date(entry.startDate) : null;
+const endDate = entry.endDate ? new Date(entry.endDate) : null;
+const today = new Date();
+
+if (!startDate) {
+  errors.startDate = 'Start date is required';
+} else if (startDate > today) {
+  errors.startDate = 'Start date cannot be in the future';
+}
+
+if (!endDate) {
+  errors.endDate = 'End date is required';
+} else if (!startDate) {
+  errors.endDate = 'Please enter start date first';
+} else if (endDate.getFullYear() - startDate.getFullYear() < 4) {
+  errors.endDate = 'End date must be at least 4 years after the start date';
+}else {
+  // ✅ Clear the error when the date is valid
+  errors.endDate = '';
+}
+
 
     return errors;
   };
 
- const handleInputChange = (index: number, field: string, value: any) => {
-  const updatedList = [...educationList];
-  updatedList[index] = {
-    ...updatedList[index],
-    [field]: value,
+  const handleInputChange = (index: number, field: string, value: any) => {
+    const updatedList = [...educationList];
+    updatedList[index] = {
+      ...updatedList[index],
+      [field]: value,
+    };
+    setEducationList(updatedList); // Assuming you use this to update the state
   };
-  setEducationList(updatedList); // Assuming you use this to update the state
-};
-
 
   const handleAddEntry = () => {
-    const hasHighest = educationList.some((entry) => entry.highestEducation);
-    if (hasHighest) {
-      alert(
-        'You cannot add more education entries after selecting highest education.',
-      );
-      return;
-    }
-    setEducationList([...educationList, { ...initialEntry }]);
+    setEducationList([...educationList, { ...initialEducationEntry }]);
+    setEducationErrors([...educationErrors, {}]);
   };
 
+
+  const getEmptyEducationBlock = () => ({
+    degree: '',
+    qualification: '',
+    specialization: '',
+    location: '',
+    university: '',
+    startDate: '',
+    endDate: '',
+    isHighest: false,
+  });
+
+  
+
   useEffect(() => {
-    fetch(
-      'https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorEducation',
-    )
-      .then((response) => response.json())
-      .then((data) => {
-        console.log(data); // Inspect the structure of the response
-        setDegreeNames(data.data); // assuming 'data' is the key that holds the array
+    api.get('/Doctor/GetDoctorEducation')
+      .then((res) => {
+        const data = res.data.data;
+        if (Array.isArray(data) && data.length > 0) {
+          setDegreeNames(data);
+        } else {
+          setDegreeNames([getEmptyEducationBlock()]);
+        }
       })
       .catch((error) => {
         console.error('Error fetching doctor education data:', error);
+        setDegreeNames([getEmptyEducationBlock()]);
       });
   }, []);
+  
+  useEffect(() => {
+    if (educationList.length === 0) {
+      setEducationList([
+        {
+          degree: '',
+          UG: '',
+          specialization: '',
+          location: '',
+          university: '',
+          startDate: '',
+          endDate: '',
+          highestEducation: false,
+        },
+      ]);
+      setEducationErrors([{}]); // empty error for that row
+    }
+  }, []);
+  
+  
 
   const generateUUID = () =>
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -855,160 +1515,351 @@ const DoctorForm: React.FC = () => {
       return v.toString(16);
     });
 
-  const handleFieldSubmit = async (e: React.FormEvent) => {
-    e.preventDefault(); // Prevent default form submission
-
-    const doctorID = sessionStorage.getItem('doctorID');
-    const userID = sessionStorage.getItem('userID');
-
-    if (!doctorID || !userID) {
-      alert('Missing doctorID or userID in session.');
-      return;
-    }
-
-    // Validate all entries
-    for (const entry of educationList) {
-      const errors = validateEntry(entry);
-      if (Object.keys(errors).length > 0) {
-        alert('Please fill all required fields correctly before submitting.');
+    const handleFieldSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+    
+      const doctorID = sessionStorage.getItem('doctorID');
+      const userID = sessionStorage.getItem('userID');
+    
+      if (!doctorID || !userID) {
+        alert('Missing doctorID or userID in session.');
         return;
       }
-    }
-
-    // Prepare payload
- const payload = educationList.map((entry) => ({
-  doctorID: doctorID,
-  graduateID: entry.UG, // Use UG here (degree)
-  degreeName: entry.degree,
-  specializationID: entry.specialization, // Use specialization here
-  location: entry.location,
-  universityName: entry.university,
-  startDate: entry.startDate?.toISOString(),
-  endDate: entry.endDate?.toISOString(),
-  isHighestEducation: entry.highestEducation,
-  createdBy: userID,
-  isActive: true,
-}));
-
-
-
-    try {
-      const res = await fetch(
-        'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorEducation',
-        {
-          method: 'POST',
-          headers: {
-            Accept: '*/*',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload),
-        },
+    
+      // Validate all education entries
+      const allErrors = educationList.map((entry) => validateEntry(entry));
+      const hasErrors = allErrors.some((error) =>
+        Object.values(error).some((msg) => msg && msg.length > 0)
       );
-
-      if (res.ok) {
-        alert('✅ Education details submitted successfully!');
-      } else {
-        const result = await res.json();
-        alert(`❌ Error: ${result.message || 'Unknown error'}`);
+    
+      if (hasErrors) {
+        setEducationErrors(allErrors);
+        return;
       }
-    } catch (err) {
-      console.error('❌ Submission error:', err);
-      alert('An error occurred while submitting education data.');
-    }
-  };
-
-  const [addresses, setAddresses] = useState([
-    {
-      type: 'Select Address type',
-      line1: '',
-      line2: '',
-      city: '',
-      state: '',
-      district: '',
-      pincode: '',
-    },
-  ]);
-
-  const addAddress = () => {
-    setAddresses([
-      ...addresses,
-      {
-        type: 'Select Address type',
-        line1: '',
-        line2: '',
-        city: '',
-        state: '',
-        district: '',
-        pincode: '',
-      },
-    ]);
-    setErrors([...errors, {}]);
-  };
-
-  const handleAddressChange = (index: number, field: string, value: string) => {
-    const updated = [...addresses]; // Make sure 'addresses' is an array
-    updated[index][field] = value;
-    setAddresses(updated);
-  };
-
-  const validateAddress = () => {
-    const newErrors = addresses.map((addr) => {
-      const err: any = {};
-      if (!addr.line1) err.line1 = 'Address Line 1 is required';
-      if (!addr.line2) err.line2 = 'Address Line 2 is required';
-      if (!addr.city) err.city = 'City is required';
-      if (!addr.state) err.state = 'State is required';
-      if (!addr.district) err.district = 'District is required';
-      if (!/^\d{6}$/.test(addr.pincode))
-        err.pincode = 'Valid 6-digit pincode required';
-      return err;
-    });
-
-    setErrors(newErrors);
-    return newErrors.every((err) => Object.keys(err).length === 0);
-  };
-
-  useEffect(() => {
-    const fetchLOV = async () => {
+    
+      // Prepare payload for API
+      const payload = educationList.map((entry) => ({
+        doctorID,
+        graduateID: entry.UG,
+        degreeName: entry.degree,
+        specializationID: entry.specialization,
+        location: entry.location,
+        universityName: entry.university,
+        startDate: new Date(entry.startDate).toISOString(),
+        endDate: new Date(entry.endDate).toISOString(),
+        isHighestEducation: entry.highestEducation,
+        createdBy: userID,
+        isActive: true,
+      }));
+    
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/AppLOV',
-        );
-        const data = await response.json();
-
-        if (data?.data) {
-          // Filter the data for address types
-          const addressTypeData = data.data.filter(
-            (item: any) => item.type?.toLowerCase() === 'addresstype',
-          );
-          setAddressTypes(addressTypeData.map((item: any) => item.name)); // Assuming the addressType name is in `name`
-
-          // Similarly, you can fetch states and districts if needed
-          const stateData = data.data.filter(
-            (item: any) => item.type?.toLowerCase() === 'state',
-          );
-          setStates(stateData.map((item: any) => item.name)); // Assuming the state name is in `name`
-
-          const districtData = data.data.filter(
-            (item: any) => item.type?.toLowerCase() === 'district',
-          );
-          setDistricts(districtData.map((item: any) => item.name)); // Assuming the district name is in `name`
+        const res = await api.post('/Doctor/SaveDoctorEducation', payload);
+    
+        if (res.status === 200 || res.status === 201) {
+          toast.success('Education details submitted successfully!');
+          setEducationErrors([]); // clear previous errors
+        } else {
+          toast.error(`❌ Error: ${res.data.message || 'Unknown error'}`);
         }
-      } catch (error) {
-        console.error('Error fetching LOV:', error);
+      } catch (err: any) {
+        console.error('❌ Submission error:', err);
+        toast.error('An error occurred while submitting education data.');
       }
     };
+    
 
-    fetchLOV();
-  }, []); // Empty dependency array to run this once when the component mounts
+  const updateAddress = (
+    index: number,
+    field: keyof Address,
+    value: string,
+  ) => {
+    const updatedAddresses = [...addresses];
+    updatedAddresses[index][field] = value;
+    setAddresses(updatedAddresses);
 
-  const handleAddressSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (validateAddress()) {
-      alert('Submitted Successfully!');
-      console.log(addresses);
+    if (touchedFields[`${index}-${field}`]) {
+      validateAddress(updatedAddresses[index], index);
     }
   };
+
+    useEffect(() => {
+    api
+      .get('/Address/states')
+      .then((res) => {
+        setStates(res.data.data);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch states:', err);
+      });
+  }, []);
+
+  
+
+  // On state change
+  const handleStateChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number
+  ) => {
+    const stateCode = e.target.value;
+    setSelectedState(stateCode);
+    setSelectedDistrict('');
+    setCities([]);
+    setShowCityInput(false);
+
+    updateAddress(index, 'state', stateCode);
+    updateAddress(index, 'district', '');
+    updateAddress(index, 'zipCode', '');
+    updateAddress(index, 'city', '');
+
+    api.get(`/Address/districts?StateCode=${stateCode}`)
+      .then((res) => {
+        console.log("Districts:", res.data.data);
+        setDistricts(res.data.data);
+        const uniquePincodes = Array.from(
+          new Set(res.data.data.map((d) => d.pinCode))
+        );
+        setPincodes(uniquePincodes);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch districts:', err);
+      });
+  };
+
+  
+// On district change
+const handleDistrictChange = (
+  e: React.ChangeEvent<HTMLSelectElement>,
+  index: number
+) => {
+  const districtName = e.target.value;
+  setSelectedDistrict(districtName);
+  setShowCityInput(false);
+
+  updateAddress(index, 'district', districtName);
+  updateAddress(index, 'zipCode', '');
+  updateAddress(index, 'city', '');
+
+  const filteredPins = districts
+    .filter((d) => d.districtName === districtName)
+    .map((d) => d.pinCode);
+  setPincodes(filteredPins);
+
+  api.get(`/Address/cities?districtName=${encodeURIComponent(districtName)}`)
+    .then((res) => {
+      const cityData = res.data.data;
+      if (cityData.length === 0) {
+        setShowCityInput(true);
+        setCities([]);
+      } else {
+        setCities(cityData);
+      }
+    })
+    .catch(console.error);
+};
+
+
+  useEffect(() => {
+    const fetchAddressTypes = async () => {
+      try {
+        const response = await api.get('/AppLOV'); // ✅ Relative path
+        const data = response.data;
+  
+        const filteredAddressTypes = data.data.filter(
+          (item: any) => item.type === 'Address'
+        );
+        setAddressTypes(filteredAddressTypes);
+      } catch (error) {
+        console.error('Error fetching address types:', error);
+      }
+    };
+  
+    fetchAddressTypes();
+  }, []);
+
+  const validateAddress = (address: Address, index: number) => {
+    const errors: { [key: string]: string } = {};
+    const addressRegex = /^(?!\d+$).{3,}$/;
+  
+    // Validation checks
+    if (!address.addressType) errors.addressType = 'Address type is required';
+    if (!address.address1) {
+      errors.address1 = 'Address line 1 is required';
+    } else if (!addressRegex.test(address.address1)) {
+      errors.address1 = 'Please enter a valid address with area or street name';
+    }
+    if (!address.address2) {
+      errors.address2 = 'Address line 2 is required';
+    } else if (!addressRegex.test(address.address2)) {
+      errors.address2 = 'Please enter a valid address with area or street name';
+    }
+    const cityRegex = /^[A-Za-z\s]+$/;
+    if (!address.city) {
+      errors.city = 'City is required';
+    } else if (!cityRegex.test(address.city)) {
+      errors.city = 'Only letters and spaces allowed in City';
+    } 
+    // else if (address.city.length < 5) {
+    //   errors.city = 'City must be at least 5 characters';
+    // }
+    if (!address.district) errors.district = 'District is required';
+    if (!address.state) errors.state = 'State is required';
+    if (!address.zipCode) errors.zipCode = 'Zip code is required';
+  
+    // Show error messages below fields
+    setFormErrors((prev) => ({ ...prev, [index]: errors }));
+  
+    // If any errors exist, show toast once
+    // if (Object.keys(errors).length > 0) {
+    //   toast.error('Please fill all the Address fields');
+    //   return false;
+    // }
+  
+    return true;
+  };const handleSelectAddress = (index: number) => {
+    const newTouched = { ...touchedFields };
+    Object.keys(addresses[index]).forEach((field) => {
+      newTouched[`${index}-${field}`] = true;
+    });
+    setTouchedFields(newTouched);
+    validateAddress(addresses[index], index);
+  };
+
+   const isAddressFetched = useRef(false);
+  
+    useEffect(() => {
+       fetchPatientAddress();
+     }, []); // run only once on component mount
+
+     const handlePrimaryChange = (index: number) => {
+      const updatedAddresses = addresses.map((addr, i) => ({
+        ...addr,
+        isPrimary: i === index, // Only the selected one is true
+      }));
+      setAddresses(updatedAddresses);
+    };
+    
+
+
+    const handleAddressSubmit = async () => {
+      const allErrors: { [idx: number]: { [field: string]: string } } = {};
+      const userID = sessionStorage.getItem('userID');
+      const doctorID = sessionStorage.getItem('doctorID');
+    
+      let hasError = false;
+      const validAddresses: any[] = [];
+    
+      const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+      const noOnlySpaces = /\S/;
+      const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
+      const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
+      const alphaNumSpaceNoEmoji = /^[a-zA-Z0-9\s]+$/u;
+    
+      const validateField = (
+        value: string,
+        key: string,
+        pattern: RegExp,
+        min = 1,
+        msg = 'Invalid format.',
+        errors: Record<string, string>
+      ) => {
+        if (!value || !noOnlySpaces.test(value)) errors[key] = 'Address Type is required.';
+        else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
+        else if (!notRepeated.test(value)) errors[key] = 'No repetitive characters.';
+        else if (value.length < min || !pattern.test(value)) errors[key] = msg;
+      };
+    
+      const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+    
+      const validateAddressLine = (value: string, key: string, errors: Record<string, string>) => {
+        if (!value || !noOnlySpaces.test(value)) {
+          errors[key] = `${capitalize(key)} is required.`;
+        } else if (!noEmojis.test(value)) {
+          errors[key] = 'No emojis allowed.';
+        } else if (!notRepeated.test(value)) {
+          errors[key] = 'No repetitive characters.';
+        } else if (!onlyAlphaNumSlash.test(value)) {
+          errors[key] = 'Only letters, numbers, spaces, and / allowed. No special characters.';
+        } else if (value.length < 3) {
+          errors[key] = 'Minimum 3 characters required.';
+        } else if (!/[A-Za-z]/.test(value)) {
+          errors[key] = 'Must contain at least one letter.';
+        } else if (!/\d/.test(value)) {
+          errors[key] = 'Must contain at least one number.';
+        }
+    
+        if (/^\d+$/.test(value)) {
+          errors[key] = `${capitalize(key)} cannot be numbers only. Include area or street name.`;
+        }
+      };
+    
+      const validateCity = (value: string, errors: Record<string, string>) => {
+        const onlyLettersAndSpace = /^[A-Za-z\s]+$/;
+    
+        if (!value || !/\S/.test(value)) {
+          errors.city = 'City is required.';
+        } else if (!onlyLettersAndSpace.test(value)) {
+          errors.city = 'Only letters and spaces are allowed. No numbers or special characters.';
+        } else if (value.length < 5) {
+          errors.city = 'City must be at least 5 characters long.';
+        }
+      };
+    
+      for (let i = 0; i < addresses.length; i++) {
+        const addr = addresses[i];
+        const errors: Record<string, string> = {};
+    
+        validateField(addr.addressType, 'addressType', /^[a-zA-Z0-9\s]+$/u, 1,
+          'Only letters, numbers, and spaces are allowed.', errors);
+        validateAddressLine(addr.address1, 'address1', errors);
+        validateAddressLine(addr.address2, 'address2', errors);
+        validateCity(addr.city, errors);
+    
+        if (!addr.city) errors.city = 'City is required.';
+        if (!addr.district) errors.district = 'District is required.';
+        if (!addr.state) errors.state = 'State is required.';
+        if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
+    
+        if (Object.keys(errors).length) {
+          allErrors[i] = errors;
+          hasError = true;
+          continue;
+        }
+    
+        validAddresses.push({
+          createdBy: userID,
+          updatedBy: userID,
+          isActive: true,
+          id: doctorID,
+          Type: 'Doctor',
+          addressType: addr.addressType || '',
+          address1: addr.address1 || '',
+          address2: addr.address2 || '',
+          city: addr.city || '',
+          district: addr.district || '',
+          state: addr.state || '',
+          zipCode: addr.zipCode || '',
+          isPrimary: addr.isPrimary || false,
+        });
+      }
+      console.log(JSON.stringify({ Addresslst: validAddresses }, null, 2));
+
+      setFormErrors(allErrors);
+    
+      if (hasError || validAddresses.length === 0) {
+        toast.error('Please fix validation errors in the address form.');
+        return;
+      }
+    
+      try {
+        await api.post('/Address', validAddresses);
+        toast.success('All addresses saved successfully!');
+      } catch (err) {
+        console.error('API error:', err);
+        toast.error('Something went wrong while saving addresses.');
+      }
+    };
+    
+  
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -1017,6 +1868,31 @@ const DoctorForm: React.FC = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
     setErrors((prev) => ({ ...prev, [name]: '' }));
   };
+
+
+  const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const inputValue = e.target.value;
+  
+    // Allow only letters and space
+    const filteredValue = inputValue.replace(/[^A-Za-z\s]/g, '');
+  
+    const updated = [...addresses];
+    updated[index].city = filteredValue;
+    setAddresses(updated);
+  
+    // Optionally validate immediately if field was touched
+    if (touchedFields[`${index}-city`]) {
+      validateAddress(updated[index], index);
+    }
+  };
+  
+
+  const isValidName = (name: string): boolean => {
+    const cleaned = name.replace(/^Dr\.\s*/, ''); // Remove "Dr. " at start
+    return /^[A-Za-z\s]+$/.test(cleaned.trim());
+  };
+  
+
 
   const validate = () => {
     const newErrors: any = {};
@@ -1048,8 +1924,9 @@ const DoctorForm: React.FC = () => {
     // Phone
     if (!isNotEmpty(form.doctorPhoneNumber)) {
       newErrors.doctorPhoneNumber = 'Phone number is required';
-    } else if (!isValidPhone(form.doctorPhoneNumber)) {
-      newErrors.doctorPhoneNumber = 'Please enter a 10-digit number';
+    } else if (!/^[6-9]\d{9}$/.test(form.doctorPhoneNumber)) {
+      newErrors.doctorPhoneNumber =
+        'Phone number must start with 6, 7, 8, or 9';
     }
 
     // Aadhaar
@@ -1093,8 +1970,8 @@ const DoctorForm: React.FC = () => {
   };
 
   useEffect(() => {
-    axios
-      .get('https://predart003-001-site1.anytempurl.com/api/Tenant')
+    api
+      .get('/Tenant') // Only path is visible, baseURL is handled internally
       .then((res) => {
         const tenants: Tenant[] = res.data.data;
         const activeTenants = tenants
@@ -1103,8 +1980,8 @@ const DoctorForm: React.FC = () => {
             id: t.tenantID,
             name: t.tenantName,
           }));
-
-        setTenants(activeTenants); // Store both ID and Name in state
+  
+        setTenants(activeTenants);
       })
       .catch((err) => console.error('Error fetching tenants:', err));
   }, []);
@@ -1117,9 +1994,7 @@ const DoctorForm: React.FC = () => {
       >,
     ) => {
       try {
-        const res = await axios.get(
-          `https://predart003-001-site1.anytempurl.com/api/AppLOV?type=${type}`,
-        );
+        const res = await api.get(`/AppLOV?type=${type}`); // ✅ Only the endpoint path
         const activeItems = res.data.data.filter((item: any) => item.isActive);
         setter(
           activeItems.map((item: any) => ({
@@ -1131,9 +2006,8 @@ const DoctorForm: React.FC = () => {
         console.error(`Error fetching ${type}:`, err);
       }
     },
-    [], // Empty dependency array ensures this function is memoized and doesn't change on each render
+    [], // ✅ Memoized on mount
   );
-
   useEffect(() => {
     fetchLOV('Qualification', setQualifications);
     fetchLOV('Specializations', setSpecializations);
@@ -1144,10 +2018,10 @@ const DoctorForm: React.FC = () => {
     e.preventDefault();
     if (validate()) {
       const loggedInUserID = sessionStorage.getItem('userID');
-      const doctorID = sessionStorage.getItem('doctorID'); // Retrieve doctorID from sessionStorage
-
+      const doctorID = sessionStorage.getItem('doctorID');
+  
       const doctorData = {
-        doctorID: doctorID, // Include doctorID in the data
+        doctorID: doctorID,
         createdBy: loggedInUserID,
         userID: loggedInUserID,
         isActive: true,
@@ -1163,30 +2037,18 @@ const DoctorForm: React.FC = () => {
         aadhaarNumber: form.aadhaarNumber,
         panNumber: form.panNumber,
       };
-
+  
       try {
-        const response = await fetch(
-          'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctor', // This endpoint should handle both create and update
-          {
-            method: 'POST', // Always POST for both create and update
-            headers: {
-              Accept: '*/*',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(doctorData),
-          },
-        );
-
-        const result = await response.json();
-
-        if (response.ok) {
-          alert('Doctor data saved successfully!');
+        const response = await api.post('/Doctor/SaveDoctor', doctorData); // ✅ Using Axios instance
+  
+        if (response.status === 200) {
+          toast.success('Doctor data saved successfully!');
         } else {
-          alert(`Error: ${result.message}`);
+          toast.error(`Error: ${response.data.message}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error submitting form:', error);
-        alert('An error occurred while submitting the form.');
+        toast.error('An error occurred while submitting the form.');
       }
     }
   };
@@ -1195,21 +2057,18 @@ const DoctorForm: React.FC = () => {
   //1.Basic
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     if (doctorID) {
-      axios
-        .get(
-          `https://predart003-001-site1.anytempurl.com/api/Doctor/${doctorID}`,
-        )
+      api
+        .get(`/Doctor/${doctorID}`)  // use relative path with your api instance
         .then((res) => {
           const data = res.data?.data;
-
+  
           if (data) {
             setForm({
               tenant: data.tenantID || '',
               hospital: data.hospitalID || '',
               doctorName: data.doctorName || '',
-              
               doctorEmail: data.doctorEmail || '',
               doctorPhoneNumber: data.doctorPhoneNumber || '',
               aadhaarNumber: data.aadhaarNumber || '',
@@ -1229,43 +2088,458 @@ const DoctorForm: React.FC = () => {
     }
   }, []);
 
+  //2.Address
+
+  const fetchPatientAddress = async () => {
+    const doctorID = sessionStorage.getItem('doctorID'); // ✅ fixed typo
+    if (!doctorID) return;
+  
+    if (isAddressFetched.current) return;
+  
+    try {
+      const response = await api.get(`/Address/getaddress?id=${doctorID}&Type=Doctor`);
+  
+      const addressData = response.data?.data || [];
+  
+      if (!Array.isArray(addressData)) {
+        console.warn('Invalid response format for address data');
+        return;
+      }
+  
+      if (addressData.length === 0) {
+        setAddresses([
+          {
+            addressID: '',
+            addressType: '',
+            address1: '',
+            address2: '',
+            city: '',
+            district: '',
+            state: '',
+            zipCode: '',
+            type: '',
+            isPrimary: false,
+          },
+        ]);
+        return;
+      }
+  
+      const formatted = addressData.map((addr: any) => ({
+        addressID: addr.addressID || '',
+        addressType: addr.addressType || '',
+        address1: addr.address1 || '',
+        address2: addr.address2 || '',
+        city: addr.city || '',
+        district: addr.district || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        type: addr.type || '',
+        isPrimary: addr.isPrimary || false,
+      }));
+  
+      setAddresses(formatted);
+      isAddressFetched.current = true;
+  
+      // Optional: preload state, district, city data
+      const address = formatted[0];
+      if (address.state) {
+        const districtRes = await api.get(`/Address/districts?StateCode=${address.state}`);
+        const districtData = districtRes.data?.data || [];
+        setDistricts(districtData);
+  
+        const pincodes = [...new Set(districtData.map((d: any) => d.pinCode))];
+        setPincodes(pincodes);
+      }
+  
+      if (address.district) {
+        const cityRes = await api.get(`/Address/cities?districtName=${encodeURIComponent(address.district)}`);
+        const cityData = cityRes.data?.data || [];
+        setCities(cityData);
+        setShowCityInput(cityData.length === 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch address:', error);
+    }
+  };
+  
   //3.Eductaions
 
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    if (doctorID) {
+      api
+        .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
+        .then((res) => {
+          const educationData = res.data?.data || [];
+  
+          const uniqueData = educationData.filter(
+            (value, index, self) =>
+              index ===
+              self.findIndex(
+                (t) =>
+                  t.degreeName === value.degreeName &&
+                  t.graduateID === value.graduateID &&
+                  t.specializationID === value.specializationID &&
+                  t.location === value.location &&
+                  t.universityName === value.universityName &&
+                  t.startDate === value.startDate &&
+                  t.endDate === value.endDate,
+              ),
+          );
+  
+          if (uniqueData.length === 0) {
+            setEducationList([
+              {
+                degree: '',
+                UG: '',
+                specialization: '',
+                location: '',
+                university: '',
+                startDate: '',
+                endDate: '',
+                highestEducation: false,
+                errors: {},
+              },
+            ]);
+            setEducationErrors([{}]); // initialize errors
+          } else {
+            const formattedData = uniqueData.map((item) => ({
+              educationID: item.educationID,
+              degree: item.degreeName || '',
+              UG: item.graduateID || '',
+              specialization: item.specializationID || '',
+              location: item.location || '',
+              university: item.universityName || '',
+              startDate: item.startDate ? new Date(item.startDate) : '',
+              endDate: item.endDate ? new Date(item.endDate) : '',
+              highestEducation: item.isHighestEducation || false,
+              errors: {},
+            }));
+            setEducationList(formattedData);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch doctor education data', err);
+          setEducationList([
+            {
+              degree: '',
+              UG: '',
+              specialization: '',
+              location: '',
+              university: '',
+              startDate: '',
+              endDate: '',
+              highestEducation: false,
+              errors: {},
+            },
+          ]);
+          setEducationErrors([{}]);
+        });
+    }
+  }, []);
 
+  // const handleSaveEducationDetails = async (educationData) => {
+  //   const doctorID = sessionStorage.getItem('doctorID');
+  
+  //   const requests = educationData.map((data) => {
+  //     const payload = {
+  //       doctorId: doctorID,
+  //       degreeName: data.degree,
+  //       graduateID: data.UG,
+  //       specializationID: data.specialization,
+  //       location: data.location,
+  //       universityName: data.university,
+  //       startDate: data.startDate ? new Date(data.startDate).toISOString() : null,
+  //       endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
+  //       isHighestEducation: data.highestEducation,
+  //     };
+  
+  //     const isFilled =
+  //       data.degree &&
+  //       data.UG &&
+  //       data.specialization &&
+  //       data.location &&
+  //       data.university &&
+  //       data.startDate &&
+  //       data.endDate;
+  
+  //     // Update if educationID is present (even if partial fields)
+  //     if (data.educationID && data.educationID !== 0) {
+  //       return axios.put(
+  //         'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorEducation',
+  //         {
+  //           educationID: data.educationID,
+  //           ...payload,
+  //         }
+  //       );
+  //     }
+  //     // Create new if all fields are filled
+  //     else if (isFilled) {
+  //       return axios.post(
+  //         'https://predart003-001-site1.anytempurl.com/api/Doctor/AddDoctorEducation',
+  //         payload
+  //       );
+  //     }
+  //     // Else, skip
+  //     else {
+  //       return Promise.resolve();
+  //     }
+  //   });
+  
+  //   try {
+  //     await Promise.all(requests);
+  //     alert('✅ Education details saved successfully!');
+  //   } catch (error) {
+  //     console.error('❌ Error saving education:', error);
+  //     alert('Some entries could not be saved. Check console for details.');
+  //   }
+  // };
+  
+
+  // 4.Language
+
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    if (doctorID) {
+      api
+        .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
+        .then((res) => {
+          const langData = res.data?.data || [];
+  
+          if (langData && langData.length > 0) {
+            const formattedLanguages = langData.map((item) => {
+              const lang = languageOptions.find(
+                (opt) => opt.appLOVID === item.languageMasterID
+              );
+  
+              return {
+                language: lang?.name || '',
+                read: item.read || false,
+                write: item.write || false,
+                speak: item.speak || false,
+                doctorID: item.doctorID || doctorID,
+                isActive: item.isActive ?? true,
+                type: item.type || 'Doctor',
+                errors: {},
+              };
+            });
+  
+            setLanguages(formattedLanguages);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to fetch doctor languages:', err);
+        });
+    }
+  }, []);
+
+  //5.Doctor Experience
+
+ useEffect(() => {
+  const doctorID = sessionStorage.getItem('doctorID');
+
+  if (doctorID) {
+    api
+      .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
+      .then((res) => {
+        const experienceData = res.data?.data || [];
+
+        const uniqueData = experienceData.filter(
+          (value, index, self) =>
+            index ===
+            self.findIndex(
+              (t) =>
+                t.experienceID === value.experienceID &&
+                t.employmentType === value.employmentType &&
+                t.specializationID === value.specializationID &&
+                t.hospitalName === value.hospitalName &&
+                t.startDate === value.startDate &&
+                t.endDate === value.endDate
+            )
+        );
+
+        const formattedData = uniqueData.map((item) => ({
+          type: item.employmentType || '',
+          specialization: item.specializationID || '',
+          hospitalName: item.hospitalName || '',
+          joinDate: item.startDate?.split('T')[0] || '',
+          leaveDate: item.endDate?.split('T')[0] || '',
+          errors: {},
+        }));
+
+        setExperiences(
+          formattedData.length > 0
+            ? formattedData
+            : [
+                {
+                  type: '',
+                  specialization: '',
+                  hospitalName: '',
+                  joinDate: '',
+                  leaveDate: '',
+                  errors: {},
+                },
+              ]
+        );
+      })
+      .catch((err) => {
+        console.error('Failed to fetch doctor experience data', err);
+      });
+  }
+}, []);
+
+//6.Doctor Skill
+
+ 
 useEffect(() => {
   const doctorID = sessionStorage.getItem('doctorID');
 
-  const fetchEducationData = async () => {
-    try {
-      const response = await axios.get(
-        `https://predart003-001-site1.anytempurl.com/api/Doctor/GetDoctorEducation?doctorId=${doctorID}`
-      );
+  if (doctorID) {
+    api
+      .get(`/Doctor/GetDoctorSkill?doctorId=${doctorID}`)
+      .then((res) => {
+        const skillData = res.data?.data || [];
 
-      if (Array.isArray(response.data) && response.data.length > 0) {
-        setEducationList(response.data);
-      } else {
-        // Keep showing initial entry if no data
-        console.log('No education data found for this doctor.');
-      }
-    } catch (error) {
-      console.error('Error fetching education data', error);
-      // Still keep initial entry box in case of error
-    }
-  };
+        const formattedSkills = skillData.map((item: any) => ({
+          skillMasterID: item.skillMasterID || '',
+          skill: item.skillMasterID || '', // Use ID or name based on your dropdown binding
+          years: item.yearOfExperience?.toString() || '',
+          months: item.monthOfExperience?.toString() || '',
+          description: item.description || '',
+          errors: {},
+        }));
 
-  fetchEducationData();
+        setSkills(
+          formattedSkills.length > 0
+            ? formattedSkills
+            : [
+                {
+                  skillMasterID: '',
+                  skill: '',
+                  years: '',
+                  months: '',
+                  description: '',
+                  errors: {},
+                },
+              ]
+        );
+      })
+      .catch((err) => {
+        console.error('Failed to fetch doctor skill data', err);
+      });
+  }
 }, []);
 
+  //7.Award
 
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    if (doctorID) {
+      api
+        .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
+        .then((res) => {
+          const awardData = res.data?.data || [];
+  
+          const uniqueData = awardData.filter(
+            (value, index, self) =>
+              index ===
+              self.findIndex(
+                (t) =>
+                  t.awardID === value.awardID &&
+                  t.awardName === value.awardName &&
+                  t.awardYear === value.awardYear &&
+                  t.description === value.description
+              )
+          );
+  
+          const formattedData = uniqueData.map((item) => ({
+            name: item.awardName || '',
+            year: item.awardYear || '',
+            description: item.description || '',
+            errors: {},
+          }));
+  
+          setAwards(
+            formattedData.length > 0
+              ? formattedData
+              : [
+                  {
+                    name: '',
+                    year: '',
+                    description: '',
+                    errors: {},
+                  },
+                ]
+          );
+        })
+        .catch((err) => {
+          console.error('Failed to fetch doctor award data', err);
+        });
+    }
+  }, []);
 
   const handleComplete = () => {
     console.log('Form completed!');
     // Handle form completion logic here
   };
 
+  const finishButtonTemplate = (handleComplete: () => void) => (
+    <button className="finish-button" onClick={handleComplete}>
+      Finish
+    </button>
+  );
+
+  <div className="step-navigation">
+    {steps.map((step, index) => (
+      <div
+        key={index}
+        className={`tab ${completedSteps.includes(index + 1) ? 'completed' : ''} ${currentStep === index + 1 ? 'active' : ''}`}
+        onClick={() => setCurrentStep(index + 1)} // Optional: allows clicking tabs to navigate
+      >
+        {step.label}
+      </div>
+    ))}
+  </div>;
+  const nextButtonTemplate = (handleNext: () => void) => (
+    <div>
+      <button type="button" className="base-button" onClick={handleNext}>
+        Next
+      </button>
+    </div>
+  );
+
+  const backTemplate = (handlePrev: () => void) => (
+    <button type="button" className="base-button" onClick={handlePrev}>
+      Back
+    </button>
+  );
+
   return (
     <>
-      <FormWizard stepSize="sm" onComplete={handleComplete}>
+      <FormWizard
+        stepSize="sm"
+        shape="circle"
+        color="#2196f3"
+        onComplete={handleComplete}
+        backButtonTemplate={backTemplate}
+        nextButtonTemplate={nextButtonTemplate}
+        finishButtonTemplate={(onComplete) => (
+          <button
+            className="finish-button"
+            onClick={() => {
+              console.log('Form completed!');
+              toast.success('Doctor profile completed successfully');
+              onComplete();
+            }}
+          >
+            Finish
+          </button>
+        )}
+      >
+    
         <FormWizard.TabContent
           title="Basic Details"
           icon={
@@ -1512,173 +2786,237 @@ useEffect(() => {
                 Submit
               </button>
             </div>
+            <ToastContainer position="top-right" autoClose={3000} />
           </form>
 
-          <form onSubmit={handleAddressSubmit}>
-            <div className="p-6 rounded-md max-w-6xl mx-auto">
-              <h2 className="text-lg font-semibold mb-4 text-gray-700">
-                Address
-              </h2>
-
-              {addresses.map((addr, idx) => (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              // handleSubmit will only handle the current form state
+              handleAddressSubmit();
+            }}
+          >
+            <h2 className="text-lg font-bold text-black-700 text-left mt-8">
+              Address
+            </h2>
+            {addresses &&
+              addresses.length > 0 &&
+              addresses.map((address, index) => (
                 <div
-                  key={idx}
-                  className="gap-4 p-4 max-w-6xl mx-auto border border-[#d1d5db] rounded-lg "
+                  key={index}
+                  onClick={() => handleSelectAddress(index)}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
-                  {/* Type */}
-                  <div className="flex justify-start items-start">
-                    <select
-                      className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                      value={addr.type}
-                      onChange={(e) =>
-                        handleAddressChange(idx, 'type', e.target.value)
-                      }
-                    >
-                      <option>Select Address type</option>
-                      {addressTypes.map((type, i) => (
-                        <option key={i} value={type}>
-                          {type}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Address Lines */}
-                  <div className="grid grid-cols-2 gap-4 mt-5">
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Enter address line 1"
-                        className={inputFieldClass}
-                        value={addr.line1}
+                  {/* Address Type */}
+                  <div className="mb-4">
+                    <div className="flex flex-col">
+                      <select
+                        className="w-[200px] rounded-lg border border-stroke p-2 pl-4 text-black outline-none bg-transparent dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        value={address.addressType}
                         onChange={(e) =>
-                          handleAddressChange(idx, 'line1', e.target.value)
+                          updateAddress(index, 'addressType', e.target.value)
                         }
-                      />
-                      {errors[idx]?.line1 && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].line1}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Enter address line 2"
-                        className={inputFieldClass}
-                        value={addr.line2}
-                        onChange={(e) =>
-                          handleAddressChange(idx, 'line2', e.target.value)
-                        }
-                      />
-                      {errors[idx]?.line2 && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].line2}
+                      >
+                        <option value="">Select Address Type</option>
+                        {addressTypes.map((type) => (
+                          <option key={type.appLOVID} value={type.name}>
+                            {type.name}
+                          </option>
+                        ))}
+                      </select>
+                      {formErrors[index]?.addressType && (
+                        <p className="text-red-500 text-sm mt-1 text-left">
+                          {formErrors[index].addressType}
                         </p>
                       )}
                     </div>
                   </div>
 
-                  {/* City, State, District, Pincode */}
-                  <div className="grid grid-cols-4 gap-4 mt-5">
+                  {/* Address Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <input
                         type="text"
-                        placeholder="Enter city"
-                        className={inputFieldClass}
-                        value={addr.city}
-                        onChange={(e) =>
-                          handleAddressChange(idx, 'city', e.target.value)
-                        }
-                      />
-                      {errors[idx]?.city && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].city}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <select
-                        className={inputFieldClass}
-                        value={addr.district}
-                        onChange={(e) =>
-                          handleAddressChange(idx, 'district', e.target.value)
-                        }
-                      >
-                        <option value="">Select State</option>
-                        <option value="Chennai">TamilNadu</option>
-                        <option value="Coimbatore">Kerala</option>
-                      </select>
-                      {errors[idx]?.state && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].state}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <select
-                        className={inputFieldClass}
-                        value={addr.district}
-                        onChange={(e) =>
-                          handleAddressChange(idx, 'district', e.target.value)
-                        }
-                      >
-                        <option value="">Select District</option>
-                        <option value="Chennai">Chennai</option>
-                        <option value="Coimbatore">Coimbatore</option>
-                      </select>
-                      {errors[idx]?.district && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].district}
-                        </p>
-                      )}
-                    </div>
-
-                    <div>
-                      <input
-                        type="text"
-                        placeholder="Enter pincode"
-                        className={inputFieldClass}
-                        maxLength={6}
-                        value={addr.pincode}
+                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        value={address.address1}
                         onChange={(e) => {
-                          const pin = e.target.value
-                            .replace(/[^0-9]/g, '')
-                            .slice(0, 6);
-                          handleAddressChange(idx, 'pincode', pin);
+                          const sanitizedValue = e.target.value.replace(/[^a-zA-Z0-9, /]/g, '');
+                          updateAddress(index, 'address1', sanitizedValue);
                         }}
+                        placeholder="Enter address line 1"
                       />
-                      {errors[idx]?.pincode && (
-                        <p className="text-red-600 text-sm">
-                          {errors[idx].pincode}
+                      {formErrors[index]?.address1 && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors[index].address1}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        value={address.address2}
+                        onChange={(e) => {
+                          const sanitizedValue = e.target.value.replace(/[^a-zA-Z0-9, /]/g, '');
+                          updateAddress(index, 'address2', sanitizedValue);
+                        }}
+                        placeholder="Enter address line 2"
+                      />
+                      {formErrors[index]?.address2 && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors[index].address2}
                         </p>
                       )}
                     </div>
                   </div>
-                  <button
-                    type="submit"
-                    className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                  >
-                    Submit
-                  </button>
+
+                  {/* City, District, State, Zip Code */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    {/* Section 1: State & District */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <select
+                          value={address.state || ''}
+                          onChange={(e) => handleStateChange(e, index)}
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        >
+                          <option value="">Select State</option>
+                          {states.map((state) => (
+                            <option key={state.id} value={state.stateName}>
+                              {state.stateName}
+                            </option>
+                          ))}
+                        </select>
+                        {formErrors[index]?.state && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].state}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <select
+                          value={address.district || ''}
+                          onChange={(e) => handleDistrictChange(e, index)}
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        >
+                          <option value="">Select District</option>
+                          {[
+                            ...new Map(districts.map((d) => [d.districtName, d])).values(),
+                          ].map((dist) => (
+                            <option key={dist.id} value={dist.districtName}>
+                              {dist.districtName}
+                            </option>
+                          ))}
+                        </select>
+                        {formErrors[index]?.district && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].district}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Section 2: Pincode & City */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <select
+                          value={address.zipCode || ''}
+                          onChange={(e) =>
+                            updateAddress(index, 'zipCode', e.target.value)
+                          }
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        >
+                          <option value="">Select Pincode</option>
+                          {pincodes.map((pin, index) => (
+                            <option key={index} value={pin}>
+                              {pin}
+                            </option>
+                          ))}
+                        </select>
+
+                        {formErrors[index]?.zipCode && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].zipCode}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        {showCityInput ? (
+                          <>
+                            <input
+                              type="text"
+                              value={address.city || ''}
+                              onChange={(e) => {
+                                handleCityChange(e, index);
+                                setManualCity(e.target.value);
+                              }}
+                              placeholder="Enter City"
+                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            />
+
+                            {formErrors[index]?.city && (
+                              <p className="text-red-500 text-sm">
+                                {formErrors[index].city}
+                              </p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <select
+                              value={address.city || ''}
+                              onChange={(e) =>
+                                updateAddress(index, 'city', e.target.value)
+                              }
+                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                            >
+                              <option value="">Select City</option>
+                              {cities.map((city) => (
+                                <option key={city.id} value={city.cityName}>
+                                  {city.cityName}
+                                </option>
+                              ))}
+                            </select>
+
+                            {formErrors[index]?.city && (
+                              <p className="text-red-500 text-sm">
+                                {formErrors[index].city}
+                              </p>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* <div className="absolute top-4 right-4 flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={addr.isPrimary}
+                    onChange={() => handlePrimaryChange(index)}
+                    className="w-4 h-4"
+                  />
+                  <label className="text-sm font-medium">Set as Primary</label>
+                </div> */}
                 </div>
               ))}
 
-              <div className="flex justify-end mt-6">
-                <button
-                  type="button"
-                  onClick={addAddress}
-                  className="flex items-center space-x-2 text-blue-600 font-semibold"
-                >
-                  <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
-                    +
-                  </div>
-                  <span>Add</span>
-                </button>
+              
+
+            {/* Add New Address */}
+            <div className="flex items-center justify-end gap-1">
+              <div
+                className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+                onClick={addAddress}
+              >
+                +
               </div>
+              <span className="text-sm font-medium text-black-600">Add</span>
+            </div>
+
+            <div className="flex justify-end">
+              <CustomButton type="submit">Save Address</CustomButton>
             </div>
           </form>
         </FormWizard.TabContent>
@@ -1694,192 +3032,292 @@ useEffect(() => {
             </div>
           }
         >
-         <form onSubmit={handleFieldSubmit}>
-      <div className="p-6 space-y-6">
-        {educationList.map((entry, index) => (
-          <div
-            key={index}
-            className="grid grid-cols-3 gap-4 p-4 max-w-6xl mx-auto border border-[#d1d5db] rounded-md"
-          >
-            <div></div>
-            <div className="col-span-1"></div>
+          <form onSubmit={handleFieldSubmit}>
+            <div className="p-6 space-y-6">
+              {educationList.map((entry, index) => (
+                <div
+                  key={index}
+                  className="grid grid-cols-3 gap-4 p-4 max-w-6xl mx-auto border border-[#d1d5db] rounded-md"
+                >
+                  <div></div>
+                  <div className="col-span-1"></div>
 
-            {/* Highest Education */}
-            <div className="col-span-1 flex items-end justify-end">
-              <label className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={entry.highestEducation}
-                  onChange={(e) =>
-                    handleInputChange(index, 'highestEducation', e.target.checked)
-                  }
-                  className="form-checkbox h-4 w-4 text-blue-600"
-                />
-                <span className="font-semibold text-gray-900 text-sm">
-                  Is this your highest education
-                </span>
-              </label>
+                  {/* Highest Education */}
+                  <div className="col-span-1 flex items-end justify-end">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={entry.highestEducation}
+                        onChange={(e) =>
+                          handleInputChange(
+                            index,
+                            'highestEducation',
+                            e.target.checked,
+                          )
+                          
+                        }
+                        className="form-checkbox h-4 w-4 text-blue-600"
+                      />
+                      <span className="font-semibold text-gray-900 text-sm">
+                        Is this your highest education
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Degree */}
+                  <div className="col-span-1 flex flex-col">
+                    <input
+                      type="text"
+                      value={entry.degree}
+                      onChange={(e) =>
+                        handleInputChange(index, 'degree', e.target.value)
+                      }
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      placeholder="Enter your degree"
+                      className={inputFieldClass}
+                    />
+                    {educationErrors[index]?.degree && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].degree}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Qualification */}
+                  <div className="col-span-1 flex flex-col">
+                    <select
+                      value={entry.UG || ''}
+                      onChange={(e) =>
+                        handleInputChange(index, 'UG', e.target.value)
+                      }
+                      className={inputFieldClass}
+                    >
+                      <option value="">Select Qualification</option>
+                      {qualifications.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                    {educationErrors[index]?.qualification && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].qualification}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Specialization */}
+                  <div className="col-span-1 flex flex-col">
+                    <select
+                      value={entry.specialization || ''}
+                      onChange={(e) =>
+                        handleInputChange(
+                          index,
+                          'specialization',
+                          e.target.value,
+                        )
+                      }
+                      className={inputFieldClass}
+                    >
+                      <option value="">Select Specialization</option>
+                      {specializations.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+                    {educationErrors[index]?.specialization && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].specialization}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Location */}
+                  <div className="col-span-1 flex flex-col">
+                    <input
+                      type="text"
+                      value={entry.location}
+                      onChange={(e) =>
+                        handleInputChange(index, 'location', e.target.value)
+                      }
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      placeholder="Enter your location"
+                      className={inputFieldClass}
+                    />
+                    {educationErrors[index]?.location && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].location}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* University */}
+                  <div className="col-span-1 flex flex-col">
+                    <input
+                      type="text"
+                      value={entry.university}
+                      onChange={(e) =>
+                        handleInputChange(index, 'university', e.target.value)
+                      }
+                      // onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      placeholder="Enter your university name"
+                      className={inputFieldClass}
+                    />
+                    {educationErrors[index]?.university && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].university}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Start Date */}
+                  <div className="col-span-1 flex flex-col">
+                  <input
+                        type={entry.startDate ? 'date' : 'text'}
+                        name="startDate"
+                        placeholder="Starting Date"
+                        value={entry.startDate || ''}
+                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange(index, 'startDate', value);
+
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                startDate: 'Start date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                startDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          educationErrors[index]?.startDate ? 'border-red-500' : 'border-gray-300'
+                        } ${!entry.startDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !entry.startDate ? '1.25rem' : undefined,
+                        }}
+                      />
+
+                    {educationErrors[index]?.startDate && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].startDate}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* End Date */}
+                  <div className="col-span-1 flex flex-col">
+                  <input
+                        type={entry.endDate ? 'date' : 'text'}
+                        name="endDate"
+                        placeholder="Ending Date"
+                        value={entry.endDate || ''}
+                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange(index, 'endDate', value);
+
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                endDate: 'End date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                endDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[index]?.endDate ? 'border-red-500' : 'border-gray-300'
+                        } ${!entry.endDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !entry.endDate ? '1.25rem' : undefined,
+                        }}
+                      />
+
+                    {educationErrors[index]?.endDate && (
+                      <p className="text-red-500 text-sm">
+                        {educationErrors[index].endDate}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Entry Button */}
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleAddEntry}
+                  disabled={isAddDisabled}
+                  className={`flex items-center space-x-2 font-semibold transition-colors duration-300 ${
+                    isAddDisabled
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-blue-600 hover:text-blue-800'
+                  }`}
+                >
+                  <div
+                    className={`flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer transition-colors duration-300 text-lg ${
+                      isAddDisabled
+                        ? 'bg-gray-300'
+                        : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
+                    }`}
+                  >
+                    +
+                  </div>
+                  <span
+                    className={`transition-colors duration-300 ${
+                      isAddDisabled ? 'text-gray-400' : 'text-blue-600'
+                    }`}
+                  >
+                    Add
+                  </span>
+                </button>
+              </div>
+
+              {/* Submit Button - centered */}
+              <div className="col-span-3 flex justify-center">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Submit
+                </button>
+              </div>
+              <ToastContainer position="top-right" autoClose={3000} />
+
             </div>
-
-            {/* Degree */}
-            <div className="col-span-1 flex flex-col">
-              <input
-                type="text"
-                value={entry.degree}
-                onChange={(e) =>
-                  handleInputChange(index, 'degree', e.target.value)
-                }
-                placeholder="Enter your degree"
-                className={inputFieldClass}
-              />
-              {entry.errors?.degree && (
-                <span className="text-red-500 text-sm">{entry.errors.degree}</span>
-              )}
-            </div>
-
-            {/* Qualification */}
-            <div className="col-span-1 flex flex-col">
-              <select
-                value={entry.UG || ''}
-                onChange={(e) =>
-                  handleInputChange(index, 'UG', e.target.value)
-                }
-                className={inputFieldClass}
-              >
-                <option value="">Select Qualification</option>
-                {qualifications.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              {entry.errors?.UG && (
-                <span className="text-red-500 text-sm">{entry.errors.UG}</span>
-              )}
-            </div>
-
-            {/* Specialization */}
-            <div className="col-span-1 flex flex-col">
-              <select
-                value={entry.specialization || ''}
-                onChange={(e) =>
-                  handleInputChange(index, 'specialization', e.target.value)
-                }
-                className={inputFieldClass}
-              >
-                <option value="">Select Specialization</option>
-                {specializations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-              {entry.errors?.specialization && (
-                <span className="text-red-500 text-sm">{entry.errors.specialization}</span>
-              )}
-            </div>
-
-            {/* Location */}
-            <div className="col-span-1 flex flex-col">
-              <input
-                type="text"
-                value={entry.location}
-                onChange={(e) =>
-                  handleInputChange(index, 'location', e.target.value)
-                }
-                placeholder="Enter your location"
-                className={inputFieldClass}
-              />
-              {entry.errors?.location && (
-                <span className="text-red-500 text-sm">{entry.errors.location}</span>
-              )}
-            </div>
-
-            {/* University */}
-            <div className="col-span-1 flex flex-col">
-              <input
-                type="text"
-                value={entry.university}
-                onChange={(e) =>
-                  handleInputChange(index, 'university', e.target.value)
-                }
-                placeholder="Enter your university name"
-                className={inputFieldClass}
-              />
-              {entry.errors?.university && (
-                <span className="text-red-500 text-sm">{entry.errors.university}</span>
-              )}
-            </div>
-
-            {/* Start Date */}
-            <div className="col-span-1 flex flex-col">
-              <DatePicker
-                selected={entry.startDate}
-                onChange={(date) => handleInputChange(index, 'startDate', date)}
-                placeholderText="Starting date"
-                dateFormat="dd/MM/yyyy"
-                className={inputFieldClass}
-              />
-              {entry.errors?.dates && (
-                <span className="text-red-500 text-sm">{entry.errors.dates}</span>
-              )}
-            </div>
-
-            {/* End Date */}
-            <div className="col-span-1 flex flex-col">
-              <DatePicker
-                selected={entry.endDate}
-                onChange={(date) => handleInputChange(index, 'endDate', date)}
-                placeholderText="Ending date"
-                dateFormat="dd/MM/yyyy"
-                className={inputFieldClass}
-              />
-              {entry.errors?.dates && (
-                <span className="text-red-500 text-sm">{entry.errors.dates}</span>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {/* Add Entry Button */}
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleAddEntry}
-            disabled={isAddDisabled}
-            className={`flex items-center space-x-2 font-semibold transition-colors duration-300 ${
-              isAddDisabled
-                ? 'text-gray-400 cursor-not-allowed'
-                : 'text-blue-600 hover:text-blue-800'
-            }`}
-          >
-            <div
-              className={`flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer transition-colors duration-300 text-lg ${
-                isAddDisabled
-                  ? 'bg-gray-300'
-                  : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
-              }`}
-            >
-              +
-            </div>
-            <span
-              className={`transition-colors duration-300 ${
-                isAddDisabled ? 'text-gray-400' : 'text-blue-600'
-              }`}
-            >
-              Add
-            </span>
-          </button>
-        </div>
-
-        {/* Submit Button - centered */}
-        <div className="col-span-3 flex justify-center">
-          <button type="submit" className="bg-blue-600 text-white px-6 py-2 rounded mt-5">
-            Submit
-          </button>
-        </div>
-      </div>
-    </form>
+          </form>
 
           <form onSubmit={handleLanguageSubmit}>
             <div className="p-6 space-y-6 w-200">
@@ -1903,7 +3341,7 @@ useEffect(() => {
                     >
                       <option value="">-- Select a Language --</option>
                       {languageOptions.map((lang) => (
-                        <option key={lang.id} value={lang.name.toLowerCase()}>
+                        <option key={lang.appLOVID} value={lang.name}>
                           {lang.name}
                         </option>
                       ))}
@@ -1962,14 +3400,6 @@ useEffect(() => {
                   )}
 
                   {/* Submit Button */}
-                  <div className="flex justify-center mt-6">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                    >
-                      Submit
-                    </button>
-                  </div>
                 </div>
               ))}
 
@@ -1986,7 +3416,18 @@ useEffect(() => {
                   <span>Add</span>
                 </button>
               </div>
+
+              <div className="flex justify-center mt-6">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Submit
+                </button>
+              </div>
             </div>
+            <ToastContainer position="top-right" autoClose={3000} />
+
           </form>
         </FormWizard.TabContent>
 
@@ -2027,8 +3468,8 @@ useEffect(() => {
                         }
                       >
                         <option value="">-- Select Type --</option>
-                        {employmentTypes.map((type: any) => (
-                          <option key={type.appLOVID} value={type.name}>
+                        {employmentTypes.map((type) => (
+                          <option key={type.appLOVID} value={type.appLOVID}>
                             {type.name}
                           </option>
                         ))}
@@ -2060,12 +3501,11 @@ useEffect(() => {
                           }`}
                         >
                           <option value="">-- Select Specialization --</option>
-                         {specializations.map((spec) => (
-  <option key={spec.id} value={spec.name}>
-    {spec.name}
-  </option>
-))}
-
+                          {specializations.map((spec) => (
+                            <option key={spec.id} value={spec.id}>
+                              {spec.name}
+                            </option>
+                          ))}
                         </select>
 
                         {errors[idx]?.specialization && (
@@ -2076,30 +3516,42 @@ useEffect(() => {
                       </div>
 
                       <div className="w-full">
-                        <select
-                          value={exp.hospitalName}
-                          onChange={(e) =>
-                            handleExperience(
-                              idx,
-                              'hospitalName',
-                              e.target.value,
-                            )
+                      <input
+                        type="text"
+                        value={exp.hospitalName}
+                        onChange={(e) => {
+                          const inputValue = e.target.value;
+
+                          // Allow only letters and spaces
+                          const filteredValue = inputValue.replace(/[^A-Za-z\s]/g, '');
+
+                          handleExperience(idx, 'hospitalName', filteredValue);
+
+                          // Optional: live error checking (if you're storing field errors)
+                          if (filteredValue.length < 5) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                hospitalName: 'Minimum 5 characters required',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                hospitalName: '',
+                              },
+                            }));
                           }
-                          className={`${inputFieldClass} ${
-                            errors[idx]?.hospitalName
-                              ? 'border-red-500'
-                              : 'border-gray-300'
-                          }`}
-                        >
-                          <option value="">-- Select Hospital --</option>
-                        {hospitals.map((hospital) => (
-  <option key={hospital.id} value={hospital.name}>
-    {hospital.name}
-  </option>
-))}
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[idx]?.hospitalName ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="Enter Hospital Name"
+                      />
 
-
-                        </select>
 
                         {errors[idx]?.hospitalName && (
                           <p className="text-red-600 text-sm">
@@ -2112,19 +3564,40 @@ useEffect(() => {
                     {/* Dates */}
                     <div className="flex gap-4 col-span-2">
                       <div className="w-full relative">
-                        <input
-                          type="date"
-                          placeholder
-                          text="Join Date"
-                          value={exp.joinDate}
+                      <input
+                          type={exp.joinDate ? 'date' : 'text'}
+                          name="joinDate"
+                          placeholder="Join Date"
+                          value={exp.joinDate || ''}
                           max={today}
-                          onChange={(e) =>
-                            handleExperience(idx, 'joinDate', e.target.value)
-                          }
+                          onFocus={(e) => (e.target.type = 'date')}
+                          onBlur={(e) => {
+                            if (!e.target.value) e.target.type = 'text';
+                          }}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handleExperience(idx, 'joinDate', value);
+
+                            if (new Date(value) > new Date()) {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  joinDate: 'Join date cannot be in the future',
+                                },
+                              }));
+                            } else {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  joinDate: '',
+                                },
+                              }));
+                            }
+                          }}
                           className={`${inputFieldClass} ${
-                            errors[idx]?.joinDate
-                              ? 'border-red-500'
-                              : 'border-gray-300'
+                            errors[idx]?.joinDate ? 'border-red-500' : 'border-gray-300'
                           } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
                           style={{
                             paddingTop: !exp.joinDate ? '1.25rem' : undefined,
@@ -2138,18 +3611,45 @@ useEffect(() => {
                         )}
                       </div>
                       <div className="w-full">
-                        <input
-                          type="date"
-                          value={exp.leaveDate}
-                          onChange={(e) =>
-                            handleExperience(idx, 'leaveDate', e.target.value)
+                      <input
+                        type={exp.leaveDate ? 'date' : 'text'}
+                        name="leaveDate"
+                        placeholder="Leave Date"
+                        value={exp.leaveDate || ''}
+                        max={today}
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleExperience(idx, 'leaveDate', value);
+
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                leaveDate: 'Leave date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                leaveDate: '',
+                              },
+                            }));
                           }
-                          className={`${inputFieldClass} ${
-                            errors[idx]?.leaveDate
-                              ? 'border-red-500'
-                              : 'border-gray-300'
-                          }`}
-                        />
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[idx]?.leaveDate ? 'border-red-500' : 'border-gray-300'
+                        } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
+                        }}
+                      />
                         {errors[idx]?.leaveDate && (
                           <p className="text-red-600 text-sm">
                             {errors[idx].leaveDate}
@@ -2158,18 +3658,18 @@ useEffect(() => {
                       </div>
                     </div>
                   </div>
-                  {/* ✅ Submit Button */}
-                  <div className="flex justify-center mt-6">
-                    <button
-                      type="submit"
-                      className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                    >
-                      Submit
-                    </button>
-                  </div>
                 </div>
               ))}
 
+              {/* ✅ Submit Button */}
+              <div className="flex justify-center mt-6">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Submit
+                </button>
+              </div>
               {/* Add Button */}
               <div className="flex justify-end px-5 mt-4">
                 <button
@@ -2185,8 +3685,6 @@ useEffect(() => {
               </div>
             </div>
           </form>
-
-
           <form onSubmit={handleSkillSubmit}>
             <div className="p-6">
               <h2 className="text-lg font-semibold mb-4 text-gray-700">
@@ -2207,38 +3705,29 @@ useEffect(() => {
                           handleSkill(idx, 'skill', e.target.value)
                         }
                       >
-                        <option value="">-- Select a Skill --</option>
-                        {skillsList.map((skillOption) => (
-                          <option key={skillOption} value={skillOption}>
-                            {skillOption}
+                        <option value="">Select a skill</option>
+                        {skillsList.map((skill) => (
+                          <option key={skill.appLOVID} value={skill.id}>
+                            {skill.name}
                           </option>
                         ))}
                       </select>
-
                       {skill.errors?.skill && (
                         <p className="text-red-500 text-sm">
                           {skill.errors.skill}
                         </p>
                       )}
+                      <ToastContainer position="top-right" autoClose={3000} />
                     </div>
 
                     <div>
                       <input
                         type="text"
                         value={skill.years}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
-                          const parsedYear = parseInt(inputValue, 10);
-                          // Only allow numbers and prevent letters, spaces, and future years
-                          if (
-                            inputValue === '' ||
-                            (parsedYear <= currentYear &&
-                              parsedYear >= 0 &&
-                              !/\D/.test(inputValue))
-                          ) {
-                            handleSkill(idx, 'years', inputValue);
-                          }
-                        }}
+                        onKeyDown={handleSkillKeyDown}
+                        onChange={(e) =>
+                          handleSkill(idx, 'years', e.target.value)
+                        }
                         placeholder="Year of Experience"
                         className={`${inputFieldClass} ${skill.errors?.years ? 'border-red-500' : ''}`}
                       />
@@ -2246,14 +3735,15 @@ useEffect(() => {
                         <p className="text-red-500 text-sm mt-1">
                           {skill.errors.years}
                         </p>
-                      )}{' '}
+                      )}
                     </div>
 
                     <div>
                       <input
                         type="text"
-                        className={`${inputFieldClass} ${errors.skills?.[idx]?.months ? 'border-red-500' : ''}`}
+                        className={`${inputFieldClass} ${skill.errors?.months ? 'border-red-500' : ''}`}
                         value={skill.months}
+                        onKeyDown={handleSkillKeyDown}
                         onChange={(e) =>
                           handleSkill(idx, 'months', e.target.value)
                         }
@@ -2268,30 +3758,38 @@ useEffect(() => {
                   </div>
 
                   <div>
-                    <textarea
+                  <textarea
                       placeholder="Description"
                       value={skill.description}
-                      onChange={(e) =>
-                        handleSkill(idx, 'description', e.target.value)
-                      }
+                      onChange={(e) => {
+                        // Allow letters, numbers, spaces, commas, periods, hyphens only
+                        const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s,.\-]/g, '');
+                        handleSkill(idx, 'description', filteredValue);
+                      }}
                       className={inputFieldClass}
                       rows={3}
                     />
+
                     {skill.errors?.description && (
                       <p className="text-red-500 text-sm">
                         {skill.errors.description}
                       </p>
                     )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleSkillSubmit}
-                    className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                  >
-                    Submit
-                  </button>
                 </div>
               ))}
+
+              <div className="flex justify-center">
+                <button
+                  type="button"
+                  onClick={handleSkillSubmit}
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Submit
+                </button>
+              </div>
+              {/* </div> */}
+              {/* ))} */}
             </div>
 
             <div className="flex justify-end px-5">
@@ -2337,6 +3835,8 @@ useEffect(() => {
                         type="text"
                         placeholder="Enter award name"
                         value={award.name}
+                        onKeyDown={handleKeyDown}
+                        onInput={handleInput}
                         onChange={(e) =>
                           handleAwardChange(index, 'name', e.target.value)
                         }
@@ -2347,6 +3847,7 @@ useEffect(() => {
                           {award.errors.name}
                         </p>
                       )}
+                       <ToastContainer position="top-right" autoClose={3000} />
                     </div>
 
                     <div>
@@ -2388,6 +3889,7 @@ useEffect(() => {
                   <div className="flex justify-center">
                     <button
                       type="submit"
+                      onClick={handleAwardSubmit}
                       className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
                     >
                       Submit
@@ -2425,95 +3927,29 @@ useEffect(() => {
         >
           <form>
             <div className="col-span-2">
-              {timeSlots.map((slot, index) => (
-                <div
-                  key={index}
-                  className="flex gap-4 items-center border border-stroke rounded-lg p-4 bg-transparent dark:border-form-strokedark dark:bg-form-input"
-                >
-                  {/* Day Selection */}
-                  <select
-                    value={slot.day}
-                    onChange={(e) =>
-                      handleTimeChange(index, 'day', e.target.value)
-                    }
-                    className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    <option value="">Select Day</option>
-                    {weekdays.map((day) => (
-                      <option key={day.id} value={day.id}>
-                        {day.name}
-                      </option>
-                    ))}
-                  </select>
+                  <h3 className="text-lg font-semibold mb-2">Existing Time Slots</h3>
+                  {existingTimeSlots.length > 0 ? (
+                    existingTimeSlots.map((slot, index) => renderTimeSlotRow(slot, index, existingTimeSlots, setExistingTimeSlots, false))
+                  ) : (
+                    <p>No existing time slots available.</p>
+                  )}
 
-                  {/* Hospital Selection */}
-                  <select
-                    value={slot.hospital}
-                    onChange={(e) =>
-                      handleTimeChange(index, 'hospital', e.target.value)
-                    }
-                    className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    <option value="">Select Hospital</option>
-                    {hospitals.map((hospital) => (
-                      <option
-                        key={hospital.hospitalID}
-                        value={hospital.hospitalID}
-                      >
-                        {hospital.hospitalName}
-                      </option>
-                    ))}
-                  </select>
+                  <h3 className="text-lg font-semibold my-4">Add New Time Slots</h3>
+                  {newTimeSlots.map((slot, index) => renderTimeSlotRow(slot, index, newTimeSlots, setNewTimeSlots))}
+                  <div className="flex items-center mt-2 justify-end gap-1">
+                    {/* Clickable Icon */}
+                    <div
+                      className="flex justify-center items-center h-10 w-10
+                                text-white rounded-full cursor-pointer bg-gradient-to-b
+                                  from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+                      onClick={addNewRow}
+                    >
+                      +
+                    </div>
 
-                  {/* Duration Input */}
-                  <input
-                    type="text"
-                    placeholder="Duration (mins)"
-                    value={slot.duration}
-                    onChange={(e) =>
-                      handleTimeChange(index, 'duration', e.target.value)
-                    }
-                    className="w-[20%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
-
-                  {/* From Time Picker */}
-                  <DatePicker
-                    selected={slot.fromTime}
-                    onChange={(time) =>
-                      handleTimeChange(index, 'fromTime', time)
-                    }
-                    showTimeSelect
-                    showTimeSelectOnly
-                    timeIntervals={15}
-                    dateFormat="h:mm aa"
-                    placeholderText="From Time"
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
-
-                  {/* To Time Picker */}
-                  <DatePicker
-                    selected={slot.toTime}
-                    onChange={(time) => handleTimeChange(index, 'toTime', time)}
-                    showTimeSelect
-                    showTimeSelectOnly
-                    timeIntervals={15}
-                    dateFormat="h:mm aa"
-                    placeholderText="To Time"
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
+                    {/* Non-clickable Text */}
+                    <span className="text-sm font-medium text-black-600">Add</span>
                 </div>
-              ))}
-
-              {/* Add Row Button */}
-              <div className="flex items-center justify-end gap-1 mt-4">
-                <div
-                  className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
-                  onClick={addNewRow}
-                >
-                  +
-                </div>
-                <span className="text-sm font-medium text-black-600">Add</span>
-              </div>
 
               {/* Save Button */}
               <div className="flex justify-end mt-4">
@@ -2554,7 +3990,7 @@ useEffect(() => {
                 >
                   <option value="">Select Document Type</option>
                   {documentTypes.map((doc) => (
-                    <option key={doc.id} value={doc.name}>
+                      <option key={doc.appLOVID} value={doc.name}>
                       {doc.name}
                     </option>
                   ))}
@@ -2619,6 +4055,7 @@ useEffect(() => {
                           <td className="border px-4 py-2 justify-center gap-2">
                             {/* View Button */}
                             <button
+                              type="button" 
                               onClick={() =>
                                 handleViewDocument(doc.documentID, doc.fileName)
                               }
@@ -2715,9 +4152,198 @@ useEffect(() => {
           </form>
         </FormWizard.TabContent>
       </FormWizard>
+      <ToastContainer position="top-right" autoClose={3000} />
+
       {/* Add Style */}
       <style>{`
         @import url("https://cdn.jsdelivr.net/gh/lykmapipo/themify-icons@0.1.2/css/themify-icons.css");
+
+       .main-container {
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+         .validation-summary {
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+  padding: 12px;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.validation-summary h4 {
+  color: #856404;
+  margin-bottom: 8px;
+}
+.tab {
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+.tab.active {
+  background-color: #007bff;
+  color: white;
+}
+.tab.completed {
+  background-color: #28a745; /* ✅ Green for completed steps */
+  color: white;
+}
+
+.validation-summary ul {
+  padding-left: 20px;
+}
+
+.error-text {
+  color: red;
+  font-size: 12px;
+  margin-top: 4px;
+}
+.error-text {
+  color: red;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+
+        .title {
+          margin-top: 40px;
+          text-align: center;
+          font-size: 32px;
+          font-weight: bold;
+        }
+           /* Responsive styles */
+  @media (max-width: 768px) {
+    .grid-cols-3 {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    .grid-cols-4 {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    .grid-cols-2 {
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+    }
+
+    .w-[500px] {
+      width: 100%;
+    }
+
+    .text-lg {
+      font-size: 1rem;
+    }
+
+    .space-y-4 > *:not(:last-child) {
+      margin-bottom: 1rem;
+    }
+
+    .h-10 {
+      height: 2.5rem;
+    }
+  }
+
+   .base-button {
+  background: linear-gradient(to bottom, #004A99, #007BFF);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  transition: background 0.15s ease-out;
+  cursor: pointer;
+}
+
+.base-button:hover {
+  background: linear-gradient(to bottom, #007BFF, #004A99);
+  transition: background 0.15s ease-in;
+}
+
+
+.wizard .nav-tabs > li.completed > a {
+  background-color: green !important;
+  color: white !important;
+}
+
+  @media (min-width: 768px) {
+    .grid-cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid-cols-4 {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .grid-cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+    
+      
+        .wizard-card-footer{
+          display: flex;
+          justify-content: center;
+          margin-top: 50px;
+        }
+        .base-button {
+          background-color: blue;
+          border: none;
+          color: white;
+          padding: 15px 32px;
+          text-align: center;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 16px;
+          cursor: pointer;
+          margin-right: 10px;
+          margin-left: 10px;
+          border-radius: 50px;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+          transition: background-color 0.3s ease;
+          }
+          
+          .base-button:hover {
+          background-color: navy;
+          }
+          
+          .base-button:focus {
+          outline: none;
+          }
+          
+          .base-button:active {
+          transform: translateY(2px);
+          }
+
+        .finish-button{
+          background-color: green;
+          border: none;
+          color: white;
+          padding: 15px 32px;
+          text-align: center;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 16px;
+          cursor: pointer;
+          margin-right: 10px;
+          margin-left: 10px;
+          border-radius: 50px;
+          box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+          transition: background-color 0.3s ease;
+        }
+        .finish-button:hover {
+          background-color: darkgreen;
+          }
+        
+        .finish-button:focus {
+          outline: none;
+         }
+          
+        .finish-button:active {
+          transform: translateY(2px);
+         }
+      
       `}</style>
     </>
   );

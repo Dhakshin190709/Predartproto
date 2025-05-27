@@ -6,8 +6,9 @@ import "ag-grid-community/styles/ag-theme-alpine.css";
 import axios from "axios";
 import { Edit } from "lucide-react";
 import CustomButton from "../../components/CustomButton";
+import api from "../../api/request";
 interface RowData {
-roleID: number;
+ roleID: string | null;
   roleName: string;
   roleCode: string;
   createdBy: string;
@@ -32,7 +33,7 @@ const Role: React.FC = () => {
   
   const [isActive, setIsActive] = useState(false);
   const [formData, setFormData] = useState<RowData>({
-  roleID: 0,
+  roleID: null,
     roleName: "",
     roleCode: "",
     createdBy: "",
@@ -44,27 +45,28 @@ const Role: React.FC = () => {
     fetchRoles();
   }, []);
 
-  const fetchRoles = async () => {
-    try {
-      const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/Role");
-      if (response.data && Array.isArray(response.data.data)) {
-        const roles = response.data.data.map((role: any) => ({
-          roleID: role.roleID,
-          roleName: role.roleName,
-          roleCode: role.roleCode,
-          createdBy: role.createdBy || "",
-          status: role.isActive ? "Active" : "Inactive",
-        }));
-        setRowData(roles);
-        setFilteredData(roles); // Update filtered data after fetching
-      } else {
-        console.error("Unexpected API response format:", response.data);
-      }
-    } catch (error) {
-      console.error("Error fetching roles:", error);
+ const fetchRoles = async () => {
+  try {
+    const response = await api.get("/Role");
+
+    if (response.data && Array.isArray(response.data.data)) {
+      const roles = response.data.data.map((role: any) => ({
+        roleID: role.roleID,
+        roleName: role.roleName,
+        roleCode: role.roleCode,
+        createdBy: role.createdBy || "",
+        status: role.isActive ? "Active" : "Inactive",
+      }));
+
+      setRowData(roles);
+      setFilteredData(roles); // Update filtered data after fetching
+    } else {
+      console.error("Unexpected API response format:", response.data);
     }
-  };
-  
+  } catch (error) {
+    console.error("Error fetching roles:", error);
+  }
+};
 
 
   const handleEdit = (roleID: number | string) => {
@@ -93,78 +95,56 @@ const Role: React.FC = () => {
 
   
   
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-  // Retrieve userID from sessionStorage
+const handleFormSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
   const userID = sessionStorage.getItem("userID");
   if (!userID) {
-    console.error("User ID not found in session storage.");
     alert("User not logged in. Please log in again.");
     return;
   }
-    try {
-      const isActive = formData.status === 'Active';
-      const createdBy = userID; // Fixed CreatedBy ID
-      let response;
-  
-      if (!formData.roleID) {
-          // POST request for adding a new role
-          response = await axios.post("https://predart003-001-site1.anytempurl.com/api/Role", {
-              roleName: formData.roleName,
-              roleCode: formData.roleCode,
-              createdBy: createdBy,
-              isActive: isActive,
-          });
-  
-          if (response.data && Array.isArray(response.data.data)) {
-              // Fetch latest data after adding a new role
-              fetchRoles();
-          } else {
-              console.error("Error: response.data.data is not an array", response.data);
-          }
-      } else {
-          // PUT request for updating an existing role (No roleID in URL)
-          response = await axios.put("https://predart003-001-site1.anytempurl.com/api/Role", {
-              roleID: formData.roleID,
-              roleName: formData.roleName,
-              roleCode: formData.roleCode,
-              createdBy: createdBy,
-              isActive: isActive,
-          });
-  
-          if (response.data.success) {
-              // Fetch latest data after updating the role
-              fetchRoles();
-          } else {
-              console.error("Error updating role:", response.data.message);
-          }
-      }
-  
-      // Reset form and hide it
+
+  try {
+    const isActive = formData.status === "Active";
+
+    // Construct payload according to API requirements:
+    const payload: any = {
+      roleName: formData.roleName,       // API expects "Role" (not roleName)
+     roleCode: formData.roleCode || "",   // API might expect "RoleCode"
+      createdBy: userID,
+      isActive: isActive,
+    };
+
+    if (formData.roleID) {
+      payload.RoleID = formData.roleID; // Include roleID only if updating
+    }
+
+    let response;
+    if (!formData.roleID) {
+      // POST to create new role (omit RoleID)
+      response = await api.post("/Role", payload);
+    } else {
+      // PUT to update role (include RoleID)
+      response = await api.put("/Role", payload);
+    }
+
+    if (
+      response.data &&
+      (response.data.success || Array.isArray(response.data.data))
+    ) {
+      await fetchRoles();
       setShowForm(false);
       resetFormData();
-    } catch (error) {
-      console.error("Error saving role:", error);
-    }
-  };
-  
-
-
-  
-// Fetch updated list of roles to refresh the table
-const refreshTableData = async () => {
-  try {
-    const response = await axios.get("https://predart003-001-site1.anytempurl.com/api/Role"); // Make a GET request to fetch the latest tenant data
-    if (response.data && Array.isArray(response.data.data)) {
-      setRowData([...response.data.data]);  // Refresh the row data with the updated list
-      setFilteredData([...response.data.data]); // Refresh filtered data
     } else {
-      console.error('Error: response.data.data is not an array', response.data);
+      console.error("Unexpected response format:", response.data);
     }
   } catch (error) {
-    console.error('Error fetching table data:', error);
+    console.error("Error saving role:", error);
   }
 };
+
+
+
 
 const resetFormData = () => {
   setFormData({
@@ -235,20 +215,21 @@ const handleDelete = (roleID: number) => {
 };
 
 
-
 const confirmDelete = async () => {
   try {
-    await axios.delete(`https://predart003-001-site1.anytempurl.com/api/Role/${deleteRowId}`);
+    await api.delete(`/Role/${deleteRowId}`);
+
     const updatedData = rowData.filter((item) => item.roleID !== deleteRowId);
     setRowData(updatedData);
     setFilteredData(updatedData);
+
     setShowConfirmation(false);
     setDeleteRowId(null);
   } catch (error) {
-    console.error("Error deleting row:", error);
+    console.error("Error deleting role:", error);
+    alert("Failed to delete the role. Please try again.");
   }
 };
-
 
 // Cancel the delete action
 const cancelDelete = () => {
@@ -327,44 +308,44 @@ const cancelDelete = () => {
   };
 
   const handleStatusToggle = async (roleID: number, currentStatus: string) => {
-    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
-    const userID = sessionStorage.getItem("userID");
-  
-    if (!userID) {
-      alert("User not logged in. Please log in again.");
-      return;
-    }
-    const updatedRole = rowData.find((role) => role.roleID === roleID);
-  
-    if (updatedRole) {
-      updatedRole.status = newStatus;
-      setRowData(prevData =>
-        prevData.map(item =>
-          item.roleID === roleID ? { ...item, status: newStatus } : item
-        )
-      );
-  
-      const payload = {
-        guidID: updatedRole.roleID, // Ensure this exists in rowData
-       
-        updatedBy: userID, // Assuming the same user updates
-      
-        isActive: newStatus === "Active",
-      };
-  
-      const url = `https://predart003-001-site1.anytempurl.com/api/Role`;
-      try {
-        const response = await axios.patch(url, payload);
-        if (response.status === 200) {
-          setFilteredData([...rowData]); // Ensure filtered data updates
-        } else {
-          console.error("Failed to update status");
-        }
-      } catch (error) {
-        console.error("Error updating role status:", error);
-      }
-    }
+  const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+  const userID = sessionStorage.getItem("userID");
+
+  if (!userID) {
+    alert("User not logged in. Please log in again.");
+    return;
+  }
+
+  const updatedRole = rowData.find((role) => role.roleID === roleID);
+  if (!updatedRole) {
+    console.error("Role not found in rowData");
+    return;
+  }
+
+  // Prepare the payload
+  const payload = {
+    guidID: roleID, // API expects roleID as guidID
+    updatedBy: userID,
+    isActive: newStatus === "Active",
   };
+
+  try {
+    const response = await api.patch(`/Role`, payload); // Use `api` if configured
+    if (response.status === 200) {
+      // Update UI state
+      const updatedData = rowData.map((item) =>
+        item.roleID === roleID ? { ...item, status: newStatus } : item
+      );
+      setRowData(updatedData);
+      setFilteredData(updatedData);
+    } else {
+      console.error("Failed to update status:", response.status);
+    }
+  } catch (error) {
+    console.error("Error updating role status:", error);
+    alert("Failed to update role status. Please try again.");
+  }
+};
   
   
   
@@ -423,7 +404,7 @@ const handleFilterSearch = () => {
                 dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
               <input
-                type="text"
+               type="hidden"
                 maxLength={5}
                 value={formData.roleCode}
                 onChange={(e) => setFormData({ ...formData, roleCode: e.target.value })}

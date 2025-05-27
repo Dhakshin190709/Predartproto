@@ -12,7 +12,8 @@ import {
   checkPhoneAvailability,
   checkUsernameAvailability,
 } from '../Utils/validationUtils';
-
+import api from '../../api/request';
+import { useLocation } from 'react-router-dom';
 const SignUp: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
@@ -53,7 +54,9 @@ const SignUp: React.FC = () => {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
 
   const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
-
+  const location = useLocation();
+  const unitID = location.state?.unitID;
+  console.log('Received unitID:', unitID);
   const [validations, setValidations] = useState({
     nameAvailable: false,
     phoneAvailable: false,
@@ -90,10 +93,10 @@ const SignUp: React.FC = () => {
       newErrors.name = 'Name must be at least 3 characters long and valid.';
     } else {
       try {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckUserNameExist?UserName=${formData.name}`,
+        const res = await api.get(
+          `/Login/CheckUserNameExist?UserName=${formData.name}`,
         );
-        const result = await res.json();
+        const result = res.data;
         if (result.success === true) newErrors.name = 'Name already exists.';
       } catch (err) {
         console.error('Error checking name duplicate:', err);
@@ -110,10 +113,10 @@ const SignUp: React.FC = () => {
       newErrors.email = 'Please enter a valid email address.';
     } else {
       try {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckEmailExist?Email=${formData.email.trim()}`,
+        const res = await api.get(
+          `/Login/CheckEmailExist?Email=${formData.email.trim()}`,
         );
-        const result = await res.json();
+        const result = res.data;
         if (result.success === true) newErrors.email = 'Email already exists.';
       } catch (err) {
         console.error('Error checking email duplicate:', err);
@@ -127,10 +130,10 @@ const SignUp: React.FC = () => {
       newErrors.phone = 'Please enter a valid phone number.';
     } else {
       try {
-        const res = await fetch(
-          `https://predart003-001-site1.anytempurl.com/api/Login/CheckMobileExist?Mobile=${formData.phone}`,
+        const res = await api.get(
+          `/Login/CheckMobileExist?Mobile=${formData.phone}`,
         );
-        const result = await res.json();
+        const result = res.data;
         if (result.success === true)
           newErrors.phone = 'Mobile number already exists.';
       } catch (err) {
@@ -195,6 +198,7 @@ const SignUp: React.FC = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Validate the form fields (your validation logic here)
     const isValid = await validateField();
     if (!isValid) return;
 
@@ -212,15 +216,13 @@ const SignUp: React.FC = () => {
       patientGender: formData.gender,
       patientPhoneNumber: formData.phone,
       patientEmail: formData.email,
-      userId: userId,
+      // userId: userId,
+      uhid: '0',
+      hospitalID: unitID || null, // Pass unitID here if it's available, otherwise null
     };
 
     try {
-      const response = await axios.post(
-        'https://predart003-001-site1.anytempurl.com/api/Patient/SavePatient',
-        payload,
-      );
-
+      const response = await api.post('/Patient/SavePatient', payload); // Using the API instance for the request
       const { data } = response;
 
       if (response.status === 200) {
@@ -233,14 +235,11 @@ const SignUp: React.FC = () => {
             phone: '',
             email: '',
           });
-          // ✅ Clear error messages
           setErrors({});
-
-          // ✅ Reset validation state (hides green ticks)
           setValidations({
             nameAvailable: false,
             phoneAvailable: false,
-            emailAvailable: false, // Add this if you're planning to validate email availability too
+            emailAvailable: false,
           });
         } else {
           toast.error(
@@ -380,82 +379,88 @@ const SignUp: React.FC = () => {
                     </div>
 
                     {/* Second Row: Phone (One Column) | dateOfBirth & Gender (Nested Two-Column Grid) */}
-               <div className="grid grid-cols-2 gap-4">
-  {/* Phone Field */}
-  <div className="flex flex-col h-full">
-   <div className="relative flex items-center">
-
-      <input
-        type="tel"
-        className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 
+                    <div className="grid grid-cols-2 gap-4">
+                      {/* Phone Field */}
+                      <div className="flex flex-col h-full">
+                        <div className="relative flex items-center">
+                          <input
+                            type="tel"
+                            maxLength={10}
+                            className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-        value={formData.phone}
-        onChange={(e) => handleSingleInputChange('phone', e.target.value)}
-        onBlur={(e) => handlePhoneBlur(e.target.value)}
-        placeholder="Enter your number"
-      />
-      
-      {phoneAvailable && formData.phone && !errors.phone && (
-        <span className="absolute right-4 inset-y-0 flex items-center justify-center text-green-500 pointer-events-none">
-          <CheckCircle className="w-5 h-5" />
-        </span>
-      )}
-    </div>
-    {/* Error Message */}
-    {errors.phone && (
-      <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-    )}
-  </div>
+                            value={formData.phone}
+                            onChange={(e) =>
+                              handleSingleInputChange('phone', e.target.value)
+                            }
+                            onBlur={(e) => handlePhoneBlur(e.target.value)}
+                            placeholder="Enter your number"
+                          />
 
-  {/* DOB Field */}
-  <div className="flex flex-col h-full">
-    <div className="relative flex-1">
-      <input
-        type={formData.dateOfBirth ? 'date' : 'text'}
-        name="dateOfBirth"
-        placeholder="Date of Birth"
-        value={formData.dateOfBirth || ''}
-        max={new Date().toISOString().split('T')[0]}
-        onFocus={(e) => (e.target.type = 'date')}
-        onBlur={(e) => {
-          if (!e.target.value) e.target.type = 'text';
-        }}
-        onChange={(e) => {
-          const value = e.target.value;
-          setFormData((prev) => ({
-            ...prev,
-            dateOfBirth: value,
-          }));
+                          {phoneAvailable &&
+                            formData.phone &&
+                            !errors.phone && (
+                              <span className="absolute right-4 inset-y-0 flex items-center justify-center text-green-500 pointer-events-none">
+                                <CheckCircle className="w-5 h-5" />
+                              </span>
+                            )}
+                        </div>
+                        {/* Error Message */}
+                        {errors.phone && (
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.phone}
+                          </p>
+                        )}
+                      </div>
 
-          if (new Date(value) > new Date()) {
-            setErrors((prev) => ({
-              ...prev,
-              dateOfBirth: 'Date cannot be in the future',
-            }));
-          } else {
-            setErrors((prev) => ({
-              ...prev,
-              dateOfBirth: '',
-            }));
-          }
-        }}
-        className={inputFieldClass}
-      />
-    </div>
+                      {/* DOB Field */}
+                      <div className="flex flex-col h-full">
+                        <div className="relative flex-1">
+                          <input
+                            type={formData.dateOfBirth ? 'date' : 'text'}
+                            name="dateOfBirth"
+                            placeholder="Date of Birth"
+                            value={formData.dateOfBirth || ''}
+                            max={new Date().toISOString().split('T')[0]}
+                            onFocus={(e) => (e.target.type = 'date')}
+                            onBlur={(e) => {
+                              if (!e.target.value) e.target.type = 'text';
+                            }}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              setFormData((prev) => ({
+                                ...prev,
+                                dateOfBirth: value,
+                              }));
 
-    {/* Error Message */}
-    {errors.dateOfBirth && (
-      <p className="text-red-500 text-sm mt-1">{errors.dateOfBirth}</p>
-    )}
-  </div>
-</div>
+                              if (new Date(value) > new Date()) {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  dateOfBirth: 'Date cannot be in the future',
+                                }));
+                              } else {
+                                setErrors((prev) => ({
+                                  ...prev,
+                                  dateOfBirth: '',
+                                }));
+                              }
+                            }}
+                            className={inputFieldClass}
+                          />
+                        </div>
 
+                        {/* Error Message */}
+                        {errors.dateOfBirth && (
+                          <p className="text-red-500 text-sm mt-1">
+                            {errors.dateOfBirth}
+                          </p>
+                        )}
+                      </div>
+                    </div>
 
-
- {/* Gender */}
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
+                    {/* Gender */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <select
                           className={inputFieldClass}
                           value={formData.gender}
@@ -473,9 +478,9 @@ const SignUp: React.FC = () => {
                             {errors.gender}
                           </p>
                         )}
-                        </div>
-                        <div></div>
                       </div>
+                      <div></div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <CustomButton type="submit">
