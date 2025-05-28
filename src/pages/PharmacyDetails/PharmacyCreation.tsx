@@ -564,7 +564,7 @@ const EPharmacyPage: React.FC = () => {
   return (
     <div>
       <h1 className="text-3xl font-semibold text-black text-center mb-6">
-        Pharmacy Details
+        Pharmacy Register
       </h1>
       {/* Left Column: Basic Details */}
       <form className="space-y-4" onSubmit={handlePharmacySubmit}>

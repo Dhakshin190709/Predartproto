@@ -696,19 +696,23 @@ const handleSearch = async () => {
                 className={`relative border-2 ${borderColorClass} rounded-xl shadow bg-white overflow-hidden transition-transform transform hover:scale-105 hover:shadow-lg`}
               >
                 {/* Gender Badge */}
-                <div
-                  className={`absolute top-0 left-0 ${bgColorClass} w-10 h-10 rounded-br-md flex items-center justify-center`}
-                >
-                  <span className="text-white text-lg">
-                    {patientGender?.toLowerCase() === 'female' ||
-                    patientGender?.toLowerCase() === 'f' ? (
-                      <FaVenus />
-                    ) : (
-                      <FaMars />
-                    )}
-                  </span>
-                </div>
+                 <div
+    className={`absolute top-0 left-0 ${bgColorClass} w-10 h-10 rounded-br-md flex items-center justify-center`}
+  >
+    <span className="text-white text-lg">
+      {patientGender?.toLowerCase() === 'female' ||
+      patientGender?.toLowerCase() === 'f' ? (
+        <FaVenus />
+      ) : (
+        <FaMars />
+      )}
+    </span>
+  </div>
 
+  {/* Top-right appointment/token badge */}
+  <div className="absolute top-0 right-0 bg-gray-200 text-md text-black px-2 py-1 rounded-bl-md font-medium shadow">
+    Appointment No: <span className="font-semibold">{appointment.appointmentNumber}</span>
+  </div>
                 {/* First Row - Name, Age, Hospital, Phone */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-10 text-sm font-medium text-gray-800 ml-4">
                   <div className="flex items-center gap-1 max-w-full">
@@ -826,6 +830,7 @@ const handleSearch = async () => {
                     )}
                   </div>
                 </div>
+               
               </div>
             );
           })

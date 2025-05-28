@@ -1228,7 +1228,11 @@ const handleEnrollPatient = async () => {
                     ({calculateAge(appointment.patientDateOfBirth)} years)
                   </span>
                 </div>
-
+  {/* Appointment & Token Numbers */}
+    <div className="ml-8 text-sm text-black">
+      Appointment No: <span className="font-semibold">{appointment.appointmentNumber}</span> | Token No: <span className="font-semibold">{appointment.tokenNumber}</span>
+    </div>
+  
                 <div className="flex items-center">
                   {/* Gender Icon */}
                   {['male', 'm'].includes(

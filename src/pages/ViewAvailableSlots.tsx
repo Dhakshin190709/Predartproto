@@ -387,17 +387,26 @@ const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
 }, []);
 
 
- const fetchDoctors = async (hospitalID: string) => {
+ const fetchDoctors = async () => {
   try {
-    const response = await api.get('/Doctor');
+    const unitID = sessionStorage.getItem('unitID');
+
+    if (!unitID) {
+      console.warn('No unitID found in sessionStorage');
+      setDoctors([]);
+      return;
+    }
+
+    const response = await api.get(`/Doctor`, {
+      params: {
+        hospitalId: unitID,
+      },
+    });
+
     const result = response.data;
 
     if (result.success && Array.isArray(result.data)) {
-      // ✅ Filter doctors based on hospitalID
-      const filteredDoctors = result.data.filter(
-        (doctor) => doctor.hospitalID === hospitalID,
-      );
-      setDoctors(filteredDoctors);
+      setDoctors(result.data);
     } else {
       console.error('Invalid doctor data format:', result.data);
       setDoctors([]);
@@ -407,6 +416,7 @@ const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
     setDoctors([]);
   }
 };
+
 
 
   useEffect(() => {

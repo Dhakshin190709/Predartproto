@@ -487,19 +487,22 @@ const [loading, setLoading] = useState(false); // ✅ default is false
       console.log('Form Data:', formData);
 
       const payload = {
-        createdBy: userID,
-        isActive: true,
-        doctorID: formData.doctor,
-        patientID: patientID,
-        timeSlotID: formData.timeSlotID, // Pass this correctly
-        appointmentDate: formData.date ? formatDateYYYYMMDD(formData.date) : null,
-        appointmentTime: appointmentTimeFormatted,
-        statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-        notes: formData.reason?.trim() || 'No additional notes',
-        toWhom: appointmentType,
-        relationShip: selectedRelationship,
-        phoneNumber: formData.phoneNumber || '',
-      };
+  createdBy: userID,
+  isActive: true,
+  doctorID: formData.doctor,
+  patientID: patientID,
+  hospitalID: selectedHospitalID, // ✅ Added hospitalID
+  timeSlotID: formData.timeSlotID,
+  appointmentDate: formData.date ? formatDateYYYYMMDD(formData.date) : null,
+  appointmentTime: appointmentTimeFormatted,
+  statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+  notes: formData.reason?.trim() || 'No additional notes',
+  toWhom: appointmentType,
+  relationShip: selectedRelationship,
+  phoneNumber: formData.phoneNumber || '',
+  appointmentNumber: 0, // ✅ Added default value
+  tokenNumber: 0        // ✅ Added default value
+};
 
       // Make the API request to book the appointment
       const response = await api.post('/Appointment', payload);

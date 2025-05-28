@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 interface Doctor {
   doctorID: string;
   doctorName: string;
+  hospitalName: string;
   doctorPhoneNumber: string;
   qualificationID: string;
   specializationID: string;
@@ -44,7 +45,7 @@ const SearchDoctors: React.FC = () => {
   const [options, setOptions] = useState<AppLOVOption[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [patientData, setPatientData] = useState({ name: '', phoneNumber: '' });
-  const [selectedHospital, setSelectedHospital] = useState('');
+  const [selectedHospital, setSelectedHospital] = useState(); // ✅ Correct
   const [specializations, setSpecializations] = useState<{
     [key: string]: string;
   }>({});
@@ -64,6 +65,7 @@ const SearchDoctors: React.FC = () => {
   const [isSelf, setIsSelf] = useState(false);
   const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
   const [doctors, setDoctors] = useState([]); // Ensure default state is an array
+  const [selectedHospitalName, setSelectedHospitalName] = useState('');
 
   const [doctorSearchText, setDoctorSearchText] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
@@ -118,8 +120,8 @@ const SearchDoctors: React.FC = () => {
   });
 
   const [roleName, setRoleName] = useState('');
- const [doctorNameError, setDoctorNameError] = useState("");
-  const [mobileError, setMobileError] = useState("");
+  const [doctorNameError, setDoctorNameError] = useState('');
+  const [mobileError, setMobileError] = useState('');
   useEffect(() => {
     const role = sessionStorage.getItem('roleName');
     if (role) {
@@ -127,43 +129,42 @@ const SearchDoctors: React.FC = () => {
     }
   }, []);
 
- const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
+  const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
 
-  // Allow only letters, digits, and spaces — remove emojis and special characters
-  const sanitizedValue = value.replace(/[^\p{L}\d ]/gu, ""); 
-  setDoctorName(sanitizedValue);
+    // Allow only letters, digits, and spaces — remove emojis and special characters
+    const sanitizedValue = value.replace(/[^\p{L}\d ]/gu, '');
+    setDoctorName(sanitizedValue);
 
-  // Validation: must contain only letters, digits, and spaces
-  if (!/^[A-Za-z0-9 ]+$/.test(sanitizedValue)) {
-    setDoctorNameError("Only alphabets, numbers, and spaces are allowed");
-  } else {
-    setDoctorNameError("");
-  }
-};
+    // Validation: must contain only letters, digits, and spaces
+    if (!/^[A-Za-z0-9 ]+$/.test(sanitizedValue)) {
+      setDoctorNameError('Only alphabets, numbers, and spaces are allowed');
+    } else {
+      setDoctorNameError('');
+    }
+  };
 
+  const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
 
- const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
+    // Allow only numbers
+    const numericValue = value.replace(/[^0-9]/g, '');
+    setMobile(numericValue);
 
-  // Allow only numbers
-  const numericValue = value.replace(/[^0-9]/g, "");
-  setMobile(numericValue);
+    // Regex to block repeated digits (like 8888888888)
+    const isFakeMobile = /^(.)\1{9}$/;
 
-  // Regex to block repeated digits (like 8888888888)
-  const isFakeMobile = /^(.)\1{9}$/;
-
-  // Validation
-  if (!/^[6-9][0-9]{0,9}$/.test(numericValue)) {
-    setMobileError("Enter valid 10-digit number starting with 6-9");
-  } else if (numericValue.length !== 10) {
-    setMobileError("Mobile number must be 10 digits");
-  } else if (isFakeMobile.test(numericValue)) {
-    setMobileError("Please enter a valid, non-repetitive mobile number");
-  } else {
-    setMobileError("");
-  }
-};
+    // Validation
+    if (!/^[6-9][0-9]{0,9}$/.test(numericValue)) {
+      setMobileError('Enter valid 10-digit number starting with 6-9');
+    } else if (numericValue.length !== 10) {
+      setMobileError('Mobile number must be 10 digits');
+    } else if (isFakeMobile.test(numericValue)) {
+      setMobileError('Please enter a valid, non-repetitive mobile number');
+    } else {
+      setMobileError('');
+    }
+  };
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -339,28 +340,39 @@ const SearchDoctors: React.FC = () => {
   // Open popup and set doctor details
   const handleBookNow = async (doctor: Doctor) => {
     console.log('Booking doctor:', doctor);
-
+  
+    // ✅ Log hospital name & ID
+    console.log('Hospital Name:', doctor.hospitalName);
+    console.log('Hospital ID:', doctor.hospitalID);
+  
+    // ✅ Set doctor and hospital data
     setSelectedDoctor(doctor);
     setSelectedDoctorID(doctor.doctorID);
-    setHospitalID(doctor.hospitalID);
+    setHospitalID(doctor.hospitalID); // used in payload
     setDoctorID(doctor.doctorID);
     setShowPopup(true);
-
+  
+    // ✅ Set selected hospital info for form dropdown
+    setSelectedHospitalID(doctor.hospitalID); // dropdown value
+    setSelectedHospitalName(doctor.hospitalName); // optional if used for display
+  
+    // ✅ Update form data with correct hospital ID
     setFormData((prev) => ({
       ...prev,
       doctor: doctor.doctorID,
+      hospital: doctor.hospitalID, // 💥 THIS FIXES THE FLOW_HOSPITAL ISSUE
     }));
-
+  
     try {
       const response = await api.get('/Doctor/GetDoctorTimeSlot', {
         params: { doctorId: doctor.doctorID },
       });
+  
       const timeSlotData = response.data;
-
       console.log('Fetched Time Slot Data:', timeSlotData);
-
+  
       const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
-
+  
       if (data.length === 0) {
         console.warn('No time slots configured for this doctor.');
         toast.warn('This doctor has no time slots available.');
@@ -368,18 +380,18 @@ const SearchDoctors: React.FC = () => {
         setGeneratedTimeSlots([]);
         return;
       }
-
+  
       const matchedTimeSlots = data.filter(
         (slot) => String(slot.doctorID) === String(doctor.doctorID),
       );
-
+  
       console.log('All TimeSlots:', data);
       console.log(
         'Selected Day of Week:',
         selectedDate?.toLocaleString('en-US', { weekday: 'long' }),
       );
       console.log('Matched Slots for this day:', matchedTimeSlots);
-
+  
       if (matchedTimeSlots.length > 0) {
         const formattedSlots = matchedTimeSlots.map((slot) => ({
           timeSlotID: slot.timeSlotID,
@@ -389,7 +401,7 @@ const SearchDoctors: React.FC = () => {
           day: slot.dayofWeek,
         }));
         setAvailableTimeSlots(formattedSlots);
-
+  
         if (selectedDate) {
           handleDateChange(selectedDate, formattedSlots, doctor.doctorID);
         }
@@ -406,6 +418,8 @@ const SearchDoctors: React.FC = () => {
       console.error('Error fetching time slots:', error);
     }
   };
+  
+  
 
   const handleDoctorChange = (e) => {
     const value = e.target.value;
@@ -649,6 +663,7 @@ const SearchDoctors: React.FC = () => {
       console.error('Error fetching doctors:', error);
     }
   };
+  
 
   useEffect(() => {
     const fetchPatientData = async () => {
@@ -773,6 +788,7 @@ const SearchDoctors: React.FC = () => {
       setIsEditable(true); // Default to editable
     }
   }, [appointmentType, options, patientData]);
+
 
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     console.log('Time Selected:', time);
@@ -943,6 +959,8 @@ const SearchDoctors: React.FC = () => {
         createdBy: userID,
         isActive: true,
         doctorID: formData.doctor,
+        hospitalID: hospitalID,
+        hospitalName: selectedHospitalName,
         patientID: patientID,
         timeSlotID: formData.timeSlotID,
         appointmentDate: formData.date
@@ -1103,13 +1121,15 @@ const SearchDoctors: React.FC = () => {
               type="text"
               value={DoctorName}
               maxLength={20}
-             onChange={handleDoctorNameChange}
+              onChange={handleDoctorNameChange}
               className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
               placeholder="Enter Doctor Name"
             />
-             {doctorNameError && <p className="text-red-500 text-sm">{doctorNameError}</p>}
+            {doctorNameError && (
+              <p className="text-red-500 text-sm">{doctorNameError}</p>
+            )}
           </div>
 
           <div>
@@ -1119,13 +1139,15 @@ const SearchDoctors: React.FC = () => {
               pattern="[0-9]*"
               maxLength={10}
               value={mobile}
-                 onChange={handleMobileChange}
+              onChange={handleMobileChange}
               className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark
         dark:bg-form-input dark:text-white dark:focus:border-primary"
               placeholder="Enter Mobile Number"
             />
-                {mobileError && <p className="text-red-500 text-sm">{mobileError}</p>}
+            {mobileError && (
+              <p className="text-red-500 text-sm">{mobileError}</p>
+            )}
           </div>
 
           <div>
@@ -1286,30 +1308,33 @@ const SearchDoctors: React.FC = () => {
 
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
-                  <select
-                    name="hospital"
-                    value={selectedHospitalID}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      setSelectedHospitalID(value);
-                      setFormData((prev) => ({
-                        ...prev,
-                        hospital: hospitalId,
-                      }));
-                    }}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    {Object.entries(hospitals).map(([id, name]) => (
-                      <option key={id} value={id}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
+                <select
+                  name="hospital"
+                  disabled
+                  value={selectedHospitalID}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setSelectedHospitalID(value);
+                    setFormData((prev) => ({
+                      ...prev,
+                      hospital: value, // ✅ use selected hospital ID from dropdown
+                    }));
+                  }}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                >
+                  {Object.entries(hospitals).map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+
                 </div>
 
                 <div className="relative w-1/2">
                   <select
                     name="doctor"
+                    disabled
                     value={selectedDoctorID}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -1487,7 +1512,10 @@ const DoctorCard = ({
                 <div className="flex justify-end">
                   <button
                     className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                    onClick={() => onBookNow(doctor)}
+                    onClick={() =>  onBookNow({
+                      ...doctor,
+                      hospitalName: hospitals[doctor.hospitalID] || 'Unknown',
+                    })}
                   >
                     <span>Book Now</span>
                   </button>

@@ -47,7 +47,7 @@ const Calendar: React.FC = () => {
   const [selectedDoctor, setSelectedDoctor] = useState(
     sessionStorage.getItem('doctorID') || '',
   );
-
+const hasFetched = useRef(false);
   const [bookedAppointments, setBookedAppointments] = useState([]);
 
   const [appointmentType, setAppointmentType] = useState('');
@@ -396,22 +396,22 @@ const Calendar: React.FC = () => {
 
   // Function to validate and handle time change for the selected event
 
-  const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const doctorID = e.target.value;
-    setSelectedDoctor(doctorID); // ✅ Update selectedDoctor state
-    setFormData((prev) => ({ ...prev, doctor: doctorID })); // ✅ Ensure doctorID is updated in formData
+  // const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //   const doctorID = e.target.value;
+  //   setSelectedDoctor(doctorID); // ✅ Update selectedDoctor state
+  //   setFormData((prev) => ({ ...prev, doctor: doctorID })); // ✅ Ensure doctorID is updated in formData
 
-    // Find the associated hospital for the selected doctor
-    const selectedDoctorDetails = doctors.find(
-      (doctor) => doctor.doctorID === doctorID,
-    );
-    if (selectedDoctorDetails) {
-      setSelectedHospitalID(selectedDoctorDetails.hospitalID || ''); // ✅ Auto-set hospital
-    }
+  //   // Find the associated hospital for the selected doctor
+  //   const selectedDoctorDetails = doctors.find(
+  //     (doctor) => doctor.doctorID === doctorID,
+  //   );
+  //   if (selectedDoctorDetails) {
+  //     setSelectedHospitalID(selectedDoctorDetails.hospitalID || ''); // ✅ Auto-set hospital
+  //   }
 
-    console.log('Selected Doctor ID:', doctorID);
-    fetchDoctorTimeSlots(doctorID);
-  };
+  //   console.log('Selected Doctor ID:', doctorID);
+  //   fetchDoctorTimeSlots(doctorID);
+  // };
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -490,7 +490,7 @@ const Calendar: React.FC = () => {
         if (loggedInDoctor) {
           setSelectedDoctor(loggedInDoctor.doctorID);
           setDoctorName(loggedInDoctor.doctorName);
-          fetchDoctorTimeSlots(loggedInDoctor.doctorID);
+         // fetchDoctorTimeSlots(loggedInDoctor.doctorID);
         }
       } else {
         console.error('Invalid doctor data format:', result.data);
@@ -500,6 +500,7 @@ const Calendar: React.FC = () => {
     }
   };
 
+  
   // Fetch Doctor Time Slots
   const fetchDoctorTimeSlots = async (doctorID) => {
     if (!doctorID) return;
@@ -741,14 +742,21 @@ const Calendar: React.FC = () => {
     };
   };
 
+ 
+
   useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
-    if (doctorID) {
-      setSelectedDoctor(doctorID);
-      fetchDoctorTimeSlots(doctorID);
-      fetchAppointments(doctorID);
-    }
-  }, []);
+  if (hasFetched.current) return; // 🚫 If already called, do nothing
+
+  hasFetched.current = true; // ✅ Mark it as called once
+
+  const doctorID = sessionStorage.getItem('doctorID');
+
+  if (doctorID) {
+    setSelectedDoctor(doctorID);
+    fetchDoctorTimeSlots(doctorID);
+    fetchAppointments(doctorID);
+  }
+}, []);
   const [events, setEvents] = useState([]);
 
   useEffect(() => {

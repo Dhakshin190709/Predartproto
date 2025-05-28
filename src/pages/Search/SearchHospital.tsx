@@ -457,22 +457,26 @@ const HospitalCards = () => {
           return `${year}-${month}-${day}`;
         };
         console.log('Form Data:', formData);
-        const payload = {
-          createdBy: userID,
-          isActive: true,
-          doctorID: formData.doctor,
-          patientID: patientID,
-          timeSlotID: formData.timeSlotID, // Pass this correctly
-          appointmentDate: formData.date
-            ? formatDateYYYYMMDD(formData.date)
-            : null,
-          appointmentTime: appointmentTimeFormatted,
-          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-          notes: formData.reason?.trim() || 'No additional notes',
-          toWhom: appointmentType,
-          relationShip: selectedRelationship,
-          phoneNumber: formData.phoneNumber || '',
-        };
+       const payload = {
+  createdBy: userID,
+  isActive: true,
+  doctorID: formData.doctor,
+  patientID: patientID,
+  hospitalID: selectedHospitalID,      // <-- Add this line
+  timeSlotID: formData.timeSlotID,     // Pass this correctly
+  appointmentDate: formData.date
+    ? formatDateYYYYMMDD(formData.date)
+    : null,
+  appointmentTime: appointmentTimeFormatted,
+  statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+  notes: formData.reason?.trim() || 'No additional notes',
+  toWhom: appointmentType,
+  relationShip: selectedRelationship,
+  phoneNumber: formData.phoneNumber || '',
+  appointmentNumber: 0,  // <-- Add this line
+  tokenNumber: 0         // <-- Add this line
+};
+
 
         const response = await api.post('/Appointment', payload);
         const responseData = response.data;

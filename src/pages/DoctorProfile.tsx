@@ -230,89 +230,46 @@ const DoctorProfilePage = () => {
       });
   }, []);
 
-  useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+ useEffect(() => {
+  const doctorID = sessionStorage.getItem('doctorID');
 
-    const fetchDoctorData = async () => {
-      setLoading(true);
-      try {
-        if (!doctorID) {
-          console.warn('No doctorID in session storage');
-          return;
-        }
-
-        // Run all 3 requests in parallel
-        const [profileRes, educationRes, lovsRes] = await Promise.all([
-          api.get(`/Doctor/${doctorID}`),
-          api.get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`),
-          Promise.all([
-            api.get('/AppLOV?type=Qualification'),
-            api.get('/AppLOV?type=Specializations'),
-          ]),
-        ]);
-
-        if (profileRes.data.success) {
-          setProfile(profileRes.data.data);
-        } else {
-          console.warn('Failed to load doctor profile');
-        }
-
-        if (educationRes.data.success) {
-          setEducationList(educationRes.data.data || []);
-        } else {
-          console.warn('Failed to load doctor education');
-        }
-
-        // lovsRes is an array [qualRes, specRes]
-        const [qualRes, specRes] = lovsRes;
-        setQualifications(qualRes.data.data || []);
-        setSpecializations(specRes.data.data || []);
-      } catch (error) {
-        console.error('Error fetching doctor data:', error);
-      } finally {
-        setLoading(false);
+  const fetchDoctorData = async () => {
+    setLoading(true);
+    try {
+      if (!doctorID) {
+        console.warn('No doctorID in session storage');
+        return;
       }
-    };
 
-    fetchDoctorData();
-  }, []);
+      const [profileRes, educationRes, lovsRes] = await Promise.all([
+        api.get(`/Doctor/${doctorID}`),
+        api.get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`),
+        Promise.all([
+          api.get('/AppLOV?type=Qualification'),
+          api.get('/AppLOV?type=Specializations'),
+        ]),
+      ]);
 
-  useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+      if (profileRes.data.success) {
+        setProfile(profileRes.data.data);
+      }
 
-    if (!doctorID) {
-      console.warn('No doctorID found in session storage.');
+      if (educationRes.data.success) {
+        setEducationList(educationRes.data.data || []);
+      }
+
+      const [qualRes, specRes] = lovsRes;
+      setQualifications(qualRes.data.data || []);
+      setSpecializations(specRes.data.data || []);
+    } catch (error) {
+      console.error('Error fetching doctor data:', error);
+    } finally {
       setLoading(false);
-      return;
     }
+  };
 
-    const fetchProfile = api.get(`/Doctor/${doctorID}`);
-    const fetchEducation = api.get(
-      `/Doctor/GetDoctorEducation?doctorId=${doctorID}`,
-    );
-
-    Promise.all([fetchProfile, fetchEducation])
-      .then(([profileRes, educationRes]) => {
-        if (profileRes.data.success) {
-          setProfile(profileRes.data.data);
-        } else {
-          console.warn('Failed to fetch doctor profile');
-        }
-
-        if (
-          educationRes.data.success &&
-          Array.isArray(educationRes.data.data)
-        ) {
-          setEducationList(educationRes.data.data);
-        } else {
-          console.warn('Failed to fetch doctor education or data invalid');
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  fetchDoctorData();
+}, []);
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');

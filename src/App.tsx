@@ -65,6 +65,7 @@ import HospitalProfile from './pages/HospitalProfile';
 import ProfileHospital from './pages/ProfileHospital';
 import PharmacyCreation from './pages/PharmacyDetails/PharmacyCreation';
 import PharmacyMedicine from './pages/PharmacyDetails/PharmacyMedicine';
+import Pharmacy from './pages/PharmacyDetails/Pharmacy';
 
 
 import DoctorRegistration from './pages/Registration/DoctorRegistration';
@@ -730,11 +731,20 @@ function App() {
           }
         />
         <Route
-          path="/HospitalFormWizard"
+          path="/HospitalRegister"
           element={
             <>
               <PageTitle title="HospitalFormWizard | PreCare" />
               <HospitalFormWizard />
+            </>
+          }
+        />
+        <Route
+          path="/Pharmacy"
+          element={
+            <>
+              <PageTitle title="Pharmacy | PreCare" />
+              <Pharmacy />
             </>
           }
         />
