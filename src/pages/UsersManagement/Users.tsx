@@ -1132,6 +1132,7 @@ const fetchUnitTypes = async () => {
             <input
               type="text"
               placeholder="Enter user name"
+              maxLength={50}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
@@ -1203,7 +1204,7 @@ const fetchUnitTypes = async () => {
                 <input
                   type="text"
                   value={formData.username}
-                  maxLength={25}
+                  maxLength={50}
                   onChange={(e) =>
                     handleSingleInputChange('username', e.target.value)
                   }
@@ -1228,6 +1229,7 @@ const fetchUnitTypes = async () => {
                 <input
                   type="email"
                   name="email"
+                  maxLength={50}
                   value={formData.email}
                   onChange={(e) =>
                     handleSingleInputChange('email', e.target.value)

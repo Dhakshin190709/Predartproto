@@ -374,7 +374,7 @@ const Hospital: React.FC = () => {
     const emailRegex =
       /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
     const phoneRegex = /^[6-9]\d{9}$/;
-    const hospitalNameRegex = /^[A-Za-z_]{1,20}$/;
+    const hospitalNameRegex = /^[A-Za-z_]{1,50}$/;
     const landlineRegex = /^(?:\+91\s\d{2}\s\d{8}|0\d{2,4}-\d{6,8})$/;
 
     const gstRegex = /^[0-9A-Z]{15}$/;
@@ -386,7 +386,7 @@ const Hospital: React.FC = () => {
       errors.hospitalName = 'Hospital Name is required.';
     } else if (!hospitalNameRegex.test(formData.hospitalName)) {
       errors.hospitalName =
-        'Only letters or underscores allowed (max 20 chars).';
+        'Only letters or underscores allowed (max 50 chars).';
     } else if (/^(.)\1{5,}$/.test(formData.hospitalName)) {
       errors.hospitalName = 'Avoid repetitive characters (e.g., aaaaaa).';
     }
@@ -856,7 +856,7 @@ const Hospital: React.FC = () => {
                             updateAddress(index, 'address1', e.target.value)
                           }
                           placeholder="Enter address line 1"
-                          maxLength={20}
+                          maxLength={50}
                         />
                         {formErrors[index]?.address1 && (
                           <p className="text-red-500 text-sm">
@@ -873,7 +873,7 @@ const Hospital: React.FC = () => {
                             updateAddress(index, 'address2', e.target.value)
                           }
                           placeholder="Enter address line 2"
-                          maxLength={20}
+                          maxLength={50}
                         />
                         {formErrors[index]?.address2 && (
                           <p className="text-red-500 text-sm">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import React from "react";
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
-
+import { useAxiosInterceptor } from './hook/useAxiosInterceptor';
 import Loader from './common/Loader';
 import PageTitle from './components/PageTitle';
 import SignIn from './pages/Authentication/SignIn';
@@ -9,6 +9,7 @@ import SignUp from './pages/Authentication/SignUp';
 import ForgotPassword from './pages/ForgotPassword/ForgotPassword';
 import ResetPassword from './pages/ResetPassword/ResetPassword';
 import Calendar from './pages/Calendar';
+import MedicineTransfer from './pages/MedicineTransfer';
 import ECommerce from './pages/Dashboard/Dashboard';
 import FormElements from './pages/Form/FormElements';
 import FormLayout from './pages/Form/FormLayout';
@@ -44,7 +45,7 @@ import LabTest from './pages/LabTest/LabTest';
 
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
-import LabRegistration from './pages/Registration/LabRegistration';
+import DiagnosticsCenter from './pages/Registration/DiagnosticsCenter';
 import Dashboard from './pages/Dashboard/Dashboard';
 
 import Profile from './pages/Profile';
@@ -73,7 +74,7 @@ import Membership from './pages/Membership';
 import PatientRegistration from './pages/Registration/PatientRegistration';
 import PatientFormWizard from './pages/Profile/PatientFormWizard';
 import DoctorFormWizard from './pages/DoctorFormWizard';
-import DiagnosisPage from './pages/DiagnosisPage';
+
 import HospitalFormWizard from './pages/Profile/HospitalFormWizard';
 import DevelopmentInProgress from './pages/DevelopmentInProgress';
 
@@ -145,7 +146,7 @@ interface RootState {
 function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const { pathname } = useLocation();
-
+  useAxiosInterceptor();
  
 
   useEffect(() => {
@@ -313,12 +314,12 @@ function App() {
 
    
          <Route
-          path="/Registration/LabRegistration"
+          path="/Registration/DiagnosticsCenter"
 
           element={
             <>
-              <PageTitle title="LabRegistration | PreCare" />
-              <LabRegistration />
+              <PageTitle title="DiagnosticsCenter | PreCare" />
+              <DiagnosticsCenter />
             </>
           }
         />
@@ -411,6 +412,15 @@ function App() {
             <>
               <PageTitle title="DoctorRegistration | PreCare" />
               <DoctorRegistration />
+            </>
+          }
+        />
+<Route
+          path="/MedicineTransfer"
+          element={
+            <>
+              <PageTitle title="MedicineTransfer | PreCare" />
+              <MedicineTransfer />
             </>
           }
         />
@@ -721,15 +731,7 @@ function App() {
             </>
           }
         />
-        <Route
-          path="/DiagnosisPage"
-          element={
-            <>
-              <PageTitle title="DiagnosisPage | PreCare" />
-              <DiagnosisPage />
-            </>
-          }
-        />
+       
         <Route
           path="/HospitalRegister"
           element={

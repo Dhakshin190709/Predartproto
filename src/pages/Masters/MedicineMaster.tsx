@@ -26,7 +26,7 @@ const Tenant: React.FC = () => {
   const [formMode, setFormMode] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
- const userID = sessionStorage.getItem('userID');
+  const userID = sessionStorage.getItem('userID');
 
   const [formData, setFormData] = useState({
     medicineID: '', // Required for PUT request
@@ -37,32 +37,32 @@ const Tenant: React.FC = () => {
     manufacturerName: '',
     manufacturerCode: '',
     isActive: '',
-   
+    medicineType: '',
+    description: '',
+    dosage: '',
   });
 
-  
+  const refreshTableData = async () => {
+    try {
+      const response = await api.get('/MedicineMaster'); // Using the axios instance (api)
 
- const refreshTableData = async () => {
-  try {
-    const response = await api.get('/MedicineMaster'); // Using the axios instance (api)
+      const filteredData = response.data.filter((item: any) => {
+        return (
+          item.isActive === false || // Keep inactive rows too
+          item.medicineName?.trim() ||
+          item.medicineCode?.trim() ||
+          item.brand?.trim() ||
+          item.unit?.trim() ||
+          item.manufacturerName?.trim() ||
+          item.manufacturerCode?.trim()
+        );
+      });
 
-    const filteredData = response.data.filter((item: any) => {
-      return (
-        item.isActive === false || // Keep inactive rows too
-        item.medicineName?.trim() ||
-        item.medicineCode?.trim() ||
-        item.brand?.trim() ||
-        item.unit?.trim() ||
-        item.manufacturerName?.trim() ||
-        item.manufacturerCode?.trim()
-      );
-    });
-
-    setRowData(filteredData); // Assuming this updates your table's state
-  } catch (error) {
-    console.error('Error fetching table data:', error);
-  }
-};
+      setRowData(filteredData); // Assuming this updates your table's state
+    } catch (error) {
+      console.error('Error fetching table data:', error);
+    }
+  };
 
   useEffect(() => {
     refreshTableData();
@@ -90,7 +90,7 @@ const Tenant: React.FC = () => {
         medicineName: '',
         medicineCode: '',
         brand: '',
-       unit: 0,
+        unit: 0,
         manufacturerName: '',
         manufacturerCode: '',
         isActive: true,
@@ -118,29 +118,34 @@ const Tenant: React.FC = () => {
     setIsActive(false);
   };
 
-  const handleEditClick = (medicine: RowData) => {
-    setFormData({
-      medicineID: medicine.medicineID || '', // ✅ Include this to track the ID for updates
-      medicineName: medicine.medicineName || '',
-      medicineCode: medicine.medicineCode || '',
-      brand: medicine.brand || '',
-      unit: medicine.unit || '',
-      manufacturerName: medicine.manufacturerName || '',
-      manufacturerCode: medicine.manufacturerCode || '',
-      isActive: medicine.isActive ?? '',
+ const handleEditClick = (medicine: RowData) => {
+  setFormData({
+    medicineID: medicine.medicineID || '',
+    medicineName: medicine.medicineName || '',
+    medicineCode: medicine.medicineCode || '',
+    brand: medicine.brand || '',
+    unit: medicine.unit || 0,
+    manufacturerName: medicine.manufacturerName || '',
+    manufacturerCode: medicine.manufacturerCode || '',
+    isActive: medicine.isActive ?? '',
+    
+    // ✅ Newly added fields
+    dosage: medicine.dosage || '',
+    description: medicine.description || '',
+    medicineType: medicine.medicineType || '',
+  });
+
+  setShowForm(true);
+  setFormMode('Edit');
+
+  // Optional: Scroll to form
+  setTimeout(() => {
+    editFormRef.current?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
     });
-
-    setShowForm(true);
-    setFormMode('Edit');
-
-    // Optional: Scroll to form
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
-  };
+  }, 100);
+};
 
   const resetFormData = () => {
     setFormData({
@@ -148,7 +153,7 @@ const Tenant: React.FC = () => {
       medicineName: '',
       medicineCode: '',
       brand: '',
-     unit: 0,
+      unit: 0,
       manufacturerName: '',
       manufacturerCode: '',
       isActive: true, // default active on reset
@@ -245,6 +250,34 @@ const Tenant: React.FC = () => {
       filter: true,
       width: 150,
     },
+    {
+      headerName: 'Medicine Type',
+      field: 'medicineType',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 180,
+    },
+    {
+      headerName: 'Description',
+      field: 'description',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 250,
+    },
+    {
+      headerName: 'Dosage',
+      field: 'dosage',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 150,
+    },
+
     {
       headerName: 'Status',
       field: 'isActive',
@@ -350,35 +383,34 @@ const Tenant: React.FC = () => {
     setGridColumnApi(params.columnApi);
   };
 
- const toggleStatus = async (params: any) => {
-  const currentStatus = params.data.isActive;
-  const updatedStatus = !currentStatus;
-  const userID = sessionStorage.getItem('userID');
+  const toggleStatus = async (params: any) => {
+    const currentStatus = params.data.isActive;
+    const updatedStatus = !currentStatus;
+    const userID = sessionStorage.getItem('userID');
 
-  if (!userID) {
-    toast.error('User not logged in. Please log in again.');
-    return;
-  }
+    if (!userID) {
+      toast.error('User not logged in. Please log in again.');
+      return;
+    }
 
-  const payload = {
-    guidID: params.data.medicineID,
-    updatedBy: userID,
-    isActive: updatedStatus,
+    const payload = {
+      guidID: params.data.medicineID,
+      updatedBy: userID,
+      isActive: updatedStatus,
+    };
+
+    try {
+      const response = await api.patch('/MedicineMaster', payload);
+
+      // ✅ Update the cell visually without gridRef
+      params.node.setDataValue('isActive', updatedStatus);
+
+      toast.success('Status updated successfully');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Error updating status');
+    }
   };
-
-  try {
-     const response = await api.patch('/MedicineMaster', payload);
-   
-    // ✅ Update the cell visually without gridRef
-    params.node.setDataValue('isActive', updatedStatus);
-
-    toast.success('Status updated successfully');
-  } catch (error) {
-    console.error('Error updating status:', error);
-    toast.error('Error updating status');
-  }
-};
-
 
   const handleDelete = (Id: number) => {
     setDeleteRowId(Id);
@@ -423,14 +455,13 @@ const Tenant: React.FC = () => {
     }
 
     // unit: required, digits only
-if (formData.unit === null || formData.unit === undefined) {
-  newErrors.unit = 'Unit is required';
-} else if (!Number.isInteger(formData.unit)) {
-  newErrors.unit = 'Unit must be an integer';
-} else if (formData.unit <= 0) {
-  newErrors.unit = 'Unit must be greater than zero';
-}
-
+    if (formData.unit === null || formData.unit === undefined) {
+      newErrors.unit = 'Unit is required';
+    } else if (!Number.isInteger(formData.unit)) {
+      newErrors.unit = 'Unit must be an integer';
+    } else if (formData.unit <= 0) {
+      newErrors.unit = 'Unit must be greater than zero';
+    }
 
     // manufacturerName: required, alphabets only
     if (!formData.manufacturerName.trim()) {
@@ -454,53 +485,57 @@ if (formData.unit === null || formData.unit === undefined) {
   };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  if (!validate()) {
-    // Validation failed, so do not submit
-    return;
-  }
-
-  const payload = {
-    ...formData,
-    unit: Number(formData.unit), // ✅ Ensure 'unit' is a number
-    isActive: formData.isActive === 'Active' || formData.isActive === true,
-    createdBy: sessionStorage.getItem('userID'),
-  };
-
-  try {
-    const apiUrl = '/MedicineMaster'; // Use relative URL, since it's set in the axios instance
-
-    const response = formMode === 'Add' 
-      ? await api.post(apiUrl, payload) 
-      : await api.put(apiUrl, payload);
-
-    if (response.status !== 200) {
-      throw new Error('API error');
+    if (!validate()) {
+      // Validation failed, so do not submit
+      return;
     }
 
-    await refreshTableData();
+    const payload = {
+      ...formData,
 
-    toast.success(
-      `Medicine ${formMode === 'Add' ? 'created' : 'updated'} successfully!`,
-    );
+      unit: Number(formData.unit), // ✅ Ensure 'unit' is a number
+      isActive: formData.isActive === 'Active' || formData.isActive === true,
+      createdBy: sessionStorage.getItem('userID'),
+    };
 
-    setFormData({
-      medicineName: '',
-      medicineCode: '',
-      brand: '',
-      unit: 0,
-      manufacturerName: '',
-      manufacturerCode: '',
-      isActive: '',
-    });
+    try {
+      const apiUrl = '/MedicineMaster'; // Use relative URL, since it's set in the axios instance
 
-    setShowForm(false);
-  } catch (error: any) {
-    toast.error('Error: ' + error.message);
-  }
-};
+      const response =
+        formMode === 'Add'
+          ? await api.post(apiUrl, payload)
+          : await api.put(apiUrl, payload);
 
+      if (response.status !== 200) {
+        throw new Error('API error');
+      }
+
+      await refreshTableData();
+
+      toast.success(
+        `Medicine ${formMode === 'Add' ? 'created' : 'updated'} successfully!`,
+      );
+
+      setFormData({
+        medicineName: '',
+        medicineCode: '',
+        brand: '',
+        unit: 0,
+        manufacturerName: '',
+        manufacturerCode: '',
+        isActive: '',
+          dosage: '',
+      description: '',
+      medicineType: '',
+      });
+
+      setShowForm(false);
+    } catch (error: any) {
+      toast.error('Error: ' + error.message);
+    }
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -529,18 +564,17 @@ if (formData.unit === null || formData.unit === undefined) {
           <h3 className="text-xl font-semibold mb-4">
             {formMode === 'Add' ? 'Add New Medicine' : 'Edit Medicine'}
           </h3>
-          <form
-            onSubmit={handleFormSubmit}
-            className="flex flex-wrap gap-4 items-center justify-between"
-          >
-            <div className="flex flex-wrap gap-4 mb-4">
-              <div className="flex flex-col mb-4 w-78">
+          <form onSubmit={handleFormSubmit} className="mb-6">
+            <div className="grid grid-cols-4 gap-6">
+              {/* Medicine Name */}
+              <div className="flex flex-col">
                 <input
                   type="text"
+                  maxLength={50}
                   value={formData.medicineName}
                   onChange={(e) => handleChange('medicineName', e.target.value)}
                   placeholder="Medicine Name"
-                  className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
@@ -550,34 +584,25 @@ if (formData.unit === null || formData.unit === undefined) {
                   </p>
                 )}
               </div>
+
+              {/* Medicine Code (hidden) */}
               {formMode === 'Add' && (
-                <div className="flex flex-col mb-4 w-78">
-                  <input
-                    type="hidden"
-                    value={formData.medicineCode}
-                    maxLength={5}
-                    onChange={(e) =>
-                      handleChange('medicineCode', e.target.value)
-                    }
-                    placeholder="Medicine Code"
-                    className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
-                  {errors.medicineCode && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.medicineCode}
-                    </p>
-                  )}
-                </div>
+                <input
+                  type="hidden"
+                  value={formData.medicineCode}
+                  maxLength={5}
+                  onChange={(e) => handleChange('medicineCode', e.target.value)}
+                />
               )}
-              <div className="flex flex-col mb-4 w-78">
+
+              {/* Brand */}
+              <div className="flex flex-col">
                 <input
                   type="text"
                   value={formData.brand}
                   onChange={(e) => handleChange('brand', e.target.value)}
                   placeholder="Brand"
-                  className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
@@ -586,15 +611,15 @@ if (formData.unit === null || formData.unit === undefined) {
                 )}
               </div>
 
-              <div className="flex flex-col mb-4 w-78">
+              {/* Unit */}
+              <div className="flex flex-col">
                 <input
                   type="text"
                   value={formData.unit}
                   maxLength={2}
-                onChange={(e) => handleChange('unit', Number(e.target.value))}
-
+                  onChange={(e) => handleChange('unit', Number(e.target.value))}
                   placeholder="Unit"
-                  className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
@@ -603,7 +628,8 @@ if (formData.unit === null || formData.unit === undefined) {
                 )}
               </div>
 
-              <div className="flex flex-col mb-4 w-78">
+              {/* Manufacturer Name */}
+              <div className="flex flex-col">
                 <input
                   type="text"
                   value={formData.manufacturerName}
@@ -611,7 +637,7 @@ if (formData.unit === null || formData.unit === undefined) {
                     handleChange('manufacturerName', e.target.value)
                   }
                   placeholder="Manufacturer Name"
-                  className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
@@ -621,33 +647,61 @@ if (formData.unit === null || formData.unit === undefined) {
                   </p>
                 )}
               </div>
+
+              {/* Manufacturer Code (hidden) */}
               {formMode === 'Add' && (
-                <div className="flex flex-col mb-4 w-78">
-                  <input
-                    type="hidden"
-                    value={formData.manufacturerCode}
-                    onChange={(e) =>
-                      handleChange('manufacturerCode', e.target.value)
-                    }
-                    placeholder="Manufacturer Code"
-                    maxLength={5}
-                    className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                <input
+                  type="hidden"
+                  value={formData.manufacturerCode}
+                  onChange={(e) =>
+                    handleChange('manufacturerCode', e.target.value)
+                  }
+                  maxLength={5}
+                />
+              )}
+
+              {/* Medicine Type */}
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  id="medicineType"
+                  value={formData.medicineType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, medicineType: e.target.value })
+                  }
+                  maxLength={25}
+                  placeholder="Medicine Type"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  />
-                  {errors.manufacturerCode && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.manufacturerCode}
-                    </p>
-                  )}
-                </div>
-              )}
+                />
+              </div>
+
+              {/* Dosage */}
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  id="dosage"
+                  value={formData.dosage}
+                  onChange={(e) =>
+                    setFormData({ ...formData, dosage: e.target.value })
+                  }
+                  maxLength={15}
+                  placeholder="Dosage"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+              </div>
+
+              {formMode === 'Add' && <div></div>}
+              {/* Status (only in Edit mode) */}
               {formMode === 'Edit' && (
-                <div className="flex flex-col mb-4 w-78">
+                <div className="flex flex-col">
                   <select
                     value={formData.isActive}
                     onChange={(e) => handleChange('isActive', e.target.value)}
-                    className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+                    className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
             text-black outline-none focus:border-primary dark:border-form-strokedark
             dark:bg-form-input dark:text-white dark:focus:border-primary"
                     required
@@ -663,9 +717,25 @@ if (formData.unit === null || formData.unit === undefined) {
                   )}
                 </div>
               )}
+              {/* Description (textarea, span 2 columns) */}
+              <div className="flex flex-col col-span-2">
+                <textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Description"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
+          text-black outline-none focus:border-primary dark:border-form-strokedark
+          dark:bg-form-input dark:text-white dark:focus:border-primary resize-none"
+                  rows={2}
+                />
+              </div>
             </div>
 
-            <div className="mt-4 flex gap-4">
+            {/* Buttons */}
+            <div className="mt-6 flex gap-4">
               <button
                 type="submit"
                 className="bg-gradient-to-b from-[#004A99] to-[#007BFF]

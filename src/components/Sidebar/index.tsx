@@ -74,7 +74,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   },
   Patient: { icon: <FaUserInjured />, route: '/search/patient' },
   Appointments: { icon: <FaHospital />, route: '/search/appointment' },
-  LabRegister: { icon: <FaFlask />, route: '/Registration/LabRegistration' },
+  DiagnosticsCenter: { icon: <FaFlask />, route: '/Registration/DiagnosticsCenter' },
   DoctorRegister: { icon: <FaUserMd />, route: '/DoctorRegistration' },
   Hospital: { icon: <MdLocalHospital />, route: '/search/hospital' },
   Hospitals: { icon: <MdLocalHospital />, route: '/hospital' },
@@ -90,6 +90,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   LowStockReport: { icon: <FaFileExport />, route: '/reports/LowStockReport' },
   StockSummaryReport: { icon: <FaFileExport />, route: '/reports/StockSummaryReport' },
   RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
+  MedicineTransfer: { icon: <FaFileExport />, route: '/MedicineTransfer' },
  
   AppointmentHistory: {
     icon: <FaClipboardCheck />,

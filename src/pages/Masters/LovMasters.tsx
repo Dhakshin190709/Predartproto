@@ -398,6 +398,7 @@ const confirmDelete = async () => {
           <option value="UnitType">UnitType</option>
             <option value="PharmacyType">PharmacyType</option>
             <option value="FeedBack">FeedBack</option>
+            <option value="MedicineTransfer">MedicineTransfer</option>
         </select>
 
         {/* Name Filter */}
@@ -475,6 +476,7 @@ const confirmDelete = async () => {
                 <option value="UnitType">UnitType</option>
                 <option value="PharmacyType">PharmacyType</option>
                   <option value="FeedBack">FeedBack</option>
+                    <option value="MedicineTransfer">MedicineTransfer</option>
               </select>
 
               {/* Name Input */}

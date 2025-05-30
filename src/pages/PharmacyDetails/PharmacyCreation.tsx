@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import CustomButton from '../../components/CustomButton';
 import { ToastContainer, toast } from 'react-toastify';
+import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../../api/request';
 interface Address {
@@ -63,7 +64,7 @@ const EPharmacyPage: React.FC = () => {
   const [touchedFields, setTouchedFields] = useState<{
     [key: string]: boolean;
   }>({});
-
+  const navigate = useNavigate();
   const validate = () => {
     const newErrors: any = {};
 
@@ -503,7 +504,7 @@ const EPharmacyPage: React.FC = () => {
         updatedBy: userID,
         updatedOn: currentDateTime,
         isActive: true,
-        id: null, // or pharmacyID
+        // id: null, // or pharmacyID
         type: 'Pharmacy', // or 'Patient'
         addressType: address.addressType || '',
         address1: address.address1 || '',
@@ -550,6 +551,9 @@ const EPharmacyPage: React.FC = () => {
         ]);
 
         setSelectedType('');
+         setTimeout(() => {
+      navigate('/Pharmacy');
+    }, 2000);
       } else {
         toast.error('Pharmacy creation failed. Please try again.');
       }
@@ -563,6 +567,13 @@ const EPharmacyPage: React.FC = () => {
 
   return (
     <div>
+       {/* Back Button */}
+        <button
+          className="text-blue-600 font-medium hover:underline mb-4"
+          onClick={() => navigate('/Pharmacy')}
+        >
+          &lt; Back
+        </button>
       <h1 className="text-3xl font-semibold text-black text-center mb-6">
         Pharmacy Register
       </h1>
@@ -623,7 +634,7 @@ const EPharmacyPage: React.FC = () => {
             <div>
               <input
                 type="text"
-                maxLength={20}
+                maxLength={50}
                 placeholder="Pharmacy Name"
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -687,7 +698,7 @@ const EPharmacyPage: React.FC = () => {
                 >
                   <option value="">Select Pharmacy Type</option>
                   {pharmacyTypes.map((type: any) => (
-                    <option key={type.appLOVID} value={type.code}>
+                    <option key={type.appLOVID} value={type.name}>
                       {type.name}
                     </option>
                   ))}
@@ -784,7 +795,7 @@ const EPharmacyPage: React.FC = () => {
                           updateAddress(index, 'address1', e.target.value)
                         }
                         placeholder="Enter address line 1"
-                        maxLength={20}
+                        maxLength={50}
                       />
                       {formErrors[index]?.address1 && (
                         <p className="text-red-500 text-sm">
@@ -801,7 +812,7 @@ const EPharmacyPage: React.FC = () => {
                           updateAddress(index, 'address2', e.target.value)
                         }
                         placeholder="Enter address line 2"
-                        maxLength={20}
+                        maxLength={50}
                       />
                       {formErrors[index]?.address2 && (
                         <p className="text-red-500 text-sm">

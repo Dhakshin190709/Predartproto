@@ -80,7 +80,8 @@ const [panExists, setPanExists] = useState<boolean | null>(null);
       DateOfBirth: '',
     };
 
-    const nameRegex = /^[A-Za-z0-9_. ]{2,50}$/;
+const nameRegex = /^[A-Za-z][A-Za-z0-9._\s]{1,49}$/;
+
 const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
 
 
@@ -92,8 +93,11 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     const aadhaarRegex = /^\d{12}$/;
 
     // Basic checks
-    if (!formData.name || !nameRegex.test(formData.name))
-      newErrors.name = 'Name is required.';
+  if (!formData.name) {
+  newErrors.name = 'Name is required.';
+} else if (!nameRegex.test(formData.name)) {
+  newErrors.name = 'Enter a valid name (2-50 characters, start with a letter, allow letters, digits, ., _, space).';
+}
     if (!formData.email) {
   newErrors.email = 'Email is required.';
 } else if (!emailRegex.test(formData.email)) {

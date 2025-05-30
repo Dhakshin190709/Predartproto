@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-// Create an Axios instance
+
 const api = axios.create({
   baseURL: 'https://predart003-001-site1.anytempurl.com/api', 
   headers: {
@@ -8,7 +8,7 @@ const api = axios.create({
   },
 });
 
-// Check if the token exists in localStorage and set it in the request headers
+
 const token = localStorage.getItem('authToken');
 if (token) {
   console.log('Token found in localStorage:', token);

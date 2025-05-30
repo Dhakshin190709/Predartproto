@@ -88,6 +88,8 @@ const SearchPatient: React.FC = () => {
   const [bookedSlots, setBookedSlots] = useState<
     { appointmentDate: string; appointmentTime: string }[]
   >([]);
+  const [uhid, setUhid] = useState('');
+
   const [patientName, setPatientName] = useState('');
   const [mobileNo, setMobileNo] = useState('');
   const navigate = useNavigate();
@@ -134,6 +136,12 @@ const SearchPatient: React.FC = () => {
       return <FaGenderless className="text-white" />;
     }
   };
+
+  const handleUhidChange = (value: string) => {
+  setUhid(value);
+  setErrors((prev) => ({ ...prev, uhid: '' }));
+};
+
 
   const handleBookNow = (patient: PatientData) => {
     if (!patient) {
@@ -781,7 +789,7 @@ const handleMobileNoChange = (value: string) => {
   };
 
   const handleSearch = async () => {
-    if (!patientName && !mobileNo) {
+  if (!uhid && !patientName && !mobileNo) {
       toast.warning('Please enter any one field.');
       return;
     }
@@ -796,6 +804,7 @@ const handleMobileNoChange = (value: string) => {
       const response = await api.get('/Patient', {
         params: {
           tenantID, // ✅ Inject tenantID into request
+           UHID: uhid, 
           PatientName: patientName,
           MobileNo: mobileNo,
         },
@@ -830,6 +839,19 @@ const handleMobileNoChange = (value: string) => {
       {/* Filters Section (Type, Code, Active) */}
       <div className="flex gap-4 flex-col mb-4">
   <div className="flex gap-4 flex-wrap items-start">
+    {/* UHID Input */}
+    <div className="flex flex-col w-full md:w-[30%]">
+      <input
+        type="text"
+        value={uhid}
+        onChange={(e) => handleUhidChange(e.target.value)}
+        placeholder="Enter UHID"
+        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+      {errors.uhid && (
+        <div className="text-red-500 text-sm mt-1">{errors.uhid}</div>
+      )}
+    </div>
     {/* Patient Name Input */}
     <div className="flex flex-col w-full md:w-[30%]">
       <input

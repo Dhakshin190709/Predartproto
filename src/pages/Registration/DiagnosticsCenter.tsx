@@ -1,128 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import CustomButton from '../components/CustomButton';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
-import api from '../api/request';
-
-interface Address {
-  addressID?: string | null;
-  id?: string | null;
-  addressType?: string;
-  address1?: string;
-  address2?: string;
-  city?: string;
-  district?: string;
-  state?: string;
-  zipCode?: string;
-  type?: string; // Optional or required, based on your use case
-}
-interface State {
-  id: number;
-  stateName: string;
-  stateCode: string;
-}
-
-interface District {
-  id: number;
-  pinCode: string;
-  districtName: string;
-  stateCode: string;
-}
-
-interface City {
-  id: number;
-  cityName: string;
-}
-const EPharmacyPage: React.FC = () => {
+import CustomButton from '../../components/CustomButton';
+import api from '../../api/request';
+const LabRegistration: React.FC = () => {
   const [formData, setFormData] = useState({
     tenant: '',
-    hospital: '',
-    pharmacyName: '',
-    pharmacyEmail: '',
-    pharmacyPhoneNumber: '',
-    workHours: '',
-    pharmacyCode: '',
-    pharmacyTypes: '',
+    hospitalType: '',
   });
-
-  const [errors, setErrors] = useState<any>({});
-  const [pharmacyTypes, setPharmacyTypes] = useState([]);
-  const [selectedType, setSelectedType] = useState('');
   const [hospitals, setHospitals] = useState([]);
   const [tenants, setTenants] = useState([]);
-  const [selectedState, setSelectedState] = useState('');
+  const [address, setAddress] = useState<string>('');
+
+  const [patientID, setPatientID] = useState(null);
+
+  const [labTypes, setLabTypes] = useState([]);
+
+  const [selectedLabType, setSelectedLabType] = useState('');
+  const [labName, setLabName] = useState('');
+  const [labCode, setLabCode] = useState('');
+  const [labFacilities, setLabFacilities] = useState('');
+  const [selectedFacilitiesType, setSelectedFacilitiesType] = useState('');
+ const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [isTenantPrefilled, setIsTenantPrefilled] = useState(false);
-  const [isHospitalPrefilled, setIsHospitalPrefilled] = useState(false);
-
+  const [facilitiesTypes, setFacilitiesTypes] = useState([]);
+ const [states, setStates] = useState<State[]>([]);
   const [districts, setDistricts] = useState<District[]>([]);
-  const [cities, setCities] = useState<City[]>([]);
-  const [pincodes, setPincodes] = useState<string[]>([]);
-  const [showCityInput, setShowCityInput] = useState(false);
-  const [manualCity, setManualCity] = useState('');
-  const [touchedFields, setTouchedFields] = useState<{
-    [key: string]: boolean;
-  }>({});
-
-  const validate = () => {
-    const newErrors: any = {};
-
-    const namePattern = /^[A-Za-z\s]{1,20}$/;
-    const emailPattern =
-      /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
-    const phoneRegex = /^[6-9]\d{9}$/;
-    const workHourPattern = /^[0-9]+$/;
-    const pharmacyCodePattern = /^[A-Z0-9]{3,10}$/; // Example: 3–10 uppercase letters/digits
-
-    // Tenant
-    if (!formData.tenant) newErrors.tenant = 'Tenant is required';
-
-    // Hospital
-    if (!formData.hospital) newErrors.hospital = 'Hospital is required';
-    if (!formData.pharmacyTypes)
-      newErrors.pharmacyTypes = 'Pharmacy Types is required';
-
-    // Pharmacy Name
-    if (!formData.pharmacyName.trim()) {
-      newErrors.pharmacyName = 'Pharmacy Name is required';
-    } else if (!namePattern.test(formData.pharmacyName)) {
-      newErrors.pharmacyName = 'Only alphabets, max 20 characters allowed';
-    }
-
-    // Pharmacy Email
-    if (!formData.pharmacyEmail) {
-      newErrors.pharmacyEmail = 'Email is required';
-    } else if (!emailPattern.test(formData.pharmacyEmail)) {
-      newErrors.pharmacyEmail = 'Invalid email format';
-    }
-
-    // Pharmacy Phone Number
-    if (!formData.pharmacyPhoneNumber) {
-      newErrors.pharmacyPhoneNumber = 'Phone number is required';
-    } else if (!phoneRegex.test(formData.pharmacyPhoneNumber)) {
-      newErrors.pharmacyPhoneNumber = 'Must be 10 digits starting with 6–9';
-    }
-
-    // Work Hours
-    if (!formData.workHours.trim()) {
-      newErrors.workHours = 'Work hours are required';
-    } else if (!workHourPattern.test(formData.workHours)) {
-      newErrors.workHours = 'Only numbers allowed';
-    }
-
-    // Pharmacy Code
-    // if (!formData.pharmacyCode.trim()) {
-    //   newErrors.pharmacyCode = 'Pharmacy Code is required';
-    // } else if (!pharmacyCodePattern.test(formData.pharmacyCode)) {
-    //   newErrors.pharmacyCode = 'Invalid code (3–10 uppercase letters/numbers)';
-    // }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const [states, setStates] = useState<State[]>([]);
+   const [cities, setCities] = useState<City[]>([]);
+   const [pincodes, setPincodes] = useState<string[]>([]);
+   const [showCityInput, setShowCityInput] = useState(false);
+   const [manualCity, setManualCity] = useState('');
+   const [touchedFields, setTouchedFields] = useState<{
+     [key: string]: boolean;
+   }>({});
   const [addresses, setAddresses] = useState<Address[]>([
     {
       addressType: '',
@@ -135,132 +44,192 @@ const EPharmacyPage: React.FC = () => {
       type: 'patient',
     },
   ]);
-  const [addressTypes, setAddressTypes] = useState([]);
-
-  const [formErrors, setFormErrors] = useState<{
-    district: any;
-    pincode: any;
-    city: any;
-    state: any;
-    patientName: string;
-    patientEmail: string;
-    patientPhoneNumber: string;
-    patientDateOfBirth: string;
-    patientGender: string;
-  }>({
-    patientName: '',
-    patientEmail: '',
-    patientPhoneNumber: '',
-    patientDateOfBirth: '',
-    patientGender: '',
-    state: '',
-    district: '',
-    pincode: '',
-    city: '',
-  });
-
-  const handleChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-
-    // Clear error for this specific field
-    setErrors((prev: any) => ({ ...prev, [field]: '' }));
-  };
-
   useEffect(() => {
-    const sessionTenantID = sessionStorage.getItem('tenantID');
-    const sessionHospitalID = sessionStorage.getItem('unitID');
-
-    setFormData((prev) => ({
-      ...prev,
-      tenant: sessionTenantID || '',
-      hospital: sessionHospitalID || '',
-    }));
-
-    if (sessionTenantID) setIsTenantPrefilled(true);
-    if (sessionHospitalID) setIsHospitalPrefilled(true);
-  }, []);
-
-  useEffect(() => {
-    const fetchPharmacyTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV?type=PharmacyType');
-        if (response.data.success) {
-          setPharmacyTypes(response.data.data);
-        } else {
-          console.warn('API returned success = false');
-        }
-      } catch (error) {
-        console.error('Error fetching pharmacy types:', error);
-        toast.error('Failed to load pharmacy types'); // Optional: user-facing feedback
-      }
-    };
-
-    fetchPharmacyTypes();
-  }, []);
-
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
+    const fetchAppLOVTypes = async () => {
       try {
         const response = await api.get('/AppLOV');
-        const result = response.data;
+        const data = response.data;
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
-        } else {
-          console.warn('Unexpected API response format');
+        if (!Array.isArray(data.data)) {
+          console.error('Unexpected format: Expected an array in data.data');
+          return;
         }
+
+        const addressTypes = data.data.filter(
+          (item: any) => item.type === 'Address',
+        );
+        const labTypes = data.data.filter(
+          (item: any) => item.type === 'LabType',
+        );
+        const facilitiesTypes = data.data.filter(
+          (item: any) => item.type === 'FacilitiesType',
+        );
+
+        setAddressTypes(addressTypes);
+        setLabTypes(labTypes);
+        setFacilitiesTypes(facilitiesTypes);
       } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
+        console.error('Error fetching data:', error);
       }
     };
 
-    fetchAddressTypes();
-  }, []);
-
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        const response = await api.get('/Tenant');
-
-        if (response.data.success && Array.isArray(response.data.data)) {
-          const activeTenants = response.data.data.filter((t) => t.isActive);
-          setTenants(activeTenants);
-        } else {
-          console.warn('Unexpected tenant response format');
-        }
-      } catch (error) {
-        console.error('Error fetching tenants:', error);
-        toast.error('Failed to load tenants');
-      }
-    };
-
-    fetchTenants();
+    fetchAppLOVTypes();
   }, []);
 
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await api.get('/Hospital/List');
+        const response = await api.get('/Hospital/list');
+        const data = response.data;
 
-        if (Array.isArray(response.data)) {
-          const activeHospitals = response.data.filter((h) => h.isActive);
-          setHospitals(activeHospitals);
-        } else {
-          console.warn('Unexpected response format for hospitals');
+        if (data && data.data) {
+          setHospitals(data.data); // Assuming `data.data` contains the hospital list
         }
       } catch (error) {
         console.error('Error fetching hospitals:', error);
-        toast.error('Failed to load hospitals');
       }
     };
 
     fetchHospitals();
   }, []);
+
+  // Fetch tenant data
+  useEffect(() => {
+    const fetchTenants = async () => {
+      try {
+        const response = await api.get('/Tenant');
+        const data = response.data;
+
+        console.log('Tenant Data:', data);
+
+        // Adjust if the API returns `data.data` or directly `data`
+        setTenants(data.data || data);
+      } catch (error) {
+        console.error('Error fetching tenant data:', error);
+      }
+    };
+
+    fetchTenants();
+  }, []);
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    // Handle the form submission
+  };
+
+  const handleSingleInputChange = (key: string, value: string) => {
+    setFormData({ ...formData, [key]: value });
+  };
+ 
+  const [addressTypes, setAddressTypes] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState(null);
+
+   const [formErrors, setFormErrors] = useState<{
+      district: any;
+      pincode: any;
+      city: any;
+      state: any;
+      patientName: string;
+      patientEmail: string;
+      patientPhoneNumber: string;
+      patientDateOfBirth: string;
+      patientGender: string;
+    }>({
+      patientName: '',
+      patientEmail: '',
+      patientPhoneNumber: '',
+      patientDateOfBirth: '',
+      patientGender: '',
+      state: '',
+      district: '',
+      pincode: '',
+      city: '',
+    });
+  
+  const handleAddressSubmit = () => {
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      alert('User not logged in. Please log in again.');
+      return;
+    }
+
+    // Add patientID and createdBy to each address
+    const addressData = addresses.map((address) => ({
+      ...address,
+      id: patientID,
+      createdBy: userID,
+    }));
+
+    // Validate required fields
+    const requiredFields = [
+      'addressType',
+      'address1',
+      'city',
+      'zipCode',
+      'type',
+    ];
+    const invalidAddresses = addressData.filter((address) =>
+      requiredFields.some((field) => !address[field]),
+    );
+
+    if (invalidAddresses.length > 0) {
+      console.error(
+        'Missing required fields in some addresses:',
+        invalidAddresses,
+      );
+      alert(
+        'Some addresses are missing required fields. Please check your input.',
+      );
+      return;
+    }
+
+    // API call using Axios instance
+    api
+      .post('/Patient/SaveAddress', addressData)
+      .then((response) => {
+        console.log('Addresses saved successfully:', response.data);
+        alert('Addresses saved successfully!');
+      })
+      .catch((error) => {
+        console.error('Error saving addresses:', error);
+        alert('Failed to save addresses.');
+      });
+  };
+
+  const handleLabSubmit = async () => {
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      alert('User not logged in. Please log in again.');
+      return;
+    }
+
+    const payload = {
+      createdBy: userID,
+      tenantID: formData.tenant,
+      hospitalID: formData.hospitalType,
+      labName: labName,
+      labCode: labCode,
+      labType: selectedLabType,
+      labFacilities: selectedFacilitiesType,
+    };
+
+    try {
+      const response = await api.post('/Laboratory', payload); // Reuses baseURL + headers
+
+      console.log('Lab Created Successfully:', response.data);
+      alert('Lab Created Successfully!');
+
+      // Reset Form
+      setLabName('');
+      setLabCode('');
+      setSelectedLabType('');
+      setLabFacilities('');
+    } catch (error) {
+      console.error('Error creating lab:', error);
+      alert('Failed to create lab. Please try again.');
+    }
+  };
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };
@@ -304,7 +273,7 @@ const EPharmacyPage: React.FC = () => {
     fetchStates();
   }, []);
 
-  const updateAddress = (
+ const updateAddress = (
     index: number,
     field: keyof Address,
     value: string,
@@ -363,7 +332,7 @@ const EPharmacyPage: React.FC = () => {
     }
   };
 
-  const handleDistrictChange = async (
+    const handleDistrictChange = async (
     e: React.ChangeEvent<HTMLSelectElement>,
     index: number,
   ) => {
@@ -415,329 +384,132 @@ const EPharmacyPage: React.FC = () => {
     );
   };
 
-  const handlePharmacySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Submit button clicked');
-    const userID = sessionStorage.getItem('userID');
-    const currentDateTime = new Date().toISOString();
-    const allErrors: { [field: string]: string } = {};
-
-    // Step 1: Validate formData fields
-    const isFormValid = validate();
-    if (!isFormValid) return;
-
-    // Step 2: Find the primary address (assuming 1 address is mandatory)
-    const address =
-      addresses.find((addr) => addr.isPrimary || !addr.isSaved) || addresses[0];
-
-    if (!address) {
-      toast.error('At least one address is required.');
-      return;
-    }
-
-    // Step 3: Validate address
-    const validateAddressLine = (field: string) => {
-      const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-      const noOnlySpaces = /\S/;
-      const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
-      const atLeastOneLetter = /[a-zA-Z]/;
-      const containsNumber = /\d/;
-      const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
-
-      return (
-        field &&
-        noOnlySpaces.test(field) &&
-        noEmojis.test(field) &&
-        alphaNumericSlash.test(field) &&
-        field.length >= 3 &&
-        atLeastOneLetter.test(field) &&
-        containsNumber.test(field) &&
-        noTripleRepeat.test(field)
-      );
-    };
-
-    if (!validateAddressLine(address.address1)) {
-      toast.error('Invalid Address Line 1');
-      return;
-    }
-    if (!validateAddressLine(address.address2)) {
-      toast.error('Invalid Address Line 2');
-      return;
-    }
-
-    // Validate city
-    if (showCityInput) {
-      if (!validateCity(address.city)) {
-        toast.error('Invalid city name.');
-        return;
-      }
-    }
-
-    if (!address.city || address.city.length < 2) {
-      toast.error('City is required and should be at least 2 characters');
-      return;
-    }
-
-    if (!address.state || !address.district || !address.zipCode) {
-      toast.error('State, District, and Zip Code are required');
-      return;
-    }
-
-    // Step 4: Construct combined payload
-    const payload = {
-      createdBy: userID,
-      createdOn: currentDateTime,
-      updatedBy: userID,
-      updatedOn: currentDateTime,
-      isActive: true,
-      tenantID: formData.tenant,
-      hospitalID: formData.hospital,
-      pharmacyCode: formData.pharmacyCode?.trim() || "",
-      pharmacyName: formData.pharmacyName,
-      pharmacyEmail: formData.pharmacyEmail,
-      pharmacyPhoneNumber: formData.pharmacyPhoneNumber,
-      workHours: formData.workHours,
-      type: selectedType,
-      address: {
-        createdBy: userID,
-        createdOn: currentDateTime,
-        updatedBy: userID,
-        updatedOn: currentDateTime,
-        isActive: true,
-        id: null, // or pharmacyID
-        type: 'Pharmacy', // or 'Patient'
-        addressType: address.addressType || '',
-        address1: address.address1 || '',
-        address2: address.address2 || '',
-        city: address.city || '',
-        district: address.district || '',
-        state: address.state || '',
-        zipCode: address.zipCode || '',
-        isPrimary: true,
-      },
-    };
-
-    // Step 5: Send API request
-    try {
-      const response = await api.post('/Pharmacy', payload);
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success('Pharmacy and address saved successfully!');
-        console.log('Pharmacy created successfully:', response.data);
-
-        // Reset the form after success
-        setFormData((prev) => ({
-          ...prev,
-          pharmacyCode: '',
-          pharmacyName: '',
-          pharmacyEmail: '',
-          pharmacyPhoneNumber: '',
-          workHours: '',
-          pharmacyTypes: '',
-        }));
-
-        setAddresses([
-          {
-            addressType: '',
-            address1: '',
-            address2: '',
-            city: '',
-            district: '',
-            state: '',
-            zipCode: '',
-            isPrimary: true,
-            isSaved: false,
-          },
-        ]);
-
-        setSelectedType('');
-      } else {
-        toast.error('Pharmacy creation failed. Please try again.');
-      }
-    } catch (err: any) {
-      console.error('API error:', err);
-      toast.error(
-        err.response?.data?.message || 'Network error while saving pharmacy.',
-      );
-    }
-  };
-
   return (
-    <div>
-      <h1 className="text-3xl font-semibold text-black text-center mb-6">
-        Diagnosis Details
-      </h1>
-      {/* Left Column: Basic Details */}
-      <form className="space-y-4" onSubmit={handlePharmacySubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-left mb-4">Basic Details</h2>
-
-            {/* Tenant & Hospital */}
-            <div className="flex gap-4">
-              <div className="w-1/2">
+    <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
+      {/* Right Section */}
+      <div className="w-full border-stroke dark:border-strokedark">
+        <div className="w-full p-0 sm:p-4 xl:p-6">
+          {' '}
+          {/* Reduced padding */}
+          <h2 className="mt-0 mb-3 text-2xl font-semibold text-black dark:text-white sm:text-title-xl2">
+            Diagnostics Center
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
                 <select
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                      text-black outline-none focus:border-primary dark:border-form-strokedark 
-                      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.tenant}
-                  onChange={(e) => handleChange('tenant', e.target.value)}
-                  disabled={isTenantPrefilled} // ✅ disable if prefilled
-                >
-                  <option value="">Select Tenant</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.tenantID} value={tenant.tenantID}>
-                      {tenant.tenantName}
-                    </option>
-                  ))}
-                </select>
-                {errors.tenant && (
-                  <p className="text-red-500 text-sm">{errors.tenant}</p>
-                )}
-              </div>
-              <div className="w-1/2">
-                <select
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                      text-black outline-none focus:border-primary dark:border-form-strokedark 
-                      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.hospital}
-                  onChange={(e) => handleChange('hospital', e.target.value)}
-                  disabled={isHospitalPrefilled} // ✅ disable if prefilled
-                >
-                  <option value="">Select Hospital</option>
-                  {hospitals.map((hospital) => (
-                    <option
-                      key={hospital.hospitalID}
-                      value={hospital.hospitalID}
-                    >
-                      {hospital.hospitalName}
-                    </option>
-                  ))}
-                </select>
-                {errors.hospital && (
-                  <p className="text-red-500 text-sm">{errors.hospital}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Pharmacy Name */}
-            <div>
-              <input
-                type="text"
-                maxLength={20}
-                placeholder="Pharmacy Name"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                      text-black outline-none focus:border-primary dark:border-form-strokedark 
-                      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={formData.pharmacyName}
-                onChange={(e) => handleChange('pharmacyName', e.target.value)}
-              />
-              {errors.pharmacyName && (
-                <p className="text-red-500 text-sm">{errors.pharmacyName}</p>
-              )}
-            </div>
-
-            {/* Email */}
-            <div>
-              <input
-                type="email"
-                placeholder="Pharmacy Email"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                      text-black outline-none focus:border-primary dark:border-form-strokedark 
-                      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={formData.pharmacyEmail}
-                onChange={(e) => handleChange('pharmacyEmail', e.target.value)}
-              />
-              {errors.pharmacyEmail && (
-                <p className="text-red-500 text-sm">{errors.pharmacyEmail}</p>
-              )}
-            </div>
-
-            {/* Phone Number & Type */}
-            <div className="flex gap-4">
-              <div className="w-1/2">
-                <input
-                  type="text"
-                  maxLength={10}
-                  placeholder="Phone Number"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                      text-black outline-none focus:border-primary dark:border-form-strokedark 
-                      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.pharmacyPhoneNumber}
-                  onChange={(e) =>
-                    handleChange('pharmacyPhoneNumber', e.target.value)
-                  }
-                />
-                {errors.pharmacyPhoneNumber && (
-                  <p className="text-red-500 text-sm">
-                    {errors.pharmacyPhoneNumber}
-                  </p>
-                )}
-              </div>
-              <div className="w-1/2">
-                <select
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+                  value={formData.tenant || ''} // Use formData.tenant
+                  onChange={(e) => {
+                    setFormData({ ...formData, tenant: e.target.value });
+                    handleSingleInputChange('tenant', e.target.value);
+                  }}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={selectedType}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedType(value); // still set selectedType if needed
-                    handleChange('pharmacyTypes', value); // also call handleChange to clear error
-                  }}
                 >
-                  <option value="">Select Pharmacy Type</option>
-                  {pharmacyTypes.map((type: any) => (
-                    <option key={type.appLOVID} value={type.code}>
+                  <option value="" disabled>
+                    Select Tenant
+                  </option>
+                  {tenants.map((tenant) => (
+                    <option key={tenant.tenantID} value={tenant.tenantID}>
+                      {tenant.tenantName} {/* Display the tenant's name */}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Hospital */}
+              <div>
+                <select
+                  value={formData.hospitalType}
+                  onChange={(e) =>
+                    handleSingleInputChange('hospitalType', e.target.value)
+                  }
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+                >
+                  <option value="">Select Hospital</option>
+                  {hospitals.length > 0 ? (
+                    hospitals.map((hospital) => (
+                      <option
+                        key={hospital.hospitalID}
+                        value={hospital.hospitalID}
+                      >
+                        {hospital.hospitalName}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No Hospitals Available</option>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                {/* Lab Name Input */}
+                <input
+                  type="text"
+                  placeholder="Enter Lab Name"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={labName}
+                  onChange={(e) => setLabName(e.target.value)}
+                />
+              </div>
+              <div>
+                {/* Code Input */}
+                <input
+                  type="text"
+                  placeholder="Enter Code"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10  
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={labCode}
+                  onChange={(e) => setLabCode(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div>
+                <select
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={selectedLabType} // Ensure you have a state for this
+                  onChange={(e) => setSelectedLabType(e.target.value)}
+                >
+                  <option value="">Select Lab Type</option>
+                  {labTypes.map((type) => (
+                    <option key={type.appLOVID} value={type.name}>
                       {type.name}
                     </option>
                   ))}
                 </select>
-                {errors.pharmacyTypes && (
-                  <p className="text-red-500 text-sm">{errors.pharmacyTypes}</p>
-                )}
+              </div>
+              <div>
+                {/* Facilities Input */}
+                <select
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={selectedFacilitiesType} // Ensure you have a state for this
+                  onChange={(e) => setSelectedFacilitiesType(e.target.value)}
+                >
+                  <option value="">Select Facilities Type</option>
+                  {facilitiesTypes.map((type) => (
+                    <option key={type.appLOVID} value={type.name}>
+                      {type.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* Pharmacy Code & Work Hours */}
-            <div className="flex gap-4">
-               <div className="w-1/2">
-                <input
-                  type="text"
-                  maxLength={2}
-                  placeholder="Work Hours"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.workHours}
-                  onChange={(e) => handleChange('workHours', e.target.value)}
-                />
-                {errors.workHours && (
-                  <p className="text-red-500 text-sm">{errors.workHours}</p>
-                )}
-              </div>
-              <div className="w-1/2">
-                <input
-                  type="hidden"
-                  placeholder="Pharmacy Code"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.pharmacyCode}
-                  onChange={(e) => handleChange('pharmacyCode', e.target.value)}
-                />
-                {errors.pharmacyCode && (
-                  <p className="text-red-500 text-sm">{errors.pharmacyCode}</p>
-                )}
-              </div>
-             
-            </div>
-
-            {/* Submit Button if needed */}
-          </div>
-
-          {/* Right Column: Address Section */}
-          <div className="space-y-4">
+           <div className="space-y-4">
             {/*  address form  */}
 
             <h2 className="text-xl font-bold text-left mb-4">Address</h2>
@@ -785,7 +557,7 @@ const EPharmacyPage: React.FC = () => {
                           updateAddress(index, 'address1', e.target.value)
                         }
                         placeholder="Enter address line 1"
-                        maxLength={20}
+                        maxLength={50}
                       />
                       {formErrors[index]?.address1 && (
                         <p className="text-red-500 text-sm">
@@ -802,7 +574,7 @@ const EPharmacyPage: React.FC = () => {
                           updateAddress(index, 'address2', e.target.value)
                         }
                         placeholder="Enter address line 2"
-                        maxLength={20}
+                        maxLength={50}
                       />
                       {formErrors[index]?.address2 && (
                         <p className="text-red-500 text-sm">
@@ -984,15 +756,22 @@ const EPharmacyPage: React.FC = () => {
                 </div>
               ))}
           </div>
-          
+
+            <div className="mt-9">
+              <CustomButton
+                onClick={() => {
+                  handleAddressSubmit();
+                  handleLabSubmit();
+                }}
+              >
+                Login
+              </CustomButton>
+            </div>
+          </form>
         </div>
-        <div className="flex justify-center items-center text-center space-x-4">
-          <CustomButton type="submit">Save Details</CustomButton>
-          <ToastContainer position="top-right" autoClose={3000} />
-        </div>
-      </form>
+      </div>
     </div>
   );
 };
 
-export default EPharmacyPage;
+export default LabRegistration;

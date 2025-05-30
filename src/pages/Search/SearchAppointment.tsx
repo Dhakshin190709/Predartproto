@@ -178,7 +178,7 @@ const SearchAppointment: React.FC = () => {
       params = { DoctorID: doctorID, UnitID: unitID };
     } else if (roleName === 'reception' && unitID) {
       params = { UnitID: unitID };
-    } else if (roleName === 'hospitaladmin' && unitID) {
+    } else if (roleName === 'hostitaladmin' && unitID) {
       params = { HospitalID: unitID };
     }
 

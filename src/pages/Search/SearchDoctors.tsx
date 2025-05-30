@@ -66,7 +66,7 @@ const SearchDoctors: React.FC = () => {
   const [appointmentType, setAppointmentType] = useState(''); // Initialize it with a default value or fetch it if necessary.
   const [doctors, setDoctors] = useState([]); // Ensure default state is an array
   const [selectedHospitalName, setSelectedHospitalName] = useState('');
-
+  const [isHospitalDisabled, setIsHospitalDisabled] = useState(false);
   const [doctorSearchText, setDoctorSearchText] = useState('');
   const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
   const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
@@ -86,6 +86,9 @@ const SearchDoctors: React.FC = () => {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   // const [notes, setNotes] = useState('');
+  const [selectedHospitals, setSelectedHospitals] = useState(
+    () => sessionStorage.getItem('unitID') || '',
+  );
 
   const [DoctorName, setDoctorName] = useState('');
   const [mobile, setMobile] = useState('');
@@ -129,20 +132,27 @@ const SearchDoctors: React.FC = () => {
     }
   }, []);
 
-  const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+ const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
 
-    // Allow only letters, digits, and spaces — remove emojis and special characters
-    const sanitizedValue = value.replace(/[^\p{L}\d ]/gu, '');
-    setDoctorName(sanitizedValue);
+  // Allow letters, digits, spaces, underscores, and dots
+  const sanitizedValue = value.replace(/[^\p{L}\d_. ]/gu, '');
+  setDoctorName(sanitizedValue);
 
-    // Validation: must contain only letters, digits, and spaces
-    if (!/^[A-Za-z0-9 ]+$/.test(sanitizedValue)) {
-      setDoctorNameError('Only alphabets, numbers, and spaces are allowed');
-    } else {
-      setDoctorNameError('');
-    }
-  };
+  // Validation rules
+  if (
+    !/^[\p{L}\d_. ]+$/u.test(sanitizedValue) ||  // Invalid characters
+    /^[_.]/.test(sanitizedValue) ||              // Starts with . or _
+    /[_.]$/.test(sanitizedValue)                 // Ends with . or _
+  ) {
+    setDoctorNameError(
+      'Only letters, numbers, spaces, underscores, and dots are allowed. Cannot start or end with a dot or underscore.'
+    );
+  } else {
+    setDoctorNameError('');
+  }
+};
+
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -166,6 +176,7 @@ const SearchDoctors: React.FC = () => {
     }
   };
 
+  // 🔄 Fetch hospitals and handle role logic
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
@@ -173,35 +184,55 @@ const SearchDoctors: React.FC = () => {
         const data = response.data;
 
         if (Array.isArray(data)) {
-          const activeHospitals = data.filter((hospital) => hospital.isActive);
+          // ✅ Filter only active hospitals
+          const activeHospitals = data.filter((h) => h.isActive);
 
+          // ✅ Map hospitalID to hospitalName
           const hospitalMap = activeHospitals.reduce(
-            (acc, hospital) => {
-              acc[hospital.hospitalID] = hospital.hospitalName;
+            (acc, h) => {
+              acc[String(h.hospitalID)] = h.hospitalName;
               return acc;
             },
             {} as { [key: string]: string },
           );
 
           setHospitals(hospitalMap);
+
+          // ✅ Session values
+          const roleName = sessionStorage.getItem('roleName');
+          const unitID = sessionStorage.getItem('unitID');
+
+          console.log('Role Name:', roleName);
+          console.log('Unit ID:', unitID);
+          console.log('Hospital Map:', hospitalMap);
+
+          // ✅ Prefill for HostitalAdmin
+          if (roleName === 'HostitalAdmin' && unitID && hospitalMap[unitID]) {
+            console.log('✅ Prefilling hospital:', unitID, hospitalMap[unitID]);
+            setSelectedHospital(unitID);
+            setIsHospitalDisabled(true);
+          } else {
+            setSelectedHospital('');
+            setIsHospitalDisabled(false);
+          }
         }
       } catch (error) {
         console.error('Error fetching hospitals:', error);
+        toast.error('Failed to load hospitals');
       }
     };
 
     fetchHospitals();
   }, []);
 
+  // ✅ 2. Fetch Doctor Data — filter by hospital if HostitalAdmin
   const fetchAllDoctors = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
       const unitID = sessionStorage.getItem('unitID');
 
       let url = '/Doctor';
-
-      // Append hospitalId query if the role is HospitalAdmin
-      if (roleName === 'HospitalAdmin' && unitID) {
+      if (roleName === 'HostitalAdmin' && unitID) {
         url += `?hospitalId=${unitID}`;
       }
 
@@ -340,39 +371,39 @@ const SearchDoctors: React.FC = () => {
   // Open popup and set doctor details
   const handleBookNow = async (doctor: Doctor) => {
     console.log('Booking doctor:', doctor);
-  
+
     // ✅ Log hospital name & ID
     console.log('Hospital Name:', doctor.hospitalName);
     console.log('Hospital ID:', doctor.hospitalID);
-  
+
     // ✅ Set doctor and hospital data
     setSelectedDoctor(doctor);
     setSelectedDoctorID(doctor.doctorID);
     setHospitalID(doctor.hospitalID); // used in payload
     setDoctorID(doctor.doctorID);
     setShowPopup(true);
-  
+
     // ✅ Set selected hospital info for form dropdown
     setSelectedHospitalID(doctor.hospitalID); // dropdown value
     setSelectedHospitalName(doctor.hospitalName); // optional if used for display
-  
+
     // ✅ Update form data with correct hospital ID
     setFormData((prev) => ({
       ...prev,
       doctor: doctor.doctorID,
       hospital: doctor.hospitalID, // 💥 THIS FIXES THE FLOW_HOSPITAL ISSUE
     }));
-  
+
     try {
       const response = await api.get('/Doctor/GetDoctorTimeSlot', {
         params: { doctorId: doctor.doctorID },
       });
-  
+
       const timeSlotData = response.data;
       console.log('Fetched Time Slot Data:', timeSlotData);
-  
+
       const data = Array.isArray(timeSlotData.data) ? timeSlotData.data : [];
-  
+
       if (data.length === 0) {
         console.warn('No time slots configured for this doctor.');
         toast.warn('This doctor has no time slots available.');
@@ -380,18 +411,18 @@ const SearchDoctors: React.FC = () => {
         setGeneratedTimeSlots([]);
         return;
       }
-  
+
       const matchedTimeSlots = data.filter(
         (slot) => String(slot.doctorID) === String(doctor.doctorID),
       );
-  
+
       console.log('All TimeSlots:', data);
       console.log(
         'Selected Day of Week:',
         selectedDate?.toLocaleString('en-US', { weekday: 'long' }),
       );
       console.log('Matched Slots for this day:', matchedTimeSlots);
-  
+
       if (matchedTimeSlots.length > 0) {
         const formattedSlots = matchedTimeSlots.map((slot) => ({
           timeSlotID: slot.timeSlotID,
@@ -401,7 +432,7 @@ const SearchDoctors: React.FC = () => {
           day: slot.dayofWeek,
         }));
         setAvailableTimeSlots(formattedSlots);
-  
+
         if (selectedDate) {
           handleDateChange(selectedDate, formattedSlots, doctor.doctorID);
         }
@@ -418,8 +449,6 @@ const SearchDoctors: React.FC = () => {
       console.error('Error fetching time slots:', error);
     }
   };
-  
-  
 
   const handleDoctorChange = (e) => {
     const value = e.target.value;
@@ -663,43 +692,44 @@ const SearchDoctors: React.FC = () => {
       console.error('Error fetching doctors:', error);
     }
   };
-  
 
-  useEffect(() => {
-    const fetchPatientData = async () => {
-      const userID = sessionStorage.getItem('userID');
-      const roleName = sessionStorage.getItem('roleName');
+ useEffect(() => {
+  const fetchPatientData = async () => {
+    const userID = sessionStorage.getItem('userID');
+    const roleName = sessionStorage.getItem('roleName');
 
-      if (userID && roleName !== 'Reception') {
-        try {
-          const response = await api.get('/Patient/GetPatientByUserID', {
-            params: { userId: userID },
-          });
+    // Only fetch if role is not Reception and not HostitalAdmin
+    if (userID && roleName !== 'Reception' && roleName !== 'HostitalAdmin') {
+      try {
+        const response = await api.get('/Patient/GetPatientByUserID', {
+          params: { userId: userID },
+        });
 
-          const data = response.data;
+        const data = response.data;
 
-          if (data.success && data.data) {
-            const name = data.data.patientName || '';
-            const phoneNumber = data.data.patientPhoneNumber || '';
+        if (data.success && data.data) {
+          const name = data.data.patientName || '';
+          const phoneNumber = data.data.patientPhoneNumber || '';
 
-            setPatientData({ name, phoneNumber });
+          setPatientData({ name, phoneNumber });
 
-            setFormData((prev) => ({
-              ...prev,
-              name,
-              phoneNumber,
-            }));
-          } else {
-            console.warn('⚠️ Failed to fetch patient data');
-          }
-        } catch (err) {
-          console.error('❌ Error fetching patient data:', err);
+          setFormData((prev) => ({
+            ...prev,
+            name,
+            phoneNumber,
+          }));
+        } else {
+          console.warn('⚠️ Failed to fetch patient data');
         }
+      } catch (err) {
+        console.error('❌ Error fetching patient data:', err);
       }
-    };
+    }
+  };
 
-    fetchPatientData();
-  }, []);
+  fetchPatientData();
+}, []);
+
 
   // ✅ Helper function to reset the form completely
   const resetForm = () => {
@@ -729,7 +759,7 @@ const SearchDoctors: React.FC = () => {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
 
-    if (roleName === 'HospitalAdmin' && unitID) {
+    if (roleName === 'HostitalAdmin' && unitID) {
       setSelectedHospitalID(unitID);
       setFormData((prev) => ({
         ...prev,
@@ -788,7 +818,6 @@ const SearchDoctors: React.FC = () => {
       setIsEditable(true); // Default to editable
     }
   }, [appointmentType, options, patientData]);
-
 
   const handleTimeSlotSelect = (time: Date, timeSlotID: string) => {
     console.log('Time Selected:', time);
@@ -895,7 +924,11 @@ const SearchDoctors: React.FC = () => {
       toast.error('User not logged in. Please log in again.');
       return;
     }
-
+// Prevent submission for HospitalAdmin
+  if (roleName === 'HostitalAdmin') {
+    toast.warning('Hospital Admin is not allowed to submit this form.');
+    return;
+  }
     // Validate all fields and collect errors
     const newErrors = {
       name: validateField('name', formData.name),
@@ -1073,7 +1106,7 @@ const SearchDoctors: React.FC = () => {
 
     if (roleName === 'Patient') {
       setSelectedHospital('');
-    } else if (roleName === 'HospitalAdmin') {
+    } else if (roleName === 'HostitalAdmin') {
       setSelectedHospital(unitID || '');
     }
 
@@ -1089,33 +1122,32 @@ const SearchDoctors: React.FC = () => {
 
         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           <div>
-            <select
-              id="hospital"
-              value={selectedHospital}
-              disabled={sessionStorage.getItem('roleName') === 'HostitalAdmin'}
-              className={`w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-        text-black outline-none focus:border-primary dark:border-form-strokedark
-        dark:bg-form-input dark:text-white dark:focus:border-primary
-        ${sessionStorage.getItem('roleName') === 'HostitalAdmin' ? 'cursor-not-allowed bg-gray-100 dark:bg-gray-700' : ''}`}
-              onChange={(e) => setSelectedHospital(e.target.value)}
-            >
-              {sessionStorage.getItem('roleName') === 'HostitalAdmin' ? (
-                <option value={selectedHospital}>
-                  {hospitals[selectedHospital] || 'Selected Hospital'}
-                </option>
-              ) : (
-                <>
-                  <option value="">-- Select Hospital --</option>
-                  {Object.entries(hospitals).map(([id, name]) => (
-                    <option key={id.appLOVID} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </>
-              )}
-            </select>
+            {isHospitalDisabled ? (
+              // ✅ HostitalAdmin sees readonly box with prefilled hospital name
+              <div className="w-full rounded-lg border border-stroke bg-gray-100 dark:bg-gray-700 py-4 pl-6 pr-10 text-black dark:text-white">
+                {selectedHospital && hospitals[selectedHospital]
+                  ? hospitals[selectedHospital]
+                  : 'Selected Hospital'}
+              </div>
+            ) : (
+              // ✅ Other roles (e.g., Patient) see dropdown
+              <select
+                id="hospital"
+                value={selectedHospital || ''}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+      text-black outline-none focus:border-primary dark:border-form-strokedark
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                onChange={(e) => setSelectedHospital(e.target.value)}
+              >
+                <option value="">-- Select Hospital --</option>
+                {Object.entries(hospitals).map(([id, name]) => (
+                  <option key={id} value={id}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
-
           <div>
             <input
               type="text"
@@ -1308,27 +1340,26 @@ const SearchDoctors: React.FC = () => {
 
               <div className="mb-4 flex gap-4">
                 <div className="relative w-1/2">
-                <select
-                  name="hospital"
-                  disabled
-                  value={selectedHospitalID}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedHospitalID(value);
-                    setFormData((prev) => ({
-                      ...prev,
-                      hospital: value, // ✅ use selected hospital ID from dropdown
-                    }));
-                  }}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  {Object.entries(hospitals).map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
-                    </option>
-                  ))}
-                </select>
-
+                  <select
+                    name="hospital"
+                    disabled
+                    value={selectedHospitalID}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setSelectedHospitalID(value);
+                      setFormData((prev) => ({
+                        ...prev,
+                        hospital: value, // ✅ use selected hospital ID from dropdown
+                      }));
+                    }}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    {Object.entries(hospitals).map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="relative w-1/2">
@@ -1471,6 +1502,7 @@ const DoctorCard = ({
   specializations,
   hospitals,
   onBookNow,
+  roleName,
 }) => {
   const [showMore, setShowMore] = useState(false);
   const navigate = useNavigate();
@@ -1507,19 +1539,24 @@ const DoctorCard = ({
               </div>
 
               {/* Content Padding */}
-              <div className="p-4 space-y-3">
+              <div className="p-4 mt-4 space-y-3">
                 {/* Book Button */}
-                <div className="flex justify-end">
-                  <button
-                    className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                    onClick={() =>  onBookNow({
-                      ...doctor,
-                      hospitalName: hospitals[doctor.hospitalID] || 'Unknown',
-                    })}
-                  >
-                    <span>Book Now</span>
-                  </button>
-                </div>
+                {roleName == 'hostitalAdmin' && (
+                  <div className="flex justify-end">
+                    <button
+                      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                      onClick={() =>
+                        onBookNow({
+                          ...doctor,
+                          hospitalName:
+                            hospitals[doctor.hospitalID] || 'Unknown',
+                        })
+                      }
+                    >
+                      <span>Book Now</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Name & Specialization */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">

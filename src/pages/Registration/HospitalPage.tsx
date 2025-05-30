@@ -81,7 +81,7 @@ const Hospital: React.FC = () => {
       district: '',
       zipCode: '',
       city: '',
-      type: 'patient',
+      type: 'Hospital',
     },
   ]);
 
@@ -112,20 +112,32 @@ const Hospital: React.FC = () => {
   // Fetch data from the API
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital/List');
-        console.log('API Data:', response.data); // Debug log
+useEffect(() => {
+  const fetchHospitals = async () => {
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
 
-        setRowData(response.data?.data || response.data); // Adjust based on actual API structure
-      } catch (error: any) {
-        console.error('Error fetching data:', error);
+      if (!tenantID) {
+        console.error('Missing tenantID in session storage.');
+        return;
       }
-    };
 
-    fetchHospitals();
-  }, []);
+      const response = await api.get('/Hospital/List', {
+        params: {
+          tenantId: tenantID,
+        },
+      });
+
+      console.log('API Data:', response.data);
+      setRowData(response.data?.data || response.data);
+    } catch (error: any) {
+      console.error('Error fetching data:', error);
+    }
+  };
+
+  fetchHospitals();
+}, []);
+
   // Fetch tenant data from utils
 
    const updateAddress = (
@@ -700,7 +712,7 @@ const loadDependentAddressData = async (address, index) => {
     const emailRegex =
       /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
     const phoneRegex = /^[6-9]\d{9}$/;
-    const hospitalNameRegex = /^[A-Za-z_]{1,20}$/;
+    const hospitalNameRegex = /^[A-Za-z_]{1,50}$/;
     const landlineRegex = /^(?:\+91\s\d{2}\s\d{8}|0\d{2,4}-\d{6,8})$/;
 
     const gstRegex = /^[0-9A-Z]{15}$/;
@@ -712,7 +724,7 @@ const loadDependentAddressData = async (address, index) => {
       errors.hospitalName = 'Hospital Name is required.';
     } else if (!hospitalNameRegex.test(formData.hospitalName)) {
       errors.hospitalName =
-        'Only letters or underscores allowed (max 20 chars).';
+        'Only letters or underscores allowed (max 50 chars).';
     } else if (/^(.)\1{5,}$/.test(formData.hospitalName)) {
       errors.hospitalName = 'Avoid repetitive characters (e.g., aaaaaa).';
     }
@@ -810,22 +822,32 @@ const loadDependentAddressData = async (address, index) => {
     }
   };
 
-  const refreshTableData = async () => {
-    try {
-      const response = await api.get('/Hospital/List'); // Use the `api` instance for the GET request
+ const refreshTableData = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      let hospitalData = response.data?.data ?? response.data; // Handle cases where 'data' is missing
-
-      if (Array.isArray(hospitalData)) {
-        setRowData([...hospitalData]);
-        setFilteredData([...hospitalData]);
-      } else {
-        console.error('Unexpected API response format:', response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching table data:', error);
+    if (!tenantID) {
+      console.error('Missing tenantID in session storage.');
+      return;
     }
-  };
+
+    const response = await api.get('/Hospital/List', {
+      params: { tenantId: tenantID },
+    });
+
+    const hospitalData = response.data?.data ?? response.data;
+
+    if (Array.isArray(hospitalData)) {
+      setRowData([...hospitalData]);
+      setFilteredData([...hospitalData]);
+    } else {
+      console.error('Unexpected API response format:', response.data);
+    }
+  } catch (error) {
+    console.error('Error fetching table data:', error);
+  }
+};
+
 
   const resetFormData = () => {
     setFormData({
@@ -1232,7 +1254,7 @@ const loadDependentAddressData = async (address, index) => {
                             updateAddress(index, 'address1', e.target.value)
                           }
                           placeholder="Enter address line 1"
-                          maxLength={20}
+                          maxLength={50}
                         />
                         {formErrors[index]?.address1 && (
                           <p className="text-red-500 text-sm">
@@ -1249,7 +1271,7 @@ const loadDependentAddressData = async (address, index) => {
                             updateAddress(index, 'address2', e.target.value)
                           }
                           placeholder="Enter address line 2"
-                          maxLength={20}
+                          maxLength={50}
                         />
                         {formErrors[index]?.address2 && (
                           <p className="text-red-500 text-sm">

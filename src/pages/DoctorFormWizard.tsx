@@ -199,22 +199,21 @@ const DoctorForm: React.FC = () => {
   ]);
 
   const addAddress = () => {
-    setAddresses((prevAddresses) => [
-      ...prevAddresses,
+    setAddresses((prev) => [
+      ...prev,
       {
-        addressID: '',
         addressType: '',
         address1: '',
         address2: '',
-        city: '',
-        district: '',
         state: '',
+        district: '',
         zipCode: '',
-        type: '',
+        city: '',
+        isPrimary: prev.length === 0, // first one as primary
       },
     ]);
   };
-
+  
   // Remove an address row
   const removeAddress = (index) => {
     const updatedAddresses = addresses.filter((_, i) => i !== index);
@@ -1298,26 +1297,56 @@ const DoctorForm: React.FC = () => {
       });
   }, []);
 
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
   const handleLanguageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+  
+    if (isSubmitting) return; // ⛔ Prevent double click
+    setIsSubmitting(true);    // ⏳ Disable submit
   
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
   
     if (!doctorID || !userID) {
       alert('Missing doctorID or userID in session.');
+      setIsSubmitting(false);
       return;
     }
   
     if (validateLanguages()) {
-      const payload = languages.map((entry) => {
+      // ✅ Step 1: Filter valid entries
+      const validLanguages = languages.filter((entry) => entry.language.trim() !== '');
+  
+      if (validLanguages.length === 0) {
+        toast.warning('Please enter at least one language before submitting.');
+        setIsSubmitting(false);
+        return;
+      }
+  
+      // ✅ Step 2: Check for duplicates
+      const seen = new Set();
+      const hasDuplicates = validLanguages.some((entry) => {
+        const key = entry.language.trim().toLowerCase();
+        if (seen.has(key)) return true;
+        seen.add(key);
+        return false;
+      });
+  
+      if (hasDuplicates) {
+        toast.error('Duplicate languages found. Please remove duplicates.');
+        setIsSubmitting(false);
+        return;
+      }
+  
+      // ✅ Step 3: Convert to payload
+      const payload = validLanguages.map((entry) => {
         const langID =
-          languageOptions.find((lang) => lang.name === entry.language)
-            ?.appLOVID || '';
+          languageOptions.find((lang) => lang.name === entry.language)?.appLOVID || '';
   
         if (!langID) {
-          alert(`Invalid language selected: ${entry.language}`);
-          throw new Error('Invalid language');
+          throw new Error(`Invalid language selected: ${entry.language}`);
         }
   
         return {
@@ -1335,10 +1364,12 @@ const DoctorForm: React.FC = () => {
         };
       });
   
+      // ✅ Step 4: API Call
       try {
         const response = await api.post('/Doctor/SaveLanguage', payload);
   
         if (response.status >= 200 && response.status < 300) {
+          toast.dismiss(); // Clear old toasts
           toast.success('Language details saved successfully!');
         } else {
           toast.error(`Error: ${response.data?.message || 'Something went wrong'}`);
@@ -1349,7 +1380,11 @@ const DoctorForm: React.FC = () => {
         alert('An error occurred during submission.');
       }
     }
+  
+    setIsSubmitting(false); // ✅ Re-enable button
   };
+  
+  
 
   const isAddDisabled = educationList.filter(e => e.highestEducation).length >= 1;
 
@@ -1518,15 +1553,19 @@ if (!endDate) {
     const handleFieldSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
     
+      if (isSubmitting) return; // ✅ Prevent double submit
+      setIsSubmitting(true);    // ⏳ Disable button
+    
       const doctorID = sessionStorage.getItem('doctorID');
       const userID = sessionStorage.getItem('userID');
     
       if (!doctorID || !userID) {
         alert('Missing doctorID or userID in session.');
+        setIsSubmitting(false);
         return;
       }
     
-      // Validate all education entries
+      // ✅ Step 1: Validate all entries
       const allErrors = educationList.map((entry) => validateEntry(entry));
       const hasErrors = allErrors.some((error) =>
         Object.values(error).some((msg) => msg && msg.length > 0)
@@ -1534,10 +1573,27 @@ if (!endDate) {
     
       if (hasErrors) {
         setEducationErrors(allErrors);
+        setIsSubmitting(false);
         return;
       }
     
-      // Prepare payload for API
+      // ✅ Step 2: Check for duplicates
+      const seen = new Set();
+      const hasDuplicates = educationList.some((entry) => {
+        const key = `${entry.UG}-${entry.degree}-${entry.specialization}-${entry.university}-${entry.location}`;
+        if (seen.has(key)) return true;
+        seen.add(key);
+        return false;
+      });
+    
+      if (hasDuplicates) {
+        toast.dismiss();
+        toast.error('Duplicate education entries found. Please remove duplicates.');
+        setIsSubmitting(false);
+        return;
+      }
+    
+      // ✅ Step 3: Prepare payload
       const payload = educationList.map((entry) => ({
         doctorID,
         graduateID: entry.UG,
@@ -1552,19 +1608,25 @@ if (!endDate) {
         isActive: true,
       }));
     
+      // ✅ Step 4: Submit to API
       try {
         const res = await api.post('/Doctor/SaveDoctorEducation', payload);
     
         if (res.status === 200 || res.status === 201) {
+          toast.dismiss();
           toast.success('Education details submitted successfully!');
-          setEducationErrors([]); // clear previous errors
+          setEducationErrors([]); // Clear errors
         } else {
+          toast.dismiss();
           toast.error(`❌ Error: ${res.data.message || 'Unknown error'}`);
         }
       } catch (err: any) {
         console.error('❌ Submission error:', err);
+        toast.dismiss();
         toast.error('An error occurred while submitting education data.');
       }
+    
+      setIsSubmitting(false); // ✅ Re-enable button
     };
     
 
@@ -1730,13 +1792,14 @@ const handleDistrictChange = (
        fetchPatientAddress();
      }, []); // run only once on component mount
 
-     const handlePrimaryChange = (index: number) => {
-      const updatedAddresses = addresses.map((addr, i) => ({
+     const handlePrimaryChange = (selectedIndex: number) => {
+      const updatedAddresses = addresses.map((addr, idx) => ({
         ...addr,
-        isPrimary: i === index, // Only the selected one is true
+        isPrimary: idx === selectedIndex, // only selected one gets true
       }));
       setAddresses(updatedAddresses);
     };
+    
     
 
 
@@ -2990,15 +3053,18 @@ useEffect(() => {
                       </div>
                     </div>
                   </div>
-                  {/* <div className="absolute top-4 right-4 flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    checked={addr.isPrimary}
-                    onChange={() => handlePrimaryChange(index)}
-                    className="w-4 h-4"
-                  />
-                  <label className="text-sm font-medium">Set as Primary</label>
-                </div> */}
+                  <div className="flex justify-end items-center mt-4">
+                  <label className="flex items-center gap-2 text-sm text-black dark:text-white">
+                    <input
+                      type="checkbox"
+                      checked={address.isPrimary}
+                      onChange={() => handlePrimaryChange(index)}
+                    />
+                    Set as Primary
+                  </label>
+                </div>
+
+
                 </div>
               ))}
 
