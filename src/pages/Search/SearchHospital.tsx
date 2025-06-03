@@ -260,37 +260,45 @@ const HospitalCards = () => {
     }
   }, [hospitals, hospitalNameFromQuery]);
 
-  const fetchHospitals = async () => {
-    try {
-      const response = await api.get('/Hospital/List');
+ const fetchHospitals = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
 
-      console.log('API Response:', response.data); // Verify response format
+    let url = '/Hospital/List';
 
-      if (Array.isArray(response.data)) {
-        const hospitalData = response.data.map((hospital) => ({
-          hospitalID: hospital.hospitalID || '',
-          tenantID: hospital.tenantID || '',
-          hospitalName: hospital.hospitalName || 'Unknown Hospital',
-          hospitalCode: hospital.hospitalCode || '',
-          hospitalType: hospital.hospitalType || 'Unknown Type',
-          email: hospital.email || '',
-          mobile: hospital.mobile || '',
-          landline: hospital.landline || '',
-          gst: hospital.gst || '',
+    // Only append tenantId if roleName is not 'Patient'
+    if (tenantID && roleName !== 'Patient') {
+      url += `?tenantId=${tenantID}`;
+    }
 
-          isActive: hospital.isActive ?? false,
-        }));
+    const response = await api.get(url);
+    console.log('API Response:', response.data); // Verify response format
 
-        setHospitals(hospitalData);
-      } else {
-        console.error('Invalid hospital data format:', response.data);
-        setHospitals([]);
-      }
-    } catch (error) {
-      console.error('Error fetching hospitals:', error);
+    if (Array.isArray(response.data)) {
+      const hospitalData = response.data.map((hospital) => ({
+        hospitalID: hospital.hospitalID || '',
+        tenantID: hospital.tenantID || '',
+        hospitalName: hospital.hospitalName || 'Unknown Hospital',
+        hospitalCode: hospital.hospitalCode || '',
+        hospitalType: hospital.hospitalType || 'Unknown Type',
+        email: hospital.email || '',
+        mobile: hospital.mobile || '',
+        landline: hospital.landline || '',
+        gst: hospital.gst || '',
+        isActive: hospital.isActive ?? false,
+      }));
+
+      setHospitals(hospitalData);
+    } else {
+      console.error('Invalid hospital data format:', response.data);
       setHospitals([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching hospitals:', error);
+    setHospitals([]);
+  }
+};
 
   useEffect(() => {
     fetchHospitals();
@@ -457,26 +465,25 @@ const HospitalCards = () => {
           return `${year}-${month}-${day}`;
         };
         console.log('Form Data:', formData);
-       const payload = {
-  createdBy: userID,
-  isActive: true,
-  doctorID: formData.doctor,
-  patientID: patientID,
-  hospitalID: selectedHospitalID,      // <-- Add this line
-  timeSlotID: formData.timeSlotID,     // Pass this correctly
-  appointmentDate: formData.date
-    ? formatDateYYYYMMDD(formData.date)
-    : null,
-  appointmentTime: appointmentTimeFormatted,
-  statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
-  notes: formData.reason?.trim() || 'No additional notes',
-  toWhom: appointmentType,
-  relationShip: selectedRelationship,
-  phoneNumber: formData.phoneNumber || '',
-  appointmentNumber: 0,  // <-- Add this line
-  tokenNumber: 0         // <-- Add this line
-};
-
+        const payload = {
+          createdBy: userID,
+          isActive: true,
+          doctorID: formData.doctor,
+          patientID: patientID,
+          hospitalID: selectedHospitalID, // <-- Add this line
+          timeSlotID: formData.timeSlotID, // Pass this correctly
+          appointmentDate: formData.date
+            ? formatDateYYYYMMDD(formData.date)
+            : null,
+          appointmentTime: appointmentTimeFormatted,
+          statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+          notes: formData.reason?.trim() || 'No additional notes',
+          toWhom: appointmentType,
+          relationShip: selectedRelationship,
+          phoneNumber: formData.phoneNumber || '',
+          appointmentNumber: 0, // <-- Add this line
+          tokenNumber: 0, // <-- Add this line
+        };
 
         const response = await api.post('/Appointment', payload);
         const responseData = response.data;
@@ -523,40 +530,41 @@ const HospitalCards = () => {
   };
 
   const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    // Trim values directly here and check if they are non-empty
-    const hospitalName = formData.hospitalName.trim();
-    const hospitalType = formData.hospitalType.trim();
+  const hospitalName = formData.hospitalName.trim();
+  const hospitalType = formData.hospitalType.trim();
 
-    // If both fields are empty, show a warning
-    if (!hospitalName && !hospitalType) {
-      toast.warning('Please select or enter at least one field to search.');
-      return;
-    }
+  if (!hospitalName && !hospitalType) {
+    toast.warning('Please select or enter at least one field to search.');
+    return;
+  }
 
-    // Construct the query string dynamically
-    const queryParams = new URLSearchParams();
-    if (hospitalName) queryParams.append('hospitalName', hospitalName); // If hospitalName is not empty
-    if (hospitalType) queryParams.append('hospitalType', hospitalType); // If hospitalType is not empty
+  const tenantID = sessionStorage.getItem('tenantID');
+  const roleName = sessionStorage.getItem('roleName');
 
-    try {
-      const res = await api.get('/Hospital/List', {
-        params: {
-          hospitalName: hospitalName || undefined,
-          hospitalType: hospitalType || undefined,
-        },
-      });
-
-      const data = res.data;
-
-      console.log('Search Results:', data);
-      setHospitals(data); // Set the fetched hospital data
-    } catch (err) {
-      console.error(err);
-      toast.error('Something went wrong while searching.');
-    }
+  // Construct query parameters conditionally
+  const queryParams: any = {
+    hospitalName: hospitalName || undefined,
+    hospitalType: hospitalType || undefined,
   };
+
+  // Only include tenantId if roleName is not 'Patient'
+  if (roleName !== 'Patient') {
+    queryParams.tenantId = tenantID || undefined;
+  }
+
+  try {
+    const res = await api.get('/Hospital/List', { params: queryParams });
+    const data = res.data;
+    console.log('Search Results:', data);
+    setHospitals(data); // Update hospitals list with search results
+  } catch (err) {
+    console.error(err);
+    toast.error('Something went wrong while searching.');
+  }
+};
+
 
   // ✅ Handle Book Now
 
@@ -804,6 +812,7 @@ const HospitalCards = () => {
     setFormData({ hospitalName: '', hospitalType: '' });
     fetchHospitals(); // Re-fetch all hospitals
   };
+
   useEffect(() => {
     const selectedOption = options.find(
       (opt) => opt.appLOVID === appointmentType,
@@ -887,6 +896,7 @@ const HospitalCards = () => {
         <input
           type="text"
           id="hospitalName"
+          maxLength={30}
           value={formData.hospitalName}
           onChange={(e) =>
             setFormData({ ...formData, hospitalName: e.target.value })
@@ -963,58 +973,73 @@ const HospitalCards = () => {
               </div>
 
               {/* Info Grid: Hospital Name & Type */}
-             <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-800">
-  <div className="flex items-center gap-2">
-    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Name: <span className="font-normal">{hospital.hospitalName}</span>
-    </span>
-  </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-800">
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Name:{' '}
+                    <span className="font-normal">{hospital.hospitalName}</span>
+                  </span>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Type: <span className="font-normal">{hospital.hospitalType}</span>
-    </span>
-  </div>
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Type:{' '}
+                    <span className="font-normal">{hospital.hospitalType}</span>
+                  </span>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Code: <span className="font-normal">{hospital.hospitalCode}</span>
-    </span>
-  </div>
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Code:{' '}
+                    <span className="font-normal">{hospital.hospitalCode}</span>
+                  </span>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <img src={EmailIcon} alt="email" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Email: <span className="font-normal">{hospital.email || 'N/A'}</span>
-    </span>
-  </div>
+                <div className="flex items-center gap-2">
+                  <img src={EmailIcon} alt="email" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Email:{' '}
+                   <span
+  className="font-normal truncate max-w-[160px] inline-block align-middle"
+  title={hospital.email || 'N/A'}
+>
+  {hospital.email || 'N/A'}
+</span>
 
-  <div className="flex items-center gap-2">
-    <img src={PhoneIcon} alt="phone" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Mobile: <span className="font-normal">{hospital.mobile || 'N/A'}</span>
-    </span>
-  </div>
+                  </span>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      Landline: <span className="font-normal">{hospital.landline || 'N/A'}</span>
-    </span>
-  </div>
+                <div className="flex items-center gap-2">
+                  <img src={PhoneIcon} alt="phone" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Mobile:{' '}
+                    <span className="font-normal">
+                      {hospital.mobile || 'N/A'}
+                    </span>
+                  </span>
+                </div>
 
-  <div className="flex items-center gap-2">
-    <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-    <span className="text-black font-medium">
-      GST: <span className="font-normal">{hospital.gst || 'N/A'}</span>
-    </span>
-  </div>
-</div>
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    Landline:{' '}
+                    <span className="font-normal">
+                      {hospital.landline || 'N/A'}
+                    </span>
+                  </span>
+                </div>
 
-
+                <div className="flex items-center gap-2">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium">
+                    GST:{' '}
+                    <span className="font-normal">{hospital.gst || 'N/A'}</span>
+                  </span>
+                </div>
+              </div>
 
               <div className="flex justify-end mb-2 mr-2">
                 <button
@@ -1217,6 +1242,7 @@ const HospitalCards = () => {
                   placeholder="Enter your text here..."
                   value={formData.reason}
                   onChange={handleInputChange}
+                  maxLength={200}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
                  text-black outline-none focus:border-primary dark:border-form-strokedark
                   dark:bg-form-input dark:text-white dark:focus:border-primary"

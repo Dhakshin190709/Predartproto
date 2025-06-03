@@ -38,6 +38,7 @@ type Event = {
 
 const Calendar: React.FC = () => {
   const [selectedDoctorID, setSelectedDoctorID] = useState(null);
+const roleName = sessionStorage.getItem('roleName');
 
   const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
@@ -474,31 +475,40 @@ const hasFetched = useRef(false);
   };
 
   // Fetch Doctors
-  const fetchDoctors = async () => {
-    try {
-      const response = await api.get('/Doctor');
-      const result = response.data;
+ const fetchDoctors = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      if (result.success && Array.isArray(result.data)) {
-        setDoctors(result.data);
-
-        const loggedInDoctorID = sessionStorage.getItem('doctorID');
-
-        const loggedInDoctor = result.data.find(
-          (doc) => String(doc.doctorID) === String(loggedInDoctorID),
-        );
-        if (loggedInDoctor) {
-          setSelectedDoctor(loggedInDoctor.doctorID);
-          setDoctorName(loggedInDoctor.doctorName);
-         // fetchDoctorTimeSlots(loggedInDoctor.doctorID);
-        }
-      } else {
-        console.error('Invalid doctor data format:', result.data);
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
+    let url = '/Doctor';
+    if (tenantID) {
+      url += `?tenantId=${tenantID}`;
     }
-  };
+
+    const response = await api.get(url);
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setDoctors(result.data);
+
+      const loggedInDoctorID = sessionStorage.getItem('doctorID');
+
+      const loggedInDoctor = result.data.find(
+        (doc) => String(doc.doctorID) === String(loggedInDoctorID),
+      );
+
+      if (loggedInDoctor) {
+        setSelectedDoctor(loggedInDoctor.doctorID);
+        setDoctorName(loggedInDoctor.doctorName);
+        // fetchDoctorTimeSlots(loggedInDoctor.doctorID);
+      }
+    } else {
+      console.error('Invalid doctor data format:', result.data);
+    }
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+  }
+};
+
 
   
   // Fetch Doctor Time Slots
@@ -786,20 +796,31 @@ const hasFetched = useRef(false);
         {/* Time Interval Dropdown (Left side) */}
         <div className="flex items-center justify-between w-full px-4">
           {/* Left Dropdown */}
-          <div className="flex items-center space-x-2">
-            <label className="text-black">Doctor:</label>
+         <div className="flex items-center space-x-2">
+  <label className="text-black">Doctor:</label>
 
-            <select
-              name="doctor"
-              value={selectedDoctor || ''}
-              className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              disabled
-            >
-              <option value={selectedDoctor}>
-                {doctorName || 'Doctor Name'}
-              </option>
-            </select>
-          </div>
+  <select
+  name="doctor"
+  value={selectedDoctor || ''}
+  onChange={(e) => {
+    const selectedID = e.target.value;
+    const doctor = doctors.find((doc) => doc.doctorID === selectedID);
+    setSelectedDoctor(selectedID);
+    setDoctorName(doctor?.doctorName || '');
+  }}
+  className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  disabled={roleName !== 'TenantAdmin'}
+>
+  <option value="">Select Doctor</option>
+  {doctors.map((doc) => (
+    <option key={doc.doctorID} value={doc.doctorID}>
+      {doc.doctorName}
+    </option>
+  ))}
+</select>
+
+</div>
+
 
           {/* center Dropdown */}
           <div className="flex items-center">

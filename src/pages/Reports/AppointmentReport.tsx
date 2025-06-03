@@ -10,8 +10,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { ToastContainer } from 'react-toastify';
 import autoTable from 'jspdf-autotable';
 
-
-
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import Modal from 'react-modal'; // Ensure you have installed react-modal
@@ -53,103 +51,108 @@ const AppointmentReport: React.FC = () => {
   const [rowData, setRowData] = useState<any[]>([]); // Sample appointment data
   const doctorID = sessionStorage.getItem('doctorID');
 
- 
-const handleSearch = async () => {
-  const role = sessionStorage.getItem('roleName')?.toLowerCase();
+  const handleSearch = async () => {
+    const role = sessionStorage.getItem('roleName')?.toLowerCase();
 
-  const storedUnitID = sessionStorage.getItem('unitID');
-  const storedDoctorID = sessionStorage.getItem('doctorID');
+    const storedUnitID = sessionStorage.getItem('unitID');
+    const storedDoctorID = sessionStorage.getItem('doctorID');
 
-  const hospitalID = role === 'doctor' ? storedUnitID : selectedHospitalID;
-  const doctorID = role === 'doctor' ? storedDoctorID : selectedDoctorID;
+    const hospitalID = role === 'doctor' ? storedUnitID : selectedHospitalID;
+    const doctorID = role === 'doctor' ? storedDoctorID : selectedDoctorID;
 
-  // Build query params object instead of string
-  let params: Record<string, string> = {};
+    // Build query params object instead of string
+    let params: Record<string, string> = {};
 
-  if (hospitalID) {
-    params.HospitalID = hospitalID;
-  }
-
-  if (doctorID) {
-    params.DoctorID = doctorID;
-  }
-
-  // Determine if all filters are filled
-  const hasFullFilter =
-    hospitalID &&
-    doctorID &&
-    selectedStatus &&
-    filterFromDate &&
-    filterToDate;
-
-  if (hasFullFilter) {
-    params.StatusID = selectedStatus;
-    params.StartDate = filterFromDate;
-    params.EndDate = filterToDate;
-  } else {
-    if (selectedStatus) {
-      params.StatusID = selectedStatus;
+    if (hospitalID) {
+      params.HospitalID = hospitalID;
     }
 
-    if (filterFromDate && filterToDate) {
+    if (doctorID) {
+      params.DoctorID = doctorID;
+    }
+
+    // Determine if all filters are filled
+    const hasFullFilter =
+      hospitalID &&
+      doctorID &&
+      selectedStatus &&
+      filterFromDate &&
+      filterToDate;
+
+    if (hasFullFilter) {
+      params.StatusID = selectedStatus;
       params.StartDate = filterFromDate;
       params.EndDate = filterToDate;
-    } else if (filterFromDate && doctorID && hospitalID) {
-      params.StartDate = filterFromDate;
+    } else {
+      if (selectedStatus) {
+        params.StatusID = selectedStatus;
+      }
+
+      if (filterFromDate && filterToDate) {
+        params.StartDate = filterFromDate;
+        params.EndDate = filterToDate;
+      } else if (filterFromDate && doctorID && hospitalID) {
+        params.StartDate = filterFromDate;
+      }
     }
-  }
 
-  let hasAnyFilter = false;
+    let hasAnyFilter = false;
 
-  if (role === 'doctor') {
-    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
-  } else if (role === 'reception' || role === 'hostitaladmin') {
-    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID;
-  } else {
-    hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID || !!hospitalID;
-  }
+    if (role === 'doctor') {
+      hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
+    } else if (role === 'reception' || role === 'hostitaladmin') {
+      hasAnyFilter =
+        !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID;
+    } else {
+      hasAnyFilter =
+        !!selectedStatus ||
+        !!filterFromDate ||
+        !!filterToDate ||
+        !!doctorID ||
+        !!hospitalID;
+    }
 
-  if (!hasAnyFilter) {
-    toast.warning('Please select at least one filter before searching.');
-    return;
-  }
+    if (!hasAnyFilter) {
+      toast.warning('Please select at least one filter before searching.');
+      return;
+    }
 
-  try {
-    // Using axios with params object automatically encodes query parameters
-    const response = await api.get('/Appointment/AppointmentReport', { params });
-    console.log('Search Results:', response.data);
-    setRowData(response.data);
-  } catch (error) {
-    console.error('Error fetching appointment report:', error);
-    toast.error('Failed to fetch appointment report. Please try again later.');
-  }
-};
-
+    try {
+      // Using axios with params object automatically encodes query parameters
+      const response = await api.get('/Appointment/AppointmentReport', {
+        params,
+      });
+      console.log('Search Results:', response.data);
+      setRowData(response.data);
+    } catch (error) {
+      console.error('Error fetching appointment report:', error);
+      toast.error(
+        'Failed to fetch appointment report. Please try again later.',
+      );
+    }
+  };
 
   const handleReset = () => {
-  const role = sessionStorage.getItem('roleName')?.toLowerCase();
+    const role = sessionStorage.getItem('roleName')?.toLowerCase();
 
-  setSelectedStatus('');
-  setFilterFromDate('');
-  setFilterToDate('');
+    setSelectedStatus('');
+    setFilterFromDate('');
+    setFilterToDate('');
 
-  if (role !== 'doctor') {
-    setSelectedDoctorID('');
-  }
+    if (role !== 'doctor') {
+      setSelectedDoctorID('');
+    }
 
-  // Only reset hospital if it's not prefilled (for doctor role, hospital is prefilled and disabled)
-  const isHospitalPrefilled = !!sessionStorage.getItem('unitID');
-  if (!isHospitalPrefilled && role !== 'doctor') {
-    setSelectedHospitalID('');
-  }
+    // Only reset hospital if it's not prefilled (for doctor role, hospital is prefilled and disabled)
+    const isHospitalPrefilled = !!sessionStorage.getItem('unitID');
+    if (!isHospitalPrefilled && role !== 'doctor') {
+      setSelectedHospitalID('');
+    }
 
-  setRowData([]);
-  fetchAppointmentReport();
-};
+    setRowData([]);
+    fetchAppointmentReport();
+  };
 
-  
-  
-  
   const applyGlobalSearch = (data: any[]) => {
     if (!quickSearchText.trim()) return data;
 
@@ -185,7 +188,7 @@ const handleSearch = async () => {
       alert('No data available to download.');
       return;
     }
-  
+
     const selectedFields = [
       'doctorName',
       'doctorEmail',
@@ -195,87 +198,92 @@ const handleSearch = async () => {
       'patientDateOfBirth',
       'patientEmail',
       'patientPhoneNumber',
-      'hospitalName'
+      'hospitalName',
     ];
-  
-    const filteredData = data.map(item => {
+
+    const filteredData = data.map((item) => {
       const filteredItem: any = {};
-      selectedFields.forEach(key => {
+      selectedFields.forEach((key) => {
         filteredItem[key] = item[key] || '';
       });
       return filteredItem;
     });
-  
+
     switch (format) {
       case 'Excel':
         const ws = XLSX.utils.json_to_sheet(filteredData);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-        saveAs(new Blob([excelBuffer], { type: 'application/octet-stream' }), 'data.xlsx');
+        saveAs(
+          new Blob([excelBuffer], { type: 'application/octet-stream' }),
+          'data.xlsx',
+        );
         break;
-  
+
       case 'CSV':
         const csvSheet = XLSX.utils.json_to_sheet(filteredData);
         const csvOutput = XLSX.utils.sheet_to_csv(csvSheet);
-        saveAs(new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' }), 'data.csv');
+        saveAs(
+          new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' }),
+          'data.csv',
+        );
         break;
-  
-        case 'PDF':
-          const doc = new jsPDF({
-            orientation: 'landscape',
-            unit: 'pt',
-            format: 'A4',
-          });
-        
-          autoTable(doc, {
-            head: [selectedFields],
-            body: filteredData.map(row => selectedFields.map(key => row[key] ?? '')),
-            columnStyles: selectedFields.reduce((styles, key, index) => {
+
+      case 'PDF':
+        const doc = new jsPDF({
+          orientation: 'landscape',
+          unit: 'pt',
+          format: 'A4',
+        });
+
+        autoTable(doc, {
+          head: [selectedFields],
+          body: filteredData.map((row) =>
+            selectedFields.map((key) => row[key] ?? ''),
+          ),
+          columnStyles: selectedFields.reduce(
+            (styles, key, index) => {
               styles[index] = { cellWidth: 'auto' }; // or a number like 70
               return styles;
-            }, {} as Record<number, { cellWidth: string | number }>),
-            styles: {
-              fontSize: 8,
-              cellPadding: 3,
             },
-            headStyles: {
-              fillColor: [22, 160, 133],
-              textColor: 255,
-              fontStyle: 'bold',
-            },
-          });
-        
-          doc.save('data.pdf');
-          break;
-        
-        
-        
-        
-      
-  
+            {} as Record<number, { cellWidth: string | number }>,
+          ),
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+          },
+          headStyles: {
+            fillColor: [22, 160, 133],
+            textColor: 255,
+            fontStyle: 'bold',
+          },
+        });
+
+        doc.save('data.pdf');
+        break;
+
       default:
         alert('Unsupported format');
     }
-  
+
     setIsModalVisible(false);
   };
-  
-  
-  
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
- useEffect(() => {
+  useEffect(() => {
   const fetchHospitals = async () => {
     try {
-      const response = await api.get('/Hospital/List');
+      const tenantID = sessionStorage.getItem('tenantID');
+      const response = await api.get('/Hospital/List', {
+        params: { tenantId: tenantID }, // ⬅️ Pass tenantID as query param
+      });
+
       const data = response.data;
 
       // Filter only active hospitals
-      const activeHospitals = data.filter(
-        (hospital) => hospital.isActive === true,
-      );
+      const activeHospitals = data.filter((hospital) => hospital.isActive === true);
 
       setHospitals(activeHospitals);
     } catch (error) {
@@ -286,32 +294,33 @@ const handleSearch = async () => {
   fetchHospitals();
 }, []);
 
- useEffect(() => {
-  const fetchDoctors = async () => {
-    if (!selectedHospitalID) return; // Wait until hospital is selected
 
-    try {
-      const response = await api.get('/Doctor', {
-        params: { hospitalId: selectedHospitalID },
-      });
-      const result = response.data;
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      if (!selectedHospitalID) return; // Wait until hospital is selected
 
-      if (result?.success && Array.isArray(result.data)) {
-        // Filter only active doctors
-        const activeDoctors = result.data.filter(
-          (doctor) => doctor.isActive === true,
-        );
-        setDoctors(activeDoctors);
-      } else {
-        console.error('Unexpected doctor data format:', result);
+      try {
+        const response = await api.get('/Doctor', {
+          params: { hospitalId: selectedHospitalID },
+        });
+        const result = response.data;
+
+        if (result?.success && Array.isArray(result.data)) {
+          // Filter only active doctors
+          const activeDoctors = result.data.filter(
+            (doctor) => doctor.isActive === true,
+          );
+          setDoctors(activeDoctors);
+        } else {
+          console.error('Unexpected doctor data format:', result);
+        }
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
       }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-    }
-  };
+    };
 
-  fetchDoctors();
-}, [selectedHospitalID]);
+    fetchDoctors();
+  }, [selectedHospitalID]);
 
   const [isDoctorLoggedIn, setIsDoctorLoggedIn] = useState(false);
 
@@ -319,9 +328,9 @@ const handleSearch = async () => {
     const role = sessionStorage.getItem('roleName');
     const doctorID = sessionStorage.getItem('doctorID');
     const unitID = sessionStorage.getItem('unitID');
-  
+
     setRoleName(role);
-  
+
     if (role === 'Doctor') {
       if (unitID) setSelectedHospitalID(unitID);
       if (doctorID) {
@@ -334,7 +343,6 @@ const handleSearch = async () => {
       if (unitID) setSelectedHospitalID(unitID);
     }
   }, []);
-  
 
   const allColumns = [
     {
@@ -346,7 +354,6 @@ const handleSearch = async () => {
       cellClass: 'left',
       sortable: false,
       filter: false,
-    
     },
     {
       headerName: 'Appointment Date',
@@ -363,7 +370,7 @@ const handleSearch = async () => {
     {
       headerName: 'Patient Name',
       field: 'patientName',
-     
+
       width: 300,
       resizable: false,
       sortable: true,
@@ -399,99 +406,103 @@ const handleSearch = async () => {
       filter: true,
     },
   ];
-  
+
   // Dynamically add Doctor Name if role is Reception or HospitalAdmin
   const columns = [...allColumns];
   if (roleName === 'Reception' || roleName === 'HostitalAdmin') {
     columns.splice(3, 0, {
       headerName: 'Doctor Name',
       field: 'doctorName',
-     
+
       width: 300,
       resizable: false,
       sortable: true,
       filter: true,
     });
   }
+
+  useEffect(() => {
+    fetchStatusOptions();
+    fetchToWhomOptions();
+  }, []);
+
+  const fetchAppointmentReport = async () => {
+    const role = sessionStorage.getItem('roleName');
+    const doctorID = sessionStorage.getItem('doctorID');
+    const unitID = sessionStorage.getItem('unitID');
+  const tenantID = sessionStorage.getItem('tenantID');
+    const params: Record<string, string> = {};
+
+    if (role === 'Doctor' && doctorID && unitID) {
+      params['DoctorID'] = doctorID;
+      params['HospitalID'] = unitID;
+    } else if ((role === 'Reception' || role === 'HostitalAdmin') && unitID) {
+      params['HospitalID'] = unitID;
+    }else if (role === 'TenantAdmin' && tenantID) {
+    params['tenantID'] = tenantID;
+  }
+
+    try {
+      const response = await api.get('/Appointment/AppointmentReport', {
+        params,
+      });
+      console.log('Appointment rowData:', response.data);
+      setRowData(response.data);
+    } catch (error) {
+      console.error('Error fetching appointment data:', error);
+    }
+  };
+
   
+  useEffect(() => {
+    fetchAppointmentReport();
+  }, []);
 
+  useEffect(() => {
+    setExportData(rowData); // Whenever rowData updates, update exportData
+  }, [rowData]);
 
+  const fetchStatusOptions = async () => {
+    try {
+      const response = await api.get('/AppLOV', {
+        params: { type: 'AppointmentStauts' },
+      });
 
+      const data = response.data?.data || [];
+      setStatusOptions(data);
 
-useEffect(() => {
-  fetchStatusOptions();
-  fetchToWhomOptions();
-}, []);
+      const statusMap = data.reduce(
+        (acc: Record<string, string>, item: any) => {
+          acc[item.appLOVID] = item.name;
+          return acc;
+        },
+        {},
+      );
+      setStatusMapping(statusMap);
+    } catch (error) {
+      console.error('Error fetching status data:', error);
+    }
+  };
 
+  const fetchToWhomOptions = async () => {
+    try {
+      const response = await api.get('/AppLOV', {
+        params: { type: 'toWhom' },
+      });
 
-const fetchAppointmentReport = async () => {
-  const role = sessionStorage.getItem('roleName');
-  const doctorID = sessionStorage.getItem('doctorID');
-  const unitID = sessionStorage.getItem('unitID');
+      const toWhomMap = (response.data.data || []).reduce(
+        (acc: Record<string, string>, item: any) => {
+          acc[item.appLOVID] = item.name;
+          return acc;
+        },
+        {},
+      );
 
-  const params: Record<string, string> = {};
-
-  if (role === 'Doctor' && doctorID && unitID) {
-    params['DoctorID'] = doctorID;
-    params['HospitalID'] = unitID;
-  } else if ((role === 'Reception' || role === 'HostitalAdmin') && unitID) {
-    params['HospitalID'] = unitID;
-  }
-
-  try {
-    const response = await api.get('/Appointment/AppointmentReport', { params });
-    console.log('Appointment rowData:', response.data);
-    setRowData(response.data);
-  } catch (error) {
-    console.error('Error fetching appointment data:', error);
-  }
-};
-useEffect(() => {
-  fetchAppointmentReport();
-}, []);
-
-useEffect(() => {
-  setExportData(rowData); // Whenever rowData updates, update exportData
-}, [rowData]);
-
-const fetchStatusOptions = async () => {
-  try {
-    const response = await api.get('/AppLOV', {
-      params: { type: 'AppointmentStauts' },
-    });
-
-    const data = response.data?.data || [];
-    setStatusOptions(data);
-
-    const statusMap = data.reduce((acc: Record<string, string>, item: any) => {
-      acc[item.appLOVID] = item.name;
-      return acc;
-    }, {});
-    setStatusMapping(statusMap);
-  } catch (error) {
-    console.error('Error fetching status data:', error);
-  }
-};
-
-const fetchToWhomOptions = async () => {
-  try {
-    const response = await api.get('/AppLOV', {
-      params: { type: 'toWhom' },
-    });
-
-    const toWhomMap = (response.data.data || []).reduce(
-      (acc: Record<string, string>, item: any) => {
-        acc[item.appLOVID] = item.name;
-        return acc;
-      },
-      {},
-    );
-
-    setToWhomMapping(toWhomMap);
-  } catch (error) {
-    console.error('Error fetching toWhom data:', error);
-  }
-};
+      setToWhomMapping(toWhomMap);
+    } catch (error) {
+      console.error('Error fetching toWhom data:', error);
+    }
+  };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -575,45 +586,44 @@ const fetchToWhomOptions = async () => {
 
       {/* Buttons in second column */}
       <div className="flex flex-wrap items-center gap-4 mt-4">
-  {/* Search Button */}
-  <button
-    type="button"
-    onClick={handleSearch}
-    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+        {/* Search Button */}
+        <button
+          type="button"
+          onClick={handleSearch}
+          className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
       hover:from-[#007BFF] hover:to-[#004A99] text-white 
       transition duration-150 ease-out hover:ease-in 
       px-4 py-2 rounded-lg"
-  >
-    <FaSearch />
-    <span className="ml-2">Search</span>
-  </button>
+        >
+          <FaSearch />
+          <span className="ml-2">Search</span>
+        </button>
 
-  {/* Reset Button */}
-  <CustomButton
-    onClick={handleReset}
-    className="flex items-center border border-gray-300 
+        {/* Reset Button */}
+        <CustomButton
+          onClick={handleReset}
+          className="flex items-center border border-gray-300 
       opacity-80 hover:opacity-100 px-4 py-2 rounded-lg gap-2"
-  >
-    Reset
-  </CustomButton>
+        >
+          Reset
+        </CustomButton>
 
-  {/* Download Button */}
-  <button
-    type="button"
-    onClick={() => setIsModalVisible(true)}
-    className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+        {/* Download Button */}
+        <button
+          type="button"
+          onClick={() => setIsModalVisible(true)}
+          className="flex items-center bg-gradient-to-b from-[#004A99] to-[#007BFF] 
       hover:from-[#007BFF] hover:to-[#004A99] text-white 
       transition duration-150 ease-out hover:ease-in 
       px-4 py-2 rounded-lg"
-  >
-    <FaFileDownload />
-    <span className="ml-2">Download</span>
-  </button>
+        >
+          <FaFileDownload />
+          <span className="ml-2">Download</span>
+        </button>
 
-  {/* Toast Container */}
-  <ToastContainer position="top-right" autoClose={3000} />
-</div>
-
+        {/* Toast Container */}
+        <ToastContainer position="top-right" autoClose={3000} />
+      </div>
 
       <hr className="border-t-2 border-stroke bg-transparent my-6" />
       {/* Global Search */}
@@ -674,46 +684,45 @@ const fetchToWhomOptions = async () => {
 
       {/* Modal for Download Format */}
       <Modal
-  isOpen={isModalVisible}
-  onRequestClose={() => setIsModalVisible(false)}
-  className="bg-white w-full max-w-sm mx-auto rounded-lg p-6 shadow-lg"
-  overlayClassName="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center"
-  ariaHideApp={false}
->
-  <h2 className="text-lg font-semibold mb-4 text-gray-800">
-    Select Download Format
-  </h2>
-  <div className="space-y-4">
-    <button
-      className="flex items-center w-full text-green-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-      onClick={() => handleDownload('Excel', exportData)}
-    >
-      <FaFileExcel className="mr-3" />
-      Excel
-    </button>
-    <button
-      className="flex items-center w-full text-yellow-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-      onClick={() => handleDownload('CSV', exportData)}
-    >
-      <FaFileCsv className="mr-3" />
-      CSV
-    </button>
-    <button
-      className="flex items-center w-full text-red-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
-      onClick={() => handleDownload('PDF', exportData)}
-    >
-      <FaFilePdf className="mr-3" />
-      PDF
-    </button>
-  </div>
-  <button
-    className="mt-4 w-full text-gray-700 font-medium px-4 py-2 border rounded-lg hover:bg-gray-100"
-    onClick={() => setIsModalVisible(false)}
-  >
-    Cancel
-  </button>
-</Modal>
-
+        isOpen={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+        className="bg-white w-full max-w-sm mx-auto rounded-lg p-6 shadow-lg"
+        overlayClassName="fixed inset-0 bg-gray-800 bg-opacity-50 flex justify-center items-center"
+        ariaHideApp={false}
+      >
+        <h2 className="text-lg font-semibold mb-4 text-gray-800">
+          Select Download Format
+        </h2>
+        <div className="space-y-4">
+          <button
+            className="flex items-center w-full text-green-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+            onClick={() => handleDownload('Excel', exportData)}
+          >
+            <FaFileExcel className="mr-3" />
+            Excel
+          </button>
+          <button
+            className="flex items-center w-full text-yellow-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+            onClick={() => handleDownload('CSV', exportData)}
+          >
+            <FaFileCsv className="mr-3" />
+            CSV
+          </button>
+          <button
+            className="flex items-center w-full text-red-600 font-medium px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-100"
+            onClick={() => handleDownload('PDF', exportData)}
+          >
+            <FaFilePdf className="mr-3" />
+            PDF
+          </button>
+        </div>
+        <button
+          className="mt-4 w-full text-gray-700 font-medium px-4 py-2 border rounded-lg hover:bg-gray-100"
+          onClick={() => setIsModalVisible(false)}
+        >
+          Cancel
+        </button>
+      </Modal>
     </div>
   );
 };

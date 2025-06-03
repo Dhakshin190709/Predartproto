@@ -39,6 +39,10 @@ const Hospital: React.FC = () => {
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
   const [showConfirmation, setShowConfirmation] = useState(false); // Show confirmation for deletion
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null); // ID of row to delete
+ 
+const [initialData, setInitialData] = useState<any[]>([]);
+
+
   const [formData, setFormData] = useState<RowData>({
     hospitalID: '',
     hospitalName: '',
@@ -61,18 +65,18 @@ const Hospital: React.FC = () => {
   const editFormRef = useRef<HTMLDivElement | null>(null);
   const [pageSize, setPageSize] = useState(10);
   const gridRef = useRef(null);
-    const [districts, setDistricts] = useState<District[]>([]);
-    const [cities, setCities] = useState<City[]>([]);
-    const [pincodes, setPincodes] = useState<string[]>([]);
-    const [showCityInput, setShowCityInput] = useState(false);
-    const [manualCity, setManualCity] = useState('');
-    const [selectedState, setSelectedState] = useState('');
-    const [selectedDistrict, setSelectedDistrict] = useState('');
-     const [touchedFields, setTouchedFields] = useState<{
-        [key: string]: boolean;
-      }>({});
- const [addressTypes, setAddressTypes] = useState([]);
- const [addresses, setAddresses] = useState<Address[]>([
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [pincodes, setPincodes] = useState<string[]>([]);
+  const [showCityInput, setShowCityInput] = useState(false);
+  const [manualCity, setManualCity] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [touchedFields, setTouchedFields] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [addressTypes, setAddressTypes] = useState([]);
+  const [addresses, setAddresses] = useState<Address[]>([
     {
       addressType: '',
       address1: '',
@@ -86,19 +90,19 @@ const Hospital: React.FC = () => {
   ]);
 
   const emptyAddress = {
-  addressID: '',
-  id: '',
-  type: 'Hospital',
-  addressType: '',
-  address1: '',
-  address2: '',
-  city: '',
-  district: '',
-  state: '',
-  zipCode: '',
-  isPrimary: false,
-};
-   const [states, setStates] = useState<State[]>([]);
+    addressID: '',
+    id: '',
+    type: 'Hospital',
+    addressType: '',
+    address1: '',
+    address2: '',
+    city: '',
+    district: '',
+    state: '',
+    zipCode: '',
+    isPrimary: false,
+  };
+  const [states, setStates] = useState<State[]>([]);
   // Calculate height based on pageSize, rowHeight, and headerHeight
   const rowHeight = 40;
   const headerHeight = 40;
@@ -111,6 +115,8 @@ const Hospital: React.FC = () => {
   };
   // Fetch data from the API
   const navigate = useNavigate();
+
+  
 
 useEffect(() => {
   const fetchHospitals = async () => {
@@ -128,8 +134,12 @@ useEffect(() => {
         },
       });
 
-      console.log('API Data:', response.data);
-      setRowData(response.data?.data || response.data);
+      const hospitalList = response.data?.data || response.data;
+
+      console.log('API Data:', hospitalList);
+
+      setRowData(hospitalList);        // for displaying data (can be filtered)
+      setInitialData(hospitalList);    // for preserving full data (used in filter/search)
     } catch (error: any) {
       console.error('Error fetching data:', error);
     }
@@ -138,9 +148,10 @@ useEffect(() => {
   fetchHospitals();
 }, []);
 
+
   // Fetch tenant data from utils
 
-   const updateAddress = (
+  const updateAddress = (
     index: number,
     field: keyof Address,
     value: string,
@@ -154,7 +165,7 @@ useEffect(() => {
     }
   };
 
-   const validateAddress = (address: Address, index: number) => {
+  const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
 
     if (!address.addressType) errors.addressType = 'Address type is required';
@@ -298,7 +309,7 @@ useEffect(() => {
           onClick={() => handleAddressEdit(params.data)}
           className="cursor-pointer flex justify-center mt-3 items-center"
         >
-         <Edit
+          <Edit
             size={18}
             className="text-blue-500 hover:scale-110 transition-transform"
           />
@@ -322,82 +333,89 @@ useEffect(() => {
     },
   ];
 
-useEffect(() => {
-  console.log("✅ Updated Addresses State:", addresses);
-}, [addresses]);
+  useEffect(() => {
+    console.log('✅ Updated Addresses State:', addresses);
+  }, [addresses]);
 
-const handleAddressEdit = async (rowData: any) => {
-  const hospitalID = rowData.hospitalID;
+  const handleAddressEdit = async (rowData: any) => {
+    const hospitalID = rowData.hospitalID;
 
-  setShowAddressForm(true);
+    setShowAddressForm(true);
 
-  try {
-    const response = await api.get('/Address/getaddress', {
-      params: { id: hospitalID, Type: 'Hospital' },
-    });
-
-    if (response.data && response.data.data?.length > 0) {
-      setAddresses(response.data.data);
-      
-      // For each loaded address, load dependent data
-      response.data.data.forEach((address, index) => {
-        loadDependentAddressData(address, index);
+    try {
+      const response = await api.get('/Address/getaddress', {
+        params: { id: hospitalID, Type: 'Hospital' },
       });
-    } else {
+
+      if (response.data && response.data.data?.length > 0) {
+        setAddresses(response.data.data);
+
+        // For each loaded address, load dependent data
+        response.data.data.forEach((address, index) => {
+          loadDependentAddressData(address, index);
+        });
+      } else {
+        setAddresses([emptyAddress]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch address:', err);
       setAddresses([emptyAddress]);
     }
-  } catch (err) {
-    console.error('Failed to fetch address:', err);
-    setAddresses([emptyAddress]);
-  }
-};
+  };
 
-const loadDependentAddressData = async (address, index) => {
-  // 1. Load districts and pincodes for the state
-  try {
-    const state = address.state;
-    const responseDistricts = await api.get(`/Address/districts?StateCode=${state}`);
-
-    if (responseDistricts.data?.data && Array.isArray(responseDistricts.data.data)) {
-      const fetchedDistricts = responseDistricts.data.data;
-      setDistricts(fetchedDistricts);
-
-      // Set pincodes from districts for this address
-      const uniquePincodes = Array.from(
-        new Set(fetchedDistricts.map((d) => d.pinCode))
+  const loadDependentAddressData = async (address, index) => {
+    // 1. Load districts and pincodes for the state
+    try {
+      const state = address.state;
+      const responseDistricts = await api.get(
+        `/Address/districts?StateCode=${state}`,
       );
-      setPincodes(uniquePincodes);
 
-      // Set selected state (if you keep state for selected district globally)
-      setSelectedState(state);
+      if (
+        responseDistricts.data?.data &&
+        Array.isArray(responseDistricts.data.data)
+      ) {
+        const fetchedDistricts = responseDistricts.data.data;
+        setDistricts(fetchedDistricts);
 
-      // 2. Load cities for the district
-      const district = address.district;
-      const responseCities = await api.get(`/Address/cities?districtName=${district}`);
+        // Set pincodes from districts for this address
+        const uniquePincodes = Array.from(
+          new Set(fetchedDistricts.map((d) => d.pinCode)),
+        );
+        setPincodes(uniquePincodes);
 
-      if (responseCities.data?.data && Array.isArray(responseCities.data.data) && responseCities.data.data.length > 0) {
-        setCities(responseCities.data.data);
-        setShowCityInput(false);
-      } else {
-        setCities([]);
-        setShowCityInput(true);
+        // Set selected state (if you keep state for selected district globally)
+        setSelectedState(state);
+
+        // 2. Load cities for the district
+        const district = address.district;
+        const responseCities = await api.get(
+          `/Address/cities?districtName=${district}`,
+        );
+
+        if (
+          responseCities.data?.data &&
+          Array.isArray(responseCities.data.data) &&
+          responseCities.data.data.length > 0
+        ) {
+          setCities(responseCities.data.data);
+          setShowCityInput(false);
+        } else {
+          setCities([]);
+          setShowCityInput(true);
+        }
+        setSelectedDistrict(district);
       }
-      setSelectedDistrict(district);
+    } catch (error) {
+      console.error('Error loading dependent address data:', error);
+      setDistricts([]);
+      setPincodes([]);
+      setCities([]);
+      setShowCityInput(true);
     }
-  } catch (error) {
-    console.error('Error loading dependent address data:', error);
-    setDistricts([]);
-    setPincodes([]);
-    setCities([]);
-    setShowCityInput(true);
-  }
-};
+  };
 
-
-
-
-
- useEffect(() => {
+  useEffect(() => {
     const fetchStates = async () => {
       try {
         const response = await api.get('/Address/states');
@@ -439,7 +457,7 @@ const loadDependentAddressData = async (address, index) => {
 
     fetchAddressTypes();
   }, []);
- const handleSelectAddress = (index: number) => {
+  const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };
     Object.keys(addresses[index]).forEach((field) => {
       newTouched[`${index}-${field}`] = true;
@@ -448,102 +466,102 @@ const loadDependentAddressData = async (address, index) => {
     validateAddress(addresses[index], index);
   };
 
-   const handleStateChange = async (
-      e: React.ChangeEvent<HTMLSelectElement>,
-      index: number,
-    ) => {
-      const stateCode = e.target.value;
-  
-      // Reset dependent fields
-      setSelectedState(stateCode);
-      setSelectedDistrict('');
-      setCities([]);
-      setShowCityInput(false);
-  
-      // Clear corresponding address fields
-      updateAddress(index, 'state', stateCode);
-      updateAddress(index, 'district', '');
-      updateAddress(index, 'zipCode', '');
-      updateAddress(index, 'city', '');
-  
-      try {
-        const response = await api.get(
-          `/Address/districts?StateCode=${stateCode}`,
+  const handleStateChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number,
+  ) => {
+    const stateCode = e.target.value;
+
+    // Reset dependent fields
+    setSelectedState(stateCode);
+    setSelectedDistrict('');
+    setCities([]);
+    setShowCityInput(false);
+
+    // Clear corresponding address fields
+    updateAddress(index, 'state', stateCode);
+    updateAddress(index, 'district', '');
+    updateAddress(index, 'zipCode', '');
+    updateAddress(index, 'city', '');
+
+    try {
+      const response = await api.get(
+        `/Address/districts?StateCode=${stateCode}`,
+      );
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
+        const districts = response.data.data;
+        setDistricts(districts);
+
+        // Extract and deduplicate pin codes
+        const uniquePincodes = Array.from(
+          new Set(districts.map((d: District) => d.pinCode)),
         );
-  
-        if (response.data?.data && Array.isArray(response.data.data)) {
-          const districts = response.data.data;
-          setDistricts(districts);
-  
-          // Extract and deduplicate pin codes
-          const uniquePincodes = Array.from(
-            new Set(districts.map((d: District) => d.pinCode)),
-          );
-          setPincodes(uniquePincodes);
-        } else {
-          console.warn('Unexpected district data format:', response.data);
-          setDistricts([]);
-          setPincodes([]);
-        }
-      } catch (error) {
-        console.error('Error fetching districts:', error);
-        toast.error('Failed to load districts for the selected state.');
+        setPincodes(uniquePincodes);
+      } else {
+        console.warn('Unexpected district data format:', response.data);
         setDistricts([]);
         setPincodes([]);
       }
-    };
-  
-    const handleDistrictChange = async (
-      e: React.ChangeEvent<HTMLSelectElement>,
-      index: number,
-    ) => {
-      const districtName = e.target.value;
-      setSelectedDistrict(districtName);
-      setShowCityInput(false);
-  
-      // Reset related fields in address
-      updateAddress(index, 'district', districtName);
-      updateAddress(index, 'zipCode', '');
-      updateAddress(index, 'city', '');
-  
-      // Update pin codes related to the selected district
-      const filteredPins = districts
-        .filter((item) => item.districtName === districtName)
-        .map((item) => item.pinCode);
-  
-      setPincodes(filteredPins);
-  
-      try {
-        const response = await api.get(
-          `/Address/cities?districtName=${districtName}`,
-        );
-        const cityData = response.data?.data;
-  
-        if (Array.isArray(cityData) && cityData.length > 0) {
-          setCities(cityData);
-          setShowCityInput(false);
-        } else {
-          setCities([]);
-          setShowCityInput(true); // No cities returned; show manual input
-        }
-      } catch (error) {
-        console.error('Error fetching cities:', error);
-        toast.error('Failed to load cities for the selected district.');
-        setCities([]);
-        setShowCityInput(true); // Assume fallback to manual entry
-      }
-    };
-  
-    const validateCity = (city: string) => {
-      const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u; // No emojis
-      const noSpecialChars = /^[a-zA-Z\s]+$/; // Only letters and spaces allowed
-      const maxLength = city.length <= 20; // Maximum length of 20 characters
-  
-      // Check if the city is valid: no emojis, no special characters, and max length of 20
-      return (
-        city && noEmojis.test(city) && noSpecialChars.test(city) && maxLength
+    } catch (error) {
+      console.error('Error fetching districts:', error);
+      toast.error('Failed to load districts for the selected state.');
+      setDistricts([]);
+      setPincodes([]);
+    }
+  };
+
+  const handleDistrictChange = async (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number,
+  ) => {
+    const districtName = e.target.value;
+    setSelectedDistrict(districtName);
+    setShowCityInput(false);
+
+    // Reset related fields in address
+    updateAddress(index, 'district', districtName);
+    updateAddress(index, 'zipCode', '');
+    updateAddress(index, 'city', '');
+
+    // Update pin codes related to the selected district
+    const filteredPins = districts
+      .filter((item) => item.districtName === districtName)
+      .map((item) => item.pinCode);
+
+    setPincodes(filteredPins);
+
+    try {
+      const response = await api.get(
+        `/Address/cities?districtName=${districtName}`,
       );
-    };
+      const cityData = response.data?.data;
+
+      if (Array.isArray(cityData) && cityData.length > 0) {
+        setCities(cityData);
+        setShowCityInput(false);
+      } else {
+        setCities([]);
+        setShowCityInput(true); // No cities returned; show manual input
+      }
+    } catch (error) {
+      console.error('Error fetching cities:', error);
+      toast.error('Failed to load cities for the selected district.');
+      setCities([]);
+      setShowCityInput(true); // Assume fallback to manual entry
+    }
+  };
+
+  const validateCity = (city: string) => {
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u; // No emojis
+    const noSpecialChars = /^[a-zA-Z\s]+$/; // Only letters and spaces allowed
+    const maxLength = city.length <= 20; // Maximum length of 20 characters
+
+    // Check if the city is valid: no emojis, no special characters, and max length of 20
+    return (
+      city && noEmojis.test(city) && noSpecialChars.test(city) && maxLength
+    );
+  };
 
   const toggleStatus = async (params: any) => {
     const { hospitalID, isActive } = params.data;
@@ -822,32 +840,31 @@ const loadDependentAddressData = async (address, index) => {
     }
   };
 
- const refreshTableData = async () => {
-  try {
-    const tenantID = sessionStorage.getItem('tenantID');
+  const refreshTableData = async () => {
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
 
-    if (!tenantID) {
-      console.error('Missing tenantID in session storage.');
-      return;
+      if (!tenantID) {
+        console.error('Missing tenantID in session storage.');
+        return;
+      }
+
+      const response = await api.get('/Hospital/List', {
+        params: { tenantId: tenantID },
+      });
+
+      const hospitalData = response.data?.data ?? response.data;
+
+      if (Array.isArray(hospitalData)) {
+        setRowData([...hospitalData]);
+        setFilteredData([...hospitalData]);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching table data:', error);
     }
-
-    const response = await api.get('/Hospital/List', {
-      params: { tenantId: tenantID },
-    });
-
-    const hospitalData = response.data?.data ?? response.data;
-
-    if (Array.isArray(hospitalData)) {
-      setRowData([...hospitalData]);
-      setFilteredData([...hospitalData]);
-    } else {
-      console.error('Unexpected API response format:', response.data);
-    }
-  } catch (error) {
-    console.error('Error fetching table data:', error);
-  }
-};
-
+  };
 
   const resetFormData = () => {
     setFormData({
@@ -871,47 +888,58 @@ const loadDependentAddressData = async (address, index) => {
     });
   };
 
- const handleEdit = (data: RowData) => {
-  setFormData({
-    hospitalID: data.hospitalID,
-    hospitalName: data.hospitalName,
-    hospitalCode: data.hospitalCode,
-    hospitalType: data.hospitalType,
-    email: data.email,
-    mobile: data.mobile,
-    landline: data.landline,
-    gst: data.gst,
-    isActive: !!(
-      data.isActive === 'true' ||
-      data.isActive === true ||
-      data.isActive === 1
-    ),
+  const handleEdit = (data: RowData) => {
+    setFormData({
+      hospitalID: data.hospitalID,
+      hospitalName: data.hospitalName,
+      hospitalCode: data.hospitalCode,
+      hospitalType: data.hospitalType,
+      email: data.email,
+      mobile: data.mobile,
+      landline: data.landline,
+      gst: data.gst,
+      isActive: !!(
+        data.isActive === 'true' ||
+        data.isActive === true ||
+        data.isActive === 1
+      ),
+    });
+
+    // Set selected tenant ID to reflect in dropdown
+    setSelectedTenant(data.tenantID || '');
+
+    setShowForm(true);
+    setFormMode('Edit');
+
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  };
+
+ const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value.toLowerCase();
+  setQuickSearchText(value);
+
+  const filtered = initialData.filter((item: any) => {
+    return (
+      item.hospitalName?.toLowerCase().includes(value) ||
+      item.hospitalCode?.toLowerCase().includes(value) ||
+      item.email?.toLowerCase().includes(value) ||
+      item.mobile?.toLowerCase().includes(value) ||
+      item.landline?.toLowerCase().includes(value) ||
+      item.gst?.toLowerCase().includes(value) ||
+      item.hospitalType?.toLowerCase().includes(value) ||
+      (item.isActive ? 'active' : 'inactive').includes(value)
+    );
   });
 
-  // Set selected tenant ID to reflect in dropdown
-  setSelectedTenant(data.tenantID || '');
-
-  setShowForm(true);
-  setFormMode('Edit');
-
-  setTimeout(() => {
-    editFormRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  }, 100);
+  setRowData(filtered);
+  setFilteredData(filtered);
 };
 
-  const handleFilterSearch = () => {
-    const filtered = initialData.filter(
-      (item) =>
-        (name
-          ? item.hospitalName.toLowerCase().includes(name.toLowerCase())
-          : true) && (isActive ? item.isActive === 'Active' : true),
-    );
-    setRowData(filtered);
-    setFilteredData(filtered);
-  };
 
   const applyGlobalSearch = (data: RowData[]) => {
     return data.filter((row) =>
@@ -925,20 +953,20 @@ const loadDependentAddressData = async (address, index) => {
     params.api.sizeColumnsToFit();
   };
 
- const handleUpdateAddresses = async () => {
-  try {
-    for (const address of addresses) {
-      const response = await api.put('/Address', address);
-      console.log('Updated Address:', response.data);
-      toast.success(`Address updated successfully!`);
-    }
+  const handleUpdateAddresses = async () => {
+    try {
+      for (const address of addresses) {
+        const response = await api.put('/Address', address);
+        console.log('Updated Address:', response.data);
+        toast.success(`Address updated successfully!`);
+      }
 
-    setShowAddressForm(false);
-  } catch (error) {
-    console.error('Error updating address:', error.response ?? error.message);
-    toast.error('Failed to update address. Please try again.');
-  }
-};
+      setShowAddressForm(false);
+    } catch (error) {
+      console.error('Error updating address:', error.response ?? error.message);
+      toast.error('Failed to update address. Please try again.');
+    }
+  };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -952,7 +980,9 @@ const loadDependentAddressData = async (address, index) => {
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
         >
           <h3 className="text-xl font-semibold mb-4">
-            {formData.hospitalID === 0 ? 'Add New Data' : 'Edit Hospital Details'}
+            {formData.hospitalID === 0
+              ? 'Add New Data'
+              : 'Edit Hospital Details'}
           </h3>
           <form
             onSubmit={handleFormSubmit}
@@ -960,32 +990,32 @@ const loadDependentAddressData = async (address, index) => {
           >
             <div className="grid grid-cols-3 gap-4 w-full mb-4">
               {/* Tenant Dropdown */}
-             {formMode !== 'Edit' && (
-  <div>
-    <select
-      value={selectedTenant || ''}
-      onChange={(e) => setSelectedTenant(e.target.value)}
-      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
+              {formMode !== 'Edit' && (
+                <div>
+                  <select
+                    value={selectedTenant || ''}
+                    onChange={(e) => setSelectedTenant(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-    >
-      <option value="" disabled>
-        Select Tenant
-      </option>
-      {tenants.map((tenant) => (
-        <option key={tenant.tenantID} value={tenant.tenantID}>
-          {tenant.tenantName}
-        </option>
-      ))}
-    </select>
+                  >
+                    <option value="" disabled>
+                      Select Tenant
+                    </option>
+                    {tenants.map((tenant) => (
+                      <option key={tenant.tenantID} value={tenant.tenantID}>
+                        {tenant.tenantName}
+                      </option>
+                    ))}
+                  </select>
 
-    {formErrors.selectedTenant && (
-      <p className="text-red-500 text-sm mt-1">
-        {formErrors.selectedTenant}
-      </p>
-    )}
-  </div>
-)}
+                  {formErrors.selectedTenant && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.selectedTenant}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Hospital Type Dropdown */}
               <div>
@@ -1200,13 +1230,12 @@ const loadDependentAddressData = async (address, index) => {
         </div>
       )}
 
-
-      {showAddressForm  && (
+      {showAddressForm && (
         <div
           ref={editFormRef}
           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
         >
-           <div className="space-y-4">
+          <div className="space-y-4">
             {/* Placeholder for Address Fields */}
             <div className="grid grid-cols-1 gap-4 mb-4">
               <h2 className="text-xl font-bold text-left mb-4">Edit Address</h2>
@@ -1455,19 +1484,19 @@ const loadDependentAddressData = async (address, index) => {
                   </div>
                 ))}
             </div>
-              {/* Buttons */}
-      <div className="flex space-x-4">
-        <CustomButton onClick={handleUpdateAddresses}>Update</CustomButton>
-        <button
-          type="button"
-          onClick={() => setShowAddressForm(false)}
-         className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
-                >
-          Cancel
-        </button>
-
-       
-      </div>
+            {/* Buttons */}
+            <div className="flex space-x-4">
+              <CustomButton onClick={handleUpdateAddresses}>
+                Update
+              </CustomButton>
+              <button
+                type="button"
+                onClick={() => setShowAddressForm(false)}
+                className="bg-[#d4d4d4] text-white py-2 px-4 rounded shadow-none hover:bg-[#808080] border border-[#d4d4d4]"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1509,26 +1538,7 @@ const loadDependentAddressData = async (address, index) => {
           </span>
         </div>
 
-        {/* <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-  hover:from-[#007BFF] hover:to-[#004A99]
-  text-white transition duration-150 
-  ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={() => {
-            setFormData({
-              hospitalID: 0,
-              hospitalType: '',
-              hospitalName: '',
-              hospitalCode: '',
-              createdBy: '',
-            }); // Reset form data
-            setIsActive(false); // Reset checkbox state
-            setShowForm(true);
-            setFormMode('Add'); // 👈 Add this
-          }}
-        >
-          + Add
-        </button> */}
+       
 
         <button
           onClick={() => navigate('/hospitalRegister')}
@@ -1537,7 +1547,7 @@ const loadDependentAddressData = async (address, index) => {
   text-white transition duration-150 
   ease-out hover:ease-in py-2 px-5 rounded-lg"
         >
-        Add New
+          Add New
         </button>
       </div>
 
@@ -1594,4 +1604,3 @@ const loadDependentAddressData = async (address, index) => {
 };
 
 export default Hospital;
-

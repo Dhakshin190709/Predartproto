@@ -40,6 +40,10 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [hospitalName, setHospitalName] = useState('');
   const [hospitalID, setHospitalID] = useState('');
   const [fromTime, setFromTime] = useState('');
+  const [roleName, setRoleName] = useState('');
+    const [hospitals, setHospitals] = useState([]);
+    const [unitID, setUnitID] = useState('');
+    const [isDropdownDisabled, setIsDropdownDisabled] = useState(true);
   const [toTime, setToTime] = useState('');
   const columnDefs = [
     {
@@ -72,14 +76,32 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   ];
 
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName') || '';
+    const tenantID = sessionStorage.getItem('tenantID') || '';
+
     const fetchPharmacies = async () => {
       try {
-        const response = await api.get('/Pharmacy');
-        setPharmacies(response.data);
+        let response;
+        if (roleName === 'PharmacyAdmin' || roleName === 'TenantAdmin') {
+          response = await api.get(`/Pharmacy/List?tenantId=${tenantID}`);
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.pharmacyName,
+            pharmacyID: p.pharmacyID,
+          }));
+          setPharmacies(filtered);
+        } else {
+          response = await api.get('/Pharmacy');
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.p?.pharmacyName,
+            pharmacyID: p.p?.pharmacyID,
+          }));
+          setPharmacies(filtered);
+        }
       } catch (error) {
         console.error('Error fetching pharmacies:', error);
       }
     };
+
     fetchPharmacies();
   }, []);
 
@@ -103,21 +125,41 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const storedUnitID = sessionStorage.getItem('unitID');
-    if (storedUnitID) {
+    const role = sessionStorage.getItem('roleName') || '';
+    const tenant = sessionStorage.getItem('tenantID') || '';
+    const unit = sessionStorage.getItem('unitID') || '';
+
+    setRoleName(role);
+    setTenantID(tenant);
+    setUnitID(unit);
+
+    if (role === 'TenantAdmin' && tenant) {
+      // Fetch hospital list and enable dropdown
       api
-        .get(`/Hospital/${storedUnitID}`)
+        .get(`/Hospital/List?tenantId=${tenant}`)
+        .then((res) => {
+          const activeHospitals = res.data.filter((h: any) => h.isActive);
+          setHospitals(activeHospitals);
+          setIsDropdownDisabled(false);
+          setHospitalID(''); // ⛔️ Do NOT prefill hospitalID
+        })
+        .catch((err) => console.error('Error fetching tenant hospitals:', err));
+    } else if (unit) {
+      // Fetch single hospital details for other roles and disable dropdown
+      api
+        .get(`/Hospital/${unit}`)
         .then((res) => {
           if (res.data.success && res.data.data) {
             setHospitalName(res.data.data.hospitalName);
             setHospitalID(res.data.data.hospitalID);
+            setIsDropdownDisabled(true);
           } else {
             console.error('Failed to fetch hospital data');
           }
         })
-        .catch((err) => console.error('Error:', err));
+        .catch((err) => console.error('Error fetching hospital:', err));
     } else {
-      console.error('No unitID found in sessionStorage');
+      console.error('No tenantID or unitID found');
     }
   }, []);
 
@@ -145,59 +187,102 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   };
 
   const handleSearch = async () => {
-    const tenantID = sessionStorage.getItem('tenantID') || '';
-    const unitID = sessionStorage.getItem('unitID') || '';
+  const roleName = sessionStorage.getItem('roleName') || '';
+  const tenantID = sessionStorage.getItem('tenantID') || '';
+  const sessionUnitID = sessionStorage.getItem('unitID') || '';
 
-    const { pharmacyName, quantity } = formData;
+  const { pharmacyName, quantity } = formData;
 
-    // Use fromTime and toTime states directly here (or sync formData with them)
-    if (
-      !tenantID &&
-      !unitID &&
-      !pharmacyName &&
-      !fromTime &&
-      !toTime &&
-      !quantity
-    ) {
-      toast.error('Please select at least one filter');
-      return;
+  // Use hospitalID based on role
+  const selectedHospitalID =
+    roleName === 'TenantAdmin' ? hospitalID : sessionUnitID;
+
+  if (
+    !tenantID &&
+    !selectedHospitalID &&
+    !pharmacyName &&
+    !fromTime &&
+    !toTime &&
+    !quantity
+  ) {
+    toast.error('Please select at least one filter');
+    return;
+  }
+
+  const params: Record<string, string> = {};
+
+  if (tenantID) params.TenantID = tenantID;
+
+  if (selectedHospitalID) {
+    params.HospitalID = selectedHospitalID;
+  }
+
+ const selectedPharmacy = pharmacies.find(
+  (p) => p.pharmacyName === pharmacyName
+);
+
+if (selectedPharmacy) {
+  params.PharmacyID = selectedPharmacy.pharmacyID;
+}
+
+
+  if (fromTime) params.StartDate = fromTime;
+  if (toTime) params.EndDate = toTime;
+  if (quantity) params.Quantity = quantity.toString();
+
+  console.log('params:', params);
+
+  try {
+    const response = await api.get('/PharmacyReport/LowStockReport', {
+      params,
+    });
+
+    console.log('API response:', response.data);
+
+    if (Array.isArray(response.data)) {
+      setRowData(response.data);
+    } else if (Array.isArray(response.data.data)) {
+      setRowData(response.data.data);
+    } else {
+      setRowData([]);
+      toast.error('No data found or unexpected response format');
     }
+  } catch (error) {
+    console.error('Search error:', error);
+    toast.error('Error during search');
+  }
+};
 
-    const params: Record<string, string> = {};
 
-    if (tenantID) params.TenantID = tenantID;
-    if (unitID) params.HospitalID = unitID;
 
-    const selectedPharmacy = pharmacies.find(
-      (p) => p.p.pharmacyName === pharmacyName,
-    );
-    if (selectedPharmacy) {
-      params.PharmacyID = selectedPharmacy.p.pharmacyID;
-    }
+  const handleReset = () => {
+    const role = sessionStorage.getItem('roleName') || '';
 
-    if (fromTime) params.StartDate = fromTime;
-    if (toTime) params.EndDate = toTime;
-    if (quantity) params.Quantity = quantity.toString();
+    // Reset formData fields
+    setFormData({
+      pharmacyName: '',
+     quantity: '',
+    });
 
-    console.log('params:', params);
+    // Reset date fields
+    setFromTime('');
+    setToTime('');
 
-    try {
-      const response = await api.get('/PharmacyReport/LowStockReport', {
-        params,
-      });
-      console.log('API response:', response.data);
-
-      if (Array.isArray(response.data)) {
-        setRowData(response.data);
-      } else if (Array.isArray(response.data.data)) {
-        setRowData(response.data.data);
-      } else {
-        setRowData([]);
-        toast.error('No data found or unexpected response format');
+    // Conditionally reset hospitalID
+    if (role !== 'PharmacyAdmin') {
+      if (role !== 'TenantAdmin') {
+        setTenantID('');
       }
-    } catch (error) {
-      console.error('Search error:', error);
-      toast.error('Error during search');
+      setHospitalID('');
+    }
+
+    // Clear grid data
+    setRowData([]);
+
+    // Optional: reset dropdown selection if needed
+    if (role === 'TenantAdmin') {
+      // Keep "Select Hospital" as the first option
+      setHospitalID('');
     }
   };
 
@@ -221,35 +306,51 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
               {tenantName && <option value={tenantID}>{tenantName}</option>}
             </select>
           </div>
-
-          <div>
+ <div>
             <select
               value={hospitalID}
-              className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
-              disabled
+              onChange={(e) => setHospitalID(e.target.value)}
+              className={`w-full rounded border p-2 ${isDropdownDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              disabled={isDropdownDisabled}
             >
-              {hospitalName && (
+              {roleName === 'TenantAdmin' && (
+                <>
+                  <option value="">Select Hospital</option>{' '}
+                  {/* Default blank option */}
+                  {hospitals.map((hospital: any) => (
+                    <option
+                      key={hospital.hospitalID}
+                      value={hospital.hospitalID}
+                    >
+                      {hospital.hospitalName}
+                    </option>
+                  ))}
+                </>
+              )}
+
+              {roleName !== 'TenantAdmin' && hospitalName && (
                 <option value={hospitalID}>{hospitalName}</option>
               )}
             </select>
           </div>
 
           <div>
-            <select
-              name="pharmacyName"
-              value={formData.pharmacyName}
-              onChange={handleChange}
-              className="w-full rounded border p-2 bg-gray-100"
-            >
-              <option value="">Select Pharmacy</option>
-              {pharmacies.map((item, index) => (
-                <option key={index} value={item.p.pharmacyName}>
-                  {item.p.pharmacyName}
-                </option>
-              ))}
-            </select>
+            <div>
+              <select
+                name="pharmacyName"
+                value={formData.pharmacyName}
+                onChange={handleChange}
+                className="w-full rounded border p-2 bg-gray-100"
+              >
+                <option value="">Select Pharmacy</option>
+                {pharmacies.map((item, index) => (
+                  <option key={index} value={item.pharmacyName}>
+                    {item.pharmacyName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-
           {/* Row 2 */}
           <div className="flex gap-2">
             {/* Start Date and End Date */}
@@ -304,6 +405,7 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
 
             <CustomButton
               type="button"
+              onClick={handleReset}
               className="w-1/4 opacity-60 hover:opacity-100 border border-gray-300"
             >
               Reset

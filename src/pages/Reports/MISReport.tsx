@@ -10,7 +10,7 @@ const HospitalDropdown = () => {
   const [selectedHospital, setSelectedHospital] = useState<string>('');
   const [selectedHospitalId, setSelectedHospitalId] = useState<string>('');
   const [selectedStatusID, setSelectedStatusID] = useState('');
-
+const roleName = sessionStorage.getItem('roleName');
   const [doctors, setDoctors] = useState<any[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState<string>('');
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -24,8 +24,14 @@ const HospitalDropdown = () => {
  useEffect(() => {
   const fetchHospitals = async () => {
     try {
-      const response = await api.get('/Hospital/List');
-      const hospitals = response.data; // directly an array
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID') || '';
+
+      // Build API params conditionally
+      const params = roleName === 'TenantAdmin' && tenantID ? { tenantID } : {};
+
+      const response = await api.get('/Hospital/List', { params });
+      const hospitals = response.data; // assuming this is an array
       
       const activeHospitals = hospitals.filter(
         (hospital: any) => hospital.isActive === true,
@@ -111,12 +117,18 @@ useEffect(() => {
     setSelectedHospitalId(hospitalId);
   };
 
-
-
 const handleSearch = async () => {
   setLoading(true);
   try {
     const params = new URLSearchParams();
+
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    // Append tenantID if role is TenantAdmin
+    if (roleName === 'TenantAdmin' && tenantID) {
+      params.append('tenantID', tenantID);
+    }
 
     if (selectedHospitalId) params.append('HospitalID', selectedHospitalId);
     if (selectedDoctor) params.append('DoctorID', selectedDoctor);
@@ -172,18 +184,33 @@ const handleSearch = async () => {
   }
 };
 
+
   
   
   
   
 
-  const handleReset = () => {
+
+const handleReset = () => {
+  if (roleName === 'TenantAdmin') {
+    // Reset everything for TenantAdmin
+    setSelectedHospital('');
+    setSelectedHospitalId('');
     setSelectedDoctor('');
-    setFromTime('');
-    setToTime('');
-    setSelectedStatus('');
-    setAppointments([]);
-  };
+  } else if (roleName === 'HostitalAdmin') {
+    // Reset everything except hospital for HospitalAdmin
+    setSelectedDoctor('');
+  } else if (roleName === 'Doctor') {
+    // Reset everything except hospital and doctor for Doctor
+    // So no reset for hospital or doctor here
+  }
+
+  setFromTime('');
+  setToTime('');
+  setSelectedStatus('');
+  setAppointments([]);
+};
+
 
   const columnDefs = [
     {
@@ -265,19 +292,18 @@ const handleSearch = async () => {
       </h1>
       <div className="flex flex-wrap items-center gap-4">
         <select
-          value={selectedHospital}
-          onChange={handleHospitalChange}
-          className="w-full md:w-60 rounded border p-2"
-          disabled
-        >
-          <option value="">Select a hospital</option>
-          {hospitals.map((hospital) => (
-            <option key={hospital.hospitalID} value={hospital.hospitalID}>
-              {hospital.hospitalName}
-            </option>
-          ))}
-        </select>
-
+    value={selectedHospital}
+    onChange={handleHospitalChange}
+    className="w-full md:w-60 rounded border p-2"
+    disabled={roleName !== 'TenantAdmin'}  // enabled only for TenantAdmin
+  >
+    <option value="">Select a hospital</option>
+    {hospitals.map((hospital) => (
+      <option key={hospital.hospitalID} value={hospital.hospitalID}>
+        {hospital.hospitalName}
+      </option>
+    ))}
+  </select>
         <select
           value={selectedDoctor}
           onChange={handleDoctorChange}

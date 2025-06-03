@@ -138,10 +138,19 @@ const SearchPatient: React.FC = () => {
   };
 
   const handleUhidChange = (value: string) => {
-  setUhid(value);
-  setErrors((prev) => ({ ...prev, uhid: '' }));
-};
+    const digitOnlyRegex = /^\d{0,9}$/;
 
+    if (digitOnlyRegex.test(value)) {
+      setUhid(value);
+      setErrors((prev) => ({ ...prev, uhid: '' }));
+    } else {
+      setUhid(value); // Optional: keep this if you still want to show the invalid input
+      setErrors((prev) => ({
+        ...prev,
+        uhid: 'UHID must contain only numbers and be up to 9 digits.',
+      }));
+    }
+  };
 
   const handleBookNow = (patient: PatientData) => {
     if (!patient) {
@@ -175,33 +184,32 @@ const SearchPatient: React.FC = () => {
   }, [isModalOpen, selectedPatient]); // Runs every time modal opens with a new patient
 
   const fetchPatients = async () => {
-  setLoading(true);
-  try {
-    const tenantID = sessionStorage.getItem('tenantID');
+    setLoading(true);
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
 
-    if (!tenantID) {
-      console.error('tenantID not found in session storage');
+      if (!tenantID) {
+        console.error('tenantID not found in session storage');
+        setPatientData([]);
+        return;
+      }
+
+      const response = await api.get(`/Patient?tenantID=${tenantID}`);
+      const result = response.data;
+
+      if (result.success && Array.isArray(result.data)) {
+        setPatientData(result.data);
+      } else {
+        console.error('Invalid data format:', result);
+        setPatientData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
       setPatientData([]);
-      return;
+    } finally {
+      setLoading(false);
     }
-
-    const response = await api.get(`/Patient?tenantID=${tenantID}`);
-    const result = response.data;
-
-    if (result.success && Array.isArray(result.data)) {
-      setPatientData(result.data);
-    } else {
-      console.error('Invalid data format:', result);
-      setPatientData([]);
-    }
-  } catch (error) {
-    console.error('Error fetching patients:', error);
-    setPatientData([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   useEffect(() => {
     fetchPatients();
@@ -227,44 +235,53 @@ const SearchPatient: React.FC = () => {
     fetchHospitals();
   }, []);
 
- const handlePatientNameChange = (value: string) => {
-  const nameRegex = /^[A-Za-z][A-Za-z0-9]{0,19}$/;
-  const repeatedNumberPattern = /(\d)\1{5,}/; // detects 6+ repeated digits like 000000
+  const handlePatientNameChange = (value: string) => {
+    const nameRegex = /^[A-Za-z][A-Za-z0-9]{0,19}$/;
+    const repeatedNumberPattern = /(\d)\1{5,}/; // detects 6+ repeated digits like 000000
 
-  setPatientName(value);
+    setPatientName(value);
 
-  if (!value) {
-    setErrors((prev) => ({ ...prev, patientName: 'Patient Name is required' }));
-  } else if (!nameRegex.test(value)) {
-    setErrors((prev) => ({
-      ...prev,
-      patientName: 'Only letters and numbers allowed, must start with a letter, max 20 characters',
-    }));
-  } else if (repeatedNumberPattern.test(value)) {
-    setErrors((prev) => ({
-      ...prev,
-      patientName: 'Do not use repetitive numbers like 000000 or 111111',
-    }));
-  } else {
-    setErrors((prev) => ({ ...prev, patientName: '' }));
-  }
-};
-
-
-const handleMobileNoChange = (value: string) => {
-  const regex = /^[6-9][0-9]{0,9}$/; // starts with 6-9, up to 10 digits
-  if (regex.test(value) || value === '') {
-    setMobileNo(value);
-    if (value.length === 10) {
-      setErrors(prev => ({ ...prev, mobileNo: '' }));
+    if (!value) {
+      setErrors((prev) => ({
+        ...prev,
+        patientName: 'Patient Name is required',
+      }));
+    } else if (!nameRegex.test(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        patientName:
+          'Only letters and numbers allowed, must start with a letter, max 20 characters',
+      }));
+    } else if (repeatedNumberPattern.test(value)) {
+      setErrors((prev) => ({
+        ...prev,
+        patientName: 'Do not use repetitive numbers like 000000 or 111111',
+      }));
     } else {
-      setErrors(prev => ({ ...prev, mobileNo: 'Mobile number must be 10 digits' }));
+      setErrors((prev) => ({ ...prev, patientName: '' }));
     }
-  } else {
-    setErrors(prev => ({ ...prev, mobileNo: 'Invalid mobile number. Must start with 6–9 and have 10 digits' }));
-  }
-};
+  };
 
+  const handleMobileNoChange = (value: string) => {
+    const regex = /^[6-9][0-9]{0,9}$/; // starts with 6-9, up to 10 digits
+    if (regex.test(value) || value === '') {
+      setMobileNo(value);
+      if (value.length === 10) {
+        setErrors((prev) => ({ ...prev, mobileNo: '' }));
+      } else {
+        setErrors((prev) => ({
+          ...prev,
+          mobileNo: 'Mobile number must be 10 digits',
+        }));
+      }
+    } else {
+      setErrors((prev) => ({
+        ...prev,
+        mobileNo:
+          'Invalid mobile number. Must start with 6–9 and have 10 digits',
+      }));
+    }
+  };
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -789,7 +806,7 @@ const handleMobileNoChange = (value: string) => {
   };
 
   const handleSearch = async () => {
-  if (!uhid && !patientName && !mobileNo) {
+    if (!uhid && !patientName && !mobileNo) {
       toast.warning('Please enter any one field.');
       return;
     }
@@ -804,7 +821,7 @@ const handleMobileNoChange = (value: string) => {
       const response = await api.get('/Patient', {
         params: {
           tenantID, // ✅ Inject tenantID into request
-           UHID: uhid, 
+          UHID: uhid,
           PatientName: patientName,
           MobileNo: mobileNo,
         },
@@ -838,68 +855,71 @@ const handleMobileNoChange = (value: string) => {
 
       {/* Filters Section (Type, Code, Active) */}
       <div className="flex gap-4 flex-col mb-4">
-  <div className="flex gap-4 flex-wrap items-start">
-    {/* UHID Input */}
-    <div className="flex flex-col w-full md:w-[30%]">
-      <input
-        type="text"
-        value={uhid}
-        onChange={(e) => handleUhidChange(e.target.value)}
-        placeholder="Enter UHID"
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-      {errors.uhid && (
-        <div className="text-red-500 text-sm mt-1">{errors.uhid}</div>
-      )}
-    </div>
-    {/* Patient Name Input */}
-    <div className="flex flex-col w-full md:w-[30%]">
-      <input
-        type="text"
-        value={patientName}
-        onChange={(e) => handlePatientNameChange(e.target.value)}
-        placeholder="Enter Patient Name"
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-      {errors.patientName && (
-        <div className="text-red-500 text-sm mt-1">{errors.patientName}</div>
-      )}
-    </div>
+        <div className="flex gap-4 flex-wrap items-start">
+          {/* UHID Input */}
+          <div className="flex flex-col w-full md:w-[30%]">
+            <input
+              type="text"
+              value={uhid}
+              maxLength={10}
+              onChange={(e) => handleUhidChange(e.target.value)}
+              placeholder="Enter UHID"
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            />
+            {errors.uhid && (
+              <div className="text-red-500 text-sm mt-1">{errors.uhid}</div>
+            )}
+          </div>
+          {/* Patient Name Input */}
+          <div className="flex flex-col w-full md:w-[30%]">
+            <input
+              type="text"
+              value={patientName}
+              maxLength={30}
+              onChange={(e) => handlePatientNameChange(e.target.value)}
+              placeholder="Enter Patient Name"
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            />
+            {errors.patientName && (
+              <div className="text-red-500 text-sm mt-1">
+                {errors.patientName}
+              </div>
+            )}
+          </div>
 
-    {/* Mobile Number Input */}
-    <div className="flex flex-col w-full md:w-[30%]">
-      <input
-        type="text"
-        value={mobileNo}
-        onChange={(e) => handleMobileNoChange(e.target.value)}
-        placeholder="Enter Mobile Number"
-        maxLength={10}
-        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-      {errors.mobileNo && (
-        <div className="text-red-500 text-sm mt-1">{errors.mobileNo}</div>
-      )}
-    </div>
+          {/* Mobile Number Input */}
+          <div className="flex flex-col w-full md:w-[30%]">
+            <input
+              type="text"
+              value={mobileNo}
+              onChange={(e) => handleMobileNoChange(e.target.value)}
+              placeholder="Enter Mobile Number"
+              maxLength={10}
+              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            />
+            {errors.mobileNo && (
+              <div className="text-red-500 text-sm mt-1">{errors.mobileNo}</div>
+            )}
+          </div>
 
-    {/* Search Button */}
-    <button
-      onClick={handleSearch}
-      className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0"
-    >
-      Search
-    </button>
+          {/* Search Button */}
+          <button
+            onClick={handleSearch}
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0"
+          >
+            Search
+          </button>
 
-    {/* Reset Button */}
-    <button
-      onClick={handleReset}
-      className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0
+          {/* Reset Button */}
+          <button
+            onClick={handleReset}
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-7 rounded-lg mt-4 md:mt-0
         border-gray-300 opacity-80 hover:opacity-100 flex items-center gap-1"
-    >
-      Reset
-    </button>
-  </div>
-</div>
-
+          >
+            Reset
+          </button>
+        </div>
+      </div>
 
       <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
         List of patients
@@ -934,7 +954,9 @@ const handleMobileNoChange = (value: string) => {
                     </div>
 
                     {/* Top Right: Book Now Button */}
-                    {sessionStorage.getItem('roleName') !== 'Doctor' && (
+                    {!['Doctor', 'HostitalAdmin'].includes(
+                      sessionStorage.getItem('roleName') || '',
+                    ) && (
                       <div className="flex justify-end mt-2 mr-2">
                         <button
                           className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
@@ -1107,6 +1129,7 @@ const handleMobileNoChange = (value: string) => {
                   name="reason"
                   placeholder="Enter your text here..."
                   value={formData.reason}
+                  maxLength={200}
                   onChange={handleInputChange}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
            text-black outline-none focus:border-primary dark:border-form-strokedark

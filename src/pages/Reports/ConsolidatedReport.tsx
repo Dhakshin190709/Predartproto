@@ -27,8 +27,16 @@ const HospitalDropdown = () => {
       try {
         const roleName = sessionStorage.getItem('roleName');
         const unitID = sessionStorage.getItem('unitID');
+        const tenantID = sessionStorage.getItem('tenantID');
 
-        const response = await api.get('/Hospital/List');
+        // Build params conditionally
+        const params: Record<string, string> = {};
+
+        if (roleName === 'TenantAdmin' && tenantID) {
+          params['tenantID'] = tenantID;
+        }
+
+        const response = await api.get('/Hospital/List', { params });
         const data: any[] = response.data || [];
 
         const activeHospitals = data.filter(
@@ -36,6 +44,7 @@ const HospitalDropdown = () => {
         );
         setHospitals(activeHospitals);
 
+        // Preselect only for Doctor and HospitalAdmin
         if (roleName === 'Doctor') {
           const doctorID = sessionStorage.getItem('doctorID');
           setSelectedDoctor(doctorID || '');
@@ -45,6 +54,7 @@ const HospitalDropdown = () => {
           setSelectedHospital(unitID || '');
           setSelectedHospitalId(unitID || '');
         }
+        // For TenantAdmin, no preselection
       } catch (error) {
         console.error('Error fetching hospitals:', error);
       }
@@ -52,6 +62,7 @@ const HospitalDropdown = () => {
 
     fetchHospitals();
   }, []);
+
   useEffect(() => {
     if (selectedHospitalId) {
       fetchDoctors(selectedHospitalId);
@@ -97,40 +108,65 @@ const HospitalDropdown = () => {
     setSelectedHospitalId(hospitalId);
   };
 
-  const handleSearch = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (selectedHospitalId) {
-        params.append('HospitalID', selectedHospitalId);
-      }
-      if (selectedDoctor) {
-        params.append('DoctorID', selectedDoctor);
-      }
-      if (fromTime) {
-        params.append('StartDate', fromTime);
-      }
-      if (toTime) {
-        params.append('EndDate', toTime);
-      }
+ const handleSearch = async () => {
+  setLoading(true);
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      const response = await api.get('/Appointment/ConsolidationReport', {
-        params,
-      });
-      const data = response.data;
-
-      if (Array.isArray(data) && data.length > 0) {
-        setAppointments(data);
-      } else {
-        setAppointments([]);
-      }
-    } catch (error) {
-      console.error('Error fetching appointments:', error);
-      setAppointments([]);
-    } finally {
+    // Check if TenantAdmin and no filters selected
+    if (
+      roleName === 'TenantAdmin' &&
+      !tenantID &&
+      !selectedHospitalId &&
+      !selectedDoctor &&
+      !fromTime &&
+      !toTime
+    ) {
+      // You can replace alert with your toast function
+      alert('Please select at least one filter field before searching.');
       setLoading(false);
+      return;
     }
-  };
+
+    const params = new URLSearchParams();
+
+    // Pass tenantID param if role is TenantAdmin and tenantID exists
+    if (roleName === 'TenantAdmin' && tenantID) {
+      params.append('tenantID', tenantID);
+    }
+
+    if (selectedHospitalId) {
+      params.append('HospitalID', selectedHospitalId);
+    }
+    if (selectedDoctor) {
+      params.append('DoctorID', selectedDoctor);
+    }
+    if (fromTime) {
+      params.append('StartDate', fromTime);
+    }
+    if (toTime) {
+      params.append('EndDate', toTime);
+    }
+
+    const response = await api.get('/Appointment/ConsolidationReport', {
+      params,
+    });
+    const data = response.data;
+
+    if (Array.isArray(data) && data.length > 0) {
+      setAppointments(data);
+    } else {
+      setAppointments([]);
+    }
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    setAppointments([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const columnDefs = useMemo(
     () => [
@@ -171,6 +207,7 @@ const HospitalDropdown = () => {
       setRoleName(storedRoleName);
     }
   }, []);
+
   const handleReset = () => {
     if (roleName === 'Doctor') {
       // For Doctor role, keep the hospital and doctor prefilled
@@ -179,6 +216,14 @@ const HospitalDropdown = () => {
       setAppointments([]);
     } else if (roleName === 'HostitalAdmin') {
       // For HospitalAdmin role, keep the hospital prefilled
+      setSelectedDoctor('');
+      setFromTime('');
+      setToTime('');
+      setAppointments([]);
+    } else if (roleName === 'TenantAdmin') {
+      // For TenantAdmin role, reset all fields
+      setSelectedHospital('');
+      setSelectedHospitalId('');
       setSelectedDoctor('');
       setFromTime('');
       setToTime('');
@@ -195,8 +240,8 @@ const HospitalDropdown = () => {
         <select
           value={selectedHospital}
           onChange={handleHospitalChange}
-          disabled={sessionStorage.getItem('roleName') !== 'HospitalAdmin'}
-          className="w-full md:w-60 rounded border p-2 bg-gray-100 "
+          disabled={sessionStorage.getItem('roleName') !== 'TenantAdmin'}
+          className="w-full md:w-60 rounded border p-2 bg-gray-100"
         >
           <option value="">Select a hospital</option>
           {hospitals.map((hospital) => (

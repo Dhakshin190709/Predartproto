@@ -37,6 +37,15 @@ interface SkillError {
   description?: string;
 }
 
+interface Experience {
+  type: string;
+  specialization: string;
+  hospitalName: string;
+  joinDate: string;
+  leaveDate: string;
+  experience: string;
+}
+
 const initialState = {
   tenant: '',
   hospital: '',
@@ -146,11 +155,11 @@ const DoctorForm: React.FC = () => {
   const [selectedLanguages, setSelectedLanguages] = useState([]);
   const [skillOptions, setSkillOptions] = useState([]);
   const [skill, setSkill] = useState([]); // This is your skills data
- const [existingTimeSlots, setExistingTimeSlots] = useState([]); // Existing slots (editable, not submitted)
-   const [newTimeSlots, setNewTimeSlots] = useState([
-     { day: "", hospital: "", duration: "", fromTime: null, toTime: null },
-   ]); // New slots (only these are submitted)
-   const [existingEducation, setExistingEducation] = useState([]);
+  const [existingTimeSlots, setExistingTimeSlots] = useState([]); // Existing slots (editable, not submitted)
+  const [newTimeSlots, setNewTimeSlots] = useState([
+    { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
+  ]); // New slots (only these are submitted)
+  const [existingEducation, setExistingEducation] = useState([]);
 
   // this persists between renders
 
@@ -170,8 +179,8 @@ const DoctorForm: React.FC = () => {
   // const [errors, setErrors] = useState<any[]>([]);
   const today = new Date().toISOString().split('T')[0]; // today's date in yyyy-mm-dd
   const [educationErrors, setEducationErrors] = useState([{}]);
-  const [educationList, setEducationList] = useState([initialEducationEntry]); 
-      const [experienceList, setExperienceList] = useState<
+  const [educationList, setEducationList] = useState([initialEducationEntry]);
+  const [experienceList, setExperienceList] = useState<
     { id: number; name: string }[]
   >([]);
   const [qualifications, setQualifications] = useState<
@@ -213,7 +222,7 @@ const DoctorForm: React.FC = () => {
       },
     ]);
   };
-  
+
   // Remove an address row
   const removeAddress = (index) => {
     const updatedAddresses = addresses.filter((_, i) => i !== index);
@@ -258,9 +267,9 @@ const DoctorForm: React.FC = () => {
     try {
       const unitID = sessionStorage.getItem('unitID');
       const response = await api.get('/Hospital/List'); // ✅ Axios handles base URL and response parsing
-  
+
       const result = response.data;
-  
+
       if (result && Array.isArray(result)) {
         const filteredHospitals = result
           .filter((hospital: any) => hospital.isActive)
@@ -268,7 +277,7 @@ const DoctorForm: React.FC = () => {
             id: hospital.hospitalID,
             name: hospital.hospitalName,
           }));
-  
+
         setHospitals(filteredHospitals);
       }
     } catch (error) {
@@ -277,129 +286,138 @@ const DoctorForm: React.FC = () => {
   };
 
   const fetchWeekdays = async () => {
-  try {
-    const response = await api.get('/AppLOV?type=Weekday'); // ✅ Only relative path
-    const result = response.data;
+    try {
+      const response = await api.get('/AppLOV?type=Weekday'); // ✅ Only relative path
+      const result = response.data;
 
-    if (result.success && Array.isArray(result.data)) {
-      setWeekdays(result.data);
+      if (result.success && Array.isArray(result.data)) {
+        setWeekdays(result.data);
+      }
+    } catch (error) {
+      console.error('Error fetching weekdays:', error);
     }
-  } catch (error) {
-    console.error('Error fetching weekdays:', error);
-  }
-};
+  };
 
   const handleTimeChange = (slots, setSlots, index, field, value) => {
     const updatedSlots = [...slots];
     updatedSlots[index][field] = value;
     setSlots(updatedSlots);
   };
-  
-   const addNewRow = () => {
-    setNewTimeSlots([...newTimeSlots, { day: "", hospital: "", duration: "", fromTime: null, toTime: null }]);
+
+  const addNewRow = () => {
+    setNewTimeSlots([
+      ...newTimeSlots,
+      { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
+    ]);
   };
 
   useEffect(() => {
     fetchDoctorTimeSlots();
   }, []);
-  
 
   const fetchDoctorTimeSlots = async () => {
     try {
-      const doctorID = sessionStorage.getItem("doctorID");
+      const doctorID = sessionStorage.getItem('doctorID');
       if (!doctorID) return;
-  
-      const response = await api.get(`/Doctor/GetDoctorTimeSlot?doctorID=${doctorID}`);
-      console.log("🔍 Fetching slots for doctorID:", doctorID);
+
+      const response = await api.get(
+        `/Doctor/GetDoctorTimeSlot?doctorID=${doctorID}`,
+      );
+      console.log('🔍 Fetching slots for doctorID:', doctorID);
       if (response.data?.success) {
-        const formattedSlots = response.data.data.map(slot => ({
+        const formattedSlots = response.data.data.map((slot) => ({
           ...slot,
           fromTime: new Date(`1970-01-01T${slot.fromTime}`),
           toTime: new Date(`1970-01-01T${slot.toTime}`),
           hospital: slot.hospitalID, // align with your `newTimeSlots` format
-          day: slot.dayofWeek
+          day: slot.dayofWeek,
         }));
         setExistingTimeSlots(formattedSlots);
       }
     } catch (error) {
-      console.error("Error fetching doctor time slots", error);
+      console.error('Error fetching doctor time slots', error);
     }
   };
-  
+
   const validateTimeSlots = (slots) => {
     let hasError = false;
-  
+
     const errors = slots.map((slot) => {
       const slotErrors = {};
-  
+
       if (!slot.day) {
-        slotErrors.day = "Day is required";
+        slotErrors.day = 'Day is required';
         hasError = true;
       }
-  
+
       if (!slot.hospital) {
-        slotErrors.hospital = "Hospital is required";
+        slotErrors.hospital = 'Hospital is required';
         hasError = true;
       }
-  
+
       // Validate duration
       if (!slot.duration) {
-        slotErrors.duration = "Duration is required";
+        slotErrors.duration = 'Duration is required';
         hasError = true;
       } else if (!/^\d{1,2}$/.test(slot.duration)) {
-        slotErrors.duration = "Duration must be a number (1-2 digits only)";
+        slotErrors.duration = 'Duration must be a number (1-2 digits only)';
         hasError = true;
-      } else if (!["1", "15", "30", "45"].includes(slot.duration)) {
-        slotErrors.duration = "Duration must be 1, 15, 30, or 45";
+      } else if (!['1', '15', '30', '45'].includes(slot.duration)) {
+        slotErrors.duration = 'Duration must be 1, 15, 30, or 45';
         hasError = true;
       }
-  
+
       if (!slot.fromTime) {
-        slotErrors.fromTime = "From Time is required";
+        slotErrors.fromTime = 'From Time is required';
         hasError = true;
       }
-  
+
       if (!slot.toTime) {
-        slotErrors.toTime = "To Time is required";
+        slotErrors.toTime = 'To Time is required';
         hasError = true;
       }
-  
+
       return slotErrors;
     });
-  
+
     return { isValid: !hasError, errors };
   };
-  
-  
-
 
   const handleTimeSubmit = async (e) => {
     e.preventDefault();
-  
-    const userID = sessionStorage.getItem("userID");
-    const doctorID = sessionStorage.getItem("doctorID");
-  
+
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+
     if (!userID || !doctorID) {
-      alert("🚨 User or Doctor not logged in. Please log in again.");
+      alert('🚨 User or Doctor not logged in. Please log in again.');
       return;
     }
-  
-    const { isValid, errors: validationErrors } = validateTimeSlots(newTimeSlots);
+
+    const { isValid, errors: validationErrors } =
+      validateTimeSlots(newTimeSlots);
     if (!isValid) {
       setErrors(validationErrors);
-      alert("⚠️ Please fill all the required data before saving.");
+      alert('⚠️ Please fill all the required data before saving.');
       return;
     }
-  
+
     // Filter out duplicate time slots
     const isDuplicate = (slot) => {
-      const fromTimeStr = slot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
-      const toTimeStr = slot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
-    
+      const fromTimeStr =
+        slot.fromTime?.toLocaleTimeString('en-US', { hour12: false }) ?? '';
+      const toTimeStr =
+        slot.toTime?.toLocaleTimeString('en-US', { hour12: false }) ?? '';
+
       return existingTimeSlots.some((existingSlot) => {
-        const existingFrom = existingSlot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
-        const existingTo = existingSlot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "";
-    
+        const existingFrom =
+          existingSlot.fromTime?.toLocaleTimeString('en-US', {
+            hour12: false,
+          }) ?? '';
+        const existingTo =
+          existingSlot.toTime?.toLocaleTimeString('en-US', { hour12: false }) ??
+          '';
+
         return (
           existingSlot.day === slot.day &&
           existingSlot.hospital === slot.hospital &&
@@ -408,17 +426,18 @@ const DoctorForm: React.FC = () => {
         );
       });
     };
-    
+
     const uniqueNewSlots = newTimeSlots.filter((slot) => !isDuplicate(slot));
-    
+
     if (uniqueNewSlots.length !== newTimeSlots.length) {
-      alert("🚫 Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.");
+      alert(
+        '🚫 Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.',
+      );
       return;
     }
-    
-  
+
     const timestamp = new Date().toISOString();
-  
+
     const payload = uniqueNewSlots.map((slot) => ({
       createdBy: userID,
       createdOn: timestamp,
@@ -427,142 +446,187 @@ const DoctorForm: React.FC = () => {
       doctorID: doctorID,
       hospitalID: slot.hospital,
       dayofWeek: slot.day,
-      fromTime: slot.fromTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "00:00:00",
-      toTime: slot.toTime?.toLocaleTimeString("en-US", { hour12: false }) ?? "00:00:00",
-      slotDuration: slot.duration?.toString() ?? "0",
+      fromTime:
+        slot.fromTime?.toLocaleTimeString('en-US', { hour12: false }) ??
+        '00:00:00',
+      toTime:
+        slot.toTime?.toLocaleTimeString('en-US', { hour12: false }) ??
+        '00:00:00',
+      slotDuration: slot.duration?.toString() ?? '0',
       isActive: true,
     }));
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctorTimeSlot', payload); // ✅ uses full URL from request.js
-  
+
       if (response.status === 200) {
-        toast.success("Unique new time slots saved successfully!");
-        setNewTimeSlots([{ day: "", hospital: "", duration: "", fromTime: null, toTime: null }]);
+        toast.success('Unique new time slots saved successfully!');
+        setNewTimeSlots([
+          { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
+        ]);
         fetchDoctorTimeSlots(); // Refresh the list
       } else {
-        toast.error("❌ Failed to save time slots.");
-        console.error("❌ Server responded with error:", response.data);
+        toast.error('❌ Failed to save time slots.');
+        console.error('❌ Server responded with error:', response.data);
       }
     } catch (error) {
-      toast.error("🚨 Network error while submitting time slots.");
-      console.error("🚨 Error submitting time slots:", error);
+      toast.error('🚨 Network error while submitting time slots.');
+      console.error('🚨 Error submitting time slots:', error);
     }
   };
 
-
   const renderTimeSlotRow = (slot, index, slots, setSlots, editable = true) => (
-      <div key={index} 
-     
-        className="flex gap-4 items-center mt-2 rounded-lg border border-stroke bg-transparent 
+    <div
+      key={index}
+      className="flex gap-4 items-center mt-2 rounded-lg border border-stroke bg-transparent 
         p-4 text-black outline-none focus:border-primary
                dark:border-form-strokedark dark:bg-form-input
-                dark:text-white dark:focus:border-primary">
-        
-        {/* Day */}
-        <div className="flex flex-col w-[160px]">
-  <select 
-    value={slot.day}
-    disabled={!editable} 
-    onChange={e => handleTimeChange(slots, setSlots, index, "day", e.target.value)} 
-    className="w-full rounded-lg border border-stroke bg-transparent 
+                dark:text-white dark:focus:border-primary"
+    >
+      {/* Day */}
+      <div className="flex flex-col w-[160px]">
+        <select
+          value={slot.day}
+          disabled={!editable}
+          onChange={(e) =>
+            handleTimeChange(slots, setSlots, index, 'day', e.target.value)
+          }
+          className="w-full rounded-lg border border-stroke bg-transparent 
                py-3 px-4 text-black outline-none focus:border-primary
                dark:border-form-strokedark dark:bg-form-input
                dark:text-white dark:focus:border-primary"
-  >
-    <option value="">Select Day</option>
-    {weekdays.map(day => (
-      <option key={day.id} value={day.name}>{day.name}</option>
-    ))}
-  </select>
+        >
+          <option value="">Select Day</option>
+          {weekdays.map((day) => (
+            <option key={day.id} value={day.name}>
+              {day.name}
+            </option>
+          ))}
+        </select>
 
-  {errors[index]?.day && (
-    <div className="text-red-500 text-sm mt-1">{errors[index].day}</div>
-  )}
-</div>
+        {errors[index]?.day && (
+          <div className="text-red-500 text-sm mt-1">{errors[index].day}</div>
+        )}
+      </div>
 
-        {/* Hospital */}
-        
-        <div className="flex flex-col w-[160px]">
-  <select 
-    value={slot.hospital} 
-    disabled={!editable}
-    onChange={e => handleTimeChange(slots, setSlots, index, "hospital", e.target.value)} 
-    className="w-full rounded-lg border border-stroke bg-transparent 
+      {/* Hospital */}
+
+      <div className="flex flex-col w-[160px]">
+        <select
+          value={slot.hospital}
+          disabled={!editable}
+          onChange={(e) =>
+            handleTimeChange(slots, setSlots, index, 'hospital', e.target.value)
+          }
+          className="w-full rounded-lg border border-stroke bg-transparent 
                py-3 px-4 text-black outline-none focus:border-primary
                dark:border-form-strokedark dark:bg-form-input
                dark:text-white dark:focus:border-primary"
-  >
-    <option value="">Select Hospital</option>
-    {hospitals.map(hospital => (
-      <option key={hospital.id} value={hospital.id}>
-        {hospital.name}
-      </option>
-    ))}
-  </select>
+        >
+          <option value="">Select Hospital</option>
+          {hospitals.map((hospital) => (
+            <option key={hospital.id} value={hospital.id}>
+              {hospital.name}
+            </option>
+          ))}
+        </select>
 
-  {errors[index]?.hospital && (
-    <div className="text-red-500 text-sm mt-1">{errors[index].hospital}</div>
-  )}
-</div>
+        {errors[index]?.hospital && (
+          <div className="text-red-500 text-sm mt-1">
+            {errors[index].hospital}
+          </div>
+        )}
+      </div>
 
-        {/* Duration */}
-        <div className="w-[20%] flex flex-col">
-          <input
-            type="text"
-            placeholder="Duration (mins)"
-            value={slot.duration}
-            disabled={!editable}
-            onChange={(e) =>
-              handleTimeChange(slots, setSlots, index, "duration", e.target.value)
-            }
-            onKeyDown={(e) => {
-              const allowed = ["1", "5", "3", "4", "0", "Backspace", "Delete", "ArrowLeft", "ArrowRight"];
-              if (!allowed.includes(e.key)) e.preventDefault();
-            }}
-            onPaste={(e) => e.preventDefault()}
-            className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
+      {/* Duration */}
+      <div className="w-[20%] flex flex-col">
+        <input
+          type="text"
+          placeholder="Duration (mins)"
+          value={slot.duration}
+          disabled={!editable}
+          onChange={(e) =>
+            handleTimeChange(slots, setSlots, index, 'duration', e.target.value)
+          }
+          onKeyDown={(e) => {
+            const allowed = [
+              '1',
+              '5',
+              '3',
+              '4',
+              '0',
+              'Backspace',
+              'Delete',
+              'ArrowLeft',
+              'ArrowRight',
+            ];
+            if (!allowed.includes(e.key)) e.preventDefault();
+          }}
+          onPaste={(e) => e.preventDefault()}
+          className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
                       dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          {errors[index]?.duration && (
-            <div className="text-red-500 text-sm mt-1">{errors[index].duration}</div>
-          )}
-        </div>
+        />
+        {errors[index]?.duration && (
+          <div className="text-red-500 text-sm mt-1">
+            {errors[index].duration}
+          </div>
+        )}
+      </div>
 
-        {/* From Time */}
-        <div className="w-[20%] flex flex-col">
-        <DatePicker selected={slot.fromTime} 
-        onChange={time => handleTimeChange(slots, setSlots, index, "fromTime", time)} 
-        showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
-        placeholderText="From Time" 
-        className={inputFieldClass}
-        disabled={!editable} />
-         {errors[index]?.fromTime && <div className="text-red-500 text-sm mt-1">{errors[index].fromTime}</div>}
-</div>
-  
-        {/* To Time */}
-        <div className="w-[20%] flex flex-col">
+      {/* From Time */}
+      <div className="w-[20%] flex flex-col">
+        <DatePicker
+          selected={slot.fromTime}
+          onChange={(time) =>
+            handleTimeChange(slots, setSlots, index, 'fromTime', time)
+          }
+          showTimeSelect
+          showTimeSelectOnly
+          timeIntervals={15}
+          dateFormat="h:mm aa"
+          placeholderText="From Time"
+          className={inputFieldClass}
+          disabled={!editable}
+        />
+        {errors[index]?.fromTime && (
+          <div className="text-red-500 text-sm mt-1">
+            {errors[index].fromTime}
+          </div>
+        )}
+      </div>
 
-        <DatePicker selected={slot.toTime} 
-        onChange={time => handleTimeChange(slots, setSlots, index, "toTime", time)} 
-        showTimeSelect showTimeSelectOnly timeIntervals={15} dateFormat="h:mm aa" 
-        placeholderText="To Time"
-        className={inputFieldClass}
-         disabled={!editable} />
-         {errors[index]?.toTime && <div className="text-red-500 text-sm mt-1">{errors[index].toTime}</div>}
-        </div>
-        </div>
-    );
-  
-  
+      {/* To Time */}
+      <div className="w-[20%] flex flex-col">
+        <DatePicker
+          selected={slot.toTime}
+          onChange={(time) =>
+            handleTimeChange(slots, setSlots, index, 'toTime', time)
+          }
+          showTimeSelect
+          showTimeSelectOnly
+          timeIntervals={15}
+          dateFormat="h:mm aa"
+          placeholderText="To Time"
+          className={inputFieldClass}
+          disabled={!editable}
+        />
+        {errors[index]?.toTime && (
+          <div className="text-red-500 text-sm mt-1">
+            {errors[index].toTime}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
   const fetchDocumentTypes = async () => {
     try {
       const response = await api.get('AppLOV?type=documentType'); // ✅ correct
       if (response.data && Array.isArray(response.data.data)) {
-        const active = response.data.data.filter(item => item.isActive);
+        const active = response.data.data.filter((item) => item.isActive);
         setDocumentTypes(active);
-        console.log("Fetched Document Types:", active);
+        console.log('Fetched Document Types:', active);
       } else {
         console.error('Invalid data format:', response.data);
       }
@@ -570,37 +634,34 @@ const DoctorForm: React.FC = () => {
       console.error('Failed to fetch document types:', error);
     }
   };
-  
+
   useEffect(() => {
     fetchDocumentTypes();
   }, []);
   useEffect(() => {
     fetchUploadedDocuments();
   }, []);
-  
 
   // Fetch Uploaded Documents
   const fetchUploadedDocuments = async () => {
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (!userID || !doctorID) {
       console.warn('User ID or Doctor ID is missing. Please log in again.');
       return;
     }
-  
+
     try {
       const response = await api.get(
-        `/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}`
+        `/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}`,
       );
-      
-      
+
       setUploadedDocuments(response.data.data || []);
     } catch (error) {
       console.error('Failed to fetch uploaded documents:', error);
     }
   };
-  
 
   // const handleFileChange = (event) => {
   //   setSelectedFile(event.target.files[0]);
@@ -620,18 +681,15 @@ const DoctorForm: React.FC = () => {
   const handleDocumentTypeChange = (event) => {
     setSelectedDocumentType(event.target.value);
   };
-  
 
   const normalizeFileName = (name) => {
     const parts = name.split('_');
     return parts.length > 1 ? parts.slice(1).join('_') : name;
   };
-  
+
   const normalizeDocumentType = (type) => {
     return type.toLowerCase().replace(/[^a-z]/gi, ''); // removes spaces, dots etc.
   };
-  
-  
 
   // Upload Document (POST API)
   const handleUpload = async (e: React.FormEvent) => {
@@ -643,7 +701,9 @@ const DoctorForm: React.FC = () => {
     }
 
     const isDuplicate = uploadedDocuments.some(
-      (doc) => normalizeDocumentType(doc.documentType) === normalizeDocumentType(selectedType)
+      (doc) =>
+        normalizeDocumentType(doc.documentType) ===
+        normalizeDocumentType(selectedType),
     );
 
     if (isDuplicate) {
@@ -703,34 +763,32 @@ const DoctorForm: React.FC = () => {
     };
   };
 
-   // View Document in Modal
+  // View Document in Modal
   const handleViewDocument = async (documentID: string, fileName: string) => {
     try {
-      const response = await axios.get(
-        `/Doctor/Documents/${documentID}`
-      );
-  
+      const response = await axios.get(`/Doctor/Documents/${documentID}`);
+
       if (!response.data?.data?.fileBase64) {
         alert('Invalid file data received.');
         return;
       }
-  
+
       const fileBase64 = response.data.data.fileBase64;
       const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
       setIsImage(isImageFile);
-  
+
       const byteCharacters = atob(fileBase64);
       const byteArray = new Uint8Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteArray[i] = byteCharacters.charCodeAt(i);
       }
-  
+
       const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
       const fileType = isImageFile ? `image/${extension}` : 'application/pdf';
-  
+
       const blob = new Blob([byteArray], { type: fileType });
       const url = URL.createObjectURL(blob);
-  
+
       setDocumentURL(url);
       setModalOpen(true);
     } catch (error) {
@@ -743,31 +801,26 @@ const DoctorForm: React.FC = () => {
     return fileName.split('_').pop();
   };
 
-
-
-  
-
-  
   // const [awards, setAwards] = useState([
   //   { name: '', year: '', description: '', errors: {} },
   // ]);
 
   const handleAwardChange = (index, field, value) => {
     const updatedAwards = [...awards];
-  
+
     if (field === 'year') {
       const numericYear = value.replace(/\D/g, '').slice(0, 4);
       const currentYear = new Date().getFullYear();
-  
+
       if (numericYear.length === 4 && parseInt(numericYear) > currentYear) {
         return;
       }
-  
+
       updatedAwards[index][field] = numericYear;
     } else if (field === 'description') {
       // Regex to allow only letters, numbers, spaces, comma, period, apostrophe, quotes, hyphen
       const validDescriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
-  
+
       if (!validDescriptionPattern.test(value)) {
         // Show error or ignore input
         // alert('Description cannot contain emojis or special characters except , . \' " -');
@@ -777,10 +830,10 @@ const DoctorForm: React.FC = () => {
     } else {
       updatedAwards[index][field] = value;
     }
-  
+
     setAwards(updatedAwards);
   };
-  
+
   const handleAddAward = () => {
     setAwards([...awards, { name: '', year: '', description: '', errors: {} }]);
   };
@@ -789,10 +842,10 @@ const DoctorForm: React.FC = () => {
     let valid = true;
     const updatedAwards = [...awards];
     const descriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
-  
+
     updatedAwards.forEach((award, index) => {
       const errors = {};
-  
+
       // Award name validation
       if (!award.name) {
         errors.name = 'Award name is required.';
@@ -801,13 +854,13 @@ const DoctorForm: React.FC = () => {
         errors.name = 'Award name must be at least 3 characters.';
         valid = false;
       }
-  
+
       // Award year validation
       if (!award.year || isNaN(Number(award.year))) {
         errors.year = 'Valid award year is required.';
         valid = false;
       }
-  
+
       // Description validation
       if (!award.description) {
         errors.description = 'Description is required.';
@@ -819,10 +872,10 @@ const DoctorForm: React.FC = () => {
         errors.description = 'Description contains invalid characters.';
         valid = false;
       }
-  
+
       updatedAwards[index].errors = errors;
     });
-  
+
     setAwards(updatedAwards);
     return valid;
   };
@@ -840,22 +893,22 @@ const DoctorForm: React.FC = () => {
       e.target.value = cleaned;
     }
   };
-  
+
   const handleAwardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
       alert('Missing doctorID or userID in session.');
       return;
     }
-  
+
     if (!validateAwards()) {
       return;
     }
-  
+
     const payload = awards.map((award) => ({
       awardID: uuidv4(),
       doctorID,
@@ -868,7 +921,7 @@ const DoctorForm: React.FC = () => {
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctorAward', payload, {
         headers: {
@@ -876,7 +929,7 @@ const DoctorForm: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-  
+
       if (response.status === 200 || response.status === 201) {
         console.log('Success:', response.data);
         toast.success('Award successfully submitted!');
@@ -894,14 +947,18 @@ const DoctorForm: React.FC = () => {
     { skill: '', years: '', months: '', description: '', errors: {} },
   ]);
 
-  const handleSkill = (index: number, field: 'skill' | 'years' | 'months' | 'description', value: string) => {
+  const handleSkill = (
+    index: number,
+    field: 'skill' | 'years' | 'months' | 'description',
+    value: string,
+  ) => {
     const updatedSkills = [...skills];
-  
+
     // For 'years' or 'months', restrict to 2 digits only
     if ((field === 'years' || field === 'months') && !/^\d{0,2}$/.test(value)) {
       return;
     }
-  
+
     // For 'months', only allow values from 1 to 11
     if (field === 'months') {
       if (value === '' || (Number(value) >= 1 && Number(value) <= 11)) {
@@ -912,10 +969,9 @@ const DoctorForm: React.FC = () => {
     } else {
       updatedSkills[index][field] = value;
     }
-  
+
     setSkills(updatedSkills);
   };
-  
 
   const handleAddSkill = () => {
     if (skills.length >= 5) {
@@ -928,32 +984,37 @@ const DoctorForm: React.FC = () => {
     ]);
   };
 
-
   const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    const allowedKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab'];
+    const allowedKeys = [
+      'Backspace',
+      'Delete',
+      'ArrowLeft',
+      'ArrowRight',
+      'Tab',
+    ];
     const isDigit = /^[0-9]$/.test(e.key);
     if (!isDigit && !allowedKeys.includes(e.key)) {
       e.preventDefault(); // Block letters, symbols, emoji, space
     }
   };
-  
+
   const validateSkills = () => {
     let valid = true;
     const updatedSkills = [...skills];
     const specialCharRegex = /^[a-zA-Z0-9\s.,'-]*$/;
     updatedSkills.forEach((skill, index) => {
       const errors = {};
-  
+
       if (!skill.skill) {
         errors.skill = 'Skill is required.';
         valid = false;
       }
-  
+
       if (!skill.years || isNaN(Number(skill.years))) {
         errors.years = 'years of experience are required.';
         valid = false;
       }
-  
+
       if (
         !skill.months ||
         isNaN(Number(skill.months)) ||
@@ -963,20 +1024,20 @@ const DoctorForm: React.FC = () => {
         errors.months = 'months of experience are required.';
         valid = false;
       }
-  
+
       // Description validation: no emojis or special characters allowed
       if (!skill.description || !specialCharRegex.test(skill.description)) {
         errors.description = 'Description is required';
         valid = false;
       }
-  
+
       updatedSkills[index].errors = errors;
     });
-  
+
     setSkills(updatedSkills);
     return valid;
   };
-  
+
   function validateGUID(guid) {
     const regex =
       /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -985,15 +1046,15 @@ const DoctorForm: React.FC = () => {
 
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
       alert('Missing doctorID or userID in session.');
       return;
     }
-  
+
     if (validateSkills()) {
       const payload = skills.map((entry) => ({
         doctorID,
@@ -1002,15 +1063,15 @@ const DoctorForm: React.FC = () => {
         updatedBy: userID,
         updatedOn: new Date().toISOString(),
         isActive: true,
-        skillMasterID: entry.skill,     // skill ID
-        skillID: entry.skill,           // (If this should be skill name, update accordingly)
+        skillMasterID: entry.skill, // skill ID
+        skillID: entry.skill, // (If this should be skill name, update accordingly)
         yearOfExperience: Number(entry.years),
         monthOfExperience: Number(entry.months),
         description: entry.description || '',
       }));
-  
+
       console.log('Payload:', JSON.stringify(payload, null, 2));
-  
+
       try {
         const response = await api.post('/Doctor/SaveDoctorSkill', payload, {
           headers: {
@@ -1018,7 +1079,7 @@ const DoctorForm: React.FC = () => {
             'Content-Type': 'application/json',
           },
         });
-  
+
         if (response.status === 200 || response.status === 201) {
           console.log('Success:', response.data);
           toast.success('Successfully submitted Doctor Skills!');
@@ -1035,16 +1096,16 @@ const DoctorForm: React.FC = () => {
     }
   };
 
-  const [experiences, setExperiences] = useState([
-    {
-      type: '',
-      specialization: '',
-      hospitalName: '',
-      joinDate: '',
-      leaveDate: '',
-      errors: {},
-    },
-  ]);
+  // const [experiences, setExperiences] = useState([
+  //   {
+  //     type: '',
+  //     specialization: '',
+  //     hospitalName: '',
+  //     joinDate: '',
+  //     leaveDate: '',
+  //     errors: {},
+  //   },
+  // ]);
 
   const handleExperience = (index, field, value) => {
     const updated = [...experiences];
@@ -1052,29 +1113,41 @@ const DoctorForm: React.FC = () => {
     setExperiences(updated);
   };
 
-  const handleAddExperiences = () => {
-    setExperiences([
-      ...experiences,
-      {
-        type: '',
-        specialization: '',
-        hospitalName: '',
-        joinDate: '',
-        leaveDate: '',
-        errors: {},
-      },
-    ]);
-  };
+  // const handleAddExperiences = () => {
+  //   setExperiences([
+  //     ...experiences,
+  //     {
+  //       type: '',
+  //       specialization: '',
+  //       hospitalName: '',
+  //       joinDate: '',
+  //       leaveDate: '',
+  //       errors: {},
+  //     },
+  //   ]);
+  // };
 
-  const validateExperience = () => {
-    const today = new Date(); // current date (for comparison)
+  const validateExperience = (): boolean => {
+    const today = new Date();
     const newErrors = experiences.map((exp) => {
-      const error = {};
-  
-      if (!exp.type) error.type = 'Type is required';
-      if (!exp.specialization) error.specialization = 'Specialization is required';
-      if (!exp.hospitalName) error.hospitalName = 'Hospital name is required';
-  
+      const error: any = {};
+
+      // Type check
+      if (!exp.type.trim()) {
+        error.type = 'Type is required';
+      }
+
+      // Specialization check
+      if (!exp.specialization.trim()) {
+        error.specialization = 'Specialization is required';
+      }
+
+      // Hospital name check
+      if (!exp.hospitalName.trim()) {
+        error.hospitalName = 'Hospital name is required';
+      }
+
+      // Join date check
       if (!exp.joinDate) {
         error.joinDate = 'Join date is required';
       } else {
@@ -1083,60 +1156,64 @@ const DoctorForm: React.FC = () => {
           error.joinDate = 'Join date cannot be in the future';
         }
       }
-  
+
+      // Leave date check
       if (!exp.leaveDate) {
         error.leaveDate = 'Leave date is required';
       } else {
-        const leave = new Date(exp.leaveDate);
         const join = new Date(exp.joinDate);
+        const leave = new Date(exp.leaveDate);
         if (leave < join) {
           error.leaveDate = 'Leave date must be after join date';
         } else if (leave > today) {
           error.leaveDate = 'Leave date cannot be in the future';
         }
       }
-  
+
       return error;
     });
-  
+
     if (experiences.length === 0) {
       alert('Please add at least one experience.');
       return false;
     }
-  
+
     setErrors(newErrors);
     console.log('Validation errors:', newErrors);
-    return newErrors.every((e) => Object.keys(e).length === 0);
+    return newErrors.every((err) => Object.keys(err).length === 0);
   };
-  
 
   useEffect(() => {
     const fetchSkills = async () => {
       try {
-        const res = await api.get('/AppLOV', { params: { type: 'Specializations' } });
+        const res = await api.get('/AppLOV', {
+          params: { type: 'Specializations' },
+        });
         const activeSkills = res.data.data.filter((item: any) => item.isActive);
-  
+
         const formattedSkills = activeSkills.map((item: any) => ({
           id: item.appLOVID, // MUST be GUID
           name: item.name,
         }));
-  
+
         console.log(formattedSkills); // Log the skills list here to check
         setSkillsList(formattedSkills);
       } catch (err) {
         console.error('Error fetching skills:', err);
       }
     };
-  
+
     fetchSkills();
   }, []);
 
   useEffect(() => {
     const fetchEmploymentTypes = async () => {
       try {
-        const response = await api.get('/AppLOV', { params: { type: 'Worktype' } });
+        const response = await api.get('/AppLOV', {
+          params: { type: 'Worktype' },
+        });
         console.log('📌 Employment Type API Response:', response.data);
-  
+
         if (response.data?.data) {
           setEmploymentTypes(response.data.data);
         } else {
@@ -1146,22 +1223,67 @@ const DoctorForm: React.FC = () => {
         console.error('❌ Error fetching Employment Types:', err);
       }
     };
-  
+
     fetchEmploymentTypes();
   }, []);
+
+  const isDuplicateExperience = (exp: any, list: any[]) => {
+    return list.some(
+      (existing) =>
+        existing.type === exp.type &&
+        existing.specialization === exp.specialization &&
+        existing.hospitalName.trim().toLowerCase() ===
+          exp.hospitalName.trim().toLowerCase() &&
+        existing.joinDate === exp.joinDate &&
+        existing.leaveDate === exp.leaveDate,
+    );
+  };
+
   const handleExperienceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
-      alert('Missing doctorID or userID in session.');
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Missing doctorID or userID in session.');
+        setToastShown('error');
+      }
       return;
     }
-  
-    if (!validateExperience()) return;
-  
+
+    // Prevent re-submit if already submitted and no new changes (+Add resets these states)
+    if (submittedOnce && toastShown === 'success') return;
+
+    if (!validateExperience()) {
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('❌ Please fill all fields correctly.');
+        setToastShown('error');
+      }
+      return;
+    }
+
+    const seen: Experience[] = [];
+    const hasDuplicate = experiences.some((exp) => {
+      if (isDuplicateExperience(exp, seen)) {
+        return true;
+      }
+      seen.push(exp);
+      return false;
+    });
+
+    if (hasDuplicate) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.error('❌ Duplicate experience entries found.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+
     const payload = experiences.map((exp) => ({
       doctorID,
       employmentType: exp.type,
@@ -1176,40 +1298,66 @@ const DoctorForm: React.FC = () => {
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-  
-    console.log('Submitting payload:', JSON.stringify(payload, null, 2));
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctorExprience', payload);
-  
-      if (response.status === 200) {
-        console.log('Server Response:', response.data);
-        toast.success('Experience details submitted successfully!', {
-          position: 'top-right',
-          style: {
-            color: '#155724',
-            border: '1px solid #c3e6cb',
-          },
-        });
+
+      if (response.status === 200 || response.status === 201) {
+        if (toastShown !== 'success') {
+          toast.success('Experience details submitted successfully!');
+          setToastShown('success');
+        }
+        setSubmittedOnce(true);
       } else {
-        console.error('Unexpected response status:', response.status);
-        toast.error('Unexpected server response.');
+        if (toastShown !== 'error') {
+          toast.error('Unexpected server response.');
+          setToastShown('error');
+        }
       }
     } catch (error: any) {
-      if (error.response) {
-        const contentType = error.response.headers['content-type'] || '';
-        if (contentType.includes('application/problem+json') && error.response.data.errors) {
-          console.error('Validation Errors:', error.response.data.errors);
-          toast.error('Validation error occurred. Check console for details.');
-        } else {
-          console.error('Server error:', error.response.data || error.message);
-          toast.error('Server error occurred. Check console for details.');
-        }
-      } else {
-        console.error('Experience submission error:', error.message || error);
+      console.error('Submission error:', error);
+      if (toastShown !== 'error') {
         toast.error('An error occurred during experience submission.');
+        setToastShown('error');
       }
     }
+  };
+
+  const handleExperienceChange = (
+    index: number,
+    field: keyof Experience,
+    value: string,
+  ) => {
+    const updated = [...experiences];
+    updated[index][field] = value;
+    setExperiences(updated);
+
+    const updatedErrors = [...errors];
+    if (updatedErrors[index]) {
+      updatedErrors[index][field] = undefined;
+    }
+    setErrors(updatedErrors);
+
+    setToastShown(null);
+    setSubmittedOnce(false);
+  };
+
+  const emptyExperience: Experience = {
+    type: '',
+    specialization: '',
+    hospitalName: '',
+    joinDate: '',
+    leaveDate: '',
+    experience: '',
+  };
+
+  const [experiences, setExperiences] = React.useState<Experience[]>([]);
+
+  const handleAddExperience = () => {
+    setExperiences([...experiences, emptyExperience]);
+    setErrors([...errors, {}]);
+    setToastShown(null);
+    setSubmittedOnce(false);
   };
 
   const [languages, setLanguages] = useState([
@@ -1251,12 +1399,12 @@ const DoctorForm: React.FC = () => {
     });
   };
 
-  const handleAddLanguage = () => {
-    setLanguages([
-      ...languages,
-      { language: '', read: false, write: false, speak: false, errors: {} },
-    ]);
-  };
+  // const handleAddLanguage = () => {
+  //   setLanguages([
+  //     ...languages,
+  //     { language: '', read: false, write: false, speak: false, errors: {} },
+  //   ]);
+  // };
 
   const validateLanguages = () => {
     let isValid = true;
@@ -1281,10 +1429,11 @@ const DoctorForm: React.FC = () => {
   };
 
   useEffect(() => {
-    api.get('/AppLOV?Type=LanguageMaster')
+    api
+      .get('/AppLOV?Type=LanguageMaster')
       .then((res) => {
         console.log('Language options:', res.data);
-  
+
         if (res.data && res.data.data) {
           setLanguageOptions(res.data.data);
         } else {
@@ -1297,58 +1446,70 @@ const DoctorForm: React.FC = () => {
       });
   }, []);
 
-
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleLanguageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
-    if (isSubmitting) return; // ⛔ Prevent double click
-    setIsSubmitting(true);    // ⏳ Disable submit
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
-      alert('Missing doctorID or userID in session.');
-      setIsSubmitting(false);
+      toast.dismiss();
+      toast.error('Missing doctorID or userID in session.');
+      setToastShown('error');
       return;
     }
-  
-    if (validateLanguages()) {
-      // ✅ Step 1: Filter valid entries
-      const validLanguages = languages.filter((entry) => entry.language.trim() !== '');
-  
-      if (validLanguages.length === 0) {
+
+    if (!validateLanguages()) {
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Please fix language validation errors.');
+        setToastShown('error');
+      }
+      return;
+    }
+
+    const validLanguages = languages.filter(
+      (entry) => entry.language.trim() !== '',
+    );
+
+    if (validLanguages.length === 0) {
+      if (toastShown !== 'empty') {
+        toast.dismiss();
         toast.warning('Please enter at least one language before submitting.');
-        setIsSubmitting(false);
-        return;
+        setToastShown('empty');
       }
-  
-      // ✅ Step 2: Check for duplicates
-      const seen = new Set();
-      const hasDuplicates = validLanguages.some((entry) => {
-        const key = entry.language.trim().toLowerCase();
-        if (seen.has(key)) return true;
-        seen.add(key);
-        return false;
-      });
-  
-      if (hasDuplicates) {
+      return;
+    }
+
+    const seen = new Set();
+    const hasDuplicates = validLanguages.some((entry) => {
+      const key = entry.language.trim().toLowerCase();
+      if (seen.has(key)) return true;
+      seen.add(key);
+      return false;
+    });
+
+    if (hasDuplicates) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
         toast.error('Duplicate languages found. Please remove duplicates.');
-        setIsSubmitting(false);
-        return;
+        setToastShown('duplicate');
       }
-  
-      // ✅ Step 3: Convert to payload
+      return;
+    }
+
+    try {
       const payload = validLanguages.map((entry) => {
         const langID =
-          languageOptions.find((lang) => lang.name === entry.language)?.appLOVID || '';
-  
+          languageOptions.find((lang) => lang.name === entry.language)
+            ?.appLOVID || '';
+
         if (!langID) {
           throw new Error(`Invalid language selected: ${entry.language}`);
         }
-  
+
         return {
           id: doctorID,
           createdBy: userID,
@@ -1363,66 +1524,104 @@ const DoctorForm: React.FC = () => {
           type: 'Doctor',
         };
       });
-  
-      // ✅ Step 4: API Call
-      try {
-        const response = await api.post('/Doctor/SaveLanguage', payload);
-  
-        if (response.status >= 200 && response.status < 300) {
-          toast.dismiss(); // Clear old toasts
+
+      // Optional: Check if payload is same as lastSavedLanguages
+      // if (JSON.stringify(payload) === JSON.stringify(lastSavedLanguages)) {
+      //   toast.info('No changes to save.');
+      //   return;
+      // }
+
+      const response = await api.post('/Doctor/SaveLanguage', payload);
+
+      if (response.status >= 200 && response.status < 300) {
+        if (toastShown !== 'success') {
+          toast.dismiss();
           toast.success('Language details saved successfully!');
-        } else {
-          toast.error(`Error: ${response.data?.message || 'Something went wrong'}`);
-          console.error('Error response:', response.data);
+          setToastShown('success');
         }
-      } catch (error: any) {
-        console.error('Submission error:', error);
-        alert('An error occurred during submission.');
+        // Optionally set last saved payload here
+        // setLastSavedLanguages(payload);
+      } else {
+        if (toastShown !== 'error') {
+          toast.dismiss();
+          toast.error(`${response.data?.message || 'Something went wrong'}`);
+          setToastShown('error');
+        }
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('An error occurred during submission.');
+        setToastShown('error');
       }
     }
-  
-    setIsSubmitting(false); // ✅ Re-enable button
   };
-  
-  
 
-  const isAddDisabled = educationList.filter(e => e.highestEducation).length >= 1;
+  const emptyLanguageTemplate = {
+    language: '',
+    read: false,
+    write: false,
+    speak: false,
+  };
 
-    // const isValidText = (text) => /^[A-Za-z\s]+$/.test(text);
+  const handleAddLanguage = () => {
+    setLanguages([...languages, emptyLanguageTemplate]);
+    setToastShown(''); // reset toast so new messages can be shown
+  };
+
+  const handleLanguageChange = (index: number, key: string, value: any) => {
+    const updated = [...languages];
+    updated[index][key] = value;
+    setLanguages(updated);
+    setToastShown(null); // Reset toast state to allow showing again
+  };
+
+  const isAddDisabled =
+    educationList.filter((e) => e.highestEducation).length >= 1;
+
+  // const isValidText = (text) => /^[A-Za-z\s]+$/.test(text);
   const isValidText = (value) => {
-    return typeof value === 'string' && /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(value.trim());
-  };  
+    return (
+      typeof value === 'string' && /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(value.trim())
+    );
+  };
 
   const handleKeyDown = (e) => {
-    const allowedKeys = ['Backspace', 'ArrowLeft', 'ArrowRight', 'Tab', 'Delete', ' ', '.'];
-  
+    const allowedKeys = [
+      'Backspace',
+      'ArrowLeft',
+      'ArrowRight',
+      'Tab',
+      'Delete',
+      ' ',
+      '.',
+    ];
+
     // Allow only English letters, space, and dot
-    if (
-      !allowedKeys.includes(e.key) &&
-      !/^[a-zA-Z.\s]$/.test(e.key)
-    ) {
+    if (!allowedKeys.includes(e.key) && !/^[a-zA-Z.\s]$/.test(e.key)) {
       e.preventDefault();
     }
-  
+
     // Additionally block emoji characters (multi-byte)
     if (e.key.length > 1 && !allowedKeys.includes(e.key)) {
       e.preventDefault();
     }
   };
-  
-  
+
   const handlePaste = (e) => {
     const pastedText = e.clipboardData.getData('text');
     if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(pastedText)) {
       e.preventDefault();
     }
   };
-  
+
   useEffect(() => {
     console.log('Education list:', educationList);
   }, [educationList]);
 
-  const degreeRegex = /^(Bachelor of (Science|Engineering|Commerce|Medicine|Dental Surgery)|Master of (Science|Technology|Commerce|Computer Applications|Philosophy|Surgery)|MBBS|MDS|BDS|BAMS|BHMS|BUMS|BNYS|PhD|B\.?(Sc|E|Com)|M\.?(Sc|Tech|Com|CA|Phil))$/i;
+  const degreeRegex =
+    /^(Bachelor of (Science|Engineering|Commerce|Medicine|Dental Surgery)|Master of (Science|Technology|Commerce|Computer Applications|Philosophy|Surgery)|MBBS|MDS|BDS|BAMS|BHMS|BUMS|BNYS|PhD|B\.?(Sc|E|Com)|M\.?(Sc|Tech|Com|CA|Phil))$/i;
 
   const validateEntry = (entry) => {
     const errors = {};
@@ -1437,7 +1636,7 @@ const DoctorForm: React.FC = () => {
       errors.location = 'Location is required';
     }
 
-    if (!entry.specialization ) {
+    if (!entry.specialization) {
       errors.specialization = 'Specialization is required';
     }
 
@@ -1450,31 +1649,27 @@ const DoctorForm: React.FC = () => {
     } else if (!/^[a-zA-Z .,&'-]{3,100}$/.test(entry.university.trim())) {
       errors.university = 'Enter a valid university name';
     }
-    
-    
-
 
     const startDate = entry.startDate ? new Date(entry.startDate) : null;
-const endDate = entry.endDate ? new Date(entry.endDate) : null;
-const today = new Date();
+    const endDate = entry.endDate ? new Date(entry.endDate) : null;
+    const today = new Date();
 
-if (!startDate) {
-  errors.startDate = 'Start date is required';
-} else if (startDate > today) {
-  errors.startDate = 'Start date cannot be in the future';
-}
+    if (!startDate) {
+      errors.startDate = 'Start date is required';
+    } else if (startDate > today) {
+      errors.startDate = 'Start date cannot be in the future';
+    }
 
-if (!endDate) {
-  errors.endDate = 'End date is required';
-} else if (!startDate) {
-  errors.endDate = 'Please enter start date first';
-} else if (endDate.getFullYear() - startDate.getFullYear() < 4) {
-  errors.endDate = 'End date must be at least 4 years after the start date';
-}else {
-  // ✅ Clear the error when the date is valid
-  errors.endDate = '';
-}
-
+    if (!endDate) {
+      errors.endDate = 'End date is required';
+    } else if (!startDate) {
+      errors.endDate = 'Please enter start date first';
+    } else if (endDate.getFullYear() - startDate.getFullYear() < 4) {
+      errors.endDate = 'End date must be at least 4 years after the start date';
+    } else {
+      // ✅ Clear the error when the date is valid
+      errors.endDate = '';
+    }
 
     return errors;
   };
@@ -1493,7 +1688,6 @@ if (!endDate) {
     setEducationErrors([...educationErrors, {}]);
   };
 
-
   const getEmptyEducationBlock = () => ({
     degree: '',
     qualification: '',
@@ -1505,10 +1699,9 @@ if (!endDate) {
     isHighest: false,
   });
 
-  
-
   useEffect(() => {
-    api.get('/Doctor/GetDoctorEducation')
+    api
+      .get('/Doctor/GetDoctorEducation')
       .then((res) => {
         const data = res.data.data;
         if (Array.isArray(data) && data.length > 0) {
@@ -1522,7 +1715,7 @@ if (!endDate) {
         setDegreeNames([getEmptyEducationBlock()]);
       });
   }, []);
-  
+
   useEffect(() => {
     if (educationList.length === 0) {
       setEducationList([
@@ -1540,8 +1733,6 @@ if (!endDate) {
       setEducationErrors([{}]); // empty error for that row
     }
   }, []);
-  
-  
 
   const generateUUID = () =>
     'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -1550,85 +1741,119 @@ if (!endDate) {
       return v.toString(16);
     });
 
-    const handleFieldSubmit = async (e: React.FormEvent) => {
-      e.preventDefault();
-    
-      if (isSubmitting) return; // ✅ Prevent double submit
-      setIsSubmitting(true);    // ⏳ Disable button
-    
-      const doctorID = sessionStorage.getItem('doctorID');
-      const userID = sessionStorage.getItem('userID');
-    
-      if (!doctorID || !userID) {
-        alert('Missing doctorID or userID in session.');
-        setIsSubmitting(false);
-        return;
-      }
-    
-      // ✅ Step 1: Validate all entries
-      const allErrors = educationList.map((entry) => validateEntry(entry));
-      const hasErrors = allErrors.some((error) =>
-        Object.values(error).some((msg) => msg && msg.length > 0)
-      );
-    
-      if (hasErrors) {
-        setEducationErrors(allErrors);
-        setIsSubmitting(false);
-        return;
-      }
-    
-      // ✅ Step 2: Check for duplicates
-      const seen = new Set();
-      const hasDuplicates = educationList.some((entry) => {
-        const key = `${entry.UG}-${entry.degree}-${entry.specialization}-${entry.university}-${entry.location}`;
-        if (seen.has(key)) return true;
-        seen.add(key);
-        return false;
-      });
-    
-      if (hasDuplicates) {
+  const [submittedOnce, setSubmittedOnce] = useState(false);
+  const [toastShown, setToastShown] = useState<
+    'error' | 'duplicate' | 'success' | null
+  >(null);
+
+  const handleFieldSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+
+    if (!doctorID || !userID) {
+      toast.error('Missing doctorID or userID in session.');
+      return;
+    }
+
+    // Prevent re-submit if already submitted and no changes
+    if (submittedOnce && toastShown === 'success') return;
+
+    const allErrors = educationList.map((entry) => validateEntry(entry));
+    const hasErrors = allErrors.some((err) =>
+      Object.values(err).some((msg) => msg),
+    );
+
+    if (hasErrors) {
+      setEducationErrors(allErrors);
+      if (toastShown !== 'error') {
         toast.dismiss();
-        toast.error('Duplicate education entries found. Please remove duplicates.');
-        setIsSubmitting(false);
-        return;
+        toast.error('❌ Please fix validation errors.');
+        setToastShown('error');
       }
-    
-      // ✅ Step 3: Prepare payload
-      const payload = educationList.map((entry) => ({
-        doctorID,
-        graduateID: entry.UG,
-        degreeName: entry.degree,
-        specializationID: entry.specialization,
-        location: entry.location,
-        universityName: entry.university,
-        startDate: new Date(entry.startDate).toISOString(),
-        endDate: new Date(entry.endDate).toISOString(),
-        isHighestEducation: entry.highestEducation,
-        createdBy: userID,
-        isActive: true,
-      }));
-    
-      // ✅ Step 4: Submit to API
-      try {
-        const res = await api.post('/Doctor/SaveDoctorEducation', payload);
-    
-        if (res.status === 200 || res.status === 201) {
-          toast.dismiss();
+      return;
+    }
+
+    // Duplicate check
+    const seen = new Set();
+    const hasDuplicates = educationList.some((entry) => {
+      const key = `${entry.UG}-${entry.degree}-${entry.specialization}-${entry.university}-${entry.location}`;
+      if (seen.has(key)) return true;
+      seen.add(key);
+      return false;
+    });
+
+    if (hasDuplicates) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.error('❌ Duplicate education entries found.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+
+    const payload = educationList.map((entry) => ({
+      doctorID,
+      graduateID: entry.UG,
+      degreeName: entry.degree,
+      specializationID: entry.specialization,
+      location: entry.location,
+      universityName: entry.university,
+      startDate: new Date(entry.startDate).toISOString(),
+      endDate: new Date(entry.endDate).toISOString(),
+      isHighestEducation: entry.highestEducation,
+      createdBy: userID,
+      isActive: true,
+    }));
+
+    try {
+      const res = await api.post('/Doctor/SaveDoctorEducation', payload);
+      if (res.status === 200 || res.status === 201) {
+        if (toastShown !== 'success') {
           toast.success('Education details submitted successfully!');
-          setEducationErrors([]); // Clear errors
-        } else {
-          toast.dismiss();
-          toast.error(`❌ Error: ${res.data.message || 'Unknown error'}`);
+          setToastShown('success');
         }
-      } catch (err: any) {
-        console.error('❌ Submission error:', err);
-        toast.dismiss();
-        toast.error('An error occurred while submitting education data.');
+        setEducationErrors([]);
+        setSubmittedOnce(true);
+        setUnsavedChanges(false);
+      } else {
+        if (toastShown !== 'error') {
+          toast.error(`Error: ${res.data?.message || 'Unknown error'}`);
+          setToastShown('error');
+        }
       }
-    
-      setIsSubmitting(false); // ✅ Re-enable button
-    };
-    
+    } catch (err) {
+      console.error('Submission error:', err);
+      if (toastShown !== 'error') {
+        // toast.error('Something went wrong while submitting.');
+        setToastShown('error');
+      }
+    }
+  };
+
+  const emptyEducationTemplate = {
+    UG: '',
+    degree: '',
+    specialization: '',
+    university: '',
+    location: '',
+    startDate: '',
+    endDate: '',
+    highestEducation: false,
+  };
+
+  const handleAddEducation = () => {
+    setEducationList([...educationList, emptyEducationTemplate]);
+    setToastShown(''); // reset toast so that new toasts can be shown
+  };
+
+  const handleEducationChange = (index: number, key: string, value: string) => {
+    const updated = [...educationList];
+    updated[index][key] = value;
+    setEducationList(updated);
+    setToastShown(null); // Reset so new toasts can be shown on submit
+  };
 
   const updateAddress = (
     index: number,
@@ -1644,7 +1869,7 @@ if (!endDate) {
     }
   };
 
-    useEffect(() => {
+  useEffect(() => {
     api
       .get('/Address/states')
       .then((res) => {
@@ -1655,12 +1880,10 @@ if (!endDate) {
       });
   }, []);
 
-  
-
   // On state change
   const handleStateChange = (
     e: React.ChangeEvent<HTMLSelectElement>,
-    index: number
+    index: number,
   ) => {
     const stateCode = e.target.value;
     setSelectedState(stateCode);
@@ -1673,12 +1896,13 @@ if (!endDate) {
     updateAddress(index, 'zipCode', '');
     updateAddress(index, 'city', '');
 
-    api.get(`/Address/districts?StateCode=${stateCode}`)
+    api
+      .get(`/Address/districts?StateCode=${stateCode}`)
       .then((res) => {
-        console.log("Districts:", res.data.data);
+        console.log('Districts:', res.data.data);
         setDistricts(res.data.data);
         const uniquePincodes = Array.from(
-          new Set(res.data.data.map((d) => d.pinCode))
+          new Set(res.data.data.map((d) => d.pinCode)),
         );
         setPincodes(uniquePincodes);
       })
@@ -1687,61 +1911,60 @@ if (!endDate) {
       });
   };
 
-  
-// On district change
-const handleDistrictChange = (
-  e: React.ChangeEvent<HTMLSelectElement>,
-  index: number
-) => {
-  const districtName = e.target.value;
-  setSelectedDistrict(districtName);
-  setShowCityInput(false);
+  // On district change
+  const handleDistrictChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+    index: number,
+  ) => {
+    const districtName = e.target.value;
+    setSelectedDistrict(districtName);
+    setShowCityInput(false);
 
-  updateAddress(index, 'district', districtName);
-  updateAddress(index, 'zipCode', '');
-  updateAddress(index, 'city', '');
+    updateAddress(index, 'district', districtName);
+    updateAddress(index, 'zipCode', '');
+    updateAddress(index, 'city', '');
 
-  const filteredPins = districts
-    .filter((d) => d.districtName === districtName)
-    .map((d) => d.pinCode);
-  setPincodes(filteredPins);
+    const filteredPins = districts
+      .filter((d) => d.districtName === districtName)
+      .map((d) => d.pinCode);
+    setPincodes(filteredPins);
 
-  api.get(`/Address/cities?districtName=${encodeURIComponent(districtName)}`)
-    .then((res) => {
-      const cityData = res.data.data;
-      if (cityData.length === 0) {
-        setShowCityInput(true);
-        setCities([]);
-      } else {
-        setCities(cityData);
-      }
-    })
-    .catch(console.error);
-};
-
+    api
+      .get(`/Address/cities?districtName=${encodeURIComponent(districtName)}`)
+      .then((res) => {
+        const cityData = res.data.data;
+        if (cityData.length === 0) {
+          setShowCityInput(true);
+          setCities([]);
+        } else {
+          setCities(cityData);
+        }
+      })
+      .catch(console.error);
+  };
 
   useEffect(() => {
     const fetchAddressTypes = async () => {
       try {
         const response = await api.get('/AppLOV'); // ✅ Relative path
         const data = response.data;
-  
+
         const filteredAddressTypes = data.data.filter(
-          (item: any) => item.type === 'Address'
+          (item: any) => item.type === 'Address',
         );
         setAddressTypes(filteredAddressTypes);
       } catch (error) {
         console.error('Error fetching address types:', error);
       }
     };
-  
+
     fetchAddressTypes();
   }, []);
 
   const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
     const addressRegex = /^(?!\d+$).{3,}$/;
-  
+
     // Validation checks
     if (!address.addressType) errors.addressType = 'Address type is required';
     if (!address.address1) {
@@ -1759,25 +1982,26 @@ const handleDistrictChange = (
       errors.city = 'City is required';
     } else if (!cityRegex.test(address.city)) {
       errors.city = 'Only letters and spaces allowed in City';
-    } 
+    }
     // else if (address.city.length < 5) {
     //   errors.city = 'City must be at least 5 characters';
     // }
     if (!address.district) errors.district = 'District is required';
     if (!address.state) errors.state = 'State is required';
     if (!address.zipCode) errors.zipCode = 'Zip code is required';
-  
+
     // Show error messages below fields
     setFormErrors((prev) => ({ ...prev, [index]: errors }));
-  
+
     // If any errors exist, show toast once
     // if (Object.keys(errors).length > 0) {
     //   toast.error('Please fill all the Address fields');
     //   return false;
     // }
-  
+
     return true;
-  };const handleSelectAddress = (index: number) => {
+  };
+  const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };
     Object.keys(addresses[index]).forEach((field) => {
       newTouched[`${index}-${field}`] = true;
@@ -1786,143 +2010,245 @@ const handleDistrictChange = (
     validateAddress(addresses[index], index);
   };
 
-   const isAddressFetched = useRef(false);
-  
-    useEffect(() => {
-       fetchPatientAddress();
-     }, []); // run only once on component mount
+  const isAddressFetched = useRef(false);
 
-     const handlePrimaryChange = (selectedIndex: number) => {
-      const updatedAddresses = addresses.map((addr, idx) => ({
-        ...addr,
-        isPrimary: idx === selectedIndex, // only selected one gets true
-      }));
-      setAddresses(updatedAddresses);
+  useEffect(() => {
+    fetchPatientAddress();
+  }, []); // run only once on component mount
+
+  const handlePrimaryChange = (selectedIndex: number) => {
+    const updatedAddresses = addresses.map((addr, idx) => ({
+      ...addr,
+      isPrimary: idx === selectedIndex, // only selected one gets true
+    }));
+    setAddresses(updatedAddresses);
+  };
+
+  // const [toastShown, setToastShown] = useState(false); // ← Add this at component level
+
+  const [lastSavedAddresses, setLastSavedAddresses] = useState<any[]>([]);
+
+  const handleAddressSubmit = async () => {
+    const allErrors: { [idx: number]: { [field: string]: string } } = {};
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+
+    let hasError = false;
+    let hasDuplicate = false;
+    const validAddresses: any[] = [];
+
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
+    const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
+    const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
+
+    const validateField = (
+      value: string,
+      key: string,
+      pattern: RegExp,
+      min = 1,
+      msg = 'Invalid format.',
+      errors: Record<string, string>,
+    ) => {
+      if (!value || !noOnlySpaces.test(value))
+        errors[key] = 'Address Type is required.';
+      else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
+      else if (!notRepeated.test(value))
+        errors[key] = 'No repetitive characters.';
+      else if (value.length < min || !pattern.test(value)) errors[key] = msg;
     };
-    
-    
 
+    const capitalize = (str: string) =>
+      str.charAt(0).toUpperCase() + str.slice(1);
 
-    const handleAddressSubmit = async () => {
-      const allErrors: { [idx: number]: { [field: string]: string } } = {};
-      const userID = sessionStorage.getItem('userID');
-      const doctorID = sessionStorage.getItem('doctorID');
-    
-      let hasError = false;
-      const validAddresses: any[] = [];
-    
-      const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-      const noOnlySpaces = /\S/;
-      const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
-      const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
-      const alphaNumSpaceNoEmoji = /^[a-zA-Z0-9\s]+$/u;
-    
-      const validateField = (
-        value: string,
-        key: string,
-        pattern: RegExp,
-        min = 1,
-        msg = 'Invalid format.',
-        errors: Record<string, string>
-      ) => {
-        if (!value || !noOnlySpaces.test(value)) errors[key] = 'Address Type is required.';
-        else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
-        else if (!notRepeated.test(value)) errors[key] = 'No repetitive characters.';
-        else if (value.length < min || !pattern.test(value)) errors[key] = msg;
-      };
-    
-      const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
-    
-      const validateAddressLine = (value: string, key: string, errors: Record<string, string>) => {
-        if (!value || !noOnlySpaces.test(value)) {
-          errors[key] = `${capitalize(key)} is required.`;
-        } else if (!noEmojis.test(value)) {
-          errors[key] = 'No emojis allowed.';
-        } else if (!notRepeated.test(value)) {
-          errors[key] = 'No repetitive characters.';
-        } else if (!onlyAlphaNumSlash.test(value)) {
-          errors[key] = 'Only letters, numbers, spaces, and / allowed. No special characters.';
-        } else if (value.length < 3) {
-          errors[key] = 'Minimum 3 characters required.';
-        } else if (!/[A-Za-z]/.test(value)) {
-          errors[key] = 'Must contain at least one letter.';
-        } else if (!/\d/.test(value)) {
-          errors[key] = 'Must contain at least one number.';
-        }
-    
-        if (/^\d+$/.test(value)) {
-          errors[key] = `${capitalize(key)} cannot be numbers only. Include area or street name.`;
-        }
-      };
-    
-      const validateCity = (value: string, errors: Record<string, string>) => {
-        const onlyLettersAndSpace = /^[A-Za-z\s]+$/;
-    
-        if (!value || !/\S/.test(value)) {
-          errors.city = 'City is required.';
-        } else if (!onlyLettersAndSpace.test(value)) {
-          errors.city = 'Only letters and spaces are allowed. No numbers or special characters.';
-        } else if (value.length < 5) {
-          errors.city = 'City must be at least 5 characters long.';
-        }
-      };
-    
-      for (let i = 0; i < addresses.length; i++) {
-        const addr = addresses[i];
-        const errors: Record<string, string> = {};
-    
-        validateField(addr.addressType, 'addressType', /^[a-zA-Z0-9\s]+$/u, 1,
-          'Only letters, numbers, and spaces are allowed.', errors);
-        validateAddressLine(addr.address1, 'address1', errors);
-        validateAddressLine(addr.address2, 'address2', errors);
-        validateCity(addr.city, errors);
-    
-        if (!addr.city) errors.city = 'City is required.';
-        if (!addr.district) errors.district = 'District is required.';
-        if (!addr.state) errors.state = 'State is required.';
-        if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
-    
-        if (Object.keys(errors).length) {
-          allErrors[i] = errors;
-          hasError = true;
-          continue;
-        }
-    
-        validAddresses.push({
-          createdBy: userID,
-          updatedBy: userID,
-          isActive: true,
-          id: doctorID,
-          Type: 'Doctor',
-          addressType: addr.addressType || '',
-          address1: addr.address1 || '',
-          address2: addr.address2 || '',
-          city: addr.city || '',
-          district: addr.district || '',
-          state: addr.state || '',
-          zipCode: addr.zipCode || '',
-          isPrimary: addr.isPrimary || false,
-        });
+    const validateAddressLine = (
+      value: string,
+      key: string,
+      errors: Record<string, string>,
+    ) => {
+      if (!value || !noOnlySpaces.test(value)) {
+        errors[key] = `${capitalize(key)} is required.`;
+      } else if (!noEmojis.test(value)) {
+        errors[key] = 'No emojis allowed.';
+      } else if (!notRepeated.test(value)) {
+        errors[key] = 'No repetitive characters.';
+      } else if (!onlyAlphaNumSlash.test(value)) {
+        errors[key] =
+          'Only letters, numbers, spaces, and / allowed. No special characters.';
+      } else if (value.length < 3) {
+        errors[key] = 'Minimum 3 characters required.';
+      } else if (!/[A-Za-z]/.test(value)) {
+        errors[key] = 'Must contain at least one letter.';
+      } else if (!/\d/.test(value)) {
+        errors[key] = 'Must contain at least one number.';
       }
-      console.log(JSON.stringify({ Addresslst: validAddresses }, null, 2));
 
-      setFormErrors(allErrors);
-    
-      if (hasError || validAddresses.length === 0) {
+      if (/^\d+$/.test(value)) {
+        errors[key] =
+          `${capitalize(key)} cannot be numbers only. Include area or street name.`;
+      }
+    };
+
+    const validateCity = (value: string, errors: Record<string, string>) => {
+      const onlyLettersAndSpace = /^[A-Za-z\s]+$/;
+      if (!value || !/\S/.test(value)) {
+        errors.city = 'City is required.';
+      } else if (!onlyLettersAndSpace.test(value)) {
+        errors.city =
+          'Only letters and spaces are allowed. No numbers or special characters.';
+      } else if (value.length < 5) {
+        errors.city = 'City must be at least 5 characters long.';
+      }
+    };
+
+    const isDuplicateAddress = (addr: any, list: any[]) => {
+      return list.some(
+        (existing) =>
+          existing.address1.trim().toLowerCase() ===
+            addr.address1.trim().toLowerCase() &&
+          existing.address2.trim().toLowerCase() ===
+            addr.address2.trim().toLowerCase() &&
+          existing.city.trim().toLowerCase() ===
+            addr.city.trim().toLowerCase() &&
+          existing.state.trim().toLowerCase() ===
+            addr.state.trim().toLowerCase() &&
+          existing.zipCode.trim() === addr.zipCode.trim(),
+      );
+    };
+
+    let isAnyFieldFilled = false;
+
+    for (let i = 0; i < addresses.length; i++) {
+      const addr = addresses[i];
+      const errors: Record<string, string> = {};
+
+      if (
+        addr.addressType ||
+        addr.address1 ||
+        addr.address2 ||
+        addr.city ||
+        addr.district ||
+        addr.state ||
+        addr.zipCode
+      ) {
+        isAnyFieldFilled = true;
+      }
+
+      validateField(
+        addr.addressType,
+        'addressType',
+        /^[a-zA-Z0-9\s]+$/u,
+        1,
+        'Only letters, numbers, and spaces are allowed.',
+        errors,
+      );
+      validateAddressLine(addr.address1, 'address1', errors);
+      validateAddressLine(addr.address2, 'address2', errors);
+      validateCity(addr.city, errors);
+
+      if (!addr.city) errors.city = 'City is required.';
+      if (!addr.district) errors.district = 'District is required.';
+      if (!addr.state) errors.state = 'State is required.';
+      if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
+
+      if (Object.keys(errors).length === 0) {
+        if (isDuplicateAddress(addr, validAddresses)) {
+          errors.duplicate = 'Duplicate address found.';
+          hasDuplicate = true;
+          hasError = true;
+        }
+      }
+
+      if (Object.keys(errors).length) {
+        allErrors[i] = errors;
+        hasError = true;
+        continue;
+      }
+
+      validAddresses.push({
+        createdBy: userID,
+        updatedBy: userID,
+        isActive: true,
+        id: doctorID,
+        Type: 'Doctor',
+        addressType: addr.addressType || '',
+        address1: addr.address1 || '',
+        address2: addr.address2 || '',
+        city: addr.city || '',
+        district: addr.district || '',
+        state: addr.state || '',
+        zipCode: addr.zipCode || '',
+        isPrimary: addr.isPrimary || false,
+      });
+    }
+
+    setFormErrors(allErrors);
+
+    if (!isAnyFieldFilled) {
+      // No toast or action if no fields filled
+      return;
+    }
+
+    if (hasError || validAddresses.length === 0) {
+      if (toastShown !== 'duplicate' && hasDuplicate) {
+        toast.error('Duplicate addresses are not allowed.');
+        setToastShown('duplicate');
+      } else if (toastShown !== 'error' && !hasDuplicate) {
         toast.error('Please fix validation errors in the address form.');
+        setToastShown('error');
+      }
+      return;
+    }
+
+    // New check: prevent saving if no changes from last saved addresses
+    if (validAddresses.length > 0) {
+      const isSameAsLastSaved =
+        JSON.stringify(validAddresses) === JSON.stringify(lastSavedAddresses);
+      if (isSameAsLastSaved) {
+        // toast.info('No changes to save.');
         return;
       }
-    
-      try {
-        await api.post('/Address', validAddresses);
+    }
+
+    try {
+      await api.post('/Address', validAddresses);
+
+      if (toastShown !== 'success') {
         toast.success('All addresses saved successfully!');
-      } catch (err) {
-        console.error('API error:', err);
-        toast.error('Something went wrong while saving addresses.');
+        setToastShown('success');
       }
-    };
-    
-  
+      // Save current valid addresses snapshot to state (deep copy)
+      setLastSavedAddresses(JSON.parse(JSON.stringify(validAddresses)));
+    } catch (err) {
+      console.error('API error:', err);
+
+      if (toastShown !== 'error') {
+        toast.error('Something went wrong while saving addresses.');
+        setToastShown('error');
+      }
+    }
+  };
+
+  const emptyAddressTemplate = {
+    addressLine1: '',
+    addressLine2: '',
+    city: '',
+    state: '',
+    pincode: '',
+    country: '',
+  };
+
+  const handleAddressChange = (index: number, key: string, value: string) => {
+    const updated = [...addresses];
+    updated[index][key] = value;
+    setAddresses(updated);
+    setToastShown(false); // ✅ Allow toast again
+  };
+
+  const handleAddAddress = () => {
+    setAddresses([...addresses, emptyAddressTemplate]); // however you're adding
+    setToastShown(''); // <-- reset toast state so new toasts can be shown
+  };
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -1932,30 +2258,29 @@ const handleDistrictChange = (
     setErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
-
-  const handleCityChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleCityChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number,
+  ) => {
     const inputValue = e.target.value;
-  
+
     // Allow only letters and space
     const filteredValue = inputValue.replace(/[^A-Za-z\s]/g, '');
-  
+
     const updated = [...addresses];
     updated[index].city = filteredValue;
     setAddresses(updated);
-  
+
     // Optionally validate immediately if field was touched
     if (touchedFields[`${index}-city`]) {
       validateAddress(updated[index], index);
     }
   };
-  
 
   const isValidName = (name: string): boolean => {
     const cleaned = name.replace(/^Dr\.\s*/, ''); // Remove "Dr. " at start
     return /^[A-Za-z\s]+$/.test(cleaned.trim());
   };
-  
-
 
   const validate = () => {
     const newErrors: any = {};
@@ -2043,7 +2368,7 @@ const handleDistrictChange = (
             id: t.tenantID,
             name: t.tenantName,
           }));
-  
+
         setTenants(activeTenants);
       })
       .catch((err) => console.error('Error fetching tenants:', err));
@@ -2079,10 +2404,18 @@ const handleDistrictChange = (
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) {
+      // Prevent double submission, optionally show a toast here if needed
+      return;
+    }
+
     if (validate()) {
+      setIsSubmitting(true); // Disable button immediately
+
       const loggedInUserID = sessionStorage.getItem('userID');
       const doctorID = sessionStorage.getItem('doctorID');
-  
+
       const doctorData = {
         doctorID: doctorID,
         createdBy: loggedInUserID,
@@ -2100,18 +2433,20 @@ const handleDistrictChange = (
         aadhaarNumber: form.aadhaarNumber,
         panNumber: form.panNumber,
       };
-  
+
       try {
-        const response = await api.post('/Doctor/SaveDoctor', doctorData); // ✅ Using Axios instance
-  
+        const response = await api.post('/Doctor/SaveDoctor', doctorData);
+
         if (response.status === 200) {
           toast.success('Doctor data saved successfully!');
         } else {
           toast.error(`Error: ${response.data.message}`);
+          setIsSubmitting(false); // Re-enable button if error
         }
       } catch (error: any) {
         console.error('Error submitting form:', error);
         toast.error('An error occurred while submitting the form.');
+        setIsSubmitting(false); // Re-enable button if error
       }
     }
   };
@@ -2120,13 +2455,13 @@ const handleDistrictChange = (
   //1.Basic
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
-        .get(`/Doctor/${doctorID}`)  // use relative path with your api instance
+        .get(`/Doctor/${doctorID}`) // use relative path with your api instance
         .then((res) => {
           const data = res.data?.data;
-  
+
           if (data) {
             setForm({
               tenant: data.tenantID || '',
@@ -2156,19 +2491,21 @@ const handleDistrictChange = (
   const fetchPatientAddress = async () => {
     const doctorID = sessionStorage.getItem('doctorID'); // ✅ fixed typo
     if (!doctorID) return;
-  
+
     if (isAddressFetched.current) return;
-  
+
     try {
-      const response = await api.get(`/Address/getaddress?id=${doctorID}&Type=Doctor`);
-  
+      const response = await api.get(
+        `/Address/getaddress?id=${doctorID}&Type=Doctor`,
+      );
+
       const addressData = response.data?.data || [];
-  
+
       if (!Array.isArray(addressData)) {
         console.warn('Invalid response format for address data');
         return;
       }
-  
+
       if (addressData.length === 0) {
         setAddresses([
           {
@@ -2186,7 +2523,7 @@ const handleDistrictChange = (
         ]);
         return;
       }
-  
+
       const formatted = addressData.map((addr: any) => ({
         addressID: addr.addressID || '',
         addressType: addr.addressType || '',
@@ -2199,23 +2536,27 @@ const handleDistrictChange = (
         type: addr.type || '',
         isPrimary: addr.isPrimary || false,
       }));
-  
+
       setAddresses(formatted);
       isAddressFetched.current = true;
-  
+
       // Optional: preload state, district, city data
       const address = formatted[0];
       if (address.state) {
-        const districtRes = await api.get(`/Address/districts?StateCode=${address.state}`);
+        const districtRes = await api.get(
+          `/Address/districts?StateCode=${address.state}`,
+        );
         const districtData = districtRes.data?.data || [];
         setDistricts(districtData);
-  
+
         const pincodes = [...new Set(districtData.map((d: any) => d.pinCode))];
         setPincodes(pincodes);
       }
-  
+
       if (address.district) {
-        const cityRes = await api.get(`/Address/cities?districtName=${encodeURIComponent(address.district)}`);
+        const cityRes = await api.get(
+          `/Address/cities?districtName=${encodeURIComponent(address.district)}`,
+        );
         const cityData = cityRes.data?.data || [];
         setCities(cityData);
         setShowCityInput(cityData.length === 0);
@@ -2224,18 +2565,18 @@ const handleDistrictChange = (
       console.error('Failed to fetch address:', error);
     }
   };
-  
+
   //3.Eductaions
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
         .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
         .then((res) => {
           const educationData = res.data?.data || [];
-  
+
           const uniqueData = educationData.filter(
             (value, index, self) =>
               index ===
@@ -2250,7 +2591,7 @@ const handleDistrictChange = (
                   t.endDate === value.endDate,
               ),
           );
-  
+
           if (uniqueData.length === 0) {
             setEducationList([
               {
@@ -2304,7 +2645,7 @@ const handleDistrictChange = (
 
   // const handleSaveEducationDetails = async (educationData) => {
   //   const doctorID = sessionStorage.getItem('doctorID');
-  
+
   //   const requests = educationData.map((data) => {
   //     const payload = {
   //       doctorId: doctorID,
@@ -2317,7 +2658,7 @@ const handleDistrictChange = (
   //       endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
   //       isHighestEducation: data.highestEducation,
   //     };
-  
+
   //     const isFilled =
   //       data.degree &&
   //       data.UG &&
@@ -2326,7 +2667,7 @@ const handleDistrictChange = (
   //       data.university &&
   //       data.startDate &&
   //       data.endDate;
-  
+
   //     // Update if educationID is present (even if partial fields)
   //     if (data.educationID && data.educationID !== 0) {
   //       return axios.put(
@@ -2349,7 +2690,7 @@ const handleDistrictChange = (
   //       return Promise.resolve();
   //     }
   //   });
-  
+
   //   try {
   //     await Promise.all(requests);
   //     alert('✅ Education details saved successfully!');
@@ -2358,25 +2699,24 @@ const handleDistrictChange = (
   //     alert('Some entries could not be saved. Check console for details.');
   //   }
   // };
-  
 
   // 4.Language
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
         .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
         .then((res) => {
           const langData = res.data?.data || [];
-  
+
           if (langData && langData.length > 0) {
             const formattedLanguages = langData.map((item) => {
               const lang = languageOptions.find(
-                (opt) => opt.appLOVID === item.languageMasterID
+                (opt) => opt.appLOVID === item.languageMasterID,
               );
-  
+
               return {
                 language: lang?.name || '',
                 read: item.read || false,
@@ -2388,7 +2728,7 @@ const handleDistrictChange = (
                 errors: {},
               };
             });
-  
+
             setLanguages(formattedLanguages);
           }
         })
@@ -2400,112 +2740,111 @@ const handleDistrictChange = (
 
   //5.Doctor Experience
 
- useEffect(() => {
-  const doctorID = sessionStorage.getItem('doctorID');
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
 
-  if (doctorID) {
-    api
-      .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
-      .then((res) => {
-        const experienceData = res.data?.data || [];
+    if (doctorID) {
+      api
+        .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
+        .then((res) => {
+          const experienceData = res.data?.data || [];
 
-        const uniqueData = experienceData.filter(
-          (value, index, self) =>
-            index ===
-            self.findIndex(
-              (t) =>
-                t.experienceID === value.experienceID &&
-                t.employmentType === value.employmentType &&
-                t.specializationID === value.specializationID &&
-                t.hospitalName === value.hospitalName &&
-                t.startDate === value.startDate &&
-                t.endDate === value.endDate
-            )
-        );
+          const uniqueData = experienceData.filter(
+            (value, index, self) =>
+              index ===
+              self.findIndex(
+                (t) =>
+                  t.experienceID === value.experienceID &&
+                  t.employmentType === value.employmentType &&
+                  t.specializationID === value.specializationID &&
+                  t.hospitalName === value.hospitalName &&
+                  t.startDate === value.startDate &&
+                  t.endDate === value.endDate,
+              ),
+          );
 
-        const formattedData = uniqueData.map((item) => ({
-          type: item.employmentType || '',
-          specialization: item.specializationID || '',
-          hospitalName: item.hospitalName || '',
-          joinDate: item.startDate?.split('T')[0] || '',
-          leaveDate: item.endDate?.split('T')[0] || '',
-          errors: {},
-        }));
+          const formattedData = uniqueData.map((item) => ({
+            type: item.employmentType || '',
+            specialization: item.specializationID || '',
+            hospitalName: item.hospitalName || '',
+            joinDate: item.startDate?.split('T')[0] || '',
+            leaveDate: item.endDate?.split('T')[0] || '',
+            errors: {},
+          }));
 
-        setExperiences(
-          formattedData.length > 0
-            ? formattedData
-            : [
-                {
-                  type: '',
-                  specialization: '',
-                  hospitalName: '',
-                  joinDate: '',
-                  leaveDate: '',
-                  errors: {},
-                },
-              ]
-        );
-      })
-      .catch((err) => {
-        console.error('Failed to fetch doctor experience data', err);
-      });
-  }
-}, []);
+          setExperiences(
+            formattedData.length > 0
+              ? formattedData
+              : [
+                  {
+                    type: '',
+                    specialization: '',
+                    hospitalName: '',
+                    joinDate: '',
+                    leaveDate: '',
+                    errors: {},
+                  },
+                ],
+          );
+        })
+        .catch((err) => {
+          console.error('Failed to fetch doctor experience data', err);
+        });
+    }
+  }, []);
 
-//6.Doctor Skill
+  //6.Doctor Skill
 
- 
-useEffect(() => {
-  const doctorID = sessionStorage.getItem('doctorID');
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
 
-  if (doctorID) {
-    api
-      .get(`/Doctor/GetDoctorSkill?doctorId=${doctorID}`)
-      .then((res) => {
-        const skillData = res.data?.data || [];
+    if (doctorID) {
+      api
+        .get(`/Doctor/GetDoctorSkill?doctorId=${doctorID}`)
+        .then((res) => {
+          const skillData = res.data?.data || [];
 
-        const formattedSkills = skillData.map((item: any) => ({
-          skillMasterID: item.skillMasterID || '',
-          skill: item.skillMasterID || '', // Use ID or name based on your dropdown binding
-          years: item.yearOfExperience?.toString() || '',
-          months: item.monthOfExperience?.toString() || '',
-          description: item.description || '',
-          errors: {},
-        }));
+          const formattedSkills = skillData.map((item: any) => ({
+            skillMasterID: item.skillMasterID || '',
+            skill: item.skillMasterID || '', // Use ID or name based on your dropdown binding
+            years: item.yearOfExperience?.toString() || '',
+            months: item.monthOfExperience?.toString() || '',
+            description: item.description || '',
+            errors: {},
+          }));
 
-        setSkills(
-          formattedSkills.length > 0
-            ? formattedSkills
-            : [
-                {
-                  skillMasterID: '',
-                  skill: '',
-                  years: '',
-                  months: '',
-                  description: '',
-                  errors: {},
-                },
-              ]
-        );
-      })
-      .catch((err) => {
-        console.error('Failed to fetch doctor skill data', err);
-      });
-  }
-}, []);
+          setSkills(
+            formattedSkills.length > 0
+              ? formattedSkills
+              : [
+                  {
+                    skillMasterID: '',
+                    skill: '',
+                    years: '',
+                    months: '',
+                    description: '',
+                    errors: {},
+                  },
+                ],
+          );
+        })
+        .catch((err) => {
+          console.error('Failed to fetch doctor skill data', err);
+        });
+    }
+  }, []);
 
   //7.Award
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
         .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
         .then((res) => {
           const awardData = res.data?.data || [];
-  
+
           const uniqueData = awardData.filter(
             (value, index, self) =>
               index ===
@@ -2514,17 +2853,17 @@ useEffect(() => {
                   t.awardID === value.awardID &&
                   t.awardName === value.awardName &&
                   t.awardYear === value.awardYear &&
-                  t.description === value.description
-              )
+                  t.description === value.description,
+              ),
           );
-  
+
           const formattedData = uniqueData.map((item) => ({
             name: item.awardName || '',
             year: item.awardYear || '',
             description: item.description || '',
             errors: {},
           }));
-  
+
           setAwards(
             formattedData.length > 0
               ? formattedData
@@ -2535,7 +2874,7 @@ useEffect(() => {
                     description: '',
                     errors: {},
                   },
-                ]
+                ],
           );
         })
         .catch((err) => {
@@ -2602,7 +2941,6 @@ useEffect(() => {
           </button>
         )}
       >
-    
         <FormWizard.TabContent
           title="Basic Details"
           icon={
@@ -2844,11 +3182,13 @@ useEffect(() => {
             <div className="col-span-3 flex justify-center mt-4">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded"
+                className={`bg-blue-600 text-white px-6 py-2 rounded ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                disabled={isSubmitting}
               >
-                Submit
+                {isSubmitting ? 'Submitted' : 'Submit'}
               </button>
             </div>
+
             <ToastContainer position="top-right" autoClose={3000} />
           </form>
 
@@ -2904,7 +3244,10 @@ useEffect(() => {
                         className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                         value={address.address1}
                         onChange={(e) => {
-                          const sanitizedValue = e.target.value.replace(/[^a-zA-Z0-9, /]/g, '');
+                          const sanitizedValue = e.target.value.replace(
+                            /[^a-zA-Z0-9, /]/g,
+                            '',
+                          );
                           updateAddress(index, 'address1', sanitizedValue);
                         }}
                         placeholder="Enter address line 1"
@@ -2921,7 +3264,10 @@ useEffect(() => {
                         className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                         value={address.address2}
                         onChange={(e) => {
-                          const sanitizedValue = e.target.value.replace(/[^a-zA-Z0-9, /]/g, '');
+                          const sanitizedValue = e.target.value.replace(
+                            /[^a-zA-Z0-9, /]/g,
+                            '',
+                          );
                           updateAddress(index, 'address2', sanitizedValue);
                         }}
                         placeholder="Enter address line 2"
@@ -2966,7 +3312,9 @@ useEffect(() => {
                         >
                           <option value="">Select District</option>
                           {[
-                            ...new Map(districts.map((d) => [d.districtName, d])).values(),
+                            ...new Map(
+                              districts.map((d) => [d.districtName, d]),
+                            ).values(),
                           ].map((dist) => (
                             <option key={dist.id} value={dist.districtName}>
                               {dist.districtName}
@@ -3054,27 +3402,23 @@ useEffect(() => {
                     </div>
                   </div>
                   <div className="flex justify-end items-center mt-4">
-                  <label className="flex items-center gap-2 text-sm text-black dark:text-white">
-                    <input
-                      type="checkbox"
-                      checked={address.isPrimary}
-                      onChange={() => handlePrimaryChange(index)}
-                    />
-                    Set as Primary
-                  </label>
-                </div>
-
-
+                    <label className="flex items-center gap-2 text-sm text-black dark:text-white">
+                      <input
+                        type="checkbox"
+                        checked={address.isPrimary}
+                        onChange={() => handlePrimaryChange(index)}
+                      />
+                      Set as Primary
+                    </label>
+                  </div>
                 </div>
               ))}
-
-              
 
             {/* Add New Address */}
             <div className="flex items-center justify-end gap-1">
               <div
                 className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
-                onClick={addAddress}
+                onClick={handleAddAddress}
               >
                 +
               </div>
@@ -3082,7 +3426,12 @@ useEffect(() => {
             </div>
 
             <div className="flex justify-end">
-              <CustomButton type="submit">Save Address</CustomButton>
+              <CustomButton
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+              >
+                Save Address
+              </CustomButton>
             </div>
           </form>
         </FormWizard.TabContent>
@@ -3120,7 +3469,6 @@ useEffect(() => {
                             'highestEducation',
                             e.target.checked,
                           )
-                          
                         }
                         className="form-checkbox h-4 w-4 text-blue-600"
                       />
@@ -3242,45 +3590,47 @@ useEffect(() => {
 
                   {/* Start Date */}
                   <div className="col-span-1 flex flex-col">
-                  <input
-                        type={entry.startDate ? 'date' : 'text'}
-                        name="startDate"
-                        placeholder="Starting Date"
-                        value={entry.startDate || ''}
-                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                        onFocus={(e) => (e.target.type = 'date')}
-                        onBlur={(e) => {
-                          if (!e.target.value) e.target.type = 'text';
-                        }}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleInputChange(index, 'startDate', value);
+                    <input
+                      type={entry.startDate ? 'date' : 'text'}
+                      name="startDate"
+                      placeholder="Starting Date"
+                      value={entry.startDate || ''}
+                      max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleInputChange(index, 'startDate', value);
 
-                          if (new Date(value) > new Date()) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [index]: {
-                                ...prev[index],
-                                startDate: 'Start date cannot be in the future',
-                              },
-                            }));
-                          } else {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [index]: {
-                                ...prev[index],
-                                startDate: '',
-                              },
-                            }));
-                          }
-                        }}
-                        className={`${inputFieldClass} ${
-                          educationErrors[index]?.startDate ? 'border-red-500' : 'border-gray-300'
-                        } ${!entry.startDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                        style={{
-                          paddingTop: !entry.startDate ? '1.25rem' : undefined,
-                        }}
-                      />
+                        if (new Date(value) > new Date()) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [index]: {
+                              ...prev[index],
+                              startDate: 'Start date cannot be in the future',
+                            },
+                          }));
+                        } else {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [index]: {
+                              ...prev[index],
+                              startDate: '',
+                            },
+                          }));
+                        }
+                      }}
+                      className={`${inputFieldClass} ${
+                        educationErrors[index]?.startDate
+                          ? 'border-red-500'
+                          : 'border-gray-300'
+                      } ${!entry.startDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                      style={{
+                        paddingTop: !entry.startDate ? '1.25rem' : undefined,
+                      }}
+                    />
 
                     {educationErrors[index]?.startDate && (
                       <p className="text-red-500 text-sm">
@@ -3291,45 +3641,47 @@ useEffect(() => {
 
                   {/* End Date */}
                   <div className="col-span-1 flex flex-col">
-                  <input
-                        type={entry.endDate ? 'date' : 'text'}
-                        name="endDate"
-                        placeholder="Ending Date"
-                        value={entry.endDate || ''}
-                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                        onFocus={(e) => (e.target.type = 'date')}
-                        onBlur={(e) => {
-                          if (!e.target.value) e.target.type = 'text';
-                        }}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleInputChange(index, 'endDate', value);
+                    <input
+                      type={entry.endDate ? 'date' : 'text'}
+                      name="endDate"
+                      placeholder="Ending Date"
+                      value={entry.endDate || ''}
+                      max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleInputChange(index, 'endDate', value);
 
-                          if (new Date(value) > new Date()) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [index]: {
-                                ...prev[index],
-                                endDate: 'End date cannot be in the future',
-                              },
-                            }));
-                          } else {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [index]: {
-                                ...prev[index],
-                                endDate: '',
-                              },
-                            }));
-                          }
-                        }}
-                        className={`${inputFieldClass} ${
-                          errors[index]?.endDate ? 'border-red-500' : 'border-gray-300'
-                        } ${!entry.endDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                        style={{
-                          paddingTop: !entry.endDate ? '1.25rem' : undefined,
-                        }}
-                      />
+                        if (new Date(value) > new Date()) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [index]: {
+                              ...prev[index],
+                              endDate: 'End date cannot be in the future',
+                            },
+                          }));
+                        } else {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [index]: {
+                              ...prev[index],
+                              endDate: '',
+                            },
+                          }));
+                        }
+                      }}
+                      className={`${inputFieldClass} ${
+                        errors[index]?.endDate
+                          ? 'border-red-500'
+                          : 'border-gray-300'
+                      } ${!entry.endDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                      style={{
+                        paddingTop: !entry.endDate ? '1.25rem' : undefined,
+                      }}
+                    />
 
                     {educationErrors[index]?.endDate && (
                       <p className="text-red-500 text-sm">
@@ -3344,7 +3696,7 @@ useEffect(() => {
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={handleAddEntry}
+                  onClick={handleAddEducation}
                   disabled={isAddDisabled}
                   className={`flex items-center space-x-2 font-semibold transition-colors duration-300 ${
                     isAddDisabled
@@ -3372,7 +3724,7 @@ useEffect(() => {
               </div>
 
               {/* Submit Button - centered */}
-              <div className="col-span-3 flex justify-center">
+              <div className="flex justify-center mt-6">
                 <button
                   type="submit"
                   className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
@@ -3380,8 +3732,8 @@ useEffect(() => {
                   Submit
                 </button>
               </div>
-              <ToastContainer position="top-right" autoClose={3000} />
 
+              <ToastContainer position="top-right" autoClose={3000} />
             </div>
           </form>
 
@@ -3493,7 +3845,6 @@ useEffect(() => {
               </div>
             </div>
             <ToastContainer position="top-right" autoClose={3000} />
-
           </form>
         </FormWizard.TabContent>
 
@@ -3582,42 +3933,50 @@ useEffect(() => {
                       </div>
 
                       <div className="w-full">
-                      <input
-                        type="text"
-                        value={exp.hospitalName}
-                        onChange={(e) => {
-                          const inputValue = e.target.value;
+                        <input
+                          type="text"
+                          value={exp.hospitalName}
+                          onChange={(e) => {
+                            const inputValue = e.target.value;
 
-                          // Allow only letters and spaces
-                          const filteredValue = inputValue.replace(/[^A-Za-z\s]/g, '');
+                            // Allow only letters and spaces
+                            const filteredValue = inputValue.replace(
+                              /[^A-Za-z\s]/g,
+                              '',
+                            );
 
-                          handleExperience(idx, 'hospitalName', filteredValue);
+                            handleExperience(
+                              idx,
+                              'hospitalName',
+                              filteredValue,
+                            );
 
-                          // Optional: live error checking (if you're storing field errors)
-                          if (filteredValue.length < 5) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [idx]: {
-                                ...prev[idx],
-                                hospitalName: 'Minimum 5 characters required',
-                              },
-                            }));
-                          } else {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [idx]: {
-                                ...prev[idx],
-                                hospitalName: '',
-                              },
-                            }));
-                          }
-                        }}
-                        className={`${inputFieldClass} ${
-                          errors[idx]?.hospitalName ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter Hospital Name"
-                      />
-
+                            // Optional: live error checking (if you're storing field errors)
+                            if (filteredValue.length < 5) {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  hospitalName: 'Minimum 5 characters required',
+                                },
+                              }));
+                            } else {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  hospitalName: '',
+                                },
+                              }));
+                            }
+                          }}
+                          className={`${inputFieldClass} ${
+                            errors[idx]?.hospitalName
+                              ? 'border-red-500'
+                              : 'border-gray-300'
+                          }`}
+                          placeholder="Enter Hospital Name"
+                        />
 
                         {errors[idx]?.hospitalName && (
                           <p className="text-red-600 text-sm">
@@ -3630,7 +3989,7 @@ useEffect(() => {
                     {/* Dates */}
                     <div className="flex gap-4 col-span-2">
                       <div className="w-full relative">
-                      <input
+                        <input
                           type={exp.joinDate ? 'date' : 'text'}
                           name="joinDate"
                           placeholder="Join Date"
@@ -3663,7 +4022,9 @@ useEffect(() => {
                             }
                           }}
                           className={`${inputFieldClass} ${
-                            errors[idx]?.joinDate ? 'border-red-500' : 'border-gray-300'
+                            errors[idx]?.joinDate
+                              ? 'border-red-500'
+                              : 'border-gray-300'
                           } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
                           style={{
                             paddingTop: !exp.joinDate ? '1.25rem' : undefined,
@@ -3677,45 +4038,48 @@ useEffect(() => {
                         )}
                       </div>
                       <div className="w-full">
-                      <input
-                        type={exp.leaveDate ? 'date' : 'text'}
-                        name="leaveDate"
-                        placeholder="Leave Date"
-                        value={exp.leaveDate || ''}
-                        max={today}
-                        onFocus={(e) => (e.target.type = 'date')}
-                        onBlur={(e) => {
-                          if (!e.target.value) e.target.type = 'text';
-                        }}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          handleExperience(idx, 'leaveDate', value);
+                        <input
+                          type={exp.leaveDate ? 'date' : 'text'}
+                          name="leaveDate"
+                          placeholder="Leave Date"
+                          value={exp.leaveDate || ''}
+                          max={today}
+                          onFocus={(e) => (e.target.type = 'date')}
+                          onBlur={(e) => {
+                            if (!e.target.value) e.target.type = 'text';
+                          }}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            handleExperience(idx, 'leaveDate', value);
 
-                          if (new Date(value) > new Date()) {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [idx]: {
-                                ...prev[idx],
-                                leaveDate: 'Leave date cannot be in the future',
-                              },
-                            }));
-                          } else {
-                            setErrors((prev) => ({
-                              ...prev,
-                              [idx]: {
-                                ...prev[idx],
-                                leaveDate: '',
-                              },
-                            }));
-                          }
-                        }}
-                        className={`${inputFieldClass} ${
-                          errors[idx]?.leaveDate ? 'border-red-500' : 'border-gray-300'
-                        } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                        style={{
-                          paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
-                        }}
-                      />
+                            if (new Date(value) > new Date()) {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  leaveDate:
+                                    'Leave date cannot be in the future',
+                                },
+                              }));
+                            } else {
+                              setErrors((prev) => ({
+                                ...prev,
+                                [idx]: {
+                                  ...prev[idx],
+                                  leaveDate: '',
+                                },
+                              }));
+                            }
+                          }}
+                          className={`${inputFieldClass} ${
+                            errors[idx]?.leaveDate
+                              ? 'border-red-500'
+                              : 'border-gray-300'
+                          } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                          style={{
+                            paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
+                          }}
+                        />
                         {errors[idx]?.leaveDate && (
                           <p className="text-red-600 text-sm">
                             {errors[idx].leaveDate}
@@ -3740,7 +4104,7 @@ useEffect(() => {
               <div className="flex justify-end px-5 mt-4">
                 <button
                   type="button"
-                  onClick={handleAddExperiences}
+                  onClick={handleAddExperience}
                   className="flex items-center space-x-2 text-blue-600 font-semibold"
                 >
                   <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
@@ -3824,12 +4188,15 @@ useEffect(() => {
                   </div>
 
                   <div>
-                  <textarea
+                    <textarea
                       placeholder="Description"
                       value={skill.description}
                       onChange={(e) => {
                         // Allow letters, numbers, spaces, commas, periods, hyphens only
-                        const filteredValue = e.target.value.replace(/[^a-zA-Z0-9\s,.\-]/g, '');
+                        const filteredValue = e.target.value.replace(
+                          /[^a-zA-Z0-9\s,.\-]/g,
+                          '',
+                        );
                         handleSkill(idx, 'description', filteredValue);
                       }}
                       className={inputFieldClass}
@@ -3913,7 +4280,7 @@ useEffect(() => {
                           {award.errors.name}
                         </p>
                       )}
-                       <ToastContainer position="top-right" autoClose={3000} />
+                      <ToastContainer position="top-right" autoClose={3000} />
                     </div>
 
                     <div>
@@ -3993,29 +4360,41 @@ useEffect(() => {
         >
           <form>
             <div className="col-span-2">
-                  <h3 className="text-lg font-semibold mb-2">Existing Time Slots</h3>
-                  {existingTimeSlots.length > 0 ? (
-                    existingTimeSlots.map((slot, index) => renderTimeSlotRow(slot, index, existingTimeSlots, setExistingTimeSlots, false))
-                  ) : (
-                    <p>No existing time slots available.</p>
-                  )}
+              <h3 className="text-lg font-semibold mb-2">
+                Existing Time Slots
+              </h3>
+              {existingTimeSlots.length > 0 ? (
+                existingTimeSlots.map((slot, index) =>
+                  renderTimeSlotRow(
+                    slot,
+                    index,
+                    existingTimeSlots,
+                    setExistingTimeSlots,
+                    false,
+                  ),
+                )
+              ) : (
+                <p>No existing time slots available.</p>
+              )}
 
-                  <h3 className="text-lg font-semibold my-4">Add New Time Slots</h3>
-                  {newTimeSlots.map((slot, index) => renderTimeSlotRow(slot, index, newTimeSlots, setNewTimeSlots))}
-                  <div className="flex items-center mt-2 justify-end gap-1">
-                    {/* Clickable Icon */}
-                    <div
-                      className="flex justify-center items-center h-10 w-10
+              <h3 className="text-lg font-semibold my-4">Add New Time Slots</h3>
+              {newTimeSlots.map((slot, index) =>
+                renderTimeSlotRow(slot, index, newTimeSlots, setNewTimeSlots),
+              )}
+              <div className="flex items-center mt-2 justify-end gap-1">
+                {/* Clickable Icon */}
+                <div
+                  className="flex justify-center items-center h-10 w-10
                                 text-white rounded-full cursor-pointer bg-gradient-to-b
                                   from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
-                      onClick={addNewRow}
-                    >
-                      +
-                    </div>
-
-                    {/* Non-clickable Text */}
-                    <span className="text-sm font-medium text-black-600">Add</span>
+                  onClick={addNewRow}
+                >
+                  +
                 </div>
+
+                {/* Non-clickable Text */}
+                <span className="text-sm font-medium text-black-600">Add</span>
+              </div>
 
               {/* Save Button */}
               <div className="flex justify-end mt-4">
@@ -4056,7 +4435,7 @@ useEffect(() => {
                 >
                   <option value="">Select Document Type</option>
                   {documentTypes.map((doc) => (
-                      <option key={doc.appLOVID} value={doc.name}>
+                    <option key={doc.appLOVID} value={doc.name}>
                       {doc.name}
                     </option>
                   ))}
@@ -4121,7 +4500,7 @@ useEffect(() => {
                           <td className="border px-4 py-2 justify-center gap-2">
                             {/* View Button */}
                             <button
-                              type="button" 
+                              type="button"
                               onClick={() =>
                                 handleViewDocument(doc.documentID, doc.fileName)
                               }

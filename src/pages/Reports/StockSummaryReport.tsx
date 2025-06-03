@@ -15,7 +15,6 @@ interface RowData {
   endDate: string;
 }
 
-
 interface PharmacyResponse {
   p: {
     pharmacyID: string;
@@ -25,14 +24,16 @@ interface PharmacyResponse {
 
 const TenantHospitalPharmacyGrid: React.FC = () => {
   const [formData, setFormData] = useState<RowData>({
-  tenantName: '',
-  hospitalName: '',
-  pharmacyID: '', // changed
-  startDate: '',
-  endDate: '',
-});
-
-
+    tenantName: '',
+    hospitalName: '',
+    pharmacyID: '', // changed
+    startDate: '',
+    endDate: '',
+  });
+  const [roleName, setRoleName] = useState('');
+  const [hospitals, setHospitals] = useState([]);
+  const [unitID, setUnitID] = useState('');
+  const [isDropdownDisabled, setIsDropdownDisabled] = useState(true);
   const [rowData, setRowData] = useState<RowData[]>([]);
   const [pharmacies, setPharmacies] = useState<PharmacyResponse[]>([]);
   const [tenantName, setTenantName] = useState('');
@@ -71,14 +72,32 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   ];
 
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName') || '';
+    const tenantID = sessionStorage.getItem('tenantID') || '';
+
     const fetchPharmacies = async () => {
       try {
-        const response = await api.get('/Pharmacy');
-        setPharmacies(response.data);
+        let response;
+        if (roleName === 'PharmacyAdmin' || roleName === 'TenantAdmin') {
+          response = await api.get(`/Pharmacy/List?tenantId=${tenantID}`);
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.pharmacyName,
+            pharmacyID: p.pharmacyID,
+          }));
+          setPharmacies(filtered);
+        } else {
+          response = await api.get('/Pharmacy');
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.p?.pharmacyName,
+            pharmacyID: p.p?.pharmacyID,
+          }));
+          setPharmacies(filtered);
+        }
       } catch (error) {
         console.error('Error fetching pharmacies:', error);
       }
     };
+
     fetchPharmacies();
   }, []);
 
@@ -102,21 +121,41 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const storedUnitID = sessionStorage.getItem('unitID');
-    if (storedUnitID) {
+    const role = sessionStorage.getItem('roleName') || '';
+    const tenant = sessionStorage.getItem('tenantID') || '';
+    const unit = sessionStorage.getItem('unitID') || '';
+
+    setRoleName(role);
+    setTenantID(tenant);
+    setUnitID(unit);
+
+    if (role === 'TenantAdmin' && tenant) {
+      // Fetch hospital list and enable dropdown
       api
-        .get(`/Hospital/${storedUnitID}`)
+        .get(`/Hospital/List?tenantId=${tenant}`)
+        .then((res) => {
+          const activeHospitals = res.data.filter((h: any) => h.isActive);
+          setHospitals(activeHospitals);
+          setIsDropdownDisabled(false);
+          setHospitalID(''); // ⛔️ Do NOT prefill hospitalID
+        })
+        .catch((err) => console.error('Error fetching tenant hospitals:', err));
+    } else if (unit) {
+      // Fetch single hospital details for other roles and disable dropdown
+      api
+        .get(`/Hospital/${unit}`)
         .then((res) => {
           if (res.data.success && res.data.data) {
             setHospitalName(res.data.data.hospitalName);
             setHospitalID(res.data.data.hospitalID);
+            setIsDropdownDisabled(true);
           } else {
             console.error('Failed to fetch hospital data');
           }
         })
-        .catch((err) => console.error('Error:', err));
+        .catch((err) => console.error('Error fetching hospital:', err));
     } else {
-      console.error('No unitID found in sessionStorage');
+      console.error('No tenantID or unitID found');
     }
   }, []);
 
@@ -143,12 +182,16 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     });
   };
 
-  const handleSearch = async () => {
+ const handleSearch = async () => {
+  const roleName = sessionStorage.getItem('roleName') || '';
   const tenantID = sessionStorage.getItem('tenantID') || '';
-  const unitID = sessionStorage.getItem('unitID') || '';
-const { pharmacyID } = formData;
+  const sessionUnitID = sessionStorage.getItem('unitID') || '';
+  const { pharmacyID } = formData;
 
-  if (!tenantID && !unitID && !pharmacyName && !fromTime && !toTime) {
+  // hospitalID from dropdown (only relevant for TenantAdmin)
+  const selectedHospitalID = roleName === 'TenantAdmin' ? hospitalID : sessionUnitID;
+
+  if (!tenantID && !selectedHospitalID && !pharmacyID && !fromTime && !toTime) {
     toast.error('Please select at least one filter');
     return;
   }
@@ -156,17 +199,23 @@ const { pharmacyID } = formData;
   const params: Record<string, string> = {};
 
   if (tenantID) params.TenantID = tenantID;
-  if (unitID) params.HospitalID = unitID;
 
- if (pharmacyID) {
-  params.PharmacyID = pharmacyID;
-}
+  // role-based hospitalID logic
+  if (selectedHospitalID) {
+    params.HospitalID = selectedHospitalID;
+  }
+
+  if (pharmacyID) {
+    params.PharmacyID = pharmacyID;
+  }
 
   if (fromTime) params.StartDate = fromTime;
   if (toTime) params.EndDate = toTime;
 
   try {
-    const response = await api.get('/PharmacyReport/StockSummaryReport', { params });
+    const response = await api.get('/PharmacyReport/StockSummaryReport', {
+      params,
+    });
 
     if (Array.isArray(response.data)) {
       setRowData(response.data);
@@ -181,6 +230,38 @@ const { pharmacyID } = formData;
     toast.error('Error during search');
   }
 };
+
+ const handleReset = () => {
+    const role = sessionStorage.getItem('roleName') || '';
+
+    // Reset formData fields
+    setFormData({
+      pharmacyName: '',
+      days: '',
+    });
+
+    // Reset date fields
+    setFromTime('');
+    setToTime('');
+
+    // Conditionally reset hospitalID
+    if (role !== 'PharmacyAdmin') {
+      if (role !== 'TenantAdmin') {
+        setTenantID('');
+      }
+      setHospitalID('');
+    }
+
+    // Clear grid data
+    setRowData([]);
+
+    // Optional: reset dropdown selection if needed
+    if (role === 'TenantAdmin') {
+      // Keep "Select Hospital" as the first option
+      setHospitalID('');
+    }
+  };
+
 
   return (
     <div className="p-4 space-y-4">
@@ -206,30 +287,47 @@ const { pharmacyID } = formData;
           <div>
             <select
               value={hospitalID}
-              className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
-              disabled
+              onChange={(e) => setHospitalID(e.target.value)}
+              className={`w-full rounded border p-2 ${isDropdownDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              disabled={isDropdownDisabled}
             >
-              {hospitalName && (
+              {roleName === 'TenantAdmin' && (
+                <>
+                  <option value="">Select Hospital</option>{' '}
+                  {/* Default blank option */}
+                  {hospitals.map((hospital: any) => (
+                    <option
+                      key={hospital.hospitalID}
+                      value={hospital.hospitalID}
+                    >
+                      {hospital.hospitalName}
+                    </option>
+                  ))}
+                </>
+              )}
+
+              {roleName !== 'TenantAdmin' && hospitalName && (
                 <option value={hospitalID}>{hospitalName}</option>
               )}
             </select>
           </div>
 
           <div>
-           <select
-  name="pharmacyID"
-  value={formData.pharmacyID}
-  onChange={handleChange}
-  className="w-full rounded border p-2 bg-gray-100"
->
-  <option value="">Select Pharmacy</option>
-  {pharmacies.map((item, index) => (
-    <option key={index} value={item.p.pharmacyID}>
-      {item.p.pharmacyName}
-    </option>
-  ))}
-</select>
-
+            <div>
+              <select
+                name="pharmacyName"
+                value={formData.pharmacyName}
+                onChange={handleChange}
+                className="w-full rounded border p-2 bg-gray-100"
+              >
+                <option value="">Select Pharmacy</option>
+                {pharmacies.map((item, index) => (
+                  <option key={index} value={item.pharmacyName}>
+                    {item.pharmacyName}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Row 2 */}
@@ -275,6 +373,7 @@ const { pharmacyID } = formData;
             </CustomButton>
             <CustomButton
               type="button"
+                onClick={handleReset}
               className="w-1/4 opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
             >
               Reset

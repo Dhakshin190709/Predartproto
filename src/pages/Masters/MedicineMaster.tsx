@@ -570,7 +570,7 @@ const Tenant: React.FC = () => {
               <div className="flex flex-col">
                 <input
                   type="text"
-                  maxLength={50}
+                  maxLength={30}
                   value={formData.medicineName}
                   onChange={(e) => handleChange('medicineName', e.target.value)}
                   placeholder="Medicine Name"
@@ -600,6 +600,7 @@ const Tenant: React.FC = () => {
                 <input
                   type="text"
                   value={formData.brand}
+                  maxLength={30}
                   onChange={(e) => handleChange('brand', e.target.value)}
                   placeholder="Brand"
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
@@ -633,6 +634,7 @@ const Tenant: React.FC = () => {
                 <input
                   type="text"
                   value={formData.manufacturerName}
+                  maxLength={30}
                   onChange={(e) =>
                     handleChange('manufacturerName', e.target.value)
                   }

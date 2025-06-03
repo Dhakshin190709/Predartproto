@@ -169,39 +169,40 @@ const Hospital: React.FC = () => {
 
     const now = new Date().toISOString();
 
-    const payload = {
-      createdBy: userID,
-      createdOn: now,
-      updatedBy: userID,
-      updatedOn: now,
-      isActive: formData.isActive,
-      tenantID: selectedTenant,
-      hospitalName: formData.hospitalName.trim(),
-      hospitalCode: formData.hospitalCode.trim() || '',
-      hospitalType: formData.hospitalType.trim(),
-      email: formData.email?.trim() || '',
-      mobile: formData.mobile?.trim() || '',
-      landline: formData.landline?.trim() || '',
-      gst: formData.gst?.trim() || '',
+   const payload = {
+  createdBy: userID,
+  createdOn: now,
+  updatedBy: userID,
+  updatedOn: now,
+  isActive: formData.isActive,
+  tenantID: selectedTenant,
+  hospitalName: formData.hospitalName.trim(),
+  hospitalCode: formData.hospitalCode.trim() || '',
+  hospitalType: formData.hospitalType.trim(),
+  email: formData.email?.trim() || '',
+  mobile: formData.mobile?.trim() || '',
+  landline: formData.landline?.trim() || '',
+  gst: formData.gst?.trim() || '',
 
-      address: {
-        createdBy: userID,
-        createdOn: now,
-        updatedBy: userID,
-        updatedOn: now,
-        isActive: true,
-        id: sessionStorage.getItem('unitID') || '',
-        type: 'Hospital',
-        addressType: address.addressType || '',
-        address1: address.address1 || '',
-        address2: address.address2 || '',
-        city: address.city || '',
-        district: address.district || '',
-        state: address.state || '',
-        zipCode: address.zipCode || '',
-        isPrimary: true,
-      },
-    };
+  address: {
+    createdBy: userID,
+    createdOn: now,
+    updatedBy: userID,
+    updatedOn: now,
+    isActive: true,
+    id: null, // ✅ explicitly set to null
+    type: 'Hospital',
+    addressType: address.addressType || '',
+    address1: address.address1 || '',
+    address2: address.address2 || '',
+    city: address.city || '',
+    district: address.district || '',
+    state: address.state || '',
+    zipCode: address.zipCode || '',
+    isPrimary: true,
+  },
+};
+
 
    try {
   const response = await api.post('/Hospital', payload);

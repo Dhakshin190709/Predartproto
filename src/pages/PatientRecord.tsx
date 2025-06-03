@@ -155,16 +155,27 @@ const ProfileSection: React.FC = () => {
   useEffect(() => {
     if (activeTab !== 'appointment' || !roleName) return;
 
-    const idToUse = roleName.toLowerCase() === 'patient' ? patientID : doctorID;
+    const lowerRole = roleName.toLowerCase();
+    const tenantID = sessionStorage.getItem('tenantID');
+    const idToUse =
+      lowerRole === 'patient'
+        ? patientID
+        : lowerRole === 'doctor'
+          ? doctorID
+          : tenantID;
 
     if (!idToUse) return;
 
     let apiUrl = '';
 
-    if (roleName.toLowerCase() === 'patient') {
-      apiUrl = `/Appointment/GetAppointment?PatientID=${idToUse}`;
-    } else if (roleName.toLowerCase() === 'doctor' && selectedPatientID) {
-      apiUrl = `/Appointment/GetAppointment?DoctorID=${doctorID}&PatientID=${selectedPatientID}`;
+    if (lowerRole === 'patient') {
+      apiUrl = `/Appointment/GetAppointment?PatientID=${patientID}`;
+    } else if (
+      (lowerRole === 'doctor' || lowerRole === 'tenantadmin') &&
+      selectedPatientID
+    ) {
+      const idKey = lowerRole === 'doctor' ? 'DoctorID' : 'TenantID';
+      apiUrl = `/Appointment/GetAppointment?${idKey}=${idToUse}&PatientID=${selectedPatientID}`;
     }
 
     if (!apiUrl) return;
@@ -196,10 +207,9 @@ const ProfileSection: React.FC = () => {
     fetchAppointments();
 
     return () => {
-      isMounted = false; // Cleanup flag to prevent state update after unmount
+      isMounted = false;
     };
   }, [activeTab, patientID, doctorID, roleName, selectedPatientID]);
-  // <-- added selectedPatientID dependency
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -592,81 +602,79 @@ const ProfileSection: React.FC = () => {
 
   const [loading, setLoading] = React.useState(false);
 
-const handleSearch = async () => {
-  const patient = selectedPatient.trim();
-  const mobile = mobileNumber.trim();
-  const tenantID = sessionStorage.getItem('tenantID');
+  const handleSearch = async () => {
+    const patient = selectedPatient.trim();
+    const mobile = mobileNumber.trim();
+    const tenantID = sessionStorage.getItem('tenantID');
 
-  const newErrors: { patient?: string; mobile?: string } = {};
+    const newErrors: { patient?: string; mobile?: string } = {};
 
-  // At least one field must be filled
-  if (!patient && !mobile) {
-    toast.warn('Please enter at least one field');
-    return;
-  }
-
-  // Re-run validations even if they were run earlier
-  if (patient) {
-    if (patient.length > 20) {
-      newErrors.patient = 'Maximum 20 characters allowed';
-    } else if (!/^[a-zA-Z\s]+$/.test(patient)) {
-      newErrors.patient = 'Patient name must contain only letters';
+    // At least one field must be filled
+    if (!patient && !mobile) {
+      toast.warn('Please enter at least one field');
+      return;
     }
-  }
 
-  if (mobile) {
-    if (!/^\d{10}$/.test(mobile)) {
-      newErrors.mobile = 'Mobile number must be 10 digits';
+    // Re-run validations even if they were run earlier
+    if (patient) {
+      if (patient.length > 20) {
+        newErrors.patient = 'Maximum 20 characters allowed';
+      } else if (!/^[a-zA-Z\s]+$/.test(patient)) {
+        newErrors.patient = 'Patient name must contain only letters';
+      }
     }
-  }
 
-  // Merge new validation errors into state
-  setErrors((prev) => ({ ...prev, ...newErrors }));
-
-  // Check if any error exists in new or existing errors
-  const hasErrors =
-    Object.values({ ...errors, ...newErrors }).filter((val) => val).length > 0;
-
-  if (hasErrors) {
-    return; // Block the search
-  }
-
-  if (!tenantID) {
-    toast.error('Tenant ID is missing from session');
-    return;
-  }
-
-  setLoading(true);
-  try {
-    const params = new URLSearchParams();
-    params.append('tenantID', tenantID);
-    if (patient) params.append('PatientName', patient);
-    if (mobile) params.append('MobileNo', mobile);
-
-    const response = await api.get(`/Patient?${params.toString()}`);
-
-    if (
-      response.data.success &&
-      Array.isArray(response.data.data) &&
-      response.data.data.length > 0
-    ) {
-      setPatientData(response.data.data);
-      setIsSearchPerformed(true);
-    } else {
-      setPatientData([]);
-      setIsSearchPerformed(true);
-      toast.error('No patient found with given details.');
+    if (mobile) {
+      if (!/^\d{10}$/.test(mobile)) {
+        newErrors.mobile = 'Mobile number must be 10 digits';
+      }
     }
-  } catch (error) {
-    console.error('Error during search:', error);
-    toast.error('Something went wrong while searching.');
-  } finally {
-    setLoading(false);
-  }
-};
 
+    // Merge new validation errors into state
+    setErrors((prev) => ({ ...prev, ...newErrors }));
 
+    // Check if any error exists in new or existing errors
+    const hasErrors =
+      Object.values({ ...errors, ...newErrors }).filter((val) => val).length >
+      0;
 
+    if (hasErrors) {
+      return; // Block the search
+    }
+
+    if (!tenantID) {
+      toast.error('Tenant ID is missing from session');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append('tenantID', tenantID);
+      if (patient) params.append('PatientName', patient);
+      if (mobile) params.append('MobileNo', mobile);
+
+      const response = await api.get(`/Patient?${params.toString()}`);
+
+      if (
+        response.data.success &&
+        Array.isArray(response.data.data) &&
+        response.data.data.length > 0
+      ) {
+        setPatientData(response.data.data);
+        setIsSearchPerformed(true);
+      } else {
+        setPatientData([]);
+        setIsSearchPerformed(true);
+        toast.error('No patient found with given details.');
+      }
+    } catch (error) {
+      console.error('Error during search:', error);
+      toast.error('Something went wrong while searching.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const viewPatientRecord = (patientID: string) => {
     setSelectedPatientID(patientID);
@@ -680,7 +688,7 @@ const handleSearch = async () => {
       <h1 className="text-3xl font-semibold text-black mb-6">Patient Record</h1>
       <div className="h-screen flex flex-col">
         {/* Top Search Bar */}
-        {roleName === 'Doctor' && !selectedPatientID && (
+        {['Doctor', 'TenantAdmin'].includes(roleName) && !selectedPatientID && (
           <div className="p-4 flex items-start gap-4 bg-gray-100 mb-2 flex-wrap">
             {/* Patient Name Input with Error Placeholder */}
             <div className="flex flex-col w-[40%]">
@@ -689,7 +697,7 @@ const handleSearch = async () => {
                 value={selectedPatient}
                 onChange={(e) => handlePatientChange(e.target.value)}
                 placeholder="Enter Patient Name"
-                maxLength={20}
+                maxLength={30}
                 className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -846,21 +854,24 @@ const handleSearch = async () => {
             </>
           )}
 
-          {/* Back to Patient List Link */}
-          {roleName === 'Doctor' && selectedPatientID && patientData && (
-            <a
-              onClick={() => {
-                setSelectedPatientID(null); // Reset the selected patient ID to return to the list
-                setActiveTab(null); // Reset the tab selection if necessary
-              }}
-              className="mb-4 inline-flex items-center text-blue-500 font-semibold hover:text-gray-600 cursor-pointer"
-            >
-              Back <span className="ml-2">{' >'}</span>
-            </a>
-          )}
+         {/* Back to Patient List Link */}
+{['Doctor', 'TenantAdmin'].includes(roleName) &&
+  selectedPatientID &&
+  patientData && (
+    <a
+      onClick={() => {
+        setSelectedPatientID(null); // Reset the selected patient ID to return to the list
+        setActiveTab(null); // Reset the tab selection if necessary
+      }}
+      className="mb-4 inline-flex items-center text-blue-500 font-semibold hover:text-gray-600 cursor-pointer"
+    >
+      Back <span className="ml-2">{' >'}</span>
+    </a>
+)}
+
 
           {/* Patient Cards Display */}
-          {roleName === 'Doctor' &&
+          {['Doctor', 'TenantAdmin'].includes(roleName) &&
             isSearchPerformed &&
             patientArray.length > 0 &&
             !selectedPatientID && (
@@ -913,7 +924,9 @@ const handleSearch = async () => {
             )}
 
           {/* Patient Profile Details */}
-          {roleName === 'Doctor' && selectedPatientID && patientData && (
+        {['Doctor', 'TenantAdmin'].includes(roleName) &&
+  selectedPatientID &&
+  patientData && (
             <>
               {/* Patient Profile Section */}
               <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
@@ -1000,6 +1013,7 @@ const handleSearch = async () => {
               </div>
             </>
           )}
+
         </div>
         {isModalOpen && (
           <div className="modal-overlay">

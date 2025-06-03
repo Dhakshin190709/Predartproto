@@ -43,8 +43,8 @@ interface AppointmentPayload {
   appointmentID: string;
   doctorID?: string;
   patientID?: string;
-  appointmentDate?: string;    // yyyy-mm-dd or ISO string
-  appointmentTime?: string;    // "HH:mm:ss" format
+  appointmentDate?: string; // yyyy-mm-dd or ISO string
+  appointmentTime?: string; // "HH:mm:ss" format
   statusID?: string;
   reason?: string;
   notes?: string;
@@ -237,47 +237,46 @@ const AppointmentCard: React.FC = () => {
     }
   };
 
- const handleEnrollPatient = async () => {
-  try {
-    const tenantID = sessionStorage.getItem('tenantID');
+  const handleEnrollPatient = async () => {
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
 
-    if (!tenantID) {
-      toast.error('Tenant ID not found in session.');
-      return;
-    }
-
-    if (!patients || patients.length === 0) {
-      toast.warning('No patient data available to enroll.');
-      return;
-    }
-
-    const payload = {
-      patientTenantID: patients[0].patientTenantID,
-      patientID: patients[0].patientID,
-      tenantID: tenantID,
-      isActive: true,
-    };
-
-    const response = await api.post('/Patient/EnrollPatient', payload);
-    const result = response.data;
-
-    if (response.status === 200) {
-      if (result.success) {
-        toast.success('Patient enrolled successfully.');
-        setIsModalOpen(false);
-      } else {
-        const uhid = patients[0].uhid || 'Unknown UHID';
-        toast.warn(`Patient is already enrolled. UHID: ${uhid}`);
+      if (!tenantID) {
+        toast.error('Tenant ID not found in session.');
+        return;
       }
-    } else {
-      toast.error('Enrollment failed. Please try again.');
-    }
-  } catch (error) {
-    console.error('Enroll error:', error);
-    toast.error('An error occurred while enrolling the patient.');
-  }
-};
 
+      if (!patients || patients.length === 0) {
+        toast.warning('No patient data available to enroll.');
+        return;
+      }
+
+      const payload = {
+        patientTenantID: patients[0].patientTenantID,
+        patientID: patients[0].patientID,
+        tenantID: tenantID,
+        isActive: true,
+      };
+
+      const response = await api.post('/Patient/EnrollPatient', payload);
+      const result = response.data;
+
+      if (response.status === 200) {
+        if (result.success) {
+          toast.success('Patient enrolled successfully.');
+          setIsModalOpen(false);
+        } else {
+          const uhid = patients[0].uhid || 'Unknown UHID';
+          toast.warn(`Patient is already enrolled. UHID: ${uhid}`);
+        }
+      } else {
+        toast.error('Enrollment failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Enroll error:', error);
+      toast.error('An error occurred while enrolling the patient.');
+    }
+  };
 
   const handleAddPatientClick = () => {
     if (unitID) {
@@ -328,6 +327,13 @@ const AppointmentCard: React.FC = () => {
         if (statusMap[role]) {
           endpoint += `&StatusID=${statusMap[role]}`;
         }
+      } else if (role === 'TenantAdmin') {
+        const tenantID = sessionStorage.getItem('tenantID');
+        if (!tenantID) {
+          console.warn('⚠️ tenantID not found in sessionStorage.');
+          return;
+        }
+        endpoint += `?tenantID=${tenantID}`;
       }
 
       const response = await api.get(endpoint);
@@ -358,145 +364,143 @@ const AppointmentCard: React.FC = () => {
   };
 
   const filteredTimeSlots = availableSlots.filter(
-        (slot) => slot.date === selectedDate,
+    (slot) => slot.date === selectedDate,
+  );
+
+  const handleSaveEdit = async () => {
+    if (!selectedAppointment) return;
+
+    if (!selectedAppointment.appointmentTime) {
+      alert('Please select an appointment time.');
+      return;
+    }
+
+    const loggedInUserID = sessionStorage.getItem('userID');
+    const role = sessionStorage.getItem('role');
+    if (!loggedInUserID) {
+      alert('Session expired. Please log in again.');
+      return;
+    }
+
+    const appointmentDate = selectedAppointment.appointmentDate?.split('T')[0];
+    const appointmentTime = selectedAppointment.appointmentTime;
+
+    if (!appointmentDate || !appointmentTime) {
+      alert('Appointment date or time is missing.');
+      return;
+    }
+
+    const convertTo24HourFormat = (time12h: string): string => {
+      if (!time12h.includes(' ')) return time12h;
+      const [time, modifier] = time12h.split(' ');
+      let [hours, minutes] = time.split(':').map(Number);
+      if (modifier.toLowerCase() === 'pm' && hours !== 12) hours += 12;
+      if (modifier.toLowerCase() === 'am' && hours === 12) hours = 0;
+      const pad = (n: number) => n.toString().padStart(2, '0');
+      return `${pad(hours)}:${pad(minutes)}:00`;
+    };
+
+    let timeFormatted = '';
+    try {
+      timeFormatted = convertTo24HourFormat(appointmentTime);
+    } catch {
+      alert('Invalid time format.');
+      return;
+    }
+
+    const [hours, minutes, seconds] = timeFormatted.split(':').map(Number);
+    const [year, month, day] = appointmentDate.split('-').map(Number);
+    const appointmentDateObj = new Date(
+      year,
+      month - 1,
+      day,
+      hours,
+      minutes,
+      seconds || 0,
+    );
+
+    if (isNaN(appointmentDateObj.getTime())) {
+      console.error('⛔ Invalid datetime:', {
+        appointmentDate,
+        timeFormatted,
+      });
+      alert('Invalid appointment date/time.');
+      return;
+    }
+
+    if (appointmentDateObj < new Date()) {
+      toast.error('Appointment cannot be scheduled in the past.');
+      return;
+    }
+
+    const payload = {
+      appointmentID: selectedAppointment.appointmentID,
+      doctorID: selectedAppointment.doctorID,
+      patientID: selectedAppointment.patientID,
+      timeSlotID: selectedAppointment.timeSlotID,
+      appointmentDate,
+      appointmentTime: timeFormatted,
+      statusID: '82d2585e-3e84-404d-b4c2-08dd57ac7396', // 💥 Force "Reschedule" status
+      phoneNumber: selectedAppointment.phoneNumber,
+      notes: selectedAppointment.notes,
+      toWhom: selectedAppointment.toWhom,
+      relationShip: selectedAppointment.relationShip,
+      createdBy: selectedAppointment.createdBy || loggedInUserID,
+      createdOn: selectedAppointment.createdOn,
+      updatedBy: loggedInUserID,
+      updatedOn: new Date().toISOString(),
+      isActive: true,
+    };
+
+    console.log('📦 Payload:', payload);
+
+    try {
+      const response = await api.put(
+        `/Appointment/${selectedAppointment.appointmentID}`,
+        payload,
       );
-    
-      const handleSaveEdit = async () => {
-        if (!selectedAppointment) return;
 
-        if (!selectedAppointment.appointmentTime) {
-          alert('Please select an appointment time.');
-          return;
-        }
+      console.log('✅ Updated:', response.data);
+      toast.success('Appointment updated successfully!');
 
-        const loggedInUserID = sessionStorage.getItem('userID');
-        const role = sessionStorage.getItem('role');
-        if (!loggedInUserID) {
-          alert('Session expired. Please log in again.');
-          return;
-        }
+      // ✅ Don't navigate away, just close modal and refresh
+      setTimeout(() => setIsEditModalOpen(false), 100);
+      fetchAppointmentsBasedOnRole(loggedInUserID, role);
+    } catch (error) {
+      console.error('❌ Update error:', error);
+      toast.error('Failed to update appointment');
+    }
+  };
 
-        const appointmentDate =
-          selectedAppointment.appointmentDate?.split('T')[0];
-        const appointmentTime = selectedAppointment.appointmentTime;
+  const loggedInUserID = 'your-logged-in-user-id'; // get dynamically from auth context or state
 
-        if (!appointmentDate || !appointmentTime) {
-          alert('Appointment date or time is missing.');
-          return;
-        }
-
-        const convertTo24HourFormat = (time12h: string): string => {
-          if (!time12h.includes(' ')) return time12h;
-          const [time, modifier] = time12h.split(' ');
-          let [hours, minutes] = time.split(':').map(Number);
-          if (modifier.toLowerCase() === 'pm' && hours !== 12) hours += 12;
-          if (modifier.toLowerCase() === 'am' && hours === 12) hours = 0;
-          const pad = (n: number) => n.toString().padStart(2, '0');
-          return `${pad(hours)}:${pad(minutes)}:00`;
-        };
-
-        let timeFormatted = '';
-        try {
-          timeFormatted = convertTo24HourFormat(appointmentTime);
-        } catch {
-          alert('Invalid time format.');
-          return;
-        }
-
-        const [hours, minutes, seconds] = timeFormatted.split(':').map(Number);
-        const [year, month, day] = appointmentDate.split('-').map(Number);
-        const appointmentDateObj = new Date(
-          year,
-          month - 1,
-          day,
-          hours,
-          minutes,
-          seconds || 0,
-        );
-
-        if (isNaN(appointmentDateObj.getTime())) {
-          console.error('⛔ Invalid datetime:', {
-            appointmentDate,
-            timeFormatted,
-          });
-          alert('Invalid appointment date/time.');
-          return;
-        }
-
-        if (appointmentDateObj < new Date()) {
-          toast.error('Appointment cannot be scheduled in the past.');
-          return;
-        }
-
-        const payload = {
-          appointmentID: selectedAppointment.appointmentID,
-          doctorID: selectedAppointment.doctorID,
-          patientID: selectedAppointment.patientID,
-          timeSlotID: selectedAppointment.timeSlotID,
-          appointmentDate,
-          appointmentTime: timeFormatted,
-          statusID: '82d2585e-3e84-404d-b4c2-08dd57ac7396', // 💥 Force "Reschedule" status
-          phoneNumber: selectedAppointment.phoneNumber,
-          notes: selectedAppointment.notes,
-          toWhom: selectedAppointment.toWhom,
-          relationShip: selectedAppointment.relationShip,
-          createdBy: selectedAppointment.createdBy || loggedInUserID,
-          createdOn: selectedAppointment.createdOn,
-          updatedBy: loggedInUserID,
-          updatedOn: new Date().toISOString(),
-          isActive: true,
-        };
-
-        console.log('📦 Payload:', payload);
-
-        try {
-          const response = await api.put(
-            `/Appointment/${selectedAppointment.appointmentID}`,
-            payload,
-          );
-
-          console.log('✅ Updated:', response.data);
-          toast.success('Appointment updated successfully!');
-
-          // ✅ Don't navigate away, just close modal and refresh
-          setTimeout(() => setIsEditModalOpen(false), 100);
-          fetchAppointmentsBasedOnRole(loggedInUserID, role);
-        } catch (error) {
-          console.error('❌ Update error:', error);
-          toast.error('Failed to update appointment');
-        }
+  const updateAppointmentStatus = async (
+    appointmentID: string,
+    payload: Partial<AppointmentPayload>,
+  ) => {
+    try {
+      const updatedPayload: AppointmentPayload = {
+        ...payload,
+        updatedBy: loggedInUserID,
+        updatedOn: new Date().toISOString(),
       };
-      
-    
-    const loggedInUserID = 'your-logged-in-user-id';  // get dynamically from auth context or state
-      
-      const updateAppointmentStatus = async (appointmentID: string, payload: Partial<AppointmentPayload>) => {
-        try {
-          const updatedPayload: AppointmentPayload = {
-            ...payload,
-            updatedBy: loggedInUserID,
-            updatedOn: new Date().toISOString(),
-          };
-      
-          const response = await axios.put(
-            `https://predart003-001-site1.anytempurl.com/api/Appointment/${appointmentID}`,
-            updatedPayload
-          );      return response.data;
-        } catch (error) {
-          console.error('Failed to update appointment:', error);
-          throw error;
-        }
-      };
-      
-      
-    
-      useEffect(() => {
-        if (isEditModalOpen && selectedAppointment) {
-          setSelectedDoctorID(selectedAppointment.doctorID || '');
-        }
-      }, [isEditModalOpen, selectedAppointment]);
-      
-    
+
+      const response = await axios.put(
+        `https://predart003-001-site1.anytempurl.com/api/Appointment/${appointmentID}`,
+        updatedPayload,
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Failed to update appointment:', error);
+      throw error;
+    }
+  };
+
+  useEffect(() => {
+    if (isEditModalOpen && selectedAppointment) {
+      setSelectedDoctorID(selectedAppointment.doctorID || '');
+    }
+  }, [isEditModalOpen, selectedAppointment]);
 
   const handleBookNow = () => {
     navigate('/appointment/booking'); // Replace with the actual booking route
@@ -620,62 +624,62 @@ const AppointmentCard: React.FC = () => {
   };
 
   const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const doctorID = e.target.value;
-        setSelectedDoctorID(doctorID);
-        setFormData((prev) => ({ ...prev, doctor: doctorID }));
-        setSelectedAppointment((prev) => ({ ...prev, doctorID }));
-    
-        fetchDoctorTimeSlots(doctorID);
-      };
-    
-      useEffect(() => {
-        if (selectedDoctorID) {
-          // Manually trigger the handleDoctorChange logic
-          fetchDoctorTimeSlots(selectedDoctorID);
-        }
-      }, [selectedDoctorID]);
-    
-      const fetchDoctorTimeSlots = async (doctorID: string) => {
-        if (!doctorID) {
-          setAvailableTimeSlots([]);
-          setGeneratedTimeSlots([]);
-          return;
-        }
-    
-        try {
-          const response = await api.get(
-            `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
-          );
-    
-          const rawSlots = Array.isArray(response.data?.data)
-            ? response.data.data
-            : [];
-    
-          const formattedSlots = rawSlots.map((slot) => ({
-            timeSlotID: slot.timeSlotID,
-            fromTime: slot.fromTime,
-            toTime: slot.toTime,
-            slotDuration: slot.slotDuration,
-            day: slot.dayofWeek,
-            doctorID: slot.doctorID,
-          }));
-    
-          setAvailableTimeSlots(formattedSlots);
-    
-          console.log('📥 Selected Doctor ID:', doctorID);
-          console.log('🕒 All Time Slots from API:', formattedSlots);
-    
-          if (selectedDate) {
-            handleDateChange(selectedDate, formattedSlots);
-          } else {
-            setGeneratedTimeSlots([]);
-          }
-        } catch (error) {
-          console.error('❌ Error fetching time slots:', error);
-          setAvailableTimeSlots([]);
-          setGeneratedTimeSlots([]);
-        }
-      };
+    const doctorID = e.target.value;
+    setSelectedDoctorID(doctorID);
+    setFormData((prev) => ({ ...prev, doctor: doctorID }));
+    setSelectedAppointment((prev) => ({ ...prev, doctorID }));
+
+    fetchDoctorTimeSlots(doctorID);
+  };
+
+  useEffect(() => {
+    if (selectedDoctorID) {
+      // Manually trigger the handleDoctorChange logic
+      fetchDoctorTimeSlots(selectedDoctorID);
+    }
+  }, [selectedDoctorID]);
+
+  const fetchDoctorTimeSlots = async (doctorID: string) => {
+    if (!doctorID) {
+      setAvailableTimeSlots([]);
+      setGeneratedTimeSlots([]);
+      return;
+    }
+
+    try {
+      const response = await api.get(
+        `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+      );
+
+      const rawSlots = Array.isArray(response.data?.data)
+        ? response.data.data
+        : [];
+
+      const formattedSlots = rawSlots.map((slot) => ({
+        timeSlotID: slot.timeSlotID,
+        fromTime: slot.fromTime,
+        toTime: slot.toTime,
+        slotDuration: slot.slotDuration,
+        day: slot.dayofWeek,
+        doctorID: slot.doctorID,
+      }));
+
+      setAvailableTimeSlots(formattedSlots);
+
+      console.log('📥 Selected Doctor ID:', doctorID);
+      console.log('🕒 All Time Slots from API:', formattedSlots);
+
+      if (selectedDate) {
+        handleDateChange(selectedDate, formattedSlots);
+      } else {
+        setGeneratedTimeSlots([]);
+      }
+    } catch (error) {
+      console.error('❌ Error fetching time slots:', error);
+      setAvailableTimeSlots([]);
+      setGeneratedTimeSlots([]);
+    }
+  };
 
   const openEditModal = (appointment) => {
     setSelectedDoctor(appointment.doctorID); // Set default doctor ID
@@ -686,132 +690,132 @@ const AppointmentCard: React.FC = () => {
   };
 
   const handleUpdateStatusClick = (appointment) => {
-        setSelectedAppointment(appointment);
-        setSelectedDoctorID(appointment.doctorID); // <-- This will prefill the dropdown
-        setIsEditModalOpen(true);
-      };
+    setSelectedAppointment(appointment);
+    setSelectedDoctorID(appointment.doctorID); // <-- This will prefill the dropdown
+    setIsEditModalOpen(true);
+  };
 
-      const handleDateChange = async (
-            date: Date | null,
-            slots?: TimeSlotType[],
-          ) => {
-            if (!date) return;
-        
-            const localDate = formatLocalDate(date); // "YYYY-MM-DD"
-            console.log('📅 Selected Date (Full):', date);
-            console.log('📅 Selected Date (Local):', localDate);
-        
-            setSelectedDate(date);
-            setFormData((prev) => ({ ...prev, date }));
-        
-            setSelectedAppointment((prev) => ({
-              ...prev,
-              appointmentDate: localDate,
-            }));
-        
-            // Update selectedTime synced with new date (keep old time if exists)
-            setSelectedTime((prevSelectedTime) => {
-              if (prevSelectedTime) {
-                const newDateTime = new Date(date);
-                newDateTime.setHours(prevSelectedTime.getHours());
-                newDateTime.setMinutes(prevSelectedTime.getMinutes());
-                newDateTime.setSeconds(0);
-                newDateTime.setMilliseconds(0);
-                return newDateTime;
-              } else {
-                const newDateTime = new Date(date);
-                newDateTime.setHours(0, 0, 0, 0);
-                return newDateTime;
-              }
-            });
-        
-            const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
-            if (!Array.isArray(timeSlots)) {
-              console.error('❌ Invalid timeSlots:', timeSlots);
-              return;
-            }
-        
-            const dayOfWeek = date
-              .toLocaleDateString('en-US', { weekday: 'long' })
-              .toLowerCase()
-              .trim();
-        
-            console.log('Selected Day of Week:', dayOfWeek);
-        
-            const matchedDaySlots = timeSlots.filter(
-              (slot) => slot.day?.toLowerCase().trim() === dayOfWeek,
-            );
-        
-            const doctorDays = [
-              ...new Set(timeSlots.map((slot) => slot.day?.toLowerCase().trim())),
-            ];
-            console.log('✅ Doctor Available Days:', doctorDays);
-        
-            timeSlots.forEach((slot) => {
-              console.log(`Checking slot day "${slot.day}" against "${dayOfWeek}"`);
-            });
-        
-            console.log('🕒 Matched Slots for Day:', matchedDaySlots);
-        
-            if (matchedDaySlots.length === 0) {
-              console.warn(`⚠️ Doctor NOT available on ${dayOfWeek}. No slots.`);
-              setGeneratedTimeSlots([]);
-              return;
-            }
-        
-            try {
-              // Fetch existing booked appointments for this doctor & date
-              const appointmentResponse = await api.get(
-                `/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
-              );
-        
-              const appointmentData = appointmentResponse.data;
-              const appointmentList = Array.isArray(appointmentData)
-                ? appointmentData
-                : [];
-        
-              const bookedSlots = appointmentList.map((appointment: any) => ({
-                appointmentDate: appointment?.appointmentDate,
-                appointmentTime: appointment?.appointmentTime,
-              }));
-        
-              console.log('📋 Booked Slots:', bookedSlots);
-        
-              // Generate all available time slots considering booked ones
-              let generated: { time: Date; timeSlotID: number }[] = [];
-        
-              matchedDaySlots.forEach(
-                ({ fromTime, toTime, slotDuration, timeSlotID }) => {
-                  const slots = generateTimeSlots(
-                    fromTime,
-                    toTime,
-                    slotDuration,
-                    timeSlotID,
-                    bookedSlots,
-                    date,
-                  );
-                  generated = [...generated, ...slots];
-                },
-              );
-        
-              console.log('⏰ Generated Available Time Slots:', generated);
-        
-              setBookedSlots(bookedSlots);
-              setGeneratedTimeSlots(generated);
-        
-              // Optionally preselect the first available time slot id in formData
-              if (matchedDaySlots.length > 0) {
-                setFormData((prev) => ({
-                  ...prev,
-                  timeSlotID: matchedDaySlots[0].timeSlotID,
-                }));
-              }
-            } catch (error) {
-              console.error('🚨 Error fetching appointments:', error);
-              setGeneratedTimeSlots([]);
-            }
-          };
-        
+  const handleDateChange = async (
+    date: Date | null,
+    slots?: TimeSlotType[],
+  ) => {
+    if (!date) return;
+
+    const localDate = formatLocalDate(date); // "YYYY-MM-DD"
+    console.log('📅 Selected Date (Full):', date);
+    console.log('📅 Selected Date (Local):', localDate);
+
+    setSelectedDate(date);
+    setFormData((prev) => ({ ...prev, date }));
+
+    setSelectedAppointment((prev) => ({
+      ...prev,
+      appointmentDate: localDate,
+    }));
+
+    // Update selectedTime synced with new date (keep old time if exists)
+    setSelectedTime((prevSelectedTime) => {
+      if (prevSelectedTime) {
+        const newDateTime = new Date(date);
+        newDateTime.setHours(prevSelectedTime.getHours());
+        newDateTime.setMinutes(prevSelectedTime.getMinutes());
+        newDateTime.setSeconds(0);
+        newDateTime.setMilliseconds(0);
+        return newDateTime;
+      } else {
+        const newDateTime = new Date(date);
+        newDateTime.setHours(0, 0, 0, 0);
+        return newDateTime;
+      }
+    });
+
+    const timeSlots = Array.isArray(slots) ? slots : availableTimeSlots;
+    if (!Array.isArray(timeSlots)) {
+      console.error('❌ Invalid timeSlots:', timeSlots);
+      return;
+    }
+
+    const dayOfWeek = date
+      .toLocaleDateString('en-US', { weekday: 'long' })
+      .toLowerCase()
+      .trim();
+
+    console.log('Selected Day of Week:', dayOfWeek);
+
+    const matchedDaySlots = timeSlots.filter(
+      (slot) => slot.day?.toLowerCase().trim() === dayOfWeek,
+    );
+
+    const doctorDays = [
+      ...new Set(timeSlots.map((slot) => slot.day?.toLowerCase().trim())),
+    ];
+    console.log('✅ Doctor Available Days:', doctorDays);
+
+    timeSlots.forEach((slot) => {
+      console.log(`Checking slot day "${slot.day}" against "${dayOfWeek}"`);
+    });
+
+    console.log('🕒 Matched Slots for Day:', matchedDaySlots);
+
+    if (matchedDaySlots.length === 0) {
+      console.warn(`⚠️ Doctor NOT available on ${dayOfWeek}. No slots.`);
+      setGeneratedTimeSlots([]);
+      return;
+    }
+
+    try {
+      // Fetch existing booked appointments for this doctor & date
+      const appointmentResponse = await api.get(
+        `/Appointment/GetAppointment?DoctorID=${selectedDoctorID}&StartDate=${localDate}&EndDate=${localDate}`,
+      );
+
+      const appointmentData = appointmentResponse.data;
+      const appointmentList = Array.isArray(appointmentData)
+        ? appointmentData
+        : [];
+
+      const bookedSlots = appointmentList.map((appointment: any) => ({
+        appointmentDate: appointment?.appointmentDate,
+        appointmentTime: appointment?.appointmentTime,
+      }));
+
+      console.log('📋 Booked Slots:', bookedSlots);
+
+      // Generate all available time slots considering booked ones
+      let generated: { time: Date; timeSlotID: number }[] = [];
+
+      matchedDaySlots.forEach(
+        ({ fromTime, toTime, slotDuration, timeSlotID }) => {
+          const slots = generateTimeSlots(
+            fromTime,
+            toTime,
+            slotDuration,
+            timeSlotID,
+            bookedSlots,
+            date,
+          );
+          generated = [...generated, ...slots];
+        },
+      );
+
+      console.log('⏰ Generated Available Time Slots:', generated);
+
+      setBookedSlots(bookedSlots);
+      setGeneratedTimeSlots(generated);
+
+      // Optionally preselect the first available time slot id in formData
+      if (matchedDaySlots.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          timeSlotID: matchedDaySlots[0].timeSlotID,
+        }));
+      }
+    } catch (error) {
+      console.error('🚨 Error fetching appointments:', error);
+      setGeneratedTimeSlots([]);
+    }
+  };
+
   const convertTo24HourFormat = (time: Date | string): string => {
     if (!time) return '00:00:00';
 
@@ -875,26 +879,26 @@ const AppointmentCard: React.FC = () => {
   };
 
   const formatLocalDate = (dateInput: Date | string): string => {
-        let date: Date;
-    
-        if (dateInput instanceof Date) {
-          date = dateInput;
-        } else {
-          date = new Date(dateInput);
-        }
-    
-        if (isNaN(date.getTime())) {
-          // Handle invalid date input gracefully
-          console.error('Invalid date passed to formatLocalDate:', dateInput);
-          return ''; // or throw error if you prefer
-        }
-    
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
-        const day = String(date.getDate()).padStart(2, '0');
-    
-        return `${year}-${month}-${day}`;
-      };
+    let date: Date;
+
+    if (dateInput instanceof Date) {
+      date = dateInput;
+    } else {
+      date = new Date(dateInput);
+    }
+
+    if (isNaN(date.getTime())) {
+      // Handle invalid date input gracefully
+      console.error('Invalid date passed to formatLocalDate:', dateInput);
+      return ''; // or throw error if you prefer
+    }
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  };
 
   const validateField = (name: string, value: string | Date | null): string => {
     let error = '';
@@ -1115,7 +1119,15 @@ const AppointmentCard: React.FC = () => {
         }
         params.HospitalID = unitID;
       }
-
+      if (roleName === 'TenantAdmin') {
+        const tenantID = sessionStorage.getItem('tenantID');
+        if (!tenantID) {
+          alert('Tenant ID is missing. Please login again.');
+          setLoading(false);
+          return;
+        }
+        params.tenantID = tenantID;
+      }
       if (roleName === 'Doctor' || roleName === 'Reception') {
         const doctorID = sessionStorage.getItem('doctorID');
         if (!doctorID && roleName === 'Doctor') {
@@ -1263,6 +1275,7 @@ const AppointmentCard: React.FC = () => {
               <input
                 type="text"
                 placeholder="Enter Patient Name"
+                maxLength={30}
                 value={selectedPatientID}
                 onChange={handleChange}
                 className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -1362,12 +1375,16 @@ const AppointmentCard: React.FC = () => {
                 <div className="flex items-center">
                   {/* Patient Image */}
                   <img
-                    src={patientIcon} // <-- Replace with actual image path or dynamic URL
+                    src={patientIcon}
                     alt="Patient"
                     className="w-6 h-6 rounded-full mr-2"
                   />
 
-                  <div className="text-lg font-bold text-black-600">
+                  {/* Patient Name with Truncation and Hover Tooltip */}
+                  <div
+                    className="text-lg font-bold text-black-600 truncate max-w-[150px]" // Adjust width as needed
+                    title={appointment.patientName}
+                  >
                     {appointment.patientName}
                   </div>
 
@@ -1375,6 +1392,7 @@ const AppointmentCard: React.FC = () => {
                     ({calculateAge(appointment.patientDateOfBirth)} years)
                   </span>
                 </div>
+
                 {/* Appointment & Token Numbers */}
                 <div className="ml-8 text-sm text-black">
                   Appointment No:{' '}
@@ -1618,6 +1636,7 @@ const AppointmentCard: React.FC = () => {
                     onChange={(e) => handleDoctorChange(e.target.value)}
                     value={selectedDoctorID}
                     className={`${inputFieldClass} mb-4`}
+                    disabled
                   >
                     <option value="">Select Doctor</option>
                     {doctors.map((doctor) => (

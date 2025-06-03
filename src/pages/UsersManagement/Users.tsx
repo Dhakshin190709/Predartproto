@@ -63,7 +63,7 @@ const Users: React.FC = () => {
     userID: 0,
     username: '',
     email: '',
-    phone: '',
+     phone: '', 
     isActive: 'Active',
     tenantID: '',
     createdBy: '',
@@ -107,17 +107,18 @@ const Users: React.FC = () => {
     }
   };
 
- const fetchHospitalData = async () => {
+  const fetchHospitalData = async () => {
   try {
-    const response = await api.get('/Hospital/List');
+    const tenantID = sessionStorage.getItem('tenantID'); // Or wherever you're storing tenantID
+
+    const response = await api.get(`/Hospital/List?tenantID=${tenantID}`);
     const data = response.data;
 
     console.log('Fetched Hospitals:', data);
 
-    // If your API returns hospitals inside data.data or similar, adjust here
     const hospitals = Array.isArray(data) ? data : data.data || [];
-
     setSecondDropdownData(hospitals);
+
     return hospitals;
   } catch (error) {
     console.error('Error fetching hospitals:', error);
@@ -125,28 +126,29 @@ const Users: React.FC = () => {
   }
 };
 
- const fetchLaboratoryData = async () => {
-  try {
-    const response = await api.get('/Laboratory');
-    const result = response.data;
 
-    if (Array.isArray(result)) {
-      console.log('Fetched Laboratory Data:', result);
-      setSecondDropdownData(result);
-      return result;
-    } else if (result.success && Array.isArray(result.data)) {
-      console.log('Fetched Laboratory Data:', result.data);
-      setSecondDropdownData(result.data);
-      return result.data;
-    } else {
-      console.error('Unexpected response format:', result);
+  const fetchLaboratoryData = async () => {
+    try {
+      const response = await api.get('/Laboratory');
+      const result = response.data;
+
+      if (Array.isArray(result)) {
+        console.log('Fetched Laboratory Data:', result);
+        setSecondDropdownData(result);
+        return result;
+      } else if (result.success && Array.isArray(result.data)) {
+        console.log('Fetched Laboratory Data:', result.data);
+        setSecondDropdownData(result.data);
+        return result.data;
+      } else {
+        console.error('Unexpected response format:', result);
+        return [];
+      }
+    } catch (error) {
+      console.error('Error fetching laboratory data:', error);
       return [];
     }
-  } catch (error) {
-    console.error('Error fetching laboratory data:', error);
-    return [];
-  }
-};
+  };
   useEffect(() => {
     console.log('Updated secondDropdownData:', secondDropdownData);
   }, [secondDropdownData]);
@@ -156,26 +158,26 @@ const Users: React.FC = () => {
   const [editData, setEditData] = useState(null);
 
   // Fetch Unit Types
-  
 
-const fetchUnitTypes = async () => {
-  try {
-    const response = await api.get('/AppLOV', { params: { type: 'UnitType' } });
-    const result = response.data;
+  const fetchUnitTypes = async () => {
+    try {
+      const response = await api.get('/AppLOV', {
+        params: { type: 'UnitType' },
+      });
+      const result = response.data;
 
-    console.log('Unit Types API Response:', result);
+      console.log('Unit Types API Response:', result);
 
-    if (result.success && Array.isArray(result.data)) {
-      setUnitTypes(result.data);
-    } else {
+      if (result.success && Array.isArray(result.data)) {
+        setUnitTypes(result.data);
+      } else {
+        setUnitTypes([]);
+      }
+    } catch (error) {
+      console.error('Error fetching unit types:', error);
       setUnitTypes([]);
     }
-  } catch (error) {
-    console.error('Error fetching unit types:', error);
-    setUnitTypes([]);
-  }
-};
-
+  };
 
   useEffect(() => {
     fetchUnitTypes();
@@ -215,25 +217,25 @@ const fetchUnitTypes = async () => {
     }
 
     // 🔄 Determine API URL
-     let apiUrl = '';
-  if (normalizedType === 'hospital') {
-    apiUrl = `/Hospital/List/${unitID}`;
-  } else if (normalizedType === 'lab') {
-    apiUrl = `/Laboratory/${unitID}`;
-  } else {
-    console.warn(`❌ Invalid unitType provided: ${unitType}`);
-    return 'N/A';
-  }
+    let apiUrl = '';
+    if (normalizedType === 'hospital') {
+      apiUrl = `/Hospital/List/${unitID}`;
+    } else if (normalizedType === 'lab') {
+      apiUrl = `/Laboratory/${unitID}`;
+    } else {
+      console.warn(`❌ Invalid unitType provided: ${unitType}`);
+      return 'N/A';
+    }
     console.log(`🔗 Fetching from API: ${apiUrl}`);
 
     try {
-       const response = await api.get(apiUrl); // Using Axios to make the GET request
-    if (response.status !== 200) {
-      console.error(`⚠️ API Request Failed: ${response.statusText}`);
-      return 'N/A';
-    }
+      const response = await api.get(apiUrl); // Using Axios to make the GET request
+      if (response.status !== 200) {
+        console.error(`⚠️ API Request Failed: ${response.statusText}`);
+        return 'N/A';
+      }
 
-     const result = response.data;
+      const result = response.data;
       console.log(`✅ API Response for ${unitID}:`, result);
 
       let unitName = 'N/A';
@@ -361,33 +363,35 @@ const fetchUnitTypes = async () => {
 
   // Fetch data on component mount (only once)
 
- const fetchAllUserData = async () => {
-  try {
-    const roleName = sessionStorage.getItem('roleName');
-    const unitID = sessionStorage.getItem('unitID');
+  const fetchAllUserData = async () => {
+    try {
+      const roleName = sessionStorage.getItem('roleName');
+      const unitID = sessionStorage.getItem('unitID');
+      const tenantID = sessionStorage.getItem('tenantID');
 
-    let endpoint = '/User';
-    if (roleName === 'HostitalAdmin' && unitID) {
-      endpoint += `?hospitalId=${unitID}`;
+      let endpoint = '/User';
+
+      if (roleName === 'HostitalAdmin' && unitID) {
+        endpoint += `?hospitalId=${unitID}`;
+      } else if (roleName === 'TenantAdmin' && tenantID) {
+        endpoint += `?tenantId=${tenantID}`;
+      }
+
+      const response = await api.get(endpoint);
+      const data = response.data;
+
+      if (Array.isArray(data)) {
+        setApiData(data);
+        setRowData(data);
+        setFilteredData(data);
+      } else {
+        throw new Error('Invalid API response');
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Failed to fetch user data.');
     }
-
-    const response = await api.get(endpoint);
-
-    // Axios puts response data inside response.data
-    const data = response.data;
-
-    if (Array.isArray(data)) {
-      setApiData(data);
-      setRowData(data);
-      setFilteredData(data);
-    } else {
-      throw new Error('Invalid API response');
-    }
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    toast.error('Failed to fetch user data.');
-  }
-};
+  };
 
   useEffect(() => {
     fetchAllUserData();
@@ -397,11 +401,15 @@ const fetchUnitTypes = async () => {
     const fetchTenants = async () => {
       try {
         const response = await api.get('/Tenant');
-        console.log('Tenant API Response:', response.data); // Debugging
+        const data = response.data.data || response.data;
+        setTenants(data);
 
-        // Handle API shape: { data: [...] } or [...]
-        const data = response.data;
-        setTenants(data.data ? data.data : data);
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+
+        if (roleName === 'TenantAdmin' || roleName === 'HostitalAdmin') {
+          setSelectedTenant(tenantID || '');
+        }
       } catch (error) {
         console.error('Error fetching tenant data:', error);
       }
@@ -584,7 +592,6 @@ const fetchUnitTypes = async () => {
     try {
       const response = await api.patch('/User', payload);
 
-
       if (response.status === 200) {
         console.log('User status updated successfully:', response.data);
 
@@ -636,8 +643,8 @@ const fetchUnitTypes = async () => {
   const confirmDelete = async () => {
     try {
       // Send DELETE request to API to delete the user by userID
-       await api.delete(`/User/${deleteRowId}`);
-     
+      await api.delete(`/User/${deleteRowId}`);
+
       // If the delete request is successful, filter the rowData to remove the deleted user
       const updatedData = rowData.filter((item) => item.userID !== deleteRowId);
       setRowData(updatedData);
@@ -664,11 +671,9 @@ const fetchUnitTypes = async () => {
 
       // Send PATCH request to API to update isActive status of the user
       await api.patch(`/User/${userID}/status`, {
-  isActive: updatedStatus,
-});
+        isActive: updatedStatus,
+      });
 
-
-    
       // Update the rowData and filteredData states with the new status
       const updatedData = rowData.map((item) =>
         item.userID === userID ? { ...item, isActive: updatedStatus } : item,
@@ -715,7 +720,8 @@ const fetchUnitTypes = async () => {
       userID: selectedRow.userID,
       username: selectedRow.username ?? '',
       email: selectedRow.email ?? '',
-      mobile: selectedRow.phone ?? '',
+     mobile: selectedRow.mobile ?? '',
+
       isActive: selectedRow.isActive ? 'Active' : 'Inactive',
       tenantID: selectedRow.tenantID ?? '',
       createdBy: selectedRow.createdBy ?? '',
@@ -820,10 +826,9 @@ const fetchUnitTypes = async () => {
 
     const fetchUserRoles = async () => {
       try {
-       const roleResponse = await api.get(`/UserRoles/${userID}`);
+        const roleResponse = await api.get(`/UserRoles/${userID}`);
 
-
-       const roleData = roleResponse.data;
+        const roleData = roleResponse.data;
 
         if (
           roleData.success &&
@@ -833,16 +838,19 @@ const fetchUnitTypes = async () => {
           const roleIDs = roleData.data.map((item) => item.roleID);
 
           // Fetch role names
-         const roleNamesPromises = roleIDs.map(async (roleID) => {
-  try {
-    const roleResponse = await api.get(`/Role/${roleID}`);
-    const roleInfo = roleResponse.data;
-    return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
-  } catch (error) {
-    console.error(`Failed to fetch role name for roleID: ${roleID}`, error);
-    return null;
-  }
-});
+          const roleNamesPromises = roleIDs.map(async (roleID) => {
+            try {
+              const roleResponse = await api.get(`/Role/${roleID}`);
+              const roleInfo = roleResponse.data;
+              return roleInfo?.data?.roleName || `Unknown Role (${roleID})`;
+            } catch (error) {
+              console.error(
+                `Failed to fetch role name for roleID: ${roleID}`,
+                error,
+              );
+              return null;
+            }
+          });
 
           const resolvedRoleNames = await Promise.all(roleNamesPromises);
 
@@ -857,50 +865,80 @@ const fetchUnitTypes = async () => {
     fetchUserRoles();
   }, []);
 
-  const validateFormFields = () => {
-    const newErrors: { [key: string]: string } = {};
-    const roleName = sessionStorage.getItem('roleName');
+ const validateFormFields = () => {
+  const newErrors: { [key: string]: string } = {};
+  const roleName = sessionStorage.getItem('roleName');
 
-    console.log('Validating form fields...');
-    console.log('Selected Unit Type:', selectedUnitType);
-    console.log('Selected Unit ID:', selectedSecondItem);
+  const usernameRegex = /^[a-zA-Z0-9]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const passwordRegex = /^(?=.*[0-9!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,8}$/;
+  const phoneRegex = /^[6-9]\d{9}$/;
 
-    if (!(formData.username || '').trim()) {
-      newErrors.username = 'Username is required';
-    }
+  console.log('Validating form fields...');
+  console.log('Selected Unit Type:', selectedUnitType);
+  console.log('Selected Unit ID:', selectedSecondItem);
 
-    if (!(formData.email || '').trim()) {
-      newErrors.email = 'Email is required';
-    }
+  // Username
+  if (!(formData.username || '').trim()) {
+    newErrors.username = 'Username is required';
+  } else if (!usernameRegex.test(formData.username)) {
+    newErrors.username = 'Username must be alphanumeric';
+  } else if (/^\d+$/.test(formData.username)) {
+    newErrors.username = 'Username cannot be all numbers';
+  }
 
-    if (!(formData.phone || '').trim()) {
-      newErrors.phone = 'Phone number is required';
-    }
+  // Email
+  if (!(formData.email || '').trim()) {
+    newErrors.email = 'Email is required';
+  } else if (!emailRegex.test(formData.email)) {
+    newErrors.email = 'Enter a valid email address';
+  }
 
-    if (!(formData.password || '').trim()) {
-      newErrors.password = 'Password is required';
-    }
+  // Phone
+  const phone = formData.phone || '';
+  if (!phone.trim()) {
+    newErrors.phone = 'Phone number is required';
+  } else if (!phoneRegex.test(phone)) {
+    newErrors.phone = 'Enter a valid 10-digit phone number starting with 6–9';
+  } else if (/^(\d)\1{9}$/.test(phone)) {
+    newErrors.phone = 'Phone number cannot have all digits the same';
+  }
 
-    if (!(formData.userPlan || '').trim()) {
-      newErrors.plan = 'Plan is required';
-    }
+  // Password
+  if (!(formData.password || '').trim()) {
+    newErrors.password = 'Password is required';
+  } else if (!passwordRegex.test(formData.password)) {
+    newErrors.password = 'Password must be 6–8 characters with at least one digit or special character';
+  }
 
-    // Only validate unitType and unitID if role is not SuperAdmin
-    if (roleName !== 'SuperAdmin') {
-      if (!(selectedUnitType || '').trim()) {
-        newErrors.unitType = 'Unit Type is required';
-      }
+  // Plan
+  if (!(formData.userPlan || '').trim()) {
+    newErrors.plan = 'Plan is required';
+  }
 
-      if (!(selectedSecondItem || '').trim()) {
-        newErrors.unitID = 'Unit ID is required';
-      }
-    }
-    setErrors(newErrors);
+  // Unit Type and Unit ID (if not SuperAdmin)
+  if (roleName !== 'SuperAdmin') {
+  const safeSelectedUnitType = typeof selectedUnitType === 'string' ? selectedUnitType : '';
+const safeSelectedSecondItem = typeof selectedSecondItem === 'string' ? selectedSecondItem : '';
 
-    console.log('Errors:', newErrors);
+if (!safeSelectedUnitType.trim()) {
+  newErrors.unitType = 'Unit Type is required';
+}
 
-    return Object.keys(newErrors).length === 0;
-  };
+if (!safeSelectedSecondItem.trim()) {
+  newErrors.unitID = 'Unit ID is required';
+}
+
+
+  }
+
+  setErrors(newErrors);
+  console.log('Errors:', newErrors);
+
+  return Object.keys(newErrors).length === 0;
+};
+
+
 
   const handleFormSubmit = async (e) => {
     e.preventDefault();
@@ -922,9 +960,8 @@ const fetchUnitTypes = async () => {
 
       const isActiveBoolean = formData.isActive === 'Active';
       const method = formData.userID && formData.userID !== 0 ? 'PUT' : 'POST';
-    
 
-      const payload  = JSON.stringify({
+      const payload = JSON.stringify({
         userID: formData.userID !== 0 ? formData.userID : undefined,
         username: formData.username.trim(),
         email: formData.email.trim(),
@@ -939,51 +976,51 @@ const fetchUnitTypes = async () => {
         userPlan: formData.userPlan || 'Free',
       });
 
-      console.log('Final Payload:', payload);  // Debugging
+      console.log('Final Payload:', payload); // Debugging
 
-     try {
-      let response;
-      if (method === 'POST') {
-        response = await api.post('/User', payload);
-      } else {
-        response = await api.put('/User', payload);
-      }
-
-      const data = response.data;
-      console.log('Response Status:', response.status);
-      console.log('API Full Response:', data);
-
-      if (response.status === 200 || response.status === 201) {
-        console.log('User added/updated successfully.');
-        setShowForm(false);
-        setFormData({
-          userID: 0,
-          username: '',
-          email: '',
-          phone: '',
-          isActive: 'Active',
-          tenantID: '',
-          createdBy: '',
-          password: '',
-          userPlan: 'Free',
-        });
-        setSelectedTenant('');
-      } else {
-        let errorMessage = 'An error occurred. Please try again.';
-        if (data.errors) {
-          errorMessage = Object.keys(data.errors)
-            .map((key) => `${key}: ${data.errors[key].join(', ')}`)
-            .join(', ');
-        } else if (data.message) {
-          errorMessage = data.message;
+      try {
+        let response;
+        if (method === 'POST') {
+          response = await api.post('/User', payload);
+        } else {
+          response = await api.put('/User', payload);
         }
-        console.error('API Error:', errorMessage);
-        alert(errorMessage);
+
+        const data = response.data;
+        console.log('Response Status:', response.status);
+        console.log('API Full Response:', data);
+
+        if (response.status === 200 || response.status === 201) {
+          console.log('User added/updated successfully.');
+          setShowForm(false);
+          setFormData({
+            userID: 0,
+            username: '',
+            email: '',
+            phone: '',
+            isActive: 'Active',
+            tenantID: '',
+            createdBy: '',
+            password: '',
+            userPlan: 'Free',
+          });
+          setSelectedTenant('');
+        } else {
+          let errorMessage = 'An error occurred. Please try again.';
+          if (data.errors) {
+            errorMessage = Object.keys(data.errors)
+              .map((key) => `${key}: ${data.errors[key].join(', ')}`)
+              .join(', ');
+          } else if (data.message) {
+            errorMessage = data.message;
+          }
+          console.error('API Error:', errorMessage);
+          alert(errorMessage);
+        }
+      } catch (error) {
+        console.error('Network Error:', error);
+        alert('An unexpected error occurred. Please try again later.');
       }
-    } catch (error) {
-      console.error('Network Error:', error);
-      alert('An unexpected error occurred. Please try again later.');
-    }
     } else {
       console.log('Form has validation errors.');
       return;
@@ -1097,12 +1134,11 @@ const fetchUnitTypes = async () => {
 
     try {
       const response = await api.get('/User', {
-  params: {
-    userName: name || undefined,
-    isActive: isActive ? true : undefined,
-  },
-});
-
+        params: {
+          userName: name || undefined,
+          isActive: isActive ? true : undefined,
+        },
+      });
 
       if (response.data?.length > 0) {
         setFilteredData(response.data);
@@ -1135,18 +1171,17 @@ const fetchUnitTypes = async () => {
               maxLength={50}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-[30%] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+              className="w-[30%] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary"
             />
-           <label className="flex items-center space-x-2 cursor-pointer text-black">
-  <input
-    type="checkbox"
-    checked={isActive}
-    onChange={(e) => setIsActive(e.target.checked)}
-    className="w-4 h-4 accent-blue-600 rounded"
-  />
-  <span>Active</span>
-</label>
-
+            <label className="flex items-center space-x-2 cursor-pointer text-black">
+              <input
+                type="checkbox"
+                checked={isActive}
+                onChange={(e) => setIsActive(e.target.checked)}
+                className="w-4 h-4 accent-blue-600 rounded"
+              />
+              <span>Active</span>
+            </label>
 
             <CustomButton className="h-10 px-6" onClick={handleFilterSearch}>
               Search
@@ -1162,250 +1197,278 @@ const fetchUnitTypes = async () => {
         </div>
       )}
       <ToastContainer position="top-right" autoClose={3000} />
-      {showForm && (
-        <div
-          ref={formRef} // Attach the ref here
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
-         text-black outline-none"
-        >
-          <h3 className="text-xl font-semibold mb-4">
-            {formData.userID === 0 ? 'Add New Data' : 'Edit Data'}
-          </h3>
-          <form
-            onSubmit={handleFormSubmit}
-            className="flex flex-wrap gap-4 items-center justify-between"
+    {showForm && (
+  <div
+    ref={formRef}
+    className="w-full rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none"
+  >
+    <h3 className="text-xl font-semibold mb-4">
+      {formData.userID === 0 ? 'Add New Data' : 'Edit Data'}
+    </h3>
+    <form
+      onSubmit={handleFormSubmit}
+      className="flex flex-wrap gap-4 items-center justify-between"
+    >
+      {/* First Row */}
+      <div className="grid grid-cols-4 gap-4 mb-2">
+        {/* Tenant Select */}
+       <div className="w-full max-w-[400px] relative">
+  <select
+    disabled={
+      formData.userID !== 0 ||
+      ['TenantAdmin', 'HostitalAdmin'].includes(
+        sessionStorage.getItem('roleName') || ''
+      )
+    }
+    className="w-full h-[48px] rounded-lg border border-stroke bg-transparent py-2 pl-6 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    value={selectedTenant}
+    onChange={(e) => setSelectedTenant(e.target.value)}
+  >
+    <option value="">
+      {formData.userID !== 0 ||
+      ['TenantAdmin', 'HostitalAdmin'].includes(
+        sessionStorage.getItem('roleName') || ''
+      )
+        ? tenants.find((t) => t.tenantID == selectedTenant)?.tenantName ||
+          'No Tenant Selected'
+        : 'Select Tenant'}
+    </option>
+
+    {formData.userID === 0 &&
+      !['TenantAdmin', 'HostitalAdmin'].includes(
+        sessionStorage.getItem('roleName') || ''
+      ) &&
+      tenants.map((tenant) => (
+        <option key={tenant.tenantID} value={tenant.tenantID}>
+          {tenant.tenantName}
+        </option>
+      ))}
+  </select>
+  <div className="min-h-[1.25rem] mt-1">
+    {errors.tenant && <p className="text-red-500 text-sm">{errors.tenant}</p>}
+  </div>
+</div>
+
+
+        {/* Username */}
+        <div className="w-full max-w-[400px] relative">
+          <input
+            type="text"
+            value={formData.username}
+            maxLength={30}
+            onChange={(e) => handleSingleInputChange('username', e.target.value)}
+            onBlur={handleUsernameBlur}
+            placeholder="User Name"
+            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+          />
+          {usernameAvailable && formData.username && !errors.username && (
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+              <CheckCircle className="w-5 h-5" />
+            </span>
+          )}
+          <div className="min-h-[1.25rem] mt-1">
+            <p
+              className={`text-red-500 text-sm transition-opacity duration-200 ${
+                errors.username ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {errors.username || 'placeholder'}
+            </p>
+          </div>
+        </div>
+
+        {/* Email */}
+        <div className="w-full max-w-[400px] relative">
+          <input
+            type="email"
+            name="email"
+            maxLength={50}
+            value={formData.email}
+            onChange={(e) => handleSingleInputChange('email', e.target.value)}
+            onBlur={handleEmailBlur}
+            placeholder="Email"
+            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary"
+          />
+          {emailAvailable && formData.email && !errors.email && (
+            <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
+          )}
+          <div className="min-h-[1.25rem] mt-1">
+            <p
+              className={`text-red-500 text-sm transition-opacity duration-200 ${
+                errors.email ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {errors.email || 'placeholder'}
+            </p>
+          </div>
+        </div>
+
+        {/* Phone */}
+        <div className="w-full max-w-[400px] relative">
+          <input
+            type="tel"
+            value={formData.phone }
+            maxLength={10}
+            onChange={(e) => handleSingleInputChange('phone', e.target.value)}
+            onBlur={() => handlePhoneBlur()}
+            placeholder="Phone"
+            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary"
+          />
+          {phoneAvailable && formData.phone && !errors.phone && (
+            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
+              <CheckCircle className="w-5 h-5" />
+            </span>
+          )}
+          <div className="min-h-[1.25rem] mt-1">
+            <p
+              className={`text-red-500 text-sm transition-opacity duration-200 ${
+                errors.phone ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              {errors.phone || 'placeholder'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Second Row */}
+      <div className="grid grid-cols-4 gap-4 mb-2">
+        {/* Password (Add mode only) */}
+        {formData.userID === 0 && (
+          <div className="w-full max-w-[400px] relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              placeholder="Password"
+              className="w-full h-[48px] rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-12 text-black outline-none focus:border-primary"
+            />
+            <span
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500"
+            >
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </span>
+            <div className="min-h-[1.25rem] mt-1">
+              {errors.password && (
+                <p className="text-red-500 text-sm">{errors.password}</p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Status (Edit mode only) */}
+        {formData.userID !== 0 && (
+          <div className="w-full max-w-[400px] relative">
+            <select
+              value={formData.isActive}
+              onChange={(e) => {
+                const newStatus = e.target.value;
+                setFormData({ ...formData, isActive: newStatus });
+                handleStatusChange(formData.userID, newStatus === 'Active');
+              }}
+              className="w-full h-[48px] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            >
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        )}
+
+        {/* User Plan */}
+        <div className="w-full max-w-[400px] relative">
+          <select
+            value={formData.userPlan}
+            onChange={(e) => {
+              setFormData((prev) => ({
+                ...prev,
+                userPlan: e.target.value,
+              }));
+            }}
+            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent py-2 pl-6 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary overflow-visible"
           >
-            <div className="grid grid-cols-4 gap-4 mb-2">
-              <select
-                disabled={formData.userID !== 0} // Disable in edit mode
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={selectedTenant} // Ensure controlled component
-                onChange={(e) => setSelectedTenant(e.target.value)} // Update state
-              >
-                <option value="">
-                  {formData.userID !== 0 && selectedTenant
-                    ? tenants.find((t) => t.tenantID == selectedTenant)
-                        ?.tenantName || 'No Tenant Selected'
-                    : 'Select Tenant'}
-                </option>
+            <option value="Free">Free</option>
+            <option value="Bronze">Bronze</option>
+            <option value="Silver">Silver</option>
+            <option value="Gold">Gold</option>
+            <option value="Diamond">Diamond</option>
+            <option value="Platinum">Platinum</option>
+          </select>
+          <div className="min-h-[1.25rem] mt-1">
+            {errors.userPlan && (
+              <p className="text-red-500 text-sm">{errors.userPlan}</p>
+            )}
+          </div>
+        </div>
 
-                {formData.userID === 0 &&
-                  tenants.map((tenant) => (
-                    <option key={tenant.tenantID} value={tenant.tenantID}>
-                      {tenant.tenantName}
-                    </option>
-                  ))}
-              </select>
+        {/* Unit Type */}
+        <div className="w-full max-w-[400px] relative">
+          <select
+            key={selectedUnitID}
+            value={selectedUnitType}
+            onChange={handleUnitTypeChange}
+            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent py-2 pl-6 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary overflow-visible"
+          >
+            <option value="">Select Unit Type</option>
+            {unitTypes.map((unit) => (
+              <option key={unit.appLOVID} value={String(unit.appLOVID)}>
+                {unit.name}
+              </option>
+            ))}
+          </select>
+          <div className="min-h-[1.25rem] mt-1">
+            {errors.unitType && (
+              <p className="text-red-500 text-sm">{errors.unitType}</p>
+            )}
+          </div>
+        </div>
 
-              {/* Username */}
-              <div className="relative">
-                <input
-                  type="text"
-                  value={formData.username}
-                  maxLength={50}
-                  onChange={(e) =>
-                    handleSingleInputChange('username', e.target.value)
-                  }
-                  onBlur={handleUsernameBlur}
-                  placeholder="User Name"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                />
-                {usernameAvailable && formData.username && !errors.username && (
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
-                    <CheckCircle className="w-5 h-5" />
-                  </span>
-                )}
-                {errors.username && (
-                  <p className="text-red-500 text-sm mt-1">{errors.username}</p>
-                )}
-              </div>
-
-              {/* Email */}
-              <div className="relative">
-                <input
-                  type="email"
-                  name="email"
-                  maxLength={50}
-                  value={formData.email}
-                  onChange={(e) =>
-                    handleSingleInputChange('email', e.target.value)
-                  }
-                  onBlur={handleEmailBlur}
-                  placeholder="Email"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-                />
-                {emailAvailable && formData.email && !errors.email && (
-                  <CheckCircle className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500 w-5 h-5" />
-                )}
-                {errors.email && (
-                  <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                )}
-              </div>
-
-              {/* phone */}
-              <div className="relative">
-                <input
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    handleSingleInputChange('phone', e.target.value)
-                  }
-                  onBlur={() => handlePhoneBlur()}
-                  placeholder="phone"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-                />
-                {phoneAvailable && formData.phone && !errors.phone && (
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
-                    <CheckCircle className="w-5 h-5" />
-                  </span>
-                )}
-                {errors.phone && (
-                  <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Second Row: Password, Status (Only for Edit Mode), User Plan */}
-            <div className="grid grid-cols-4 gap-4 mb-2">
-              {/* Password (Only Show in Add Mode) */}
-              {formData.userID === 0 && (
-                <div className="relative w-full">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleInputChange}
-                    placeholder="Password"
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-12 text-black outline-none focus:border-primary"
-                  />
-                  <span
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute top-1/2 right-4 transform -translate-y-1/2 cursor-pointer text-gray-500"
+        {/* Second Dropdown (Lab/Hospital) */}
+        {selectedUnitType && (
+          <div className="w-full max-w-[400px] relative">
+            <select
+              value={selectedSecondItem}
+              onChange={handleSecondItemChange}
+              className="w-full h-[48px] rounded-lg border border-stroke bg-transparent py-2 pl-6 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary overflow-visible"
+            >
+              <option value="" disabled>
+                {selectedUnitType === 'Lab' ? 'Select Lab' : 'Select Hospital'}
+              </option>
+              {secondDropdownData.length > 0 ? (
+                secondDropdownData.map((item) => (
+                  <option
+                    key={
+                      selectedUnitType === 'Lab'
+                        ? item.laboratoryID
+                        : item.hospitalID
+                    }
+                    value={
+                      selectedUnitType === 'Lab'
+                        ? item.laboratoryID
+                        : item.hospitalID
+                    }
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </span>
-                  {errors.password && (
-                    <p className="text-red-500 text-sm mt-1">
-                      {errors.password}
-                    </p>
-                  )}
-                </div>
+                    {selectedUnitType === 'Lab'
+                      ? item.labName
+                      : item.hospitalName}
+                  </option>
+                ))
+              ) : (
+                <option disabled>No Data Available</option>
               )}
-
-              {/* Status (Only Show in Edit Mode) */}
-              {formData.userID !== 0 && (
-                <select
-                  value={formData.isActive}
-                  onChange={(e) => {
-                    const newStatus = e.target.value;
-                    setFormData({ ...formData, isActive: newStatus });
-                    handleStatusChange(formData.userID, newStatus === 'Active');
-                  }}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
+            </select>
+            <div className="min-h-[1.25rem] mt-1">
+              {errors.unitID && (
+                <p className="text-red-500 text-sm">{errors.unitID}</p>
               )}
-
-              {/* User Plan */}
-              <select
-                value={formData.userPlan}
-                onChange={(e) => {
-                  setFormData((prev) => ({
-                    ...prev,
-                    userPlan: e.target.value,
-                  }));
-                }}
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-  text-black outline-none focus:border-primary dark:border-form-strokedark 
-  dark:bg-form-input dark:text-white dark:focus:border-primary"
-              >
-                <option value="Free">Free</option>
-                <option value="Bronze">Bronze</option>
-                <option value="Silver">Silver</option>
-                <option value="Gold">Gold</option>
-                <option value="Diamond">Diamond</option>
-                <option value="Platinum">Platinum</option>
-              </select>
-              {errors.userPlan && (
-                <p className="text-red-500 text-sm mt-1">{errors.userPlan}</p>
-              )}
-
-              <div>
-                {/* First Dropdown: Unit Type */}
-                <select
-                  key={selectedUnitID}
-                  value={selectedUnitType}
-                  onChange={handleUnitTypeChange} // Update the state and clear error
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  <option value="">Select Unit Type</option>
-                  {unitTypes.map((unit) => (
-                    <option key={unit.appLOVID} value={String(unit.appLOVID)}>
-                      {unit.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.unitType && (
-                  <p className="text-red-500 text-sm mt-1">{errors.unitType}</p>
-                )}
-              </div>
-              {/* Second Dropdown: Lab or Hospital */}
-              {selectedUnitType && (
-                <div>
-                  <select
-                    value={selectedSecondItem}
-                    onChange={handleSecondItemChange}
-                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  >
-                    <option value="" disabled>
-                      {selectedUnitType === 'Lab'
-                        ? 'Select Lab'
-                        : 'Select Hospital'}
-                    </option>
-                    {secondDropdownData.length > 0 ? (
-                      secondDropdownData.map((item) => (
-                        <option
-                          key={
-                            selectedUnitType === 'Lab'
-                              ? item.laboratoryID
-                              : item.hospitalID
-                          }
-                          value={
-                            selectedUnitType === 'Lab'
-                              ? item.laboratoryID
-                              : item.hospitalID
-                          }
-                        >
-                          {selectedUnitType === 'Lab'
-                            ? item.labName
-                            : item.hospitalName}
-                        </option>
-                      ))
-                    ) : (
-                      <option disabled>No Data Available</option>
-                    )}
-                  </select>
-
-                  {/* Display error directly below the second dropdown */}
-                  {errors.unitID && (
-                    <p className="text-red-500 text-sm mt-1">{errors.unitID}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Empty column for spacing when Status is hidden */}
-              {formData.userID === 0 && <div></div>}
             </div>
+          </div>
+        )}
+      </div>
 
-            {/* Buttons Row */}
+      {/* Buttons */}
+      {/* Buttons Row */}
             <div className="flex justify-end gap-4 mt-4">
               <CustomButton type="submit" onClick={handleFormSubmit}>
                 {formData.userID === 0 ? 'Save' : 'Update'}
@@ -1415,9 +1478,10 @@ const fetchUnitTypes = async () => {
                 Cancel
               </CustomButton>
             </div>
-          </form>
-        </div>
-      )}
+
+    </form>
+  </div>
+)}
 
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
         <div className="relative">
@@ -1426,7 +1490,7 @@ const fetchUnitTypes = async () => {
             placeholder="Quick Search.."
             value={quickSearchText}
             onChange={(e) => setQuickSearchText(e.target.value)}
-            className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+            className="sm:w-60 w-full rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
           <span className="absolute right-4 top-4">
             <svg

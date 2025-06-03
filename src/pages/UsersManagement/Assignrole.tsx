@@ -51,6 +51,8 @@ const Assignrole: React.FC = () => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [allRoles, setAllRoles] = useState<any[]>([]);
 
+const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
+
   const [name, setName] = useState('');
   const [tenant, setTenant] = useState('');
   const [hospitality, setHospitality] = useState('');
@@ -110,51 +112,57 @@ const Assignrole: React.FC = () => {
 
   // Fetch user data and map tenantName
   useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        // Using axios to make the request
-        const response = await api.get('/User');
-        const result = response.data; // Axios automatically parses the response as JSON
+ 
 
-        console.log('API Response:', result); // Debugging log
+  if (tenants.length > 0) {
+    fetchUsers();
+  }
+}, [tenants]);
 
-        let usersArray = [];
+ const fetchUsers = async () => {
+    try {
+      // Get tenantID and roleName from sessionStorage or your state management
+      const tenantID = sessionStorage.getItem('tenantID');
+      const roleName = sessionStorage.getItem('roleName'); // Example source
 
-        // Check if response is an array or contains data in a 'data' field
-        if (Array.isArray(result)) {
-          usersArray = result;
-        } else if (result.success && Array.isArray(result.data)) {
-          usersArray = result.data;
-        } else {
-          console.error('❌ Unexpected API response format:', result);
-          return;
-        }
-
-        // Create a tenant lookup for faster mapping
-        const tenantLookup = tenants.reduce((acc, tenant) => {
-          acc[tenant.tenantID] = tenant.tenantName;
-          return acc;
-        }, {});
-
-        // Transform data to include tenantName
-        const transformedData = usersArray.map((user: User) => ({
-          ...user,
-          tenantName: tenantLookup[user.tenantID] || 'Unknown Tenant',
-        }));
-
-        setRowData(transformedData);
-        setUsers(transformedData.map((user) => user.username));
-      } catch (error) {
-        console.error('❌ Error fetching user data:', error);
-        alert('Error fetching user data.');
+      let url = '/User';
+      if (roleName === 'HospitalAdmin' || roleName === 'TenantAdmin') {
+        url += `?tenantID=${tenantID}`;
       }
-    };
 
-    // Fetch users once tenants are loaded
-    if (tenants.length > 0) {
-      fetchUsers();
+      const response = await api.get(url);
+      const result = response.data;
+
+      console.log('API Response:', result);
+
+      let usersArray = [];
+
+      if (Array.isArray(result)) {
+        usersArray = result;
+      } else if (result.success && Array.isArray(result.data)) {
+        usersArray = result.data;
+      } else {
+        console.error('❌ Unexpected API response format:', result);
+        return;
+      }
+
+      const tenantLookup = tenants.reduce((acc, tenant) => {
+        acc[tenant.tenantID] = tenant.tenantName;
+        return acc;
+      }, {} as Record<number, string>);
+
+      const transformedData = usersArray.map((user: User) => ({
+        ...user,
+        tenantName: tenantLookup[user.tenantID] || 'Unknown Tenant',
+      }));
+
+      setRowData(transformedData);
+      setUsers(transformedData.map((user) => user.username));
+    } catch (error) {
+      console.error('❌ Error fetching user data:', error);
+      alert('Error fetching user data.');
     }
-  }, [tenants]);
+  };
 
   if (error) {
     return <div>Error: {error}</div>;
@@ -412,23 +420,23 @@ const handleSaveRoles = async () => {
     setShowForm(false); // Close the form
   };
 
-  const applyFilters = () => {
-    const filtered = rowData.filter((row) => {
-      return (
-        (tenant ? row.tenantName.includes(tenant) : true) &&
-        (hospitality ? row.username.includes(hospitality) : true) &&
-        (username ? row.username.includes(username) : true) &&
-        (quickSearchText
-          ? row.username
-              .toLowerCase()
-              .includes(quickSearchText.toLowerCase()) ||
-            row.email.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-            row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase())
-          : true)
-      );
-    });
-    setFilteredData(filtered);
-  };
+  // const applyFilters = () => {
+  //   const filtered = rowData.filter((row) => {
+  //     return (
+  //       (tenant ? row.tenantName.includes(tenant) : true) &&
+  //       (hospitality ? row.username.includes(hospitality) : true) &&
+  //       (username ? row.username.includes(username) : true) &&
+  //       (quickSearchText
+  //         ? row.username
+  //             .toLowerCase()
+  //             .includes(quickSearchText.toLowerCase()) ||
+  //           row.email.toLowerCase().includes(quickSearchText.toLowerCase()) ||
+  //           row.tenantName.toLowerCase().includes(quickSearchText.toLowerCase())
+  //         : true)
+  //     );
+  //   });
+  //   setFilteredData(filtered);
+  // };
 
   const onGridReady = (params: any) => {
     gridApi.current = params.api;
@@ -436,6 +444,33 @@ const handleSaveRoles = async () => {
     gridColumnApi.current = params.columnApi;
     params.api.sizeColumnsToFit();
   };
+
+  const handleSearch = async () => {
+  if (!tenantID || !username) {
+    alert('Please select a user.');
+    return;
+  }
+
+  try {
+   const response = await api.get(`/User?tenantId=${tenantID}&userName=${username}`);
+
+    const result = response.data;
+
+    console.log('Filtered User Result:', result);
+
+    let usersArray = [];
+    if (Array.isArray(result)) {
+      usersArray = result;
+    } else if (result.success && Array.isArray(result.data)) {
+      usersArray = result.data;
+    }
+
+    setRowData(usersArray); // or however you show the result
+  } catch (error) {
+    console.error('Error during user search:', error);
+    alert('Failed to search user.');
+  }
+};
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -488,18 +523,31 @@ const handleSaveRoles = async () => {
   </select> */}
 
         <select
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          onChange={(e) => setUserName(e.target.value)}
-        >
-          <option value="">Select User</option>
-          {users.map((username, index) => (
-            <option key={index} value={username}>
-              {username}
-            </option>
-          ))}
-        </select>
+         value={username} 
+  className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  onChange={(e) => setUserName(e.target.value)}
+>
+  <option value="">Select User</option>
+  {users.map((username, index) => (
+    <option key={index} value={username}>
+      {username}
+    </option>
+  ))}
+</select>
 
-        <CustomButton onClick={applyFilters}>Search</CustomButton>
+<CustomButton onClick={handleSearch}>Search</CustomButton>
+<CustomButton
+   className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
+            
+  onClick={() => {
+    setUserName(''); // Use the correct setter name here
+    fetchUsers();
+  }}
+>
+  Reset
+</CustomButton>
+
+
       </div>
 
       {/* Grid Table */}

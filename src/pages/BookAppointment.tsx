@@ -132,7 +132,16 @@ const [loading, setLoading] = useState(false); // ✅ default is false
  useEffect(() => {
   const fetchHospitals = async () => {
     try {
-      const response = await api.get('/Hospital/List');
+      const tenantID = sessionStorage.getItem('tenantID');
+      const roleName = sessionStorage.getItem('roleName');
+
+      // Construct the URL with tenantId only if roleName is TenantAdmin
+      let url = '/Hospital/List';
+      if (roleName === 'TenantAdmin' && tenantID) {
+        url += `?tenantId=${tenantID}`;
+      }
+
+      const response = await api.get(url);
       const result = response.data;
 
       let hospitalData = [];
@@ -148,13 +157,12 @@ const [loading, setLoading] = useState(false); // ✅ default is false
       }
 
       const activeHospitals = hospitalData.filter(
-        (hospital) => hospital.isActive,
+        (hospital) => hospital.isActive
       );
 
       setHospitals(activeHospitals);
 
       // ❌ Don’t prefill hospital
-      // setSelectedHospitalID(activeHospitals[0]?.hospitalID);
       // ❌ Don’t fetch doctors yet
     } catch (error) {
       console.error('Error fetching hospitals:', error);
@@ -163,6 +171,9 @@ const [loading, setLoading] = useState(false); // ✅ default is false
 
   fetchHospitals();
 }, []);
+
+
+
 
   const fetchDoctors = async (hospitalId: string) => {
   try {
@@ -889,7 +900,8 @@ const timeSlotData = timeSlotResponse.data;
                   placeholder={isOthers ? 'Enter your Name' : 'Name'}
                   value={formData.name}
                   onChange={handleInputChange}
-                  disabled={isSelf && roleName !== 'Reception'}
+                 disabled={isSelf && roleName !== 'Reception' && roleName !== 'TenantAdmin'}
+
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
                 {errors.name && (
@@ -906,7 +918,8 @@ const timeSlotData = timeSlotResponse.data;
                   placeholder={isOthers ? 'Enter your number' : 'Phone Number'}
                   value={formData.phoneNumber}
                   onChange={handleInputChange}
-                  disabled={isSelf && roleName !== 'Reception'}
+                 disabled={isSelf && roleName !== 'Reception' && roleName !== 'TenantAdmin'}
+
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                 />
                 {errors.phoneNumber && (
@@ -1014,7 +1027,7 @@ const timeSlotData = timeSlotResponse.data;
             <div className="mb-4">
               <textarea
                 name="reason"
-                maxLength={255}
+                maxLength={200}
                 placeholder="Enter your text here..."
                 value={formData.reason}
                 onChange={handleInputChange}

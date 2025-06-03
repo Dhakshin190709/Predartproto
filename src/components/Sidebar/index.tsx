@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Logo from '../../images/logo/logo-bg.png';
+import Logo from '../../images/logo/logo-bg (2).png';
 import { NavLink } from 'react-router-dom';
 import { FaBookMedical, FaCcMastercard, FaChevronDown, FaChevronUp, FaGooglePay, FaMagic } from 'react-icons/fa';
 
@@ -33,7 +33,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Home: { icon: <FaHome />, route: '/homePage' },
   Dashboard: { icon: <MdDashboard />, route: '/dashboard' },
   Appointment: { icon: <FaCalendarAlt />, route: '#' },
-  Calender: { icon: <MdDateRange />, route: '/calendar' },
+  Calendar: { icon: <MdDateRange />, route: '/calendar' },
   Search: { icon: <FaSearch />, route: '#' },
   'Manage Availablilty': {
     icon: <FaUserCheck />,

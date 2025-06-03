@@ -132,27 +132,26 @@ const SearchDoctors: React.FC = () => {
     }
   }, []);
 
- const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value;
+  const handleDoctorNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
 
-  // Allow letters, digits, spaces, underscores, and dots
-  const sanitizedValue = value.replace(/[^\p{L}\d_. ]/gu, '');
-  setDoctorName(sanitizedValue);
+    // Allow letters, digits, spaces, underscores, and dots
+    const sanitizedValue = value.replace(/[^\p{L}\d_. ]/gu, '');
+    setDoctorName(sanitizedValue);
 
-  // Validation rules
-  if (
-    !/^[\p{L}\d_. ]+$/u.test(sanitizedValue) ||  // Invalid characters
-    /^[_.]/.test(sanitizedValue) ||              // Starts with . or _
-    /[_.]$/.test(sanitizedValue)                 // Ends with . or _
-  ) {
-    setDoctorNameError(
-      'Only letters, numbers, spaces, underscores, and dots are allowed. Cannot start or end with a dot or underscore.'
-    );
-  } else {
-    setDoctorNameError('');
-  }
-};
-
+    // Validation rules
+    if (
+      !/^[\p{L}\d_. ]+$/u.test(sanitizedValue) || // Invalid characters
+      /^[_.]/.test(sanitizedValue) || // Starts with . or _
+      /[_.]$/.test(sanitizedValue) // Ends with . or _
+    ) {
+      setDoctorNameError(
+        'Only letters, numbers, spaces, underscores, and dots are allowed. Cannot start or end with a dot or underscore.',
+      );
+    } else {
+      setDoctorNameError('');
+    }
+  };
 
   const handleMobileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -177,81 +176,87 @@ const SearchDoctors: React.FC = () => {
   };
 
   // 🔄 Fetch hospitals and handle role logic
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital/List');
-        const data = response.data;
-
-        if (Array.isArray(data)) {
-          // ✅ Filter only active hospitals
-          const activeHospitals = data.filter((h) => h.isActive);
-
-          // ✅ Map hospitalID to hospitalName
-          const hospitalMap = activeHospitals.reduce(
-            (acc, h) => {
-              acc[String(h.hospitalID)] = h.hospitalName;
-              return acc;
-            },
-            {} as { [key: string]: string },
-          );
-
-          setHospitals(hospitalMap);
-
-          // ✅ Session values
-          const roleName = sessionStorage.getItem('roleName');
-          const unitID = sessionStorage.getItem('unitID');
-
-          console.log('Role Name:', roleName);
-          console.log('Unit ID:', unitID);
-          console.log('Hospital Map:', hospitalMap);
-
-          // ✅ Prefill for HostitalAdmin
-          if (roleName === 'HostitalAdmin' && unitID && hospitalMap[unitID]) {
-            console.log('✅ Prefilling hospital:', unitID, hospitalMap[unitID]);
-            setSelectedHospital(unitID);
-            setIsHospitalDisabled(true);
-          } else {
-            setSelectedHospital('');
-            setIsHospitalDisabled(false);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-        toast.error('Failed to load hospitals');
-      }
-    };
-
-    fetchHospitals();
-  }, []);
-
-  // ✅ 2. Fetch Doctor Data — filter by hospital if HostitalAdmin
-  const fetchAllDoctors = async () => {
+ useEffect(() => {
+  const fetchHospitals = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
-      const unitID = sessionStorage.getItem('unitID');
+      const tenantID = sessionStorage.getItem('tenantID');
 
-      let url = '/Doctor';
-      if (roleName === 'HostitalAdmin' && unitID) {
-        url += `?hospitalId=${unitID}`;
+      // Build the URL with tenantId param only for TenantAdmin
+      let url = '/Hospital/List';
+      if (roleName === 'TenantAdmin' && tenantID) {
+        url += `?tenantId=${tenantID}`;
       }
 
       const response = await api.get(url);
-      const result = response.data;
+      const data = response.data;
 
-      if (result?.data) {
-        setDoctorData(result.data);
-        setFilteredDoctors(result.data);
-      } else {
-        setDoctorData([]);
-        setFilteredDoctors([]);
+      if (Array.isArray(data)) {
+        const activeHospitals = data.filter((h) => h.isActive);
+
+        const hospitalMap = activeHospitals.reduce(
+          (acc, h) => {
+            acc[String(h.hospitalID)] = h.hospitalName;
+            return acc;
+          },
+          {} as { [key: string]: string },
+        );
+
+        setHospitals(hospitalMap);
+
+        const unitID = sessionStorage.getItem('unitID');
+
+        if (roleName === 'HostitalAdmin' && unitID && hospitalMap[unitID]) {
+          setSelectedHospital(unitID);
+          setIsHospitalDisabled(true);
+        } else {
+          setSelectedHospital('');
+          setIsHospitalDisabled(false);
+        }
       }
     } catch (error) {
-      console.error('Error fetching doctor data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching hospitals:', error);
+      toast.error('Failed to load hospitals');
     }
   };
+
+  fetchHospitals();
+}, []);
+
+
+
+  // ✅ 2. Fetch Doctor Data — filter by hospital if HostitalAdmin
+ const fetchAllDoctors = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    let url = `/Doctor?tenantId=${tenantID || ''}`;
+
+    if (roleName === 'HostitalAdmin' && unitID) {
+      url += `&hospitalId=${unitID}`;
+    }
+
+    // Note: No need for extra condition for 'TenantAdmin' as tenantId is already included above
+
+    const response = await api.get(url);
+    const result = response.data;
+
+    if (result?.data) {
+      setDoctorData(result.data);
+      setFilteredDoctors(result.data);
+    } else {
+      setDoctorData([]);
+      setFilteredDoctors([]);
+    }
+  } catch (error) {
+    console.error('Error fetching doctor data:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchAllDoctors();
@@ -675,61 +680,77 @@ const SearchDoctors: React.FC = () => {
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
 
-  const fetchDoctors = async (hospitalId: string) => {
-    try {
-      const response = await api.get('/Doctor', {
-        params: { HospitalID: hospitalId },
-      });
-      const result = response.data;
+//  const fetchDoctors = async (hospitalId: string) => {
+//   try {
+//     const roleName = sessionStorage.getItem('roleName');
+//     const tenantID = sessionStorage.getItem('tenantID');
 
-      if (result.success && Array.isArray(result.data)) {
-        setDoctors(result.data);
-      } else {
-        console.error('Invalid doctor data format:', result.data);
-        setDoctors([]);
-      }
-    } catch (error) {
-      console.error('Error fetching doctors:', error);
-    }
-  };
+//     // Build params object based on role
+//     const params: any = {
+//       HospitalID: hospitalId,
+//     };
 
- useEffect(() => {
-  const fetchPatientData = async () => {
-    const userID = sessionStorage.getItem('userID');
-    const roleName = sessionStorage.getItem('roleName');
+//     // If TenantAdmin, also add tenantID param
+//     if (roleName === 'TenantAdmin' && tenantID) {
+//       params.tenantID = tenantID;
+//     }
 
-    // Only fetch if role is not Reception and not HostitalAdmin
-    if (userID && roleName !== 'Reception' && roleName !== 'HostitalAdmin') {
-      try {
-        const response = await api.get('/Patient/GetPatientByUserID', {
-          params: { userId: userID },
-        });
+//     const response = await api.get('/Doctor', { params });
+//     const result = response.data;
 
-        const data = response.data;
+//     if (result.success && Array.isArray(result.data)) {
+//       setDoctors(result.data);
+//     } else {
+//       console.error('Invalid doctor data format:', result.data);
+//       setDoctors([]);
+//     }
+//   } catch (error) {
+//     console.error('Error fetching doctors:', error);
+//   }
+// };
 
-        if (data.success && data.data) {
-          const name = data.data.patientName || '';
-          const phoneNumber = data.data.patientPhoneNumber || '';
 
-          setPatientData({ name, phoneNumber });
+  useEffect(() => {
+    const fetchPatientData = async () => {
+      const userID = sessionStorage.getItem('userID');
+      const roleName = sessionStorage.getItem('roleName');
 
-          setFormData((prev) => ({
-            ...prev,
-            name,
-            phoneNumber,
-          }));
-        } else {
-          console.warn('⚠️ Failed to fetch patient data');
+      // Only fetch if role is not Reception and not HostitalAdmin
+      if (
+        userID &&
+        roleName !== 'Reception' &&
+        roleName !== 'HostitalAdmin' &&
+        roleName !== 'TenantAdmin'
+      ) {
+        try {
+          const response = await api.get('/Patient/GetPatientByUserID', {
+            params: { userId: userID },
+          });
+
+          const data = response.data;
+
+          if (data.success && data.data) {
+            const name = data.data.patientName || '';
+            const phoneNumber = data.data.patientPhoneNumber || '';
+
+            setPatientData({ name, phoneNumber });
+
+            setFormData((prev) => ({
+              ...prev,
+              name,
+              phoneNumber,
+            }));
+          } else {
+            console.warn('⚠️ Failed to fetch patient data');
+          }
+        } catch (err) {
+          console.error('❌ Error fetching patient data:', err);
         }
-      } catch (err) {
-        console.error('❌ Error fetching patient data:', err);
       }
-    }
-  };
+    };
 
-  fetchPatientData();
-}, []);
-
+    fetchPatientData();
+  }, []);
 
   // ✅ Helper function to reset the form completely
   const resetForm = () => {
@@ -924,11 +945,11 @@ const SearchDoctors: React.FC = () => {
       toast.error('User not logged in. Please log in again.');
       return;
     }
-// Prevent submission for HospitalAdmin
-  if (roleName === 'HostitalAdmin') {
-    toast.warning('Hospital Admin is not allowed to submit this form.');
-    return;
-  }
+    // Prevent submission for HospitalAdmin
+    if (roleName === 'HostitalAdmin') {
+      toast.warning('Hospital Admin is not allowed to submit this form.');
+      return;
+    }
     // Validate all fields and collect errors
     const newErrors = {
       name: validateField('name', formData.name),
@@ -1048,7 +1069,7 @@ const SearchDoctors: React.FC = () => {
   const handleSearch = async () => {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
-
+    const tenantID = sessionStorage.getItem('tenantID');
     // At least one filter should be provided
     const hasAnyFilter =
       DoctorName || mobile || selectedSpecializationID || selectedHospital;
@@ -1060,11 +1081,16 @@ const SearchDoctors: React.FC = () => {
 
     const queryParams: Record<string, string> = {};
 
-    // Hospital ID logic (optional)
+    // Role-based filtering
     if (roleName === 'Patient' && selectedHospital) {
       queryParams.hospitalId = selectedHospital;
     } else if (roleName === 'HostitalAdmin' && unitID) {
       queryParams.hospitalId = unitID;
+    } else if (roleName === 'TenantAdmin' && tenantID) {
+      queryParams.tenantId = tenantID;
+      if (selectedHospital) {
+        queryParams.hospitalId = selectedHospital;
+      }
     }
 
     if (selectedSpecializationID) {
@@ -1094,24 +1120,26 @@ const SearchDoctors: React.FC = () => {
     }
   };
 
-  const handleReset = async (event) => {
-    event.preventDefault();
+const handleReset = async (event) => {
+  event.preventDefault();
 
-    const roleName = sessionStorage.getItem('roleName');
-    const unitID = sessionStorage.getItem('unitID');
+  const roleName = sessionStorage.getItem('roleName');
+  const unitID = sessionStorage.getItem('unitID');
 
-    setDoctorName('');
-    setMobile('');
-    setSelectedSpecializationID('');
+  setDoctorName('');
+  setMobile('');
+  setSelectedSpecializationID('');
 
-    if (roleName === 'Patient') {
-      setSelectedHospital('');
-    } else if (roleName === 'HostitalAdmin') {
-      setSelectedHospital(unitID || '');
-    }
+  // Reset hospital based on role
+  if (roleName === 'HostitalAdmin') {
+    setSelectedHospital(unitID || '');
+  } else {
+    // For Patient, TenantAdmin, and others
+    setSelectedHospital('');
+  }
 
-    await fetchAllDoctors();
-  };
+  await fetchAllDoctors();
+};
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
@@ -1152,7 +1180,7 @@ const SearchDoctors: React.FC = () => {
             <input
               type="text"
               value={DoctorName}
-              maxLength={20}
+              maxLength={30}
               onChange={handleDoctorNameChange}
               className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
         text-black outline-none focus:border-primary dark:border-form-strokedark

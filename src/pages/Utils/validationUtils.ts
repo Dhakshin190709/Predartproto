@@ -50,10 +50,14 @@ export const checkEmailAvailability = async (email: string): Promise<{ success: 
 };
 
 
-
 export const checkPhoneAvailability = async (
-  phone: string
+  phone: string | undefined
 ): Promise<{ success: boolean; message: string }> => {
+  // Check if phone is a string and not empty
+  if (!phone || typeof phone !== 'string') {
+    return { success: false, message: 'Phone number is required' };
+  }
+
   const trimmedPhone = phone.trim();
   const phoneRegex = /^[0-9]{10}$/;
 
