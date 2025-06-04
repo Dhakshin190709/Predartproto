@@ -583,11 +583,12 @@ const fetchUserRoles = async () => {
               <div className="relative">
                 <input
                   type="text"
+                  
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
                   value={formData.name}
-                  maxLength={20}
+                  maxLength={30}
                   onChange={(e) =>
                     handleSingleInputChange('name', e.target.value)
                   }
@@ -610,6 +611,7 @@ const fetchUserRoles = async () => {
               <div className="relative">
                 <input
                   type="email"
+                  maxLength={50}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -639,6 +641,7 @@ const fetchUserRoles = async () => {
               <div className="relative">
                 <input
                   type="tel"
+                  maxLength={10}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                         text-black outline-none focus:border-primary dark:border-form-strokedark 
                         dark:bg-form-input dark:text-white dark:focus:border-primary"

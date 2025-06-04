@@ -4,6 +4,7 @@ import patientIcon from '../../images/icon/Patient profile people (3).svg';
 import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
 import CalendarIcon from '../../images/icon/Blossom calendar festival (1).svg';
 
+import * as signalR from '@microsoft/signalr';
 import ClockIcon from '../../images/icon/Clock (1).svg';
 import DoctorIcon from '../../images/icon/Surgeon medicine doctor physician.svg';
 import HospitalIcon from '../../images/icon/Hospital solid (1).svg';
@@ -142,7 +143,7 @@ const AppointmentCard: React.FC = () => {
     date: null as Date | null,
     time: null as Date | null,
   });
-
+ const [updates, setUpdates] = useState([]);
   const [errors, setErrors] = useState({
     name: '',
     relationship: '',
@@ -154,6 +155,55 @@ const AppointmentCard: React.FC = () => {
     date: '',
     time: '',
   });
+
+
+useEffect(() => {
+  const connection = new signalR.HubConnectionBuilder()
+    .withUrl('https://predart003-001-site1.anytempurl.com/dashboardHub', {
+      accessTokenFactory: () => localStorage.getItem('jwtToken')
+    })
+    .withAutomaticReconnect()
+    .build();
+
+  connection.start()
+    .then(() => console.log('✅ Connected to SignalR'))
+    .catch(console.error);
+
+  // Update existing appointment
+  connection.on('ReceiveStatusUpdate', (updatedAppointment) => {
+    console.log('📥 Received status update:', updatedAppointment);
+
+    setAppointments(prevAppointments => {
+      return prevAppointments.map(appointment =>
+        appointment.appointmentID === updatedAppointment.appointmentID
+          ? { ...appointment, ...updatedAppointment }
+          : appointment
+      );
+    });
+  });
+
+  // Add new appointment
+  connection.on('AppointmentNew', (newAppointment) => {
+    console.log('🆕 New appointment received:', newAppointment);
+
+    setAppointments(prevAppointments => {
+      const exists = prevAppointments.some(
+        a => a.appointmentID === newAppointment.appointmentID
+      );
+      return exists ? prevAppointments : [...prevAppointments, newAppointment];
+    });
+  });
+
+  return () => {
+    connection.stop()
+      .then(() => console.log('SignalR connection stopped'))
+      .catch(err => console.error('Error stopping SignalR connection:', err));
+  };
+}, []);
+
+ 
+
+
 
   useEffect(() => {
     if (roleName && roleName !== 'Patient') {
@@ -287,81 +337,73 @@ const AppointmentCard: React.FC = () => {
   };
 
   const fetchAppointmentsBasedOnRole = async (userID: string, role: string) => {
-    setLoading(true);
-    setAppointments([]); // Clear previous appointments
+  setLoading(true);
+  setAppointments([]);
 
-    try {
-      let endpoint = '/Appointment/GetAppointment';
+  try {
+    const todayDate = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
+    let endpoint = `/Appointment/GetAppointment?StartDate=${todayDate}`; // relative path
 
-      if (role === 'Patient') {
-        const patientID = sessionStorage.getItem('patientID');
-        if (!patientID) {
-          console.warn('⚠️ patientID not found in sessionStorage.');
-          return;
-        }
-        endpoint += `?PatientID=${patientID}`;
-      } else if (role === 'Doctor') {
-        const doctorID = sessionStorage.getItem('doctorID');
-        if (!doctorID) {
-          console.warn('⚠️ doctorID not found in sessionStorage.');
-          return;
-        }
-        endpoint += `?DoctorID=${doctorID}`;
-      } else if (
-        ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
-      ) {
-        const unitID = sessionStorage.getItem('unitID');
-        if (!unitID) {
-          console.warn('⚠️ unitID not found in sessionStorage.');
-          return;
-        }
-
-        endpoint += `?HospitalID=${unitID}`;
-
-        const statusMap: Record<string, string> = {
-          Medical: 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396',
-          LABIncharge: 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396',
-          Cash: '5855b16d-1447-4856-b4be-08dd57ac7396',
-        };
-
-        if (statusMap[role]) {
-          endpoint += `&StatusID=${statusMap[role]}`;
-        }
-      } else if (role === 'TenantAdmin') {
-        const tenantID = sessionStorage.getItem('tenantID');
-        if (!tenantID) {
-          console.warn('⚠️ tenantID not found in sessionStorage.');
-          return;
-        }
-        endpoint += `?tenantID=${tenantID}`;
+    if (role === 'Patient') {
+      const patientID = sessionStorage.getItem('patientID');
+      if (!patientID) {
+        console.warn('⚠️ patientID not found in sessionStorage.');
+        return;
       }
-
-      const response = await api.get(endpoint);
-      const apptData = response.data;
-
-      // Filter appointments for today
-      if (Array.isArray(apptData)) {
-        const todayStr = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
-
-        const filtered = apptData.filter((appt: any) => {
-          const apptDateStr = new Date(appt.appointmentDate)
-            .toISOString()
-            .split('T')[0];
-          return apptDateStr === todayStr;
-        });
-
-        setAppointments(filtered);
-        setNoAppointments(filtered.length === 0);
-      } else {
-        setAppointments([]);
-        setNoAppointments(true);
+      endpoint += `&PatientID=${patientID}`;
+    } else if (role === 'Doctor') {
+      const doctorID = sessionStorage.getItem('doctorID');
+      if (!doctorID) {
+        console.warn('⚠️ doctorID not found in sessionStorage.');
+        return;
       }
-    } catch (error) {
-      console.error('❌ Error fetching appointments:', error);
-    } finally {
-      setLoading(false);
+      endpoint += `&DoctorID=${doctorID}`;
+    } else if (
+      ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
+    ) {
+      const unitID = sessionStorage.getItem('unitID');
+      if (!unitID) {
+        console.warn('⚠️ unitID not found in sessionStorage.');
+        return;
+      }
+      endpoint += `&HospitalID=${unitID}`;
+
+      const statusMap: Record<string, string> = {
+        Medical: 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396',
+        LABIncharge: 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396',
+        Cash: '5855b16d-1447-4856-b4be-08dd57ac7396',
+      };
+
+      if (statusMap[role]) {
+        endpoint += `&StatusID=${statusMap[role]}`;
+      }
+    } else if (role === 'TenantAdmin') {
+      const tenantID = sessionStorage.getItem('tenantID');
+      if (!tenantID) {
+        console.warn('⚠️ tenantID not found in sessionStorage.');
+        return;
+      }
+      endpoint += `&TenantID=${tenantID}`;
     }
-  };
+
+    const response = await api.get(endpoint);
+    const apptData = response.data;
+
+    if (Array.isArray(apptData)) {
+      setAppointments(apptData);
+      setNoAppointments(apptData.length === 0);
+    } else {
+      setAppointments([]);
+      setNoAppointments(true);
+    }
+  } catch (error) {
+    console.error('❌ Error fetching appointments:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 
   const filteredTimeSlots = availableSlots.filter(
     (slot) => slot.date === selectedDate,
@@ -1355,7 +1397,12 @@ const AppointmentCard: React.FC = () => {
 
       <ToastContainer position="top-right" />
       {/* Render message only if not loading and no appointments exist */}
-
+ <div>
+      <h2>Live Appointment Status Updates</h2>
+      <ul>
+        {updates.map((msg, i) => <li key={i}>{msg}</li>)}
+      </ul>
+    </div>
       {loading ? (
         <p>Loading appointments...</p>
       ) : appointments.length === 0 ? (
@@ -1875,6 +1922,9 @@ const AppointmentCard: React.FC = () => {
           </style>
         </div>
       )}
+
+
+
       {/* Modal Backdrop */}
       {isModalOpen && (
         <div

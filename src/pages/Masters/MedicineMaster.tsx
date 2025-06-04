@@ -728,6 +728,7 @@ const Tenant: React.FC = () => {
                     setFormData({ ...formData, description: e.target.value })
                   }
                   placeholder="Description"
+                  maxLength={160}
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
           text-black outline-none focus:border-primary dark:border-form-strokedark
           dark:bg-form-input dark:text-white dark:focus:border-primary resize-none"

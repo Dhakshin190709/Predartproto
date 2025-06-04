@@ -1,14 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import Logo from '../../images/logo/logo-bg (2).png';
 import { NavLink } from 'react-router-dom';
-import { FaBookMedical, FaCcMastercard, FaChevronDown, FaChevronUp, FaGooglePay, FaMagic } from 'react-icons/fa';
+import {
+  FaBookMedical,
+  FaCcMastercard,
+  FaChevronDown,
+  FaChevronUp,
+  FaGooglePay,
+  FaMagic,
+} from 'react-icons/fa';
 
 import {
-  FaCog,FaUsers,FaFileAlt,FaUserCircle,FaHome,FaBell,FaUser,FaFolder,FaPills,FaSearch,FaUserCheck,
-  FaCashRegister, FaFlask, FaBuilding, FaExchangeAlt, FaShieldAlt, FaVideo, FaListUl, FaUserShield,
-  FaKey,FaIdBadge,FaCreditCard,FaCloudUploadAlt,FaUsersCog,FaTag,FaCommentAlt,FaClipboardList,
-  FaStethoscope,FaUserInjured,FaHospital,FaUserMd,FaFirstAid,FaHistory,FaClipboardCheck,
-  FaMoneyBillWave,FaHeartbeat,FaFileMedical,FaCalendarCheck,FaMoneyCheckAlt,FaFileExport,FaPoll,FaCalendarAlt,
+  FaCog,
+  FaUsers,
+  FaFileAlt,
+  FaUserCircle,
+  FaHome,
+  FaBell,
+  FaUser,
+  FaFolder,
+  FaPills,
+  FaSearch,
+  FaUserCheck,
+  FaCashRegister,
+  FaFlask,
+  FaBuilding,
+  FaExchangeAlt,
+  FaShieldAlt,
+  FaVideo,
+  FaListUl,
+  FaUserShield,
+  FaKey,
+  FaIdBadge,
+  FaCreditCard,
+  FaCloudUploadAlt,
+  FaUsersCog,
+  FaTag,
+  FaCommentAlt,
+  FaClipboardList,
+  FaStethoscope,
+  FaUserInjured,
+  FaHospital,
+  FaUserMd,
+  FaFirstAid,
+  FaHistory,
+  FaClipboardCheck,
+  FaMoneyBillWave,
+  FaHeartbeat,
+  FaFileMedical,
+  FaCalendarCheck,
+  FaMoneyCheckAlt,
+  FaFileExport,
+  FaPoll,
+  FaCalendarAlt,
 } from 'react-icons/fa';
 import { MdDateRange, MdDashboard, MdLocalHospital } from 'react-icons/md';
 import api from '../../api/request';
@@ -40,7 +84,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
     // route: '/manage-availability',
     route: '/dashboard',
   },
-  PatientRecord: { icon: <FaUsers />, route: '/patientRecord' ,},
+  PatientRecord: { icon: <FaUsers />, route: '/patientRecord' },
   'CheckIN/OUT': { icon: <FaUserCheck />, route: '/dashboard' },
   Payment: { icon: <FaCashRegister />, route: '/dashboard' },
   Medical: { icon: <FaFileMedical />, route: '/medical' },
@@ -74,24 +118,39 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   },
   Patient: { icon: <FaUserInjured />, route: '/search/patient' },
   Appointments: { icon: <FaHospital />, route: '/search/appointment' },
-  DiagnosticsCenter: { icon: <FaFlask />, route: '/Registration/DiagnosticsCenter' },
+  DiagnosticsCenter: {
+    icon: <FaFlask />,
+    route: '/Registration/DiagnosticsCenter',
+  },
   DoctorRegister: { icon: <FaUserMd />, route: '/DoctorRegistration' },
   Hospital: { icon: <MdLocalHospital />, route: '/search/hospital' },
   Hospitals: { icon: <MdLocalHospital />, route: '/hospital' },
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
-  PharmacyRegister: { icon: <FaFirstAid />, route: '/PharmacyDetails/PharmacyCreation' },
+  PharmacyRegister: {
+    icon: <FaFirstAid />,
+    route: '/PharmacyDetails/PharmacyCreation',
+  },
   Pharmacy: { icon: <FaFirstAid />, route: '/Pharmacy' },
-  PharmacyMedicine: { icon: <FaFirstAid />, route: '/PharmacyDetails/PharmacyMedicine' },
+  PharmacyMedicine: {
+    icon: <FaFirstAid />,
+    route: '/PharmacyDetails/PharmacyMedicine',
+  },
   PatientHistory: { icon: <FaUser />, route: '/history/patienthistory' },
   ConsolidatedReport: { icon: <FaFileMedical />, route: '/consolidatedReport' },
   MISReport: { icon: <FaFileExport />, route: '/MISReport' },
-  ExpiringStockReport: { icon: <FaFileExport />, route: '/reports/ExpiringStockReport' },
+  ExpiringStockReport: {
+    icon: <FaFileExport />,
+    route: '/reports/ExpiringStockReport',
+  },
   LowStockReport: { icon: <FaFileExport />, route: '/reports/LowStockReport' },
-  StockSummaryReport: { icon: <FaFileExport />, route: '/reports/StockSummaryReport' },
+  StockSummaryReport: {
+    icon: <FaFileExport />,
+    route: '/reports/StockSummaryReport',
+  },
   RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
   MedicineTransfer: { icon: <FaFileExport />, route: '/MedicineTransfer' },
- 
+
   AppointmentHistory: {
     icon: <FaClipboardCheck />,
     route: '/history/appointmenthistory',
@@ -127,7 +186,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Privacy: { icon: <FaShieldAlt />, route: '/settings/privacy' },
   Family: { icon: <FaUsers />, route: '/settings/family' },
   Notification: { icon: <FaBell />, route: '/settings/notification' },
-
+MedicalDocument: { icon: <FaCloudUploadAlt />, route: '/MedicalDocumentUpload' },
   default: { icon: <FaFolder />, route: '/default' },
 };
 
@@ -141,21 +200,21 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     if (storedUserID) {
       console.log('Stored User ID:', storedUserID);
 
-     const fetchUserMenu = async () => {
-  try {
-    const response = await api.get(`/Login/${storedUserID}`);
-    
-    console.log('API Response:', response.data);
+      const fetchUserMenu = async () => {
+        try {
+          const response = await api.get(`/Login/${storedUserID}`);
 
-    if (response.data?.data && Array.isArray(response.data.data)) {
-      setMenuItems(response.data.data);
-    } else {
-      console.warn('Unexpected data format:', response.data);
-    }
-  } catch (error) {
-    console.error('Error fetching user menu data:', error);
-  }
-};
+          console.log('API Response:', response.data);
+
+          if (response.data?.data && Array.isArray(response.data.data)) {
+            setMenuItems(response.data.data);
+          } else {
+            console.warn('Unexpected data format:', response.data);
+          }
+        } catch (error) {
+          console.error('Error fetching user menu data:', error);
+        }
+      };
       fetchUserMenu();
     } else {
       console.warn('No User ID found in session storage.');
@@ -200,16 +259,13 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   return (
     <aside
-  className={`absolute left-0 top-0 z-9999 flex h-screen w-72.5 flex-col overflow-y-auto bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-  style={{ scrollbarWidth: 'thin', scrollbarColor: '#555 #222' }} // Custom scrollbar for Firefox
->
-
-
-
-<div className="flex items-center px-4 py-4 lg:py-6">
-  <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-15 mr-3" />
-  <h1 className="font-semibold text-white text-2xl">PreCare</h1>
-</div>
+      className={`absolute left-0 top-0 z-9999 flex h-screen w-72.5 flex-col overflow-y-auto bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      style={{ scrollbarWidth: 'thin', scrollbarColor: '#555 #222' }} // Custom scrollbar for Firefox
+    >
+      <div className="flex items-center px-4 py-4 lg:py-6">
+        <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-15 mr-3" />
+        <h1 className="font-semibold text-white text-2xl">PreCare</h1>
+      </div>
 
       <div className="sidebar-menu overflow-y-auto flex-1">
         <nav>
@@ -262,20 +318,23 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
         </nav>
       </div>
       <style jsx>{`
-       aside::-webkit-scrollbar {
-  width: 6px;
-}
+        aside::-webkit-scrollbar {
+          width: 6px;
+        }
 
-aside::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.3); /* Light-colored scrollbar */
-  border-radius: 10px;
-}
+        aside::-webkit-scrollbar-thumb {
+          background-color: rgba(
+            255,
+            255,
+            255,
+            0.3
+          ); /* Light-colored scrollbar */
+          border-radius: 10px;
+        }
 
-aside::-webkit-scrollbar-track {
-  background: transparent; /* Removes white background */
-}
-
-
+        aside::-webkit-scrollbar-track {
+          background: transparent; /* Removes white background */
+        }
       `}</style>
     </aside>
   );

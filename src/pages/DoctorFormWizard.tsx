@@ -102,9 +102,11 @@ interface Address {
   type?: string; // Optional or required, based on your use case
 }
 
+
+
 const DoctorForm: React.FC = () => {
   const [form, setForm] = useState(initialState);
-  const [errors, setErrors] = useState<any>({});
+  const [errors, setErrors] = useState<any[]>([{}]); // ✅ It must be an array
   const [tenants, setTenants] = useState<string[]>([]);
 
   const [qualificationsList, setQualificationsList] = useState<
@@ -137,6 +139,7 @@ const DoctorForm: React.FC = () => {
   const [languageOptions, setLanguageOptions] = useState<string[]>([]);
   const userID = localStorage.getItem('userID'); // or sessionStorage or from context
   const newId = uuidv4();
+  const [lastSavedEducation, setLastSavedEducation] = useState([]);
   const [startDate, setStartDate] = useState([]);
   const [endDate, setEndDate] = useState([]);
   const [employmentType, setEmploymentType] = useState([]);
@@ -144,8 +147,8 @@ const DoctorForm: React.FC = () => {
   const [selectedPartTime, setSelectedPartTime] = useState<string[]>([]);
   const [specialization, setSpecialization] = useState<string | null>(null);
   const [hospitalName, setHospitalName] = useState<string>('');
-  const [joinDate, setJoinDate] = useState<string>('');
-  const [leaveDate, setLeaveDate] = useState<string>('');
+  const [joinDate, setJoinDate] = useState([]);
+  const [leaveDate, setLeaveDate] = useState([]);
   const [currentStep, setCurrentStep] = useState(1); // Track the active step
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [cities, setCities] = useState<City[]>([]);
@@ -165,7 +168,7 @@ const DoctorForm: React.FC = () => {
 
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
-
+  const [isUploading, setIsUploading] = useState(false);
   const [manualCity, setManualCity] = useState('');
   const [awards, setAwards] = useState([
     { name: '', year: '', description: '', errors: {} },
@@ -430,9 +433,8 @@ const DoctorForm: React.FC = () => {
     const uniqueNewSlots = newTimeSlots.filter((slot) => !isDuplicate(slot));
 
     if (uniqueNewSlots.length !== newTimeSlots.length) {
-      alert(
-        '🚫 Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.',
-      );
+      toast.warning('Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.');
+
       return;
     }
 
@@ -466,11 +468,11 @@ const DoctorForm: React.FC = () => {
         ]);
         fetchDoctorTimeSlots(); // Refresh the list
       } else {
-        toast.error('❌ Failed to save time slots.');
+        toast.error('Failed to save time slots.');
         console.error('❌ Server responded with error:', response.data);
       }
     } catch (error) {
-      toast.error('🚨 Network error while submitting time slots.');
+      toast.error('Network error while submitting time slots.');
       console.error('🚨 Error submitting time slots:', error);
     }
   };
@@ -691,34 +693,46 @@ const DoctorForm: React.FC = () => {
     return type.toLowerCase().replace(/[^a-z]/gi, ''); // removes spaces, dots etc.
   };
 
-  // Upload Document (POST API)
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
+    if (isUploading) return;
+  
     if (!selectedFile || !selectedType) {
       alert('Please select a file and document type.');
       return;
     }
-
+  
     const isDuplicate = uploadedDocuments.some(
       (doc) =>
         normalizeDocumentType(doc.documentType) ===
         normalizeDocumentType(selectedType),
     );
-
+  
     if (isDuplicate) {
       alert('🚫 This document has already been uploaded.');
       return;
     }
-
+  
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     if (!userID || !doctorID) {
       alert('User or Doctor ID missing. Please log in again.');
       return;
     }
-
+  
+    // ✅ File size check (max 5MB)
+    const MAX_FILE_SIZE_MB = 2;
+    const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+  
+    if (selectedFile.size > MAX_FILE_SIZE) {
+      alert(`File size exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`);
+      return;
+    }
+  
+    setIsUploading(true);
+  
     const reader = new FileReader();
     reader.readAsDataURL(selectedFile);
     reader.onload = async () => {
@@ -726,12 +740,13 @@ const DoctorForm: React.FC = () => {
       if (!base64String) {
         console.error('Failed to convert file to Base64');
         alert('Failed to read file. Please try again.');
+        setIsUploading(false);
         return;
       }
-
+  
       const fileExtension = selectedFile.name.split('.').pop() || '';
       const filePath = `uploads/${selectedFile.name}`;
-
+  
       const payload = {
         id: doctorID,
         createdBy: userID,
@@ -743,59 +758,66 @@ const DoctorForm: React.FC = () => {
         fileBase64: base64String,
         fileExtension: fileExtension,
       };
-
+  
       try {
-        const response = await api.post(`/Doctor/SaveDocuments`, payload);
-
+        const response = await api.post('/Doctor/SaveDocuments', payload);
         console.log('Upload successful:', response.data);
-
+  
         setSelectedFile(null);
         setPreviewSrc(null);
         setSelectedType('');
-
         await fetchUploadedDocuments();
-
+  
         toast.success('Document uploaded successfully!');
       } catch (error: any) {
         console.error('Upload failed:', error);
         toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
+      } finally {
+        setIsUploading(false);
       }
     };
   };
-
+  
+  
   // View Document in Modal
-  const handleViewDocument = async (documentID: string, fileName: string) => {
-    try {
-      const response = await axios.get(`/Doctor/Documents/${documentID}`);
-
-      if (!response.data?.data?.fileBase64) {
-        alert('Invalid file data received.');
-        return;
-      }
-
-      const fileBase64 = response.data.data.fileBase64;
-      const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-      setIsImage(isImageFile);
-
-      const byteCharacters = atob(fileBase64);
-      const byteArray = new Uint8Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteArray[i] = byteCharacters.charCodeAt(i);
-      }
-
-      const extension = fileName.split('.').pop()?.toLowerCase() ?? '';
-      const fileType = isImageFile ? `image/${extension}` : 'application/pdf';
-
-      const blob = new Blob([byteArray], { type: fileType });
-      const url = URL.createObjectURL(blob);
-
-      setDocumentURL(url);
-      setModalOpen(true);
-    } catch (error) {
-      console.error('Error viewing document:', error);
-      alert('Error loading document.');
+ const handleViewDocument = async (documentID: string, fileName: string) => {
+  try {
+    const response = await api.get(`/Doctor/Documents/${documentID}`);
+    
+    const fileBase64 = response.data?.data?.fileBase64;
+    if (!fileBase64) {
+      alert('Invalid file data received.');
+      return;
     }
-  };
+
+    // Determine if the file is an image by extension
+    const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+    setIsImage(isImageFile);
+
+    // Decode base64 to binary data
+    const byteCharacters = atob(fileBase64);
+    const byteArray = new Uint8Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteArray[i] = byteCharacters.charCodeAt(i);
+    }
+
+    // Determine MIME type based on file extension
+    let fileType = 'application/pdf';
+    if (isImageFile) {
+      const ext = fileName.split('.').pop()?.toLowerCase();
+      fileType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+    }
+
+    const blob = new Blob([byteArray], { type: fileType });
+    const url = URL.createObjectURL(blob);
+
+    setDocumentURL(url);
+    setModalOpen(true);
+  } catch (error) {
+    console.error('Error viewing document:', error);
+    alert('Error loading document.');
+  }
+};
   // Extract Only Filename (Ignore ID)
   const getFormattedFileName = (fileName) => {
     return fileName.split('_').pop();
@@ -805,38 +827,68 @@ const DoctorForm: React.FC = () => {
   //   { name: '', year: '', description: '', errors: {} },
   // ]);
 
-  const handleAwardChange = (index, field, value) => {
-    const updatedAwards = [...awards];
+  const [awardErrors, setAwardErrors] = useState<{ [index: number]: any }>({});
 
+
+  const handleAwardChange = (index: number, field: string, value: string) => {
+    const updatedAwards = [...awards];
+    const updatedErrors = { ...awardErrors };
+  
     if (field === 'year') {
       const numericYear = value.replace(/\D/g, '').slice(0, 4);
       const currentYear = new Date().getFullYear();
-
+  
       if (numericYear.length === 4 && parseInt(numericYear) > currentYear) {
+        updatedErrors[index] = {
+          ...updatedErrors[index],
+          [field]: 'Year cannot be in the future.',
+        };
+        setAwardErrors(updatedErrors);
         return;
       }
-
+  
       updatedAwards[index][field] = numericYear;
     } else if (field === 'description') {
-      // Regex to allow only letters, numbers, spaces, comma, period, apostrophe, quotes, hyphen
       const validDescriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
-
+  
       if (!validDescriptionPattern.test(value)) {
-        // Show error or ignore input
-        // alert('Description cannot contain emojis or special characters except , . \' " -');
+        updatedErrors[index] = {
+          ...updatedErrors[index],
+          [field]: 'Description contains invalid characters.',
+        };
+        setAwardErrors(updatedErrors);
         return;
       }
+  
       updatedAwards[index][field] = value;
     } else {
       updatedAwards[index][field] = value;
     }
-
+  
+    // Clear any previous error for this field
+    updatedErrors[index] = {
+      ...updatedErrors[index],
+      [field]: '',
+    };
+  
     setAwards(updatedAwards);
+    setAwardErrors(updatedErrors);
+    setToastShown(''); // ✅ Allow fresh toast messages
   };
-
+  
+  const emptyAwardTemplate = {
+    name: '',
+    year: '',
+    description: '',
+  };
+  
   const handleAddAward = () => {
-    setAwards([...awards, { name: '', year: '', description: '', errors: {} }]);
+    const newIndex = awards.length;
+    setAwards((prev) => [...prev, emptyAwardTemplate]);
+    setAwardErrors((prevErrors) => ({ ...prevErrors, [newIndex]: {} }));
+    setToastShown('');
   };
+  
 
   const validateAwards = () => {
     let valid = true;
@@ -894,21 +946,56 @@ const DoctorForm: React.FC = () => {
     }
   };
 
+  const [lastSubmittedAwards, setLastSubmittedAwards] = useState([]);
+
+
   const handleAwardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-
+  
     if (!doctorID || !userID) {
-      alert('Missing doctorID or userID in session.');
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Missing doctorID or userID in session.');
+        setToastShown('error');
+      }
       return;
     }
-
+  
+    // Check for validation errors
     if (!validateAwards()) {
+      if (toastShown !== 'validation') {
+        toast.dismiss();
+        toast.info('Please correct the validation errors.');
+        setToastShown('validation');
+      }
       return;
     }
-
+  
+    // Check for duplicate awards
+    const seen = new Set<string>();
+    let hasDuplicate = false;
+  
+    for (const award of awards) {
+      const key = `${award.name.trim().toLowerCase()}-${award.year}`;
+      if (seen.has(key)) {
+        hasDuplicate = true;
+        break;
+      }
+      seen.add(key);
+    }
+  
+    if (hasDuplicate) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.warning('Duplicate awards are not allowed.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+  
     const payload = awards.map((award) => ({
       awardID: uuidv4(),
       doctorID,
@@ -921,7 +1008,10 @@ const DoctorForm: React.FC = () => {
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-
+  
+    const isSameAsLast = JSON.stringify(payload) === JSON.stringify(lastSubmittedAwards);
+    if (isSameAsLast) return;
+  
     try {
       const response = await api.post('/Doctor/SaveDoctorAward', payload, {
         headers: {
@@ -929,20 +1019,31 @@ const DoctorForm: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-
+  
       if (response.status === 200 || response.status === 201) {
-        console.log('Success:', response.data);
-        toast.success('Award successfully submitted!');
+        if (toastShown !== 'success') {
+          toast.dismiss();
+          toast.success('Award(s) submitted successfully!');
+          setToastShown('success');
+          setLastSubmittedAwards(payload);
+        }
       } else {
-        console.error('Server error:', response.status, response.data);
-        toast.error('Failed to submit award.');
+        if (toastShown !== 'error') {
+          toast.dismiss();
+          toast.error('Failed to submit award.');
+          setToastShown('error');
+        }
       }
     } catch (error) {
       console.error('Request failed:', error);
-      toast.error('Request failed. Please try again.');
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Submission failed. Please try again.');
+        setToastShown('error');
+      }
     }
   };
-
+  
   const [skills, setSkills] = useState([
     { skill: '', years: '', months: '', description: '', errors: {} },
   ]);
@@ -973,16 +1074,16 @@ const DoctorForm: React.FC = () => {
     setSkills(updatedSkills);
   };
 
-  const handleAddSkill = () => {
-    if (skills.length >= 5) {
-      alert('You can only add up to 5 skills');
-      return;
-    }
-    setSkills([
-      ...skills,
-      { skill: '', years: '', months: '', description: '', errors: {} },
-    ]);
-  };
+  // const handleAddSkill = () => {
+  //   if (skills.length >= 5) {
+  //     alert('You can only add up to 5 skills');
+  //     return;
+  //   }
+  //   setSkills([
+  //     ...skills,
+  //     { skill: '', years: '', months: '', description: '', errors: {} },
+  //   ]);
+  // };
 
   const handleSkillKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     const allowedKeys = [
@@ -1044,58 +1145,159 @@ const DoctorForm: React.FC = () => {
     return regex.test(guid);
   }
 
+  const hasDuplicateSkills = () => {
+    const seen = new Map();
+    let foundDuplicate = false;
+    const newErrors: { [index: number]: { skill?: string } } = {};
+  
+    skills.forEach((entry, index) => {
+      const key = entry.skill;
+      if (seen.has(key)) {
+        foundDuplicate = true;
+        newErrors[index] = { skill: 'Duplicate skill not allowed' };
+        // Also mark first occurrence
+        const firstIndex = seen.get(key);
+        newErrors[firstIndex] = { skill: 'Duplicate skill not allowed' };
+      } else {
+        seen.set(key, index);
+      }
+    });
+  
+    setErrors(newErrors);
+    return foundDuplicate;
+  };
+  
+
+  const [lastSubmittedSkills, setLastSubmittedSkills] = useState([]);
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-
+  
     if (!doctorID || !userID) {
-      alert('Missing doctorID or userID in session.');
+      if (toastShown !== 'missing') {
+        toast.dismiss();
+        toast.error('Missing doctorID or userID.');
+        setToastShown('missing');
+      }
       return;
     }
-
-    if (validateSkills()) {
-      const payload = skills.map((entry) => ({
-        doctorID,
-        createdBy: userID,
-        createdOn: new Date().toISOString(),
-        updatedBy: userID,
-        updatedOn: new Date().toISOString(),
-        isActive: true,
-        skillMasterID: entry.skill, // skill ID
-        skillID: entry.skill, // (If this should be skill name, update accordingly)
-        yearOfExperience: Number(entry.years),
-        monthOfExperience: Number(entry.months),
-        description: entry.description || '',
-      }));
-
-      console.log('Payload:', JSON.stringify(payload, null, 2));
-
-      try {
-        const response = await api.post('/Doctor/SaveDoctorSkill', payload, {
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (response.status === 200 || response.status === 201) {
-          console.log('Success:', response.data);
-          toast.success('Successfully submitted Doctor Skills!');
-        } else {
-          console.error('Server responded with status:', response.status);
-          toast.error('Failed to submit Doctor Skills.');
-        }
-      } catch (error) {
-        console.error('Request failed:', error);
-        toast.error('An error occurred during submission.');
+  
+    if (!skills || skills.length === 0) {
+      if (toastShown !== 'empty') {
+        toast.dismiss();
+        toast.info('Please add at least one skill before submitting.');
+        setToastShown('empty');
       }
-    } else {
-      toast.info('Please correct the validation errors before submitting.');
+      return;
+    }
+  
+    if (hasDuplicateSkills()) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.warning('Duplicate skills are not allowed.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+  
+    if (!validateSkills()) {
+      if (toastShown !== 'invalid') {
+        toast.dismiss();
+        toast.info('Please fix validation errors before submitting.');
+        setToastShown('invalid');
+      }
+      return;
+    }
+  
+    const payload = skills.map((entry) => ({
+      doctorID,
+      createdBy: userID,
+      createdOn: new Date().toISOString(),
+      updatedBy: userID,
+      updatedOn: new Date().toISOString(),
+      isActive: true,
+      skillMasterID: entry.skill,
+      skillID: entry.skill,
+      yearOfExperience: Number(entry.years),
+      monthOfExperience: Number(entry.months),
+      description: entry.description || '',
+    }));
+  
+    const isSameAsLast = JSON.stringify(payload) === JSON.stringify(lastSubmittedSkills);
+    if (isSameAsLast) {
+      if (toastShown !== 'same') {
+        toast.dismiss();
+        toast.info('No changes detected.');
+        setToastShown('same');
+      }
+      return;
+    }
+  
+    try {
+      const response = await api.post('/Doctor/SaveDoctorSkill', payload, {
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+  
+      if (response.status === 200 || response.status === 201) {
+        if (toastShown !== 'success') {
+          toast.dismiss();
+          toast.success('Skills saved successfully!');
+          setToastShown('success');
+        }
+        setLastSubmittedSkills(payload);
+      } else {
+        if (toastShown !== 'error') {
+          toast.dismiss();
+          toast.error('Failed to submit skills.');
+          setToastShown('error');
+        }
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('An error occurred during submission.');
+        setToastShown('error');
+      }
     }
   };
-
+  
+  
+  const emptySkillTemplate = {
+    skill: '',
+    years: '',
+    months: '',
+    description: '',
+  };
+  const handleAddSkill = () => {
+    const newIndex = skills.length;
+    setSkills((prev) => [...prev, emptySkillTemplate]);
+    setErrors((prevErrors) => ({ ...prevErrors, [newIndex]: {} }));
+    setToastShown(''); // ✅ Allow new toast after interaction
+  };  
+  
+  const handleSkillChange = (index: number, key: string, value: string) => {
+    const updated = [...skills];
+    updated[index][key] = value;
+    setSkills(updated);
+  
+    setErrors((prevErrors) => ({
+      ...prevErrors,
+      [index]: {
+        ...prevErrors[index],
+        [key]: '',
+      },
+    }));
+  
+    setToastShown(''); // ✅ Reset toast so new validation/submission can show message
+  };
+  
+  
   // const [experiences, setExperiences] = useState([
   //   {
   //     type: '',
@@ -1111,7 +1313,9 @@ const DoctorForm: React.FC = () => {
     const updated = [...experiences];
     updated[index][field] = value;
     setExperiences(updated);
+    console.log(`Updated experience at index ${index}:`, updated[index]);
   };
+  
 
   // const handleAddExperiences = () => {
   //   setExperiences([
@@ -1128,61 +1332,77 @@ const DoctorForm: React.FC = () => {
   // };
 
   const validateExperience = (): boolean => {
-    const today = new Date();
+  
     const newErrors = experiences.map((exp) => {
       const error: any = {};
-
+  
       // Type check
-      if (!exp.type.trim()) {
+      if (!exp.type || !exp.type.trim()) {
         error.type = 'Type is required';
       }
-
+  
       // Specialization check
-      if (!exp.specialization.trim()) {
+      if (!exp.specialization || !exp.specialization.trim()) {
         error.specialization = 'Specialization is required';
       }
-
+  
       // Hospital name check
-      if (!exp.hospitalName.trim()) {
+      if (!exp.hospitalName || !exp.hospitalName.trim()) {
         error.hospitalName = 'Hospital name is required';
+      } else if (!/^[a-zA-Z0-9 .,&'-]{3,100}$/.test(exp.hospitalName.trim())) {
+        error.hospitalName = 'Enter a valid hospital name';
       }
-
-      // Join date check
+  
+      // Join date validation
       if (!exp.joinDate) {
         error.joinDate = 'Join date is required';
       } else {
         const join = new Date(exp.joinDate);
-        if (join > today) {
+        if (isNaN(join.getTime())) {
+          error.joinDate = 'Join date is invalid';
+        } else if (join > today) {
           error.joinDate = 'Join date cannot be in the future';
         }
       }
-
-      // Leave date check
+  
+      // Leave date validation
       if (!exp.leaveDate) {
         error.leaveDate = 'Leave date is required';
       } else {
-        const join = new Date(exp.joinDate);
         const leave = new Date(exp.leaveDate);
-        if (leave < join) {
+        const join = exp.joinDate ? new Date(exp.joinDate) : null;
+  
+        if (isNaN(leave.getTime())) {
+          error.leaveDate = 'Leave date is invalid';
+        } else if (!join || isNaN(join.getTime())) {
+          error.leaveDate = 'Please enter a valid join date first';
+        } else if (leave < join) {
           error.leaveDate = 'Leave date must be after join date';
         } else if (leave > today) {
           error.leaveDate = 'Leave date cannot be in the future';
-        }
+        } 
+        
+        // Optional: check minimum experience duration (e.g., 6 months)
+        // const diffMonths = (leave.getFullYear() - join.getFullYear()) * 12 + (leave.getMonth() - join.getMonth());
+        // if (diffMonths < 6) {
+        //   error.leaveDate = 'Experience duration must be at least 6 months';
+        // }
       }
-
+  
       return error;
     });
-
+  
     if (experiences.length === 0) {
       alert('Please add at least one experience.');
       return false;
     }
-
+  
     setErrors(newErrors);
     console.log('Validation errors:', newErrors);
-    return newErrors.every((err) => Object.keys(err).length === 0);
+  
+    return newErrors.every(err => Object.keys(err).length === 0);
   };
-
+  
   useEffect(() => {
     const fetchSkills = async () => {
       try {
@@ -1239,58 +1459,63 @@ const DoctorForm: React.FC = () => {
     );
   };
 
+  
+
   const handleExperienceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    console.log('Final experiences data:', experiences);
+  
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-
+  
     if (!doctorID || !userID) {
       if (toastShown !== 'error') {
         toast.dismiss();
-        toast.error('Missing doctorID or userID in session.');
+        toast.error('Missing doctorID or userID.');
         setToastShown('error');
       }
       return;
     }
-
-    // Prevent re-submit if already submitted and no new changes (+Add resets these states)
+  
+    // Prevent submitting again if already done and unchanged
     if (submittedOnce && toastShown === 'success') return;
-
+  
+    // Validation
     if (!validateExperience()) {
       if (toastShown !== 'error') {
         toast.dismiss();
-        toast.error('❌ Please fill all fields correctly.');
+        toast.error('Please fill all fields correctly.');
         setToastShown('error');
       }
       return;
     }
-
-    const seen: Experience[] = [];
+  
+    // Prevent duplicates
+    const seen = new Set();
     const hasDuplicate = experiences.some((exp) => {
-      if (isDuplicateExperience(exp, seen)) {
-        return true;
-      }
-      seen.push(exp);
+      const key = `${exp.type}-${exp.specialization}-${exp.hospitalName}-${exp.joinDate}-${exp.leaveDate}`;
+      if (seen.has(key)) return true;
+      seen.add(key);
       return false;
     });
-
+  
     if (hasDuplicate) {
       if (toastShown !== 'duplicate') {
         toast.dismiss();
-        toast.error('❌ Duplicate experience entries found.');
+        toast.error('Duplicate experience entries found.');
         setToastShown('duplicate');
       }
       return;
     }
-
+  
+    // Build payload
     const payload = experiences.map((exp) => ({
       doctorID,
       employmentType: exp.type,
       specializationID: exp.specialization,
       hospitalName: exp.hospitalName,
-      joinDate: exp.joinDate,
-      leaveDate: exp.leaveDate,
+      joinDate: new Date(exp.joinDate).toISOString(),
+      leaveDate: new Date(exp.leaveDate).toISOString(),
       exprienceID: exp.experience,
       createdBy: userID,
       createdOn: new Date().toISOString(),
@@ -1298,31 +1523,34 @@ const DoctorForm: React.FC = () => {
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-
+    
     try {
       const response = await api.post('/Doctor/SaveDoctorExprience', payload);
-
+  
       if (response.status === 200 || response.status === 201) {
         if (toastShown !== 'success') {
+          toast.dismiss();
           toast.success('Experience details submitted successfully!');
           setToastShown('success');
         }
-        setSubmittedOnce(true);
+        setSubmittedOnce(true); // ✅ Block re-submit
       } else {
         if (toastShown !== 'error') {
+          toast.dismiss();
           toast.error('Unexpected server response.');
           setToastShown('error');
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Submission error:', error);
       if (toastShown !== 'error') {
+        toast.dismiss();
         toast.error('An error occurred during experience submission.');
         setToastShown('error');
       }
     }
   };
-
+  
   const handleExperienceChange = (
     index: number,
     field: keyof Experience,
@@ -1351,14 +1579,27 @@ const DoctorForm: React.FC = () => {
     experience: '',
   };
 
-  const [experiences, setExperiences] = React.useState<Experience[]>([]);
+  const [experiences, setExperiences] = React.useState<Experience[]>([emptyExperience]);
 
   const handleAddExperience = () => {
-    setExperiences([...experiences, emptyExperience]);
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+    const newExperience = {
+      ...emptyExperience,
+      joinDate: '',
+      leaveDate: '',
+    };
+  
+    setExperiences([...experiences, newExperience]);
     setErrors([...errors, {}]);
     setToastShown(null);
     setSubmittedOnce(false);
   };
+  
+
+  
+  
+  
 
   const [languages, setLanguages] = useState([
     { language: '', read: false, write: false, speak: false, errors: {} },
@@ -1625,63 +1866,66 @@ const DoctorForm: React.FC = () => {
 
   const validateEntry = (entry) => {
     const errors = {};
-
+  
     if (!entry.degree || !entry.degree.trim()) {
       errors.degree = 'Degree is required';
     } else if (!degreeRegex.test(entry.degree.trim())) {
       errors.degree = 'Enter a valid degree name';
     }
-
+  
     if (!entry.location || !isValidText(entry.location)) {
       errors.location = 'Location is required';
     }
-
+  
     if (!entry.specialization) {
       errors.specialization = 'Specialization is required';
     }
-
+  
     if (!entry.UG) {
       errors.qualification = 'Qualification is required';
     }
-
+  
     if (!entry.university || !entry.university.trim()) {
       errors.university = 'University is required';
     } else if (!/^[a-zA-Z .,&'-]{3,100}$/.test(entry.university.trim())) {
       errors.university = 'Enter a valid university name';
     }
-
+  
     const startDate = entry.startDate ? new Date(entry.startDate) : null;
     const endDate = entry.endDate ? new Date(entry.endDate) : null;
     const today = new Date();
-
+  
     if (!startDate) {
       errors.startDate = 'Start date is required';
     } else if (startDate > today) {
       errors.startDate = 'Start date cannot be in the future';
     }
-
+  
     if (!endDate) {
       errors.endDate = 'End date is required';
     } else if (!startDate) {
       errors.endDate = 'Please enter start date first';
     } else if (endDate.getFullYear() - startDate.getFullYear() < 4) {
       errors.endDate = 'End date must be at least 4 years after the start date';
-    } else {
-      // ✅ Clear the error when the date is valid
-      errors.endDate = '';
     }
-
+  
     return errors;
   };
-
+  
   const handleInputChange = (index: number, field: string, value: any) => {
     const updatedList = [...educationList];
     updatedList[index] = {
       ...updatedList[index],
       [field]: value,
     };
-    setEducationList(updatedList); // Assuming you use this to update the state
+    setEducationList(updatedList);
+  
+    const errors = validateEntry(updatedList[index]);
+    const updatedErrors = [...educationErrors];
+    updatedErrors[index] = errors;
+    setEducationErrors(updatedErrors);
   };
+  
 
   const handleAddEntry = () => {
     setEducationList([...educationList, { ...initialEducationEntry }]);
@@ -1746,54 +1990,94 @@ const DoctorForm: React.FC = () => {
     'error' | 'duplicate' | 'success' | null
   >(null);
 
+
   const handleFieldSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-
+  
     if (!doctorID || !userID) {
+      toast.dismiss();
       toast.error('Missing doctorID or userID in session.');
+      setToastShown('error');
       return;
     }
-
-    // Prevent re-submit if already submitted and no changes
-    if (submittedOnce && toastShown === 'success') return;
-
-    const allErrors = educationList.map((entry) => validateEntry(entry));
-    const hasErrors = allErrors.some((err) =>
-      Object.values(err).some((msg) => msg),
-    );
-
-    if (hasErrors) {
-      setEducationErrors(allErrors);
-      if (toastShown !== 'error') {
+  
+    let hasErrors = false;
+    let hasDuplicates = false;
+    const allErrors = educationList.map(() => ({}));
+    const seen = new Set<string>();
+    let isAnyFieldFilled = false;
+  
+    const validEducationList = educationList.filter((entry, index) => {
+      const isFullyEmpty =
+        !entry.UG?.trim() &&
+        !entry.degree?.trim() &&
+        !entry.specialization?.trim() &&
+        !entry.university?.trim() &&
+        !entry.location?.trim() &&
+        !entry.startDate &&
+        !entry.endDate;
+  
+      if (isFullyEmpty) return false;
+  
+      const isFilled =
+        entry.UG?.trim() ||
+        entry.degree?.trim() ||
+        entry.specialization?.trim() ||
+        entry.university?.trim() ||
+        entry.location?.trim() ||
+        entry.startDate ||
+        entry.endDate;
+  
+      if (isFilled) isAnyFieldFilled = true;
+  
+      const rawErrors = validateEntry(entry);
+      const errors = Object.fromEntries(
+        Object.entries(rawErrors).filter(([_, val]) => val?.trim())
+      );
+  
+      if (Object.keys(errors).length > 0) {
+        allErrors[index] = errors;
+        hasErrors = true;
+        return false;
+      }
+  
+      const key = `${entry.UG?.trim().toLowerCase()}-${entry.degree?.trim().toLowerCase()}-${entry.specialization?.trim().toLowerCase()}-${entry.university?.trim().toLowerCase()}-${entry.location?.trim().toLowerCase()}`;
+  
+      if (seen.has(key)) {
+        allErrors[index] = {
+          ...allErrors[index],
+          duplicate: 'Duplicate entry detected.',
+        };
+        hasErrors = true;
+        hasDuplicates = true;
+        return false;
+      }
+  
+      seen.add(key);
+      return true;
+    });
+  
+    setEducationErrors(allErrors);
+  
+    if (!isAnyFieldFilled) return;
+  
+    if (hasErrors || validEducationList.length === 0) {
+      if (hasDuplicates && toastShown !== 'duplicate') {
         toast.dismiss();
-        toast.error('❌ Please fix validation errors.');
+        toast.error('Duplicate education entries found.');
+        setToastShown('duplicate');
+      } else if (!hasDuplicates && toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Please fix validation errors.');
         setToastShown('error');
       }
       return;
     }
-
-    // Duplicate check
-    const seen = new Set();
-    const hasDuplicates = educationList.some((entry) => {
-      const key = `${entry.UG}-${entry.degree}-${entry.specialization}-${entry.university}-${entry.location}`;
-      if (seen.has(key)) return true;
-      seen.add(key);
-      return false;
-    });
-
-    if (hasDuplicates) {
-      if (toastShown !== 'duplicate') {
-        toast.dismiss();
-        toast.error('❌ Duplicate education entries found.');
-        setToastShown('duplicate');
-      }
-      return;
-    }
-
-    const payload = educationList.map((entry) => ({
+  
+    const payload = validEducationList.map((entry) => ({
       doctorID,
       graduateID: entry.UG,
       degreeName: entry.degree,
@@ -1806,32 +2090,46 @@ const DoctorForm: React.FC = () => {
       createdBy: userID,
       isActive: true,
     }));
-
+  
+    const isSameAsLastSaved =
+      JSON.stringify(payload) === JSON.stringify(lastSavedEducation);
+    if (isSameAsLastSaved) return;
+  
     try {
       const res = await api.post('/Doctor/SaveDoctorEducation', payload);
-      if (res.status === 200 || res.status === 201) {
+  
+      if (res?.status >= 200 && res?.status < 300) {
         if (toastShown !== 'success') {
+          toast.dismiss();
           toast.success('Education details submitted successfully!');
           setToastShown('success');
         }
+  
         setEducationErrors([]);
         setSubmittedOnce(true);
         setUnsavedChanges(false);
+        setLastSavedEducation(JSON.parse(JSON.stringify(payload)));
       } else {
         if (toastShown !== 'error') {
-          toast.error(`Error: ${res.data?.message || 'Unknown error'}`);
+          toast.dismiss();
+          toast.error(`${res?.data?.message || 'Submission failed.'}`);
           setToastShown('error');
         }
       }
     } catch (err) {
       console.error('Submission error:', err);
       if (toastShown !== 'error') {
-        // toast.error('Something went wrong while submitting.');
+        toast.dismiss();
+        toast.error('An error occurred during submission.');
         setToastShown('error');
       }
     }
   };
-
+  
+    
+  
+  
+  
   const emptyEducationTemplate = {
     UG: '',
     degree: '',
@@ -1845,6 +2143,7 @@ const DoctorForm: React.FC = () => {
 
   const handleAddEducation = () => {
     setEducationList([...educationList, emptyEducationTemplate]);
+    setEducationErrors([...educationErrors, {}]); // <- Add this line
     setToastShown(''); // reset toast so that new toasts can be shown
   };
 
@@ -2032,16 +2331,16 @@ const DoctorForm: React.FC = () => {
     const allErrors: { [idx: number]: { [field: string]: string } } = {};
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     let hasError = false;
     let hasDuplicate = false;
     const validAddresses: any[] = [];
-
+  
     const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
     const noOnlySpaces = /\S/;
     const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
     const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
-
+  
     const validateField = (
       value: string,
       key: string,
@@ -2053,14 +2352,12 @@ const DoctorForm: React.FC = () => {
       if (!value || !noOnlySpaces.test(value))
         errors[key] = 'Address Type is required.';
       else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
-      else if (!notRepeated.test(value))
-        errors[key] = 'No repetitive characters.';
+      else if (!notRepeated.test(value)) errors[key] = 'No repetitive characters.';
       else if (value.length < min || !pattern.test(value)) errors[key] = msg;
     };
-
-    const capitalize = (str: string) =>
-      str.charAt(0).toUpperCase() + str.slice(1);
-
+  
+    const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+  
     const validateAddressLine = (
       value: string,
       key: string,
@@ -2082,13 +2379,13 @@ const DoctorForm: React.FC = () => {
       } else if (!/\d/.test(value)) {
         errors[key] = 'Must contain at least one number.';
       }
-
+  
       if (/^\d+$/.test(value)) {
         errors[key] =
           `${capitalize(key)} cannot be numbers only. Include area or street name.`;
       }
     };
-
+  
     const validateCity = (value: string, errors: Record<string, string>) => {
       const onlyLettersAndSpace = /^[A-Za-z\s]+$/;
       if (!value || !/\S/.test(value)) {
@@ -2100,28 +2397,24 @@ const DoctorForm: React.FC = () => {
         errors.city = 'City must be at least 5 characters long.';
       }
     };
-
+  
     const isDuplicateAddress = (addr: any, list: any[]) => {
       return list.some(
         (existing) =>
-          existing.address1.trim().toLowerCase() ===
-            addr.address1.trim().toLowerCase() &&
-          existing.address2.trim().toLowerCase() ===
-            addr.address2.trim().toLowerCase() &&
-          existing.city.trim().toLowerCase() ===
-            addr.city.trim().toLowerCase() &&
-          existing.state.trim().toLowerCase() ===
-            addr.state.trim().toLowerCase() &&
-          existing.zipCode.trim() === addr.zipCode.trim(),
+          existing.address1.trim().toLowerCase() === addr.address1.trim().toLowerCase() &&
+          existing.address2.trim().toLowerCase() === addr.address2.trim().toLowerCase() &&
+          existing.city.trim().toLowerCase() === addr.city.trim().toLowerCase() &&
+          existing.state.trim().toLowerCase() === addr.state.trim().toLowerCase() &&
+          existing.zipCode.trim() === addr.zipCode.trim()
       );
     };
-
+  
     let isAnyFieldFilled = false;
-
+  
     for (let i = 0; i < addresses.length; i++) {
       const addr = addresses[i];
       const errors: Record<string, string> = {};
-
+  
       if (
         addr.addressType ||
         addr.address1 ||
@@ -2133,7 +2426,7 @@ const DoctorForm: React.FC = () => {
       ) {
         isAnyFieldFilled = true;
       }
-
+  
       validateField(
         addr.addressType,
         'addressType',
@@ -2145,26 +2438,37 @@ const DoctorForm: React.FC = () => {
       validateAddressLine(addr.address1, 'address1', errors);
       validateAddressLine(addr.address2, 'address2', errors);
       validateCity(addr.city, errors);
-
+  
       if (!addr.city) errors.city = 'City is required.';
       if (!addr.district) errors.district = 'District is required.';
       if (!addr.state) errors.state = 'State is required.';
       if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
-
+  
       if (Object.keys(errors).length === 0) {
-        if (isDuplicateAddress(addr, validAddresses)) {
+        const duplicateInCurrentForm = addresses.some((otherAddr, j) =>
+          j !== i &&
+          otherAddr.address1?.trim().toLowerCase() === addr.address1?.trim().toLowerCase() &&
+          otherAddr.address2?.trim().toLowerCase() === addr.address2?.trim().toLowerCase() &&
+          otherAddr.city?.trim().toLowerCase() === addr.city?.trim().toLowerCase() &&
+          otherAddr.state?.trim().toLowerCase() === addr.state?.trim().toLowerCase() &&
+          otherAddr.zipCode?.trim() === addr.zipCode?.trim()
+        );
+  
+        if (isDuplicateAddress(addr, validAddresses) || duplicateInCurrentForm) {
           errors.duplicate = 'Duplicate address found.';
           hasDuplicate = true;
           hasError = true;
+          allErrors[i] = errors;
+          continue; // 👈 Do NOT push duplicates
         }
       }
-
+  
       if (Object.keys(errors).length) {
         allErrors[i] = errors;
         hasError = true;
         continue;
       }
-
+  
       validAddresses.push({
         createdBy: userID,
         updatedBy: userID,
@@ -2181,14 +2485,11 @@ const DoctorForm: React.FC = () => {
         isPrimary: addr.isPrimary || false,
       });
     }
-
+  
     setFormErrors(allErrors);
-
-    if (!isAnyFieldFilled) {
-      // No toast or action if no fields filled
-      return;
-    }
-
+  
+    if (!isAnyFieldFilled) return;
+  
     if (hasError || validAddresses.length === 0) {
       if (toastShown !== 'duplicate' && hasDuplicate) {
         toast.error('Duplicate addresses are not allowed.');
@@ -2199,36 +2500,29 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-
-    // New check: prevent saving if no changes from last saved addresses
+  
     if (validAddresses.length > 0) {
       const isSameAsLastSaved =
         JSON.stringify(validAddresses) === JSON.stringify(lastSavedAddresses);
-      if (isSameAsLastSaved) {
-        // toast.info('No changes to save.');
-        return;
-      }
+      if (isSameAsLastSaved) return;
     }
-
+  
     try {
       await api.post('/Address', validAddresses);
-
       if (toastShown !== 'success') {
         toast.success('All addresses saved successfully!');
         setToastShown('success');
       }
-      // Save current valid addresses snapshot to state (deep copy)
       setLastSavedAddresses(JSON.parse(JSON.stringify(validAddresses)));
     } catch (err) {
       console.error('API error:', err);
-
       if (toastShown !== 'error') {
         toast.error('Something went wrong while saving addresses.');
         setToastShown('error');
       }
     }
   };
-
+  
   const emptyAddressTemplate = {
     addressLine1: '',
     addressLine2: '',
@@ -2404,49 +2698,49 @@ const DoctorForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (isSubmitting) {
-      // Prevent double submission, optionally show a toast here if needed
-      return;
-    }
-
-    if (validate()) {
-      setIsSubmitting(true); // Disable button immediately
-
-      const loggedInUserID = sessionStorage.getItem('userID');
-      const doctorID = sessionStorage.getItem('doctorID');
-
-      const doctorData = {
-        doctorID: doctorID,
-        createdBy: loggedInUserID,
-        userID: loggedInUserID,
-        isActive: true,
-        tenantID: form.tenant,
-        hospitalID: form.hospital,
-        doctorName: form.doctorName,
-        doctorDateOfBirth: form.doctorDateOfBirth,
-        doctorEmail: form.doctorEmail,
-        doctorPhoneNumber: form.doctorPhoneNumber,
-        qualificationID: form.qualification,
-        specializationID: form.specialization,
-        genderID: form.gender,
-        aadhaarNumber: form.aadhaarNumber,
-        panNumber: form.panNumber,
-      };
-
-      try {
-        const response = await api.post('/Doctor/SaveDoctor', doctorData);
-
-        if (response.status === 200) {
+  
+    if (!validate()) return;
+  
+    const loggedInUserID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+  
+    const doctorData = {
+      doctorID: doctorID,
+      createdBy: loggedInUserID,
+      userID: loggedInUserID,
+      isActive: true,
+      tenantID: form.tenant,
+      hospitalID: form.hospital,
+      doctorName: form.doctorName,
+      doctorDateOfBirth: form.doctorDateOfBirth,
+      doctorEmail: form.doctorEmail,
+      doctorPhoneNumber: form.doctorPhoneNumber,
+      qualificationID: form.qualification,
+      specializationID: form.specialization,
+      genderID: form.gender,
+      aadhaarNumber: form.aadhaarNumber,
+      panNumber: form.panNumber,
+    };
+  
+    try {
+      const response = await api.post('/Doctor/SaveDoctor', doctorData);
+  
+      if (response.status === 200) {
+        if (toastShown !== 'success') {
           toast.success('Doctor data saved successfully!');
-        } else {
-          toast.error(`Error: ${response.data.message}`);
-          setIsSubmitting(false); // Re-enable button if error
+          setToastShown('success');
         }
-      } catch (error: any) {
-        console.error('Error submitting form:', error);
-        toast.error('An error occurred while submitting the form.');
-        setIsSubmitting(false); // Re-enable button if error
+      } else {
+        if (toastShown !== 'error') {
+          toast.error('Error saving doctor data.');
+          setToastShown('error');
+        }
+      }
+    } catch (error) {
+      console.error('API error:', error);
+      if (toastShown !== 'error') {
+        toast.error('Something went wrong.');
+        setToastShown('error');
       }
     }
   };
@@ -2567,81 +2861,83 @@ const DoctorForm: React.FC = () => {
   };
 
   //3.Eductaions
-
   useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+  const doctorID = sessionStorage.getItem('doctorID');
 
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
-        .then((res) => {
-          const educationData = res.data?.data || [];
+  if (!doctorID) return;
 
-          const uniqueData = educationData.filter(
-            (value, index, self) =>
-              index ===
-              self.findIndex(
-                (t) =>
-                  t.degreeName === value.degreeName &&
-                  t.graduateID === value.graduateID &&
-                  t.specializationID === value.specializationID &&
-                  t.location === value.location &&
-                  t.universityName === value.universityName &&
-                  t.startDate === value.startDate &&
-                  t.endDate === value.endDate,
-              ),
-          );
+  api
+    .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
+    .then((res) => {
+      const educationData = res.data?.data || [];
 
-          if (uniqueData.length === 0) {
-            setEducationList([
-              {
-                degree: '',
-                UG: '',
-                specialization: '',
-                location: '',
-                university: '',
-                startDate: '',
-                endDate: '',
-                highestEducation: false,
-                errors: {},
-              },
-            ]);
-            setEducationErrors([{}]); // initialize errors
-          } else {
-            const formattedData = uniqueData.map((item) => ({
-              educationID: item.educationID,
-              degree: item.degreeName || '',
-              UG: item.graduateID || '',
-              specialization: item.specializationID || '',
-              location: item.location || '',
-              university: item.universityName || '',
-              startDate: item.startDate ? new Date(item.startDate) : '',
-              endDate: item.endDate ? new Date(item.endDate) : '',
-              highestEducation: item.isHighestEducation || false,
-              errors: {},
-            }));
-            setEducationList(formattedData);
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to fetch doctor education data', err);
-          setEducationList([
-            {
-              degree: '',
-              UG: '',
-              specialization: '',
-              location: '',
-              university: '',
-              startDate: '',
-              endDate: '',
-              highestEducation: false,
-              errors: {},
-            },
-          ]);
-          setEducationErrors([{}]);
-        });
-    }
-  }, []);
+      const seen = new Set();
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+
+      const uniqueData = educationData.filter((item) => {
+        const key = `${item.degreeName?.trim()?.toLowerCase() || ''}-${item.graduateID || ''}-${item.specializationID || ''}-${item.location?.trim()?.toLowerCase() || ''}-${item.universityName?.trim()?.toLowerCase() || ''}-${formatDate(item.startDate)}-${formatDate(item.endDate)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      if (uniqueData.length === 0) {
+        setEducationList([
+          {
+            degree: '',
+            UG: '',
+            specialization: '',
+            location: '',
+            university: '',
+            startDate: '',
+            endDate: '',
+            highestEducation: false,
+            errors: {},
+          },
+        ]);
+        setEducationErrors([{}]);
+      } else {
+        const formattedData = uniqueData.map((item) => ({
+          educationID: item.educationID,
+          degree: item.degreeName || '',
+          UG: item.graduateID || '',
+          specialization: item.specializationID || '',
+          location: item.location || '',
+          university: item.universityName || '',
+          startDate: item.startDate ? new Date(item.startDate) : '',
+          endDate: item.endDate ? new Date(item.endDate) : '',
+          highestEducation: item.isHighestEducation || false,
+          errors: {},
+        }));
+
+        setEducationList(formattedData);
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to fetch doctor education data', err);
+      setEducationList([
+        {
+          degree: '',
+          UG: '',
+          specialization: '',
+          location: '',
+          university: '',
+          startDate: '',
+          endDate: '',
+          highestEducation: false,
+          errors: {},
+        },
+      ]);
+      setEducationErrors([{}]);
+    });
+}, []);
 
   // const handleSaveEducationDetails = async (educationData) => {
   //   const doctorID = sessionStorage.getItem('doctorID');
@@ -2704,51 +3000,60 @@ const DoctorForm: React.FC = () => {
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     if (doctorID) {
       api
         .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
         .then((res) => {
           const langData = res.data?.data || [];
-
-          if (langData && langData.length > 0) {
-            const formattedLanguages = langData.map((item) => {
+  
+          // Filter duplicates
+          const seen = new Set();
+          const uniqueLangData = langData.filter((item) => {
+            const key = `${item.languageMasterID}-${item.read}-${item.write}-${item.speak}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+  
+          if (uniqueLangData.length > 0) {
+            const formattedLanguages = uniqueLangData.map((item) => {
               const lang = languageOptions.find(
-                (opt) => opt.appLOVID === item.languageMasterID,
+                (opt) => opt.appLOVID === item.languageMasterID
               );
-
+  
               return {
-                language: lang?.name || '',
-                read: item.read || false,
-                write: item.write || false,
-                speak: item.speak || false,
+                language: lang?.name || '', // ✅ Make sure this matches exactly
+                read: item.read ?? false,
+                write: item.write ?? false,
+                speak: item.speak ?? false,
                 doctorID: item.doctorID || doctorID,
                 isActive: item.isActive ?? true,
                 type: item.type || 'Doctor',
                 errors: {},
               };
             });
-
-            setLanguages(formattedLanguages);
+  
+            setLanguages(formattedLanguages); // ✅ Only set clean data
           }
         })
         .catch((err) => {
           console.error('Failed to fetch doctor languages:', err);
         });
     }
-  }, []);
-
+  }, [languageOptions]); // ✅ Add this dependency to wait until dropdown options are available
+  
   //5.Doctor Experience
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     if (doctorID) {
       api
         .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
         .then((res) => {
           const experienceData = res.data?.data || [];
-
+  
           const uniqueData = experienceData.filter(
             (value, index, self) =>
               index ===
@@ -2762,16 +3067,17 @@ const DoctorForm: React.FC = () => {
                   t.endDate === value.endDate,
               ),
           );
-
+  
           const formattedData = uniqueData.map((item) => ({
             type: item.employmentType || '',
             specialization: item.specializationID || '',
             hospitalName: item.hospitalName || '',
-            joinDate: item.startDate?.split('T')[0] || '',
-            leaveDate: item.endDate?.split('T')[0] || '',
+            joinDate: item.joinDate ? item.joinDate.split('T')[0] : '',
+            leaveDate: item.leaveDate ? item.leaveDate.split('T')[0] : '',
             errors: {},
           }));
-
+          
+  
           setExperiences(
             formattedData.length > 0
               ? formattedData
@@ -2792,7 +3098,7 @@ const DoctorForm: React.FC = () => {
         });
     }
   }, []);
-
+  
   //6.Doctor Skill
 
   useEffect(() => {
@@ -2838,51 +3144,53 @@ const DoctorForm: React.FC = () => {
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
-        .then((res) => {
-          const awardData = res.data?.data || [];
-
-          const uniqueData = awardData.filter(
-            (value, index, self) =>
-              index ===
-              self.findIndex(
-                (t) =>
-                  t.awardID === value.awardID &&
-                  t.awardName === value.awardName &&
-                  t.awardYear === value.awardYear &&
-                  t.description === value.description,
-              ),
-          );
-
-          const formattedData = uniqueData.map((item) => ({
-            name: item.awardName || '',
-            year: item.awardYear || '',
-            description: item.description || '',
-            errors: {},
-          }));
-
-          setAwards(
-            formattedData.length > 0
-              ? formattedData
-              : [
-                  {
-                    name: '',
-                    year: '',
-                    description: '',
-                    errors: {},
-                  },
-                ],
-          );
-        })
-        .catch((err) => {
-          console.error('Failed to fetch doctor award data', err);
-        });
-    }
+  
+    if (!doctorID) return;
+  
+    api
+      .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
+      .then((res) => {
+        const awardData = res.data?.data || [];
+  
+        // Remove logical duplicates (case-insensitive awardName + year)
+        const seen = new Set();
+        const uniqueAwards = [];
+  
+        for (const award of awardData) {
+          const key = `${award.awardName?.trim().toLowerCase() || ''}-${award.awardYear}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            uniqueAwards.push({
+              name: award.awardName || '',
+              year: award.awardYear || '',
+              description: award.description || '',
+              errors: {},
+            });
+          }
+        }
+  
+        // Set awards state (at least one empty if no data)
+        setAwards(
+          uniqueAwards.length > 0
+            ? uniqueAwards
+            : [
+                {
+                  name: '',
+                  year: '',
+                  description: '',
+                  errors: {},
+                },
+              ]
+        );
+  
+        // Store for submission comparison
+        setLastSubmittedAwards(uniqueAwards);
+      })
+      .catch((err) => {
+        console.error('Failed to fetch doctor award data:', err);
+      });
   }, []);
-
+  
   const handleComplete = () => {
     console.log('Form completed!');
     // Handle form completion logic here
@@ -3179,15 +3487,14 @@ const DoctorForm: React.FC = () => {
               )}
             </div>
 
-            <div className="col-span-3 flex justify-center mt-4">
-              <button
-                type="submit"
-                className={`bg-blue-600 text-white px-6 py-2 rounded ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? 'Submitted' : 'Submit'}
-              </button>
-            </div>
+            <div className="flex justify-end mt-6">
+                <button
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Submit
+                </button>
+              </div>
 
             <ToastContainer position="top-right" autoClose={3000} />
           </form>
@@ -3594,7 +3901,11 @@ const DoctorForm: React.FC = () => {
                       type={entry.startDate ? 'date' : 'text'}
                       name="startDate"
                       placeholder="Starting Date"
-                      value={entry.startDate || ''}
+                      value={
+                        entry.startDate
+                          ? new Date(entry.startDate).toISOString().split('T')[0]
+                          : ''
+                      }
                       max={new Date().toISOString().split('T')[0]} // Prevent future dates
                       onFocus={(e) => (e.target.type = 'date')}
                       onBlur={(e) => {
@@ -3645,7 +3956,11 @@ const DoctorForm: React.FC = () => {
                       type={entry.endDate ? 'date' : 'text'}
                       name="endDate"
                       placeholder="Ending Date"
-                      value={entry.endDate || ''}
+                      value={
+                        entry.endDate
+                          ? new Date(entry.endDate).toISOString().split('T')[0]
+                          : ''
+                      }
                       max={new Date().toISOString().split('T')[0]} // Prevent future dates
                       onFocus={(e) => (e.target.type = 'date')}
                       onBlur={(e) => {
@@ -3724,7 +4039,7 @@ const DoctorForm: React.FC = () => {
               </div>
 
               {/* Submit Button - centered */}
-              <div className="flex justify-center mt-6">
+              <div className="flex justify-end mt-6">
                 <button
                   type="submit"
                   className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
@@ -3835,7 +4150,7 @@ const DoctorForm: React.FC = () => {
                 </button>
               </div>
 
-              <div className="flex justify-center mt-6">
+              <div className="flex justify-end mt-6">
                 <button
                   type="submit"
                   className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
@@ -3986,107 +4301,98 @@ const DoctorForm: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Dates */}
-                    <div className="flex gap-4 col-span-2">
-                      <div className="w-full relative">
-                        <input
-                          type={exp.joinDate ? 'date' : 'text'}
-                          name="joinDate"
-                          placeholder="Join Date"
-                          value={exp.joinDate || ''}
-                          max={today}
-                          onFocus={(e) => (e.target.type = 'date')}
-                          onBlur={(e) => {
-                            if (!e.target.value) e.target.type = 'text';
-                          }}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            handleExperience(idx, 'joinDate', value);
+                    {/* Join Date */}
+                    <div className="w-full relative">
+                    <input
+                      type="date"
+                      name="joinDate"
+                      placeholder="Join Date"
+                      value={exp.joinDate || ''}
+                      max={today} // prevent future dates
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      onChange={(e) => {
+                        const value = e.target.value; // YYYY-MM-DD
+                        handleExperience(idx, 'joinDate', value);
 
-                            if (new Date(value) > new Date()) {
-                              setErrors((prev) => ({
-                                ...prev,
-                                [idx]: {
-                                  ...prev[idx],
-                                  joinDate: 'Join date cannot be in the future',
-                                },
-                              }));
-                            } else {
-                              setErrors((prev) => ({
-                                ...prev,
-                                [idx]: {
-                                  ...prev[idx],
-                                  joinDate: '',
-                                },
-                              }));
-                            }
-                          }}
-                          className={`${inputFieldClass} ${
-                            errors[idx]?.joinDate
-                              ? 'border-red-500'
-                              : 'border-gray-300'
-                          } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                          style={{
-                            paddingTop: !exp.joinDate ? '1.25rem' : undefined,
-                          }}
-                        />
-
-                        {errors[idx]?.joinDate && (
-                          <p className="text-red-600 text-sm mt-1">
-                            {errors[idx].joinDate}
-                          </p>
-                        )}
-                      </div>
-                      <div className="w-full">
-                        <input
-                          type={exp.leaveDate ? 'date' : 'text'}
-                          name="leaveDate"
-                          placeholder="Leave Date"
-                          value={exp.leaveDate || ''}
-                          max={today}
-                          onFocus={(e) => (e.target.type = 'date')}
-                          onBlur={(e) => {
-                            if (!e.target.value) e.target.type = 'text';
-                          }}
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            handleExperience(idx, 'leaveDate', value);
-
-                            if (new Date(value) > new Date()) {
-                              setErrors((prev) => ({
-                                ...prev,
-                                [idx]: {
-                                  ...prev[idx],
-                                  leaveDate:
-                                    'Leave date cannot be in the future',
-                                },
-                              }));
-                            } else {
-                              setErrors((prev) => ({
-                                ...prev,
-                                [idx]: {
-                                  ...prev[idx],
-                                  leaveDate: '',
-                                },
-                              }));
-                            }
-                          }}
-                          className={`${inputFieldClass} ${
-                            errors[idx]?.leaveDate
-                              ? 'border-red-500'
-                              : 'border-gray-300'
-                          } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                          style={{
-                            paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
-                          }}
-                        />
-                        {errors[idx]?.leaveDate && (
-                          <p className="text-red-600 text-sm">
-                            {errors[idx].leaveDate}
-                          </p>
-                        )}
-                      </div>
+                        if (new Date(value) > new Date()) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [idx]: {
+                              ...prev[idx],
+                              joinDate: 'Join date cannot be in the future',
+                            },
+                          }));
+                        } else {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [idx]: {
+                              ...prev[idx],
+                              joinDate: '',
+                            },
+                          }));
+                        }
+                      }}
+                      className={`${inputFieldClass} ${
+                        errors[idx]?.joinDate ? 'border-red-500' : 'border-gray-300'
+                      } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                      style={{
+                        paddingTop: !exp.joinDate ? '1.25rem' : undefined,
+                      }}
+                    />
+                      {errors[idx]?.joinDate && (
+                        <p className="text-red-600 text-sm mt-1">{errors[idx].joinDate}</p>
+                      )}
                     </div>
+
+                    {/* Leave Date */}
+                    <div className="w-full relative">
+                    <input
+                      type="date"
+                      name="leaveDate"
+                      placeholder="Leave Date"
+                      value={exp.leaveDate || ''}
+                      max={today}
+                      onFocus={(e) => (e.target.type = 'date')}
+                      onBlur={(e) => {
+                        if (!e.target.value) e.target.type = 'text';
+                      }}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        handleExperience(idx, 'leaveDate', value);
+
+                        if (new Date(value) > new Date()) {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [idx]: {
+                              ...prev[idx],
+                              leaveDate: 'Leave date cannot be in the future',
+                            },
+                          }));
+                        } else {
+                          setErrors((prev) => ({
+                            ...prev,
+                            [idx]: {
+                              ...prev[idx],
+                              leaveDate: '',
+                            },
+                          }));
+                        }
+                      }}
+                      className={`${inputFieldClass} ${
+                        errors[idx]?.leaveDate ? 'border-red-500' : 'border-gray-300'
+                      } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                      style={{
+                        paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
+                      }}
+                    />
+                      {errors[idx]?.leaveDate && (
+                        <p className="text-red-600 text-sm">{errors[idx].leaveDate}</p>
+                      )}
+                    </div>
+
                   </div>
                 </div>
               ))}
@@ -4226,17 +4532,17 @@ const DoctorForm: React.FC = () => {
             </div>
 
             <div className="flex justify-end px-5">
-              <button
-                type="button"
-                onClick={handleAddSkill}
-                className="flex items-center space-x-2 text-blue-600 font-semibold"
-              >
-                <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
-                  +
-                </div>
-                <span>Add</span>
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleAddSkill}
+              className="flex items-center space-x-2 text-blue-600 font-semibold"
+            >
+              <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
+                +
+              </div>
+              <span>Add</span>
+            </button>
+          </div>
           </form>
         </FormWizard.TabContent>
 
@@ -4319,15 +4625,7 @@ const DoctorForm: React.FC = () => {
                       </p>
                     )}
                   </div>
-                  <div className="flex justify-center">
-                    <button
-                      type="submit"
-                      onClick={handleAwardSubmit}
-                      className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                    >
-                      Submit
-                    </button>
-                  </div>
+                  
                 </div>
               ))}
 
@@ -4343,6 +4641,15 @@ const DoctorForm: React.FC = () => {
                   <span>Add</span>
                 </button>
               </div>
+              <div className="flex justify-center">
+                    <button
+                      type="submit"
+                      onClick={handleAwardSubmit}
+                      className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                    >
+                      Submit
+                    </button>
+                  </div>
             </div>
           </form>
         </FormWizard.TabContent>
@@ -4408,7 +4715,6 @@ const DoctorForm: React.FC = () => {
             </div>
           </form>
         </FormWizard.TabContent>
-
         <FormWizard.TabContent
           title="Documents"
           icon={
@@ -4451,21 +4757,28 @@ const DoctorForm: React.FC = () => {
                 {/* Preview Icon */}
                 {previewSrc && (
                   <button
-                    onClick={() => setIsPreviewOpen(true)}
-                    className="text-blue-500"
-                  >
-                    <Eye className="w-5 h-5" />
-                  </button>
+  type="button"
+  onClick={() => setIsPreviewOpen(true)}
+  className="text-blue-500"
+>
+  <Eye className="w-5 h-5" />
+</button>
+
                 )}
 
                 {/* Upload Button */}
-                <button
-                  onClick={handleUpload}
-                  className="w-[15%] bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]
-    text-white py-2 px-4 rounded-lg text-sm"
-                >
-                  Upload
-                </button>
+               <button
+  onClick={handleUpload}
+  disabled={isUploading}
+  className={`w-[15%] py-2 px-4 rounded-lg text-sm text-white ${
+    isUploading
+      ? 'bg-gray-400 cursor-not-allowed'
+      : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
+  }`}
+>
+  {isUploading ? 'Uploading...' : 'Upload'}
+</button>
+
               </div>
 
               {/* Uploaded Documents Table */}
@@ -4565,34 +4878,37 @@ const DoctorForm: React.FC = () => {
                 </div>
               )}
               {/* Modal for Viewing Documents */}
-              {modalOpen && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-                  <div className="bg-white p-4 rounded shadow-lg max-w-xl w-full relative flex flex-col items-center">
-                    <button
-                      className="absolute top-2 right-2 text-gray-500 text-xl"
-                      onClick={() => setModalOpen(false)}
-                    >
-                      &times;
-                    </button>
-                    <h2 className="text-lg font-bold mb-2">View Document</h2>
-                    <div className="flex justify-center items-center w-full max-h-[80vh]">
-                      {isImage ? (
-                        <img
-                          src={documentURL}
-                          alt="Document"
-                          className="max-w-full max-h-[80vh] object-contain"
-                        />
-                      ) : (
-                        <iframe
-                          src={documentURL}
-                          className="w-full h-[400px] border"
-                          title="Document Preview"
-                        ></iframe>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+               {modalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-4 rounded shadow-lg max-w-xl w-full relative flex flex-col items-center">
+            <button
+              className="absolute top-2 right-2 text-gray-500 text-xl"
+              onClick={() => setModalOpen(false)}
+            >
+              &times;
+            </button>
+            <h2 className="text-lg font-bold mb-2">View Document</h2>
+            <div className="flex justify-center items-center w-full max-h-[80vh]">
+              {isImage ? (
+  <img
+    src={documentURL}
+    alt="Uploaded document"
+    style={{ maxWidth: '100%', maxHeight: '80vh' }}
+  />
+) : (
+  <iframe
+    src={documentURL}
+    title="PDF Document"
+    width="100%"
+    height="600px"
+    style={{ border: 'none' }}
+  />
+)}
+
+            </div>
+          </div>
+        </div>
+      )}
             </div>
           </form>
         </FormWizard.TabContent>

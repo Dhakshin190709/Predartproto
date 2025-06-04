@@ -127,11 +127,11 @@ import LabProfile from './pages/Profile/LabProfile';
 import Timeslot from './pages/Timeslot';
 import Notification from './pages/Settings/Notifications';
 
-// import DocumentUpload from './pages/DoctorProfile/DocumentUpload';
+// import MedicalDocumentUpload from './pages/DoctorProfile/MedicalDocumentUpload';
 import AccountSettings from './pages/AccountSettings';
 
 import RescheduleModel from './pages/RescheduleModel';
-import DocumentUpload from './pages/DocumentUpload';
+import MedicalDocumentUpload from './pages/MedicalDocumentUpload';
 import FeedBackForm from './pages/FeedBack/FeedBackForm';
 import MyContacts from './pages/MyContacts';
 import PatientCardNavigation from './pages/PatientCardNavigation';
@@ -488,20 +488,20 @@ function App() {
           }
           />
         <Route
-          path="doctorProfile/DocumentUpload" 
+          path="doctorProfile/MedicalDocumentUpload" 
           element={
             <>
-              <PageTitle title="DocumentUpload | PreCare" />
-              <DocumentUpload />
+              <PageTitle title="MedicalDocumentUpload | PreCare" />
+              <MedicalDocumentUpload />
               </>
           }
           /> */}
            <Route
-          path="/DocumentUpload" 
+          path="/MedicalDocumentUpload" 
           element={
             <>
-              <PageTitle title="DocumentUpload | PreCare" />
-              <DocumentUpload />
+              <PageTitle title="MedicalDocumentUpload | PreCare" />
+              <MedicalDocumentUpload />
               </>
           }
           />

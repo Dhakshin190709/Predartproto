@@ -869,8 +869,12 @@ const Users: React.FC = () => {
   const newErrors: { [key: string]: string } = {};
   const roleName = sessionStorage.getItem('roleName');
 
-  const usernameRegex = /^[a-zA-Z0-9]+$/;
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const usernameRegex = /^[a-zA-Z0-9_]+$/; // Only letters, numbers, underscores
+const emojiRegex = /[\p{Emoji}]/u;        // Unicode emoji matcher
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+// Disallow emojis/crosses in email (optional stricter emoji check)
+
   const passwordRegex = /^(?=.*[0-9!@#$%^&*])[A-Za-z0-9!@#$%^&*]{6,8}$/;
   const phoneRegex = /^[6-9]\d{9}$/;
 
@@ -879,20 +883,26 @@ const Users: React.FC = () => {
   console.log('Selected Unit ID:', selectedSecondItem);
 
   // Username
-  if (!(formData.username || '').trim()) {
-    newErrors.username = 'Username is required';
-  } else if (!usernameRegex.test(formData.username)) {
-    newErrors.username = 'Username must be alphanumeric';
-  } else if (/^\d+$/.test(formData.username)) {
-    newErrors.username = 'Username cannot be all numbers';
-  }
+  // Username
+if (!(formData.username || '').trim()) {
+  newErrors.username = 'Username is required';
+} else if (!usernameRegex.test(formData.username)) {
+  newErrors.username = 'Username can only contain letters, numbers, and underscores';
+} else if (/^\d+$/.test(formData.username)) {
+  newErrors.username = 'Username cannot be all numbers';
+} else if (emojiRegex.test(formData.username)) {
+  newErrors.username = 'Username cannot contain emojis';
+}
+
 
   // Email
-  if (!(formData.email || '').trim()) {
-    newErrors.email = 'Email is required';
-  } else if (!emailRegex.test(formData.email)) {
-    newErrors.email = 'Enter a valid email address';
-  }
+ if (!(formData.email || '').trim()) {
+  newErrors.email = 'Email is required';
+} else if (!emailRegex.test(formData.email)) {
+  newErrors.email = 'Enter a valid email address';
+} else if (emojiRegex.test(formData.email)) {
+  newErrors.email = 'Email cannot contain emojis';
+}
 
   // Phone
   const phone = formData.phone || '';
@@ -1162,6 +1172,7 @@ if (!safeSelectedSecondItem.trim()) {
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Users</h2>
+
       {isFormVisible && (
         <div>
           <div className="flex flex-wrap gap-4 mb-4 items-center">
@@ -1196,6 +1207,7 @@ if (!safeSelectedSecondItem.trim()) {
           <hr className="border-t-2 border-stroke bg-transparent my-6" />
         </div>
       )}
+
       <ToastContainer position="top-right" autoClose={3000} />
     {showForm && (
   <div
@@ -1251,31 +1263,35 @@ if (!safeSelectedSecondItem.trim()) {
 
 
         {/* Username */}
-        <div className="w-full max-w-[400px] relative">
-          <input
-            type="text"
-            value={formData.username}
-            maxLength={30}
-            onChange={(e) => handleSingleInputChange('username', e.target.value)}
-            onBlur={handleUsernameBlur}
-            placeholder="User Name"
-            className="w-full h-[48px] rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
-          {usernameAvailable && formData.username && !errors.username && (
-            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-green-500">
-              <CheckCircle className="w-5 h-5" />
-            </span>
-          )}
-          <div className="min-h-[1.25rem] mt-1">
-            <p
-              className={`text-red-500 text-sm transition-opacity duration-200 ${
-                errors.username ? 'opacity-100' : 'opacity-0'
-              }`}
-            >
-              {errors.username || 'placeholder'}
-            </p>
-          </div>
-        </div>
+      <div className="w-full max-w-[400px] relative">
+  <input
+    type="text"
+    value={formData.username}
+    maxLength={30}
+    onChange={(e) => handleSingleInputChange('username', e.target.value)}
+    onBlur={handleUsernameBlur}
+    placeholder="User Name"
+    className="w-full h-[48px] pr-10 rounded-lg border border-stroke bg-transparent px-6 py-3 text-black outline-none focus:border-primary"
+  />
+  {usernameAvailable && formData.username && !errors.username && (
+    <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-green-500">
+      <CheckCircle className="w-5 h-5" />
+    </span>
+  )}
+  <div className="min-h-[1.25rem] mt-1">
+    <p
+      className={`text-red-500 text-sm transition-opacity duration-200 ${
+        errors.username ? 'opacity-100' : 'opacity-0'
+      }`}
+    >
+      {errors.username || 'placeholder'}
+    </p>
+  </div>
+</div>
+
+
+
+
 
         {/* Email */}
         <div className="w-full max-w-[400px] relative">

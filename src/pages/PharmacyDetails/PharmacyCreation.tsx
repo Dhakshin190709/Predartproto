@@ -87,7 +87,7 @@ const EPharmacyPage: React.FC = () => {
     if (!formData.pharmacyName.trim()) {
       newErrors.pharmacyName = 'Pharmacy Name is required';
     } else if (!namePattern.test(formData.pharmacyName)) {
-      newErrors.pharmacyName = 'Only alphabets, max 20 characters allowed';
+      newErrors.pharmacyName = 'Only alphabets, max 30 characters allowed';
     }
 
     // Pharmacy Email
@@ -634,7 +634,7 @@ const EPharmacyPage: React.FC = () => {
             <div>
               <input
                 type="text"
-                maxLength={50}
+                maxLength={30}
                 placeholder="Pharmacy Name"
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -652,6 +652,7 @@ const EPharmacyPage: React.FC = () => {
               <input
                 type="email"
                 placeholder="Pharmacy Email"
+                maxLength={50}
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"

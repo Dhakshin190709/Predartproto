@@ -325,7 +325,7 @@ const SignUp: React.FC = () => {
                           type="text"
                           className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                           value={formData.name}
-                          maxLength={20}
+                          maxLength={50}
                           onChange={(e) =>
                             handleSingleInputChange('name', e.target.value)
                           }
@@ -350,6 +350,7 @@ const SignUp: React.FC = () => {
                       <div className="relative">
                         <input
                           type="email"
+                          maxLength={50}
                           className="w-full rounded-lg border text-[15px] border-stroke bg-transparent py-4 pl-6 pr-10 
          text-black outline-none focus:border-primary dark:border-form-strokedark 
          dark:bg-form-input dark:text-white dark:focus:border-primary"
