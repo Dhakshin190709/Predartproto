@@ -69,11 +69,13 @@ module.exports = {
     new MiniCssExtractPlugin({
       filename: "style.css",
     }),
-    new CopyWebpackPlugin({
-      patterns: [
-        { from: "public/favicon.ico", to: "favicon.ico" },
-      ],
-    }),
+   new CopyWebpackPlugin({
+  patterns: [
+    { from: "public/favicon.ico", to: "favicon.ico" },
+    { from: "web.config", to: "web.config" }, // ✅ Add this line
+  ],
+}),
+
   ],
   
   

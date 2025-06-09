@@ -216,6 +216,28 @@ useEffect(() => {
                 Account Settings
               </Link>
             </li>
+           <li>
+  <Link
+    to="/PrivacyPolicy"
+    className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+  >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="fill-current"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+    >
+      <path
+        fill="currentColor"
+        d="M12 2L4 5v6c0 5.25 3.5 10 8 11 4.5-1 8-5.75 8-11V5l-8-3Zm0 2.18 6 2.25v5.32c0 4.05-2.68 7.94-6 9-3.32-1.06-6-4.95-6-9V6.43l6-2.25Zm-1 7.32a2 2 0 1 1 2 0v2.5a1 1 0 1 1-2 0v-2.5Z"
+      />
+    </svg>
+    Privacy Policy
+  </Link>
+</li>
+
           </ul>
           <button
             onClick={handleLogout}

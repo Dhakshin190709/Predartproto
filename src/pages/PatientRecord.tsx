@@ -226,10 +226,10 @@ const ProfileSection: React.FC = () => {
                   sNo: index + 1,
                 }))}
                 pagination={true}
-                paginationPageSize={5}
+                paginationPageSize={10}
                 domLayout="autoHeight"
                 suppressPaginationPanel={false}
-                paginationPageSizeSelector={[10, 20, 50, 100, 5]}
+                paginationPageSizeSelector={[10, 20, 50, 100]}
                 columnDefs={[
                   {
                     headerName: 'S.No',
@@ -307,7 +307,7 @@ const ProfileSection: React.FC = () => {
                 sNo: index + 1,
               }))}
               pagination={true}
-              paginationPageSize={5}
+              paginationPageSize={10}
               paginationPageSizeSelector={[5, 10, 20, 50, 100]}
               columnDefs={[
                 { headerName: 'S.No', field: 'sNo', width: 80 },
@@ -496,7 +496,7 @@ const ProfileSection: React.FC = () => {
                 sNo: index + 1,
               }))}
               pagination={true}
-              paginationPageSize={5}
+              paginationPageSize={10}
               paginationPageSizeSelector={[5, 10, 20, 50, 100]}
               columnDefs={[
                 { headerName: 'S.No', field: 'sNo', width: 80 },

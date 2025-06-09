@@ -8,6 +8,12 @@ import {
   FaChevronUp,
   FaGooglePay,
   FaMagic,
+  FaFileSignature,
+  FaGitlab,
+  FaCoins,
+  FaPlusCircle,
+  FaStar,
+  FaListAlt,
 } from 'react-icons/fa';
 
 import {
@@ -56,6 +62,7 @@ import {
 } from 'react-icons/fa';
 import { MdDateRange, MdDashboard, MdLocalHospital } from 'react-icons/md';
 import api from '../../api/request';
+import { BiDetail } from 'react-icons/bi';
 
 // Define types
 interface MenuItem {
@@ -97,9 +104,13 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   UserManagement: { icon: <FaUsersCog />, route: '#' },
   Events: { icon: <FaCalendarCheck />, route: '#' },
   Offers: { icon: <FaTag />, route: '/offers' },
+  PromoCode: { icon: <FaTag />, route: '/PromoCode' },
+  PricePlan: { icon: <FaCoins  />, route: '/PricePlan' },
+  AddOn: { icon: <FaPlusCircle  />, route: '/AddOn' },
+  PlanFeature: { icon: <FaListAlt />, route: '/PlanFeature' },
   FeedBack: { icon: <FaCommentAlt />, route: '/Feedback/FeedBackForm' },
   Settings: { icon: <FaCog />, route: '#' },
-  Tenant: { icon: <FaBuilding />, route: '/tenant' },
+  TenantRegister: { icon: <FaBuilding />, route: '/tenant' },
   Lab: { icon: <FaFlask />, route: '/search/lab' },
   LabProfile: { icon: <FaFlask />, route: '/LabProfile' },
   //UploadedDocument: { icon: <FaCloudUploadAlt />, route: '/document-upload' },
@@ -127,6 +138,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Hospitals: { icon: <MdLocalHospital />, route: '/hospital' },
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
+  Diagnostics: { icon: <FaGitlab />, route: '#' },
   PharmacyRegister: {
     icon: <FaFirstAid />,
     route: '/PharmacyDetails/PharmacyCreation',
@@ -144,12 +156,15 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
     route: '/reports/ExpiringStockReport',
   },
   LowStockReport: { icon: <FaFileExport />, route: '/reports/LowStockReport' },
+  MedicineTransferReport: { icon: <FaFileExport />, route: '#' },
   StockSummaryReport: {
     icon: <FaFileExport />,
     route: '/reports/StockSummaryReport',
   },
   RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
   MedicineTransfer: { icon: <FaFileExport />, route: '/MedicineTransfer' },
+  Registration: { icon: <FaFileSignature />, route: '#' },
+  DiagnosticsRegistration: { icon: <FaFileSignature />, route: '#' },
 
   AppointmentHistory: {
     icon: <FaClipboardCheck />,
@@ -173,6 +188,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   SurveyReport: { icon: <FaPoll />, route: '/reports/surveyreport' },
   EventReport: { icon: <FaCalendarAlt />, route: '/reports/eventreport' },
   Users: { icon: <FaUserCircle />, route: '/usersmanagement/users' },
+  Profile: { icon: <FaUserCircle />, route: '#' },
   Menus: { icon: <FaListUl />, route: '/usersmanagement/menus' },
   Roles: { icon: <FaUserShield />, route: '/usersmanagement/roles' },
   Rights: { icon: <FaKey />, route: '/usersmanagement/rights' },
@@ -181,18 +197,24 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Conference: { icon: <FaVideo />, route: '/events/conference' },
   MedicalCamp: { icon: <FaHeartbeat />, route: '/events/medicalcamp' },
   Survey: { icon: <FaPoll />, route: '/events/survey' },
-  Profile: { icon: <FaUserCircle />, route: '/settings/profile' },
+  //Profile: { icon: <FaUserCircle />, route: '/settings/profile' },
   Communication: { icon: <FaCommentAlt />, route: '/settings/communication' },
   Privacy: { icon: <FaShieldAlt />, route: '/settings/privacy' },
   Family: { icon: <FaUsers />, route: '/settings/family' },
+  Masters: { icon: <FaUsers />, route: '#' },
   Notification: { icon: <FaBell />, route: '/settings/notification' },
-MedicalDocument: { icon: <FaCloudUploadAlt />, route: '/MedicalDocumentUpload' },
+  MedicalDocument: {
+    icon: <FaCloudUploadAlt />,
+    route: '/MedicalDocumentUpload',
+  },
   default: { icon: <FaFolder />, route: '/default' },
 };
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [openMenus, setOpenMenus] = useState<string[]>([]);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
     const storedUserID = sessionStorage.getItem('userID');
@@ -259,12 +281,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
 
   return (
     <aside
-      className={`absolute left-0 top-0 z-9999 flex h-screen w-72.5 flex-col overflow-y-auto bg-black duration-300 ease-linear dark:bg-boxdark lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-      style={{ scrollbarWidth: 'thin', scrollbarColor: '#555 #222' }} // Custom scrollbar for Firefox
+      className={`absolute left-0 top-0 z-9999 flex h-screen flex-col overflow-y-auto
+  bg-gradient-to-b from-[#002B5B] to-[#004A99] text-white transition-all duration-300 ease-linear
+  ${isCollapsed ? 'w-20' : 'w-72.5'} 
+  lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
     >
-      <div className="flex items-center px-4 py-4 lg:py-6">
-        <img src={Logo} alt="CarePoint Pro Logo" className="h-10 w-15 mr-3" />
-        <h1 className="font-semibold text-white text-2xl">PreCare</h1>
+      <div className="flex items-center justify-between px-4 py-2">
+        <div className="flex items-center gap-3">
+          <img
+            src={Logo}
+            alt="CarePoint Pro Logo"
+            className={`h-10 transition-all ${isCollapsed ? 'w-10' : 'w-12'}`}
+          />
+          {!isCollapsed && (
+            <span className="text-white text-xl font-semibold">Precare</span>
+          )}
+        </div>
+
+        <button
+          className="text-white text-2xl focus:outline-none"
+          onClick={() => setIsCollapsed(!isCollapsed)}
+        >
+          ☰
+        </button>
       </div>
 
       <div className="sidebar-menu overflow-y-auto flex-1">
@@ -273,20 +312,29 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             <div key={parent.menuID} className="p-4">
               <NavLink
                 to={iconMapping[parent.title]?.route || '#'}
-                className="flex items-center text-white font-semibold text-base cursor-pointer"
+                className={`flex items-center text-white font-semibold text-base cursor-pointer rounded-lg px-3 py-2
+  ${activeMenu === parent.menuID ? 'bg-white text-blue-700 shadow-md' : ''}
+`}
                 onClick={() => {
-                  if (!menuTree[parent.menuID]) {
-                    return;
+                  setActiveMenu(parent.menuID); // set active menu
+                  if (menuTree[parent.menuID]) {
+                    toggleDropdown(parent.menuID);
                   }
-                  toggleDropdown(parent.menuID);
                 }}
               >
-                <div className="text-xl mr-5">
+                <div
+                  className={`text-xl mr-5 ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
+                >
                   {iconMapping[parent.title]?.icon || <FaFolder />}
                 </div>
-                <span className="text-xl">{parent.title}</span>
 
-                {menuTree[parent.menuID] && (
+                <span
+                  className={`text-xl transition-all ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
+                >
+                  {parent.title}
+                </span>
+
+                {!isCollapsed && menuTree[parent.menuID] && (
                   <span className="ml-auto text-x">
                     {openMenus.includes(parent.menuID) ? (
                       <FaChevronUp />
@@ -297,22 +345,33 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
                 )}
               </NavLink>
 
-              {openMenus.includes(parent.menuID) && menuTree[parent.menuID] && (
-                <div className="ml-6 mt-2 space-y-2">
-                  {menuTree[parent.menuID].map((child) => (
-                    <NavLink
-                      key={child.menuID}
-                      to={iconMapping[child.title]?.route || '#'}
-                      className="flex items-center text-white text-md ml-5"
-                    >
-                      <div className="text-xl mr-3">
-                        {iconMapping[child.title]?.icon || <FaFolder />}
-                      </div>
-                      <span className="text-x">{child.title}</span>
-                    </NavLink>
-                  ))}
-                </div>
-              )}
+              {!isCollapsed &&
+                openMenus.includes(parent.menuID) &&
+                menuTree[parent.menuID] && (
+                  <div className="ml-6 mt-2 space-y-2">
+                    {menuTree[parent.menuID].map((child) => (
+                      <NavLink
+                        key={child.menuID}
+                        to={iconMapping[child.title]?.route || '#'}
+                        onClick={() => setActiveMenu(child.menuID)}
+                        className={`flex items-center text-white text-md ml-5 rounded-lg px-3 py-2
+        ${activeMenu === child.menuID ? 'bg-white text-blue-700 shadow-md' : ''}`}
+                      >
+                        <div
+                          className={`text-xl mr-3 ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
+                        >
+                          {iconMapping[child.title]?.icon || <FaFolder />}
+                        </div>
+
+                        <span
+                          className={`text-x ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
+                        >
+                          {child.title}
+                        </span>
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
             </div>
           ))}
         </nav>

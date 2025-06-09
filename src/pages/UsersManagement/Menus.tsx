@@ -46,14 +46,7 @@ const Menus: React.FC = () => {
   const [isFormVisible, setIsFormVisible] = useState(true);
   const [menusFetched, setMenusFetched] = useState(false);
   const [parentMenusFetched, setParentMenusFetched] = useState(false);
-  // const [formData, setFormData] = useState<RowData>({
-  //   Id: 0,
-  //   menuName: '',
-  //   code: '',
-  //   parentMenu: '',
-  //   status: 'Active',
-  //   displayOrder:0,
-  // });
+ 
 
   const [formData, setFormData] = useState({
     menuID: 0,
@@ -97,27 +90,7 @@ const Menus: React.FC = () => {
     setIsSubmitting(false);
   };
 
-  const checkDuplicateMenu = async (menuName, code) => {
-    try {
-      const { data: result } = await api.get('/Menu'); // Axios parses JSON automatically
-
-      if (result && Array.isArray(result)) {
-        return result.some(
-          (menu) => menu.title === menuName || menu.code === code,
-        );
-      } else {
-        console.warn('Unexpected response structure:', result);
-        return false;
-      }
-    } catch (error) {
-      console.error('Error checking duplicates:', error);
-      return false;
-    }
-  };
-
-
-
-const createMenu = async ({
+  const createMenu = async ({
   menuID,
   menuName,
   code,
@@ -125,95 +98,85 @@ const createMenu = async ({
   selectedParentMenu,
   isActive,
 }) => {
-  // Build menuData dynamically
   const menuData = {
-  parentID: selectedParentMenu || null,
-  title: menuName,
-  order: Number(displayOrder) || 0,
-  isActive: isActive ?? true,
-  code:"",
-};
+    parentID: selectedParentMenu || null,
+    title: menuName,
+    order: Number(displayOrder) || 0,
+    isActive: isActive ?? true,
+    code: '',
+  };
 
-// Only include code if provided (skip for auto-generate on create)
-if (code && typeof code === 'string' && code.trim() !== '') {
-  menuData.code = code;
-}
+  if (code && code.trim() !== '') {
+    menuData.code = code;
+  }
 
-// Only add menuID if it's a valid GUID
-if (menuID && typeof menuID === 'string' && menuID.trim() !== '') {
-  menuData.menuID = menuID;
-}
-
+  if (menuID && menuID.trim() !== '') {
+    menuData.menuID = menuID;
+  }
 
   try {
     let response;
 
-    if (menuData.menuID) {
-      // Update (PUT)
+    if (menuID) {
       response = await api.put('/Menu', menuData);
       toast.success('Menu updated successfully!');
     } else {
-      // Create (POST)
       response = await api.post('/Menu', menuData);
       toast.success('Menu created successfully!');
     }
 
     resetForm();
     setShowForm(false);
-    
+
+    // 🟢 Re-fetch the grid data after successful create/update
+    setMenusFetched(false); // trigger refresh
+    setParentMenusFetched(false); // trigger refresh
+    await fetchMenusAndParentMenus(); // fetch again
+
   } catch (error) {
     console.error('Error saving menu:', error);
-    toast.error('Failed to save menu. Please try again.');
+    toast.error('Failed to save menu');
   }
 };
 
 
 
-  const fetchMenusAndParentMenus = async () => {
-    if (menusFetched && parentMenusFetched) return;
-    setLoading(true);
+ const fetchMenusAndParentMenus = async () => {
+  setLoading(true); // always show loading while fetching
 
-    try {
-      const { data: result } = await api.get('/menu'); // axios automatically parses JSON
+  try {
+    const { data: result } = await api.get('/menu');
 
-      if (result.success && Array.isArray(result.data)) {
-        const menuTitleLookup = result.data.reduce((acc, item) => {
-          acc[item.menuID] = item.title;
-          return acc;
-        }, {});
+    if (result.success && Array.isArray(result.data)) {
+      const menuTitleLookup = result.data.reduce((acc, item) => {
+        acc[item.menuID] = item.title;
+        return acc;
+      }, {});
 
-        const processedData = result.data.map((item) => ({
-          ...item,
-          menuID: item.menuID,
-          menuName: item.title,
-          parentMenu:
-            item.parentID === null
-              ? 'null'
-              : menuTitleLookup[item.parentID] || 'Unknown',
-          status: item.isActive ? 'Active' : 'Inactive',
-          displayOrder: item.order,
-        }));
+      const processedData = result.data.map((item) => ({
+        ...item,
+        menuID: item.menuID,
+        menuName: item.title,
+        parentMenu: item.parentID === null ? 'null' : menuTitleLookup[item.parentID] || 'Unknown',
+        status: item.isActive ? 'Active' : 'Inactive',
+        displayOrder: item.order,
+      }));
 
-        if (!menusFetched) {
-          setRowData(processedData);
-          setMenusFetched(true);
-        }
-
-        if (!parentMenusFetched) {
-          setParentMenuList(result.data);
-          setParentMenusFetched(true);
-        }
-      } else {
-        console.error('Unexpected response format:', result);
-        setRowData([]);
-        setParentMenuList([]);
-      }
-    } catch (error) {
-      console.error('Error fetching menus and parent menus:', error);
-    } finally {
-      setLoading(false);
+      setRowData(processedData);
+      setParentMenuList(result.data);
+      setMenusFetched(true);
+      setParentMenusFetched(true);
+    } else {
+      setRowData([]);
+      setParentMenuList([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching menu list', error);
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   useEffect(() => {
     fetchMenusAndParentMenus();
@@ -238,9 +201,61 @@ if (menuID && typeof menuID === 'string' && menuID.trim() !== '') {
   };
 
   // Update filtered data whenever quickSearchText or rowData changes
+ useEffect(() => {
+  setFilteredData(applyGlobalSearch(rowData));
+}, [rowData, quickSearchText]);
+
+
+  const handleSubmit = () => {
+    createMenu(formData, () => {
+      setFormData({
+        menuName: '',
+        code: '',
+        displayOrder: '',
+        selectedParentMenu: null,
+        isActive: true,
+      });
+      setShowForm(false); // Close form
+    });
+  };
+  const fetchMenus = async () => {
+    try {
+      const { data: result } = await api.get('/Menu');
+
+      if (result.success && Array.isArray(result.data)) {
+        const activeMenus = result.data.filter(
+          (menu) => menu.isActive === true,
+        );
+        setMenus(activeMenus);
+      } else {
+        console.warn('Unexpected menu response format:', result);
+      }
+    } catch (error) {
+      console.error('Error fetching menus:', error);
+    }
+  };
+
   useEffect(() => {
-    setFilteredData(applyGlobalSearch(rowData));
-  }, [quickSearchText, rowData]);
+    fetchMenus();
+  }, []);
+
+  const checkDuplicateMenu = async (menuName, code) => {
+    try {
+      const { data: result } = await api.get('/Menu'); // Axios parses JSON automatically
+
+      if (result && Array.isArray(result)) {
+        return result.some(
+          (menu) => menu.title === menuName || menu.code === code,
+        );
+      } else {
+        console.warn('Unexpected response structure:', result);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking duplicates:', error);
+      return false;
+    }
+  };
 
   // Column Definitions
   const columnDefs: ColDef<RowData, any>[] = [
@@ -326,17 +341,16 @@ if (menuID && typeof menuID === 'string' && menuID.trim() !== '') {
       cellClass: 'text-center',
       headerClass: 'center-header',
       cellRenderer: (params: any) => (
-  <span
-    onClick={() => handleEdit(params.data)} // pass the entire row
-    className="cursor-pointer flex justify-center mt-3 items-center"
-  >
-    <Edit
-      size={18}
-      className="text-blue-500 hover:scale-110 transition-transform"
-    />
-  </span>
-),
-
+        <span
+          onClick={() => handleEdit(params.data)} // pass the entire row
+          className="cursor-pointer flex justify-center mt-3 items-center"
+        >
+          <Edit
+            size={18}
+            className="text-blue-500 hover:scale-110 transition-transform"
+          />
+        </span>
+      ),
     },
 
     {
@@ -356,33 +370,72 @@ if (menuID && typeof menuID === 'string' && menuID.trim() !== '') {
     },
   ];
 
+  const toggleStatus = async (params: any) => {
+    const menuID = params.data.menuID;
+    const isActive = params.value !== 'Active'; // Toggle current value
+    const userID = sessionStorage.getItem('userID');
+
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      toast.error('User not logged in. Please log in again.');
+      return;
+    }
+
+    try {
+      const response = await api.patch('/Menu', {
+        guidID: menuID,
+        updatedBy: userID,
+        isActive: isActive,
+      });
+
+      if (response.status === 200) {
+        console.log('Status updated successfully');
+        toast.success('Menu status updated successfully.');
+
+        // Update the AG Grid row immediately
+        params.node.setData({
+          ...params.data,
+          status: isActive ? 'Active' : 'Inactive',
+        });
+      } else {
+        console.warn(`Unexpected response status: ${response.status}`);
+        toast.warn('Unexpected response from server.');
+      }
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update menu status. Please try again.');
+    }
+  };
+
   // Form actions (unchanged)
   const handleAdd = () => {
     setShowForm(true);
     setFormMode('Add');
     resetForm();
   };
-const handleEdit = (rowDataItem: any) => {
-  if (rowDataItem) {
-    setFormData({
-      menuID: rowDataItem.menuID, // include menuID
-      menuName: rowDataItem.title,
-      code: rowDataItem.code,
-      displayOrder: rowDataItem.order,
-      selectedParentMenu: rowDataItem.parentID,
-      isActive: rowDataItem.isActive,
-    });
-    setShowForm(true);
-    setFormMode('Edit');
+  const handleEdit = (rowDataItem: any) => {
+    if (rowDataItem) {
+      setFormData({
+        menuID: rowDataItem.menuID, // include menuID
+        menuName: rowDataItem.title,
+        code: rowDataItem.code,
+        displayOrder: rowDataItem.order,
+        selectedParentMenu: rowDataItem.parentID,
+        isActive: rowDataItem.isActive,
+      });
+      setShowForm(true);
+      setFormMode('Edit');
 
-    setTimeout(() => {
-      if (formRef.current) {
-        formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-  }
-};
-
+      setTimeout(() => {
+        if (formRef.current) {
+          formRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start',
+          });
+        }
+      }, 100);
+    }
+  };
 
   const handleCancel = () => {
     resetForm();
@@ -399,45 +452,6 @@ const handleEdit = (rowDataItem: any) => {
     }); // Reset form data
     setSelectedRow(null); // Clear selected row
   };
-
- const toggleStatus = async (params: any) => {
-  const menuID = params.data.menuID;
-  const isActive = params.value !== 'Active'; // Toggle current value
-  const userID = sessionStorage.getItem('userID');
-
-  if (!userID) {
-    console.error('User ID not found in session storage.');
-    toast.error('User not logged in. Please log in again.');
-    return;
-  }
-
-  try {
-    const response = await api.patch('/Menu', {
-      guidID: menuID,
-      updatedBy: userID,
-      isActive: isActive,
-    });
-
-    if (response.status === 200) {
-      console.log('Status updated successfully');
-      toast.success('Menu status updated successfully.');
-
-      // Update the AG Grid row immediately
-      params.node.setData({
-        ...params.data,
-        status: isActive ? 'Active' : 'Inactive',
-      });
-    } else {
-      console.warn(`Unexpected response status: ${response.status}`);
-      toast.warn('Unexpected response from server.');
-    }
-  } catch (error) {
-    console.error('Error updating status:', error);
-    toast.error('Failed to update menu status. Please try again.');
-  }
-};
-
-
   const handleDelete = (menuID: number) => {
     setDeleteRowId(menuID); // Store the ID of the row to delete
     setShowConfirmation(true); // Show confirmation dialog
@@ -499,40 +513,6 @@ const handleEdit = (rowDataItem: any) => {
     }));
   };
 
-  const handleSubmit = () => {
-    createMenu(formData, () => {
-      setFormData({
-        menuName: '',
-        code: '',
-        displayOrder: '',
-        selectedParentMenu: null,
-        isActive: true,
-      });
-      setShowForm(false); // Close form
-    });
-  };
-const fetchMenus = async () => {
-      try {
-        const { data: result } = await api.get('/Menu');
-
-        if (result.success && Array.isArray(result.data)) {
-          const activeMenus = result.data.filter(
-            (menu) => menu.isActive === true,
-          );
-          setMenus(activeMenus);
-        } else {
-          console.warn('Unexpected menu response format:', result);
-        }
-      } catch (error) {
-        console.error('Error fetching menus:', error);
-      }
-    };
-
-  useEffect(() => {
-    
-    fetchMenus();
-  }, []);
-
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Menus</h2>
@@ -567,9 +547,8 @@ const fetchMenus = async () => {
 
                 {/* Code Input */}
                 <input
-                 
                   name="code"
-               type="hidden"
+                  type="hidden"
                   maxLength={5}
                   value={formData.code}
                   onChange={handleChange}
@@ -587,7 +566,7 @@ const fetchMenus = async () => {
                   placeholder="Display Order"
                   className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
                 />
-                 <select
+                <select
                   name="selectedParentMenu"
                   value={formData.selectedParentMenu}
                   onChange={handleChange}
@@ -602,7 +581,7 @@ const fetchMenus = async () => {
                       </option>
                     ))}
                 </select>
-                  {formMode === 'Edit' && (
+                {formMode === 'Edit' && (
                   <label className="text-black flex items-center w-fit cursor-pointer">
                     <input
                       type="checkbox"
@@ -614,33 +593,28 @@ const fetchMenus = async () => {
                     <span>Active</span>
                   </label>
                 )}
-                
               </div>
-<div className="flex gap-3 mt-2 ml-auto">
-                  <CustomButton
-                    type="submit"
-                    onClick={() => handleSave(formData)}
-                  >
-                    {formMode === 'Add' ? 'Save' : 'Update'}
-                  </CustomButton>
+              <div className="flex gap-3 mt-2 ml-auto">
+                <CustomButton
+                  type="submit"
+                  onClick={() => handleSave(formData)}
+                >
+                  {formMode === 'Add' ? 'Save' : 'Update'}
+                </CustomButton>
 
-                  <CustomButton
-                    type="button"
-                    onClick={() => setShowForm(false)}
-                  >
-                    Cancel
-                  </CustomButton>
-                </div>
-            
+                <CustomButton type="button" onClick={() => setShowForm(false)}>
+                  Cancel
+                </CustomButton>
+              </div>
             </div>
           </form>
         </div>
       )}
 
- <ToastContainer 
+      <ToastContainer
         position="top-right"
         autoClose={3000} // milliseconds
-        />
+      />
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
         <div className="relative">
           <input
@@ -682,19 +656,18 @@ const fetchMenus = async () => {
 
       {/* AgGrid Table */}
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-        <AgGridReact
-          rowData={applyGlobalSearch(
-            filteredData.filter((row) => row.isActive === true),
-          )}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
+       <AgGridReact
+  rowData={rowData}
+  columnDefs={columnDefs}
+  pagination={true}
+  paginationPageSize={10}
+  paginationPageSizeSelector={[10, 20, 50, 100]}
+  domLayout="autoHeight"
+  headerHeight={40}
+  rowHeight={40}
+  onGridReady={onGridReady}
+/>
+
       </div>
 
       {/* Deletion Confirmation Modal */}

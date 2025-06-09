@@ -313,7 +313,7 @@ const SignUp: React.FC = () => {
               <div className="w-full xl:w-1/2 xl:border-l-2 border-stroke dark:border-strokedark">
                 <div className="w-full p-2 sm:p-4 xl:p-4 xl:pl-20">
                   <h2 className="mb-4 text-2xl font-semibold text-black dark:text-white">
-                    Signup to CarePoint Pro
+                    Signup to PreCare
                   </h2>
                   <form className="space-y-4" onSubmit={handleSubmit}>
                     {/* First Row: Name & Email */}

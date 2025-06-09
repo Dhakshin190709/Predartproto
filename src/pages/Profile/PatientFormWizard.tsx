@@ -1545,19 +1545,19 @@ const [uploading, setUploading] = useState(false);
       fetchUploadedDocuments();
     }, []);
   
-    // Fetch Uploaded Documents
    const fetchUploadedDocuments = async () => {
-    try {
-      const response = await api.get(`/Doctor/GetDocuments`, {
-        params: { doctorId: patients.doctorId },
-  
-      });
-      setUploadedDocuments(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch uploaded documents:', error);
-    }
-  };
-  
+  try {
+    const response = await api.get(`/Doctor/GetDocuments`, {
+      params: { patientId: sessionPatientId },
+    });
+    console.log('API response:', response.data);
+    setUploadedDocuments(response.data);
+  } catch (error) {
+    console.error('Failed to fetch uploaded documents:', error);
+  }
+};
+
+
   useEffect(() => {
     const fetchPatients = async () => {
       const tenantID = sessionStorage.getItem('tenantID');

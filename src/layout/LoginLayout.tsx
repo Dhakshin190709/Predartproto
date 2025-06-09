@@ -10,16 +10,14 @@ const LoginLayout = () => {
       <header className="h-[70px] bg-[#deeeff] flex items-center justify-between px-4 shrink-0 z-10">
         <div className="flex items-center space-x-3">
           <img src={LogoIcon} className="h-14" alt="Logo" />
-          <h1 className="text-3xl font-bold font-serif">
-            <span>
-              <span className="text-[#1e3a8a]">P</span>
-              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                re
-              </span>
-              <span className="text-[#1e3a8a]">C</span>
-              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                are
-              </span>
+          <h1 className="text-4xl font-eduHand font-SemiBold-600 tracking-wide">
+            <span className="text-[#1e3a8a]">P</span>
+            <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+              re
+            </span>
+            <span className="text-[#1e3a8a]">C</span>
+            <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+              are
             </span>
           </h1>
         </div>
@@ -83,16 +81,14 @@ const LoginLayout = () => {
         <div className="flex justify-between items-center flex-wrap">
           <div className="flex items-center gap-2">
             <img src={LogoIcon} className="h-8" alt="Logo" />
-            <h1 className="text-3xl font-bold font-serif">
-              <span>
-                <span className="text-[#1e3a8a]">P</span>
-                <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                  re
-                </span>
-                <span className="text-[#1e3a8a]">C</span>
-                <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                  are
-                </span>
+            <h1 className="text-4xl font-eduHand font-SemiBold-600 tracking-wide">
+              <span className="text-[#1e3a8a]">P</span>
+              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                re
+              </span>
+              <span className="text-[#1e3a8a]">C</span>
+              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                are
               </span>
             </h1>
           </div>

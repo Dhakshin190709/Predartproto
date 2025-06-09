@@ -602,20 +602,42 @@ useEffect(() => {
     fetchStatusList();
   }, []);
 
-  useEffect(() => {
-    api
-      .get('/Doctor')
-      .then((response) => {
-        if (response.data.success && Array.isArray(response.data.data)) {
-          setDoctors(response.data.data);
-        } else {
-          console.error('Invalid data format');
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching doctors:', error);
-      });
-  }, []);
+useEffect(() => {
+  api
+    .get('/Doctor')
+    .then((response) => {
+      if (response.data.success && Array.isArray(response.data.data)) {
+        // Step 1: Remove duplicates
+        const uniqueMap = new Map();
+
+        response.data.data.forEach((doctor) => {
+          const nameKey = doctor.doctorName.toLowerCase().trim();
+          if (!uniqueMap.has(nameKey)) {
+            uniqueMap.set(nameKey, doctor);
+          }
+        });
+
+        const uniqueDoctors = Array.from(uniqueMap.values());
+
+        // Step 2: Forcefully sort Dr. names under 'D'
+        const sortedDoctors = uniqueDoctors.sort((a, b) => {
+          const nameA = a.doctorName.trim();
+          const nameB = b.doctorName.trim();
+
+          // Dr. names go by full string comparison as-is
+          return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        });
+
+        setDoctors(sortedDoctors);
+      } else {
+        console.error('Invalid data format');
+      }
+    })
+    .catch((error) => {
+      console.error('Error fetching doctors:', error);
+    });
+}, []);
+
 
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
@@ -1138,7 +1160,7 @@ useEffect(() => {
       selectedStatusID;
 
     if (!hasAnyFilter) {
-      toast.error('Please select at least one filter.');
+      toast.warn('Please select at least one filter.');
       return;
     }
 

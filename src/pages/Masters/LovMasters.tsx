@@ -43,106 +43,103 @@ const LovMasters: React.FC = () => {
   const gridColumnApi = useRef<any>(null);
   // Function to send data to API
 
-  
-
   useEffect(() => {
     console.log('Component mounted');
     fetchData(); // Only fetch once on mount
   }, []);
 
   // Fetch data function
- const fetchData = async () => {
-  try {
-    const response = await api.get('/AppLOV'); // Using axios instance
+  const fetchData = async () => {
+    try {
+      const response = await api.get('/AppLOV'); // Using axios instance
 
-    console.log('Fetched data:', response.data);
+      console.log('Fetched data:', response.data);
 
-    if (response.data?.success && Array.isArray(response.data.data)) {
-      const formattedData = response.data.data.map((item: any) => ({
-        ...item,
-        isActive: Boolean(item.isActive), // Ensures isActive is a boolean
-      }));
+      if (response.data?.success && Array.isArray(response.data.data)) {
+        const formattedData = response.data.data.map((item: any) => ({
+          ...item,
+          isActive: Boolean(item.isActive), // Ensures isActive is a boolean
+        }));
 
-      setRowData(formattedData);
-      setFilteredData(formattedData);
-    } else {
-      console.error(
-        "API response 'data' is not an array or missing:",
-        response.data
-      );
+        setRowData(formattedData);
+        setFilteredData(formattedData);
+      } else {
+        console.error(
+          "API response 'data' is not an array or missing:",
+          response.data,
+        );
+      }
+    } catch (error: any) {
+      console.error('Error occurred while fetching data:', error);
     }
-  } catch (error: any) {
-    console.error('Error occurred while fetching data:', error);
-  }
-};
-  
-  
-
-
-
-const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-
-  const isEditMode =
-    formData.appLOVID !== 0 && formData.appLOVID !== '' && formData.appLOVID !== null;
-
-  const payload: any = {
-    type: formData.type,
-    name: formData.name,
-   code: formData.code || "",
-
-    isActive: formData.isActive === 'Active',
   };
 
-  if (isEditMode) {
-    payload.appLOVID = formData.appLOVID;
-  }
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  try {
-    const response = isEditMode
-      ? await api.put('/AppLOV', payload)
-      : await api.post('/AppLOV', payload);
+    const isEditMode =
+      formData.appLOVID !== 0 &&
+      formData.appLOVID !== '' &&
+      formData.appLOVID !== null;
 
-    const result = response.data;
+    const payload: any = {
+      type: formData.type,
+      name: formData.name,
+      code: formData.code || '',
 
-    toast.success(
-      result.message || (isEditMode ? 'Data updated successfully!' : 'Data added successfully!')
-    );
+      isActive: formData.isActive === 'Active',
+    };
 
-    // Update UI
     if (isEditMode) {
-      const updatedRowData = rowData.map((item) =>
-        item.appLOVID === formData.appLOVID ? { ...item, ...payload } : item
-      );
-      setRowData(updatedRowData);
-      setFilteredData(updatedRowData);
-    } else {
-      fetchData(); // Re-fetch for new record
+      payload.appLOVID = formData.appLOVID;
     }
 
-    // Reset form
-    setFormData({
-      appLOVID: 0,
-      name: '',
-      code: '',
-      type: '',
-      isActive: 'Active',
-    });
-    setShowForm(false);
-  } catch (error: any) {
-    console.error('Error submitting form:', error);
+    try {
+      const response = isEditMode
+        ? await api.put('/AppLOV', payload)
+        : await api.post('/AppLOV', payload);
 
-    // Handle possible validation errors from API
-    const errorMsg =
-      error.response?.data?.errors
+      const result = response.data;
+
+      toast.success(
+        result.message ||
+          (isEditMode
+            ? 'Data updated successfully!'
+            : 'Data added successfully!'),
+      );
+
+      // Update UI
+      if (isEditMode) {
+        const updatedRowData = rowData.map((item) =>
+          item.appLOVID === formData.appLOVID ? { ...item, ...payload } : item,
+        );
+        setRowData(updatedRowData);
+        setFilteredData(updatedRowData);
+      } else {
+        fetchData(); // Re-fetch for new record
+      }
+
+      // Reset form
+      setFormData({
+        appLOVID: 0,
+        name: '',
+        code: '',
+        type: '',
+        isActive: 'Active',
+      });
+      setShowForm(false);
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+
+      // Handle possible validation errors from API
+      const errorMsg = error.response?.data?.errors
         ? Object.values(error.response.data.errors).flat().join(' ')
-        : error.response?.data?.message || 'An error occurred. Please try again.';
+        : error.response?.data?.message ||
+          'An error occurred. Please try again.';
 
-    toast.error(errorMsg);
-  }
-};
-
-  
+      toast.error(errorMsg);
+    }
+  };
 
   // Column Definitions for AG Grid
   const columnDefs: ColDef[] = [
@@ -253,42 +250,41 @@ const handleFormSubmit = async (e: React.FormEvent) => {
   ];
 
   // Toggles the isActive of a row between Active/Inactive
- 
 
-const toggleStatus = async (params: any) => {
-  const newStatus = !params.data.isActive;
-  const appLOVID = params.data.appLOVID;
-  const updatedBy = sessionStorage.getItem('userID') || '00000000-0000-0000-0000-000000000000';
+  const toggleStatus = async (params: any) => {
+    const newStatus = !params.data.isActive;
+    const appLOVID = params.data.appLOVID;
+    const updatedBy =
+      sessionStorage.getItem('userID') ||
+      '00000000-0000-0000-0000-000000000000';
 
-  const payload = {
-    guidID: appLOVID,
-    updatedBy,
-    updatedOn: new Date().toISOString(),
-    isActive: newStatus,
+    const payload = {
+      guidID: appLOVID,
+      updatedBy,
+      updatedOn: new Date().toISOString(),
+      isActive: newStatus,
+    };
+
+    try {
+      const response = await api.patch('/AppLOV', payload); // Use axios PATCH method
+      const result = response.data;
+
+      toast.success(result.message || 'Status updated successfully');
+
+      // Update local UI state
+      const updatedData = rowData.map((item) =>
+        item.appLOVID === appLOVID ? { ...item, isActive: newStatus } : item,
+      );
+      setRowData(updatedData);
+      setFilteredData(updatedData);
+    } catch (error: any) {
+      console.error('Error updating status:', error);
+      const errorMsg =
+        error.response?.data?.message || 'Error occurred while updating status';
+      toast.error(errorMsg);
+    }
   };
 
-  try {
-    const response = await api.patch('/AppLOV', payload); // Use axios PATCH method
-    const result = response.data;
-
-    toast.success(result.message || 'Status updated successfully');
-
-    // Update local UI state
-    const updatedData = rowData.map((item) =>
-      item.appLOVID === appLOVID ? { ...item, isActive: newStatus } : item
-    );
-    setRowData(updatedData);
-    setFilteredData(updatedData);
-  } catch (error: any) {
-    console.error('Error updating status:', error);
-    const errorMsg =
-      error.response?.data?.message || 'Error occurred while updating status';
-    toast.error(errorMsg);
-  }
-};
-
-  
- 
   const handleDelete = (params: any) => {
     setDeleteRowId(params.data.appLOVID);
 
@@ -296,34 +292,32 @@ const toggleStatus = async (params: any) => {
   };
 
   // Confirm the deletion and update data
- 
 
-const confirmDelete = async () => {
-  if (deleteRowId !== null) {
-    try {
-      // Send DELETE request using axios instance
-      const response = await api.delete(`/AppLOV/${deleteRowId}`);
+  const confirmDelete = async () => {
+    if (deleteRowId !== null) {
+      try {
+        // Send DELETE request using axios instance
+        const response = await api.delete(`/AppLOV/${deleteRowId}`);
 
-      console.log('Row deleted successfully:', response.data);
+        console.log('Row deleted successfully:', response.data);
 
-      // Filter out the deleted row from local state
-      const updatedData = rowData.filter(
-        (item: any) => item.appLOVID !== deleteRowId
-      );
-      setRowData(updatedData);
-      setFilteredData(updatedData);
-    } catch (error: any) {
-      console.error('Error occurred while deleting row:', error);
-      const errorMsg =
-        error.response?.data?.message || 'Failed to delete the row';
-      toast.error(errorMsg);
-    } finally {
-      setShowConfirmation(false); // Hide confirmation dialog
-      setDeleteRowId(null);       // Reset ID
+        // Filter out the deleted row from local state
+        const updatedData = rowData.filter(
+          (item: any) => item.appLOVID !== deleteRowId,
+        );
+        setRowData(updatedData);
+        setFilteredData(updatedData);
+      } catch (error: any) {
+        console.error('Error occurred while deleting row:', error);
+        const errorMsg =
+          error.response?.data?.message || 'Failed to delete the row';
+        toast.error(errorMsg);
+      } finally {
+        setShowConfirmation(false); // Hide confirmation dialog
+        setDeleteRowId(null); // Reset ID
+      }
     }
-  }
-};
-
+  };
 
   // Cancel the deletion
   const cancelDelete = () => {
@@ -382,7 +376,7 @@ const confirmDelete = async () => {
         >
           <option value="">Select Type</option>
           <option value="Blood Group">Bloodgroup</option>
-
+          <option value="AppointmentStatus">AppointmentStatus</option>
           <option value="Gender">Gender</option>
           <option value="Address Type">Address</option>
 
@@ -393,12 +387,13 @@ const confirmDelete = async () => {
           <option value="Relationship">Relationship</option>
           <option value="DocumentType">DocumentType</option>
           <option value="LanguageMaster">LanguageMaster</option>
-          <option value="LabType">LabType</option>
-          <option value="FacilitiesType">FacilitiesType</option>
+          <option value="toWhom">toWhom</option>
+
           <option value="UnitType">UnitType</option>
-            <option value="PharmacyType">PharmacyType</option>
-            <option value="FeedBack">FeedBack</option>
-            <option value="MedicineTransfer">MedicineTransfer</option>
+          <option value="PharmacyType">PharmacyType</option>
+          <option value="Weekday">Weekday</option>
+
+          <option value="MedicineTransfer">MedicineTransfer</option>
         </select>
 
         {/* Name Filter */}
@@ -456,27 +451,28 @@ const confirmDelete = async () => {
                 onChange={(e) =>
                   setFormData({ ...formData, type: e.target.value })
                 }
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               >
                 <option value="">Select Type</option>
-                <option value="Bloodgroup">Bloodgroup</option>
-
+                <option value="Blood Group">Bloodgroup</option>
+                <option value="AppointmentStatus">AppointmentStatus</option>
                 <option value="Gender">Gender</option>
-                <option value="Address">Address</option>
+                <option value="Address Type">Address</option>
 
                 <option value="Specializations">Specifications</option>
                 <option value="Qualification">Qualification</option>
-                <option value="Hospital">Hospital</option>
+                <option value="Hospital Type">Hospital</option>
                 <option value="Worktype">Worktype</option>
                 <option value="Relationship">Relationship</option>
                 <option value="DocumentType">DocumentType</option>
                 <option value="LanguageMaster">LanguageMaster</option>
-                <option value="LabType">LabType</option>
-                <option value="FacilitiesType">FacilitiesType</option>
+                <option value="toWhom">toWhom</option>
+
                 <option value="UnitType">UnitType</option>
                 <option value="PharmacyType">PharmacyType</option>
-                  <option value="FeedBack">FeedBack</option>
-                    <option value="MedicineTransfer">MedicineTransfer</option>
+                <option value="Weekday">Weekday</option>
+
+                <option value="MedicineTransfer">MedicineTransfer</option>
               </select>
 
               {/* Name Input */}
@@ -487,7 +483,7 @@ const confirmDelete = async () => {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="Name"
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               />
 
               {/* Code Input */}

@@ -1567,9 +1567,9 @@ const DoctorCard = ({
               </div>
 
               {/* Content Padding */}
-              <div className="p-4 mt-4 space-y-3">
+              <div className="p-4 space-y-3">
                 {/* Book Button */}
-                {roleName == 'hostitalAdmin' && (
+                {roleName !== 'hostitalAdmin' && (
                   <div className="flex justify-end">
                     <button
                       className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"

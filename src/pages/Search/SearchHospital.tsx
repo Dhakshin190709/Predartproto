@@ -6,6 +6,7 @@ import { fetchHospitalAPI } from '../../Utils';
 import HospitalIcon from '../../images/icon/Hospital solid (2).svg';
 import PhoneIcon from '../../images/icon/Phone volume solid (3).svg';
 import EmailIcon from '../../images/icon/Email.svg';
+import LandLineIcon from '../../images/icon/Phone landline.svg';
 import { useLocation } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -260,45 +261,45 @@ const HospitalCards = () => {
     }
   }, [hospitals, hospitalNameFromQuery]);
 
- const fetchHospitals = async () => {
-  try {
-    const tenantID = sessionStorage.getItem('tenantID');
-    const roleName = sessionStorage.getItem('roleName');
+  const fetchHospitals = async () => {
+    try {
+      const tenantID = sessionStorage.getItem('tenantID');
+      const roleName = sessionStorage.getItem('roleName');
 
-    let url = '/Hospital/List';
+      let url = '/Hospital/List';
 
-    // Only append tenantId if roleName is not 'Patient'
-    if (tenantID && roleName !== 'Patient') {
-      url += `?tenantId=${tenantID}`;
-    }
+      // Only append tenantId if roleName is not 'Patient'
+      if (tenantID && roleName !== 'Patient') {
+        url += `?tenantId=${tenantID}`;
+      }
 
-    const response = await api.get(url);
-    console.log('API Response:', response.data); // Verify response format
+      const response = await api.get(url);
+      console.log('API Response:', response.data); // Verify response format
 
-    if (Array.isArray(response.data)) {
-      const hospitalData = response.data.map((hospital) => ({
-        hospitalID: hospital.hospitalID || '',
-        tenantID: hospital.tenantID || '',
-        hospitalName: hospital.hospitalName || 'Unknown Hospital',
-        hospitalCode: hospital.hospitalCode || '',
-        hospitalType: hospital.hospitalType || 'Unknown Type',
-        email: hospital.email || '',
-        mobile: hospital.mobile || '',
-        landline: hospital.landline || '',
-        gst: hospital.gst || '',
-        isActive: hospital.isActive ?? false,
-      }));
+      if (Array.isArray(response.data)) {
+        const hospitalData = response.data.map((hospital) => ({
+          hospitalID: hospital.hospitalID || '',
+          tenantID: hospital.tenantID || '',
+          hospitalName: hospital.hospitalName || 'Unknown Hospital',
+          hospitalCode: hospital.hospitalCode || '',
+          hospitalType: hospital.hospitalType || 'Unknown Type',
+          email: hospital.email || '',
+          mobile: hospital.mobile || '',
+          landline: hospital.landline || '',
+          gst: hospital.gst || '',
+          isActive: hospital.isActive ?? false,
+        }));
 
-      setHospitals(hospitalData);
-    } else {
-      console.error('Invalid hospital data format:', response.data);
+        setHospitals(hospitalData);
+      } else {
+        console.error('Invalid hospital data format:', response.data);
+        setHospitals([]);
+      }
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
       setHospitals([]);
     }
-  } catch (error) {
-    console.error('Error fetching hospitals:', error);
-    setHospitals([]);
-  }
-};
+  };
 
   useEffect(() => {
     fetchHospitals();
@@ -530,41 +531,40 @@ const HospitalCards = () => {
   };
 
   const handleSearch = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  const hospitalName = formData.hospitalName.trim();
-  const hospitalType = formData.hospitalType.trim();
+    const hospitalName = formData.hospitalName.trim();
+    const hospitalType = formData.hospitalType.trim();
 
-  if (!hospitalName && !hospitalType) {
-    toast.warning('Please select or enter at least one field to search.');
-    return;
-  }
+    if (!hospitalName && !hospitalType) {
+      toast.warning('Please select or enter at least one field to search.');
+      return;
+    }
 
-  const tenantID = sessionStorage.getItem('tenantID');
-  const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
 
-  // Construct query parameters conditionally
-  const queryParams: any = {
-    hospitalName: hospitalName || undefined,
-    hospitalType: hospitalType || undefined,
+    // Construct query parameters conditionally
+    const queryParams: any = {
+      hospitalName: hospitalName || undefined,
+      hospitalType: hospitalType || undefined,
+    };
+
+    // Only include tenantId if roleName is not 'Patient'
+    if (roleName !== 'Patient') {
+      queryParams.tenantId = tenantID || undefined;
+    }
+
+    try {
+      const res = await api.get('/Hospital/List', { params: queryParams });
+      const data = res.data;
+      console.log('Search Results:', data);
+      setHospitals(data); // Update hospitals list with search results
+    } catch (err) {
+      console.error(err);
+      toast.error('Something went wrong while searching.');
+    }
   };
-
-  // Only include tenantId if roleName is not 'Patient'
-  if (roleName !== 'Patient') {
-    queryParams.tenantId = tenantID || undefined;
-  }
-
-  try {
-    const res = await api.get('/Hospital/List', { params: queryParams });
-    const data = res.data;
-    console.log('Search Results:', data);
-    setHospitals(data); // Update hospitals list with search results
-  } catch (err) {
-    console.error(err);
-    toast.error('Something went wrong while searching.');
-  }
-};
-
 
   // ✅ Handle Book Now
 
@@ -990,25 +990,24 @@ const HospitalCards = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
                   <span className="text-black font-medium">
                     Code:{' '}
                     <span className="font-normal">{hospital.hospitalCode}</span>
                   </span>
-                </div>
+                </div> */}
 
                 <div className="flex items-center gap-2">
                   <img src={EmailIcon} alt="email" className="w-5 h-5" />
                   <span className="text-black font-medium">
                     Email:{' '}
-                   <span
-  className="font-normal truncate max-w-[160px] inline-block align-middle"
-  title={hospital.email || 'N/A'}
->
-  {hospital.email || 'N/A'}
-</span>
-
+                    <span
+                      className="font-normal truncate max-w-[160px] inline-block align-middle"
+                      title={hospital.email || 'N/A'}
+                    >
+                      {hospital.email || 'N/A'}
+                    </span>
                   </span>
                 </div>
 
@@ -1023,7 +1022,7 @@ const HospitalCards = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <img src={LandLineIcon} alt="hospital" className="w-4 h-5" />
                   <span className="text-black font-medium">
                     Landline:{' '}
                     <span className="font-normal">
@@ -1032,13 +1031,13 @@ const HospitalCards = () => {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-2">
+                {/* <div className="flex items-center gap-2">
                   <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
                   <span className="text-black font-medium">
                     GST:{' '}
                     <span className="font-normal">{hospital.gst || 'N/A'}</span>
                   </span>
-                </div>
+                </div> */}
               </div>
 
               <div className="flex justify-end mb-2 mr-2">

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
+import ReCAPTCHA from 'react-google-recaptcha';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -55,7 +56,11 @@ const Login: React.FC = () => {
   const [isResendEnabled, setIsResendEnabled] = useState(true);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
+const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
+const handleCaptchaChange = (token: string | null) => {
+  setCaptchaToken(token);
+};
   const handleEmailOrMobileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -126,7 +131,7 @@ const Login: React.FC = () => {
     }
 
     // Validation: Ensure max length is 10
-    if (value.length > 20) {
+    if (value.length > 10) {
       setPasswordError('Password cannot exceed 10 characters.');
       return;
     }
@@ -253,7 +258,10 @@ const Login: React.FC = () => {
   if (rememberMe) {
     toast.info('Your login info will be saved securely by the browser.');
   }
-
+  // if (!captchaToken) {
+  //   toast.error('Please verify you are not a robot.');
+  //   return;
+  // }
   if (!emailOrMobile) {
     toast.error('Please enter your email or mobile number.');
     setIsSubmitting(false);
@@ -547,7 +555,7 @@ const Login: React.FC = () => {
               <div className="w-full xl:w-1/2 xl:border-l-2 border-stroke dark:border-strokedark">
                 <div className="w-full p-2 sm:p-4 xl:p-4 xl:pl-20">
                   <h2 className="mb-4 text-2xl font-semibold text-black dark:text-white">
-                    Login to Carepoint Pro
+                    Login to PreCare
                   </h2>
 
                   <form method="post" autoComplete="on" onSubmit={handleLogin}>
@@ -572,7 +580,7 @@ const Login: React.FC = () => {
                           name="username"
                           value={emailOrMobile}
                           onChange={handleEmailOrMobileChange} // Corrected placement
-                          maxLength={40}
+                          maxLength={60}
                           placeholder="Enter your email or mobile"
                           className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -726,6 +734,12 @@ const Login: React.FC = () => {
                         Forgot password?
                       </Link>
                     </div>
+{/* <div className="form-group my-4">
+  <ReCAPTCHA
+    sitekey="YOUR_SITE_KEY" // Replace with your actual reCAPTCHA site key
+    onChange={handleCaptchaChange}
+  />
+</div> */}
 
                     {/* <div className="mt-9 flex justify-center"> */}
                     <div className="mt-4 flex items-center justify-between">
@@ -756,6 +770,7 @@ const Login: React.FC = () => {
                     )}
                     <ToastContainer position="top-right" autoClose={3000} />
                   </form>
+
                 </div>
               </div>
             </div>

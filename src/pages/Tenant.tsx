@@ -25,13 +25,15 @@ const Tenant: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
   const [tenantId, setTenantId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
+
   const [formData, setFormData] = useState<RowData>({
     Id: 0,
-
+ gstNumber: '',
     tenantName: '',
     status: 'Active',
     tenantCode: '',
-    tenantPlan: '',
+   // tenantPlan: '',
   });
 
   useEffect(() => {
@@ -64,7 +66,7 @@ const Tenant: React.FC = () => {
       tenantID: 0,
       tenantName: '',
       tenantCode: '',
-      tenantPlan: '',
+   //   tenantPlan: '',
       createdBy: '',
       status: 'Active',
     });
@@ -79,7 +81,7 @@ const Tenant: React.FC = () => {
         tenantID: 0,
         tenantName: '',
         tenantCode: '',
-        tenantPlan: '',
+        //tenantPlan: '',
         createdBy: '',
         status: 'Active',
       });
@@ -111,7 +113,8 @@ const Tenant: React.FC = () => {
       tenantID: tenant.tenantID,
       tenantName: tenant.tenantName,
       tenantCode: tenant.tenantCode,
-      tenantPlan: tenant.tenantPlan,
+       gstNumber: tenant.gstNumber || '', 
+    //  tenantPlan: tenant.tenantPlan,
       isActive: tenant.isActive, // Ensure this is set for editing
     });
 
@@ -130,10 +133,39 @@ const Tenant: React.FC = () => {
   // Add or update tenant
 
 
-
 const handleFormSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  const errors: any = {};
+
+  const tenantNameRegex = /^(?!.*(.)\1{2,})(?!.*\b(\w+)\b.*\b\2\b)(?!.*[\d_!@#$%^&*(),.?":{}|<>~`+=;\\/])(?!.*[\u{1F600}-\u{1F6FF}])^[A-Za-z ]{2,30}$/u;
+  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+
+  // ✅ Tenant Name validation
+  if (!formData.tenantName) {
+    errors.tenantName = 'Tenant Name is required.';
+  } else if (!tenantNameRegex.test(formData.tenantName)) {
+    errors.tenantName =
+      'Only alphabets allowed. No numbers, special characters, emojis, or repeated words.';
+  }
+
+  // ✅ GST Number validation
+  if (!formData.gstNumber) {
+    errors.gstNumber = 'GST Number is required.';
+  } else if (!gstRegex.test(formData.gstNumber)) {
+    errors.gstNumber =
+      'GST must be in format like 22AAAAA0000A1Z5 (15 characters).';
+  }
+
+  // 🚫 If errors exist, stop submission
+  if (Object.keys(errors).length > 0) {
+    console.error('Validation failed:', errors);
+    toast.error('Please fix the errors before submitting.');
+    setFormErrors(errors); // ← You need to use a state like setFormErrors to display errors in UI
+    return;
+  }
+
+  // Proceed if no validation errors...
   const userID = sessionStorage.getItem('userID');
   if (!userID) {
     console.error('User ID not found in session storage.');
@@ -148,47 +180,35 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     const payload = {
       tenantID: formData.tenantID || undefined,
       tenantName: formData.tenantName,
-       tenantCode: formData.tenantCode?.trim() || "",
+      tenantCode: formData.tenantCode?.trim() || '',
+      gstNumber: formData.gstNumber?.trim(),
       tenantPlan: formData.tenantPlan,
       CreatedBy: createdBy,
       IsActive: isActive,
     };
 
-    console.log('Sending payload:', payload);
-
     let response;
     let toastMessage = '';
 
-    // Determine whether it's a Save (POST) or Update (PUT)
     if (!formData.tenantID) {
-      console.log('Performing POST request...');
       response = await api.post('/Tenant', payload);
-      toastMessage = 'Tenant saved successfully!'; // Save action
+      toastMessage = 'Tenant saved successfully!';
     } else {
-      console.log('Performing PUT request...');
       response = await api.put('/Tenant', payload);
-      toastMessage = 'Tenant updated successfully!'; // Update action
+      toastMessage = 'Tenant updated successfully!';
     }
 
-    console.log('Server response:', response.data);
-
-    // Show the appropriate toast message
     toast.success(toastMessage);
-
-    // Refresh the table data and reset the form
     await refreshTableData();
     resetFormData();
     setShowForm(false);
+    setFormErrors({});
   } catch (error: any) {
-    console.error(
-      'Error saving tenant:',
-      error.response?.data || error.message,
-    );
-
-    // Show error toast
+    console.error('Error saving tenant:', error.response?.data || error.message);
     toast.error('Failed to save/update tenant data. Please try again.');
   }
 };
+
 
 
   // Fetch updated list of tenants to refresh the table
@@ -283,14 +303,23 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       width: 160,
     },
     {
-      headerName: 'Tenant Plan',
-      field: 'tenantPlan',
+      headerName: 'GST Number',
+      field: 'gstNumber',
       headerClass: 'left-header',
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 130,
+      width: 160,
     },
+    // {
+    //   headerName: 'Tenant Plan',
+    //   field: 'tenantPlan',
+    //   headerClass: 'left-header',
+    //   cellClass: 'text-left',
+    //   sortable: true,
+    //   filter: true,
+    //   width: 130,
+    // },
 
     {
       headerName: 'Status',
@@ -466,118 +495,118 @@ const handleFormSubmit = async (e: React.FormEvent) => {
           <h3 className="text-xl font-semibold mb-4">
             {formMode === 'Add' ? 'Add New Tenant' : 'Edit Tenant'}
           </h3>
-          <form
-            onSubmit={handleFormSubmit}
-            className="flex flex-wrap gap-4 items-center justify-between"
-          >
-            <div className="flex gap-4 mb-2">
-              <input
-                type="text"
-                value={formData.tenantName}
-                onChange={(e) =>
-                  setFormData({ ...formData, tenantName: e.target.value })
-                }
-                placeholder="Tenant Name"
-                className="w-50 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <div>
-                <input
-                  type="hidden"
-                  id="tenantCode"
-                  maxLength={5}
-                  name="tenantCode"
-                  placeholder="Tenant Code"
-                  value={formData.tenantCode || ''} // Ensure it defaults to an empty string
-                  className="w-50 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  onChange={(e) =>
-                    setFormData({ ...formData, tenantCode: e.target.value })
-                  }
-                  required
-                />
-                 
-              </div>
-              <div>
-                <select
-                id="tenantPlan"
-                name="tenantPlan"
-                value={formData.tenantPlan}
-                onChange={(e) =>
-                  setFormData({ ...formData, tenantPlan: e.target.value })
-                }
-                className="w-50 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-                required
-              >
-                <option value="">Select Plan</option>
-                <option value="Free">Free</option>
-                <option value="Bronze">Bronze</option>
-                <option value="Silver">Silver</option>
-                <option value="Gold">Gold</option>
-                <option value="Diamond">Diamond</option>
-                <option value="Platinum">Platinum</option>
-              </select>
-              </div>
-               <div>
-              {formMode === 'Edit' && (
-                <select
-                  value={formData.status}
-                  onChange={(e) =>
-                    setFormData({ ...formData, status: e.target.value })
-                  }
-                  className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-              text-black outline-none focus:border-primary dark:border-form-strokedark 
-              dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  <option value="Active">Active</option>
-                  <option value="Inactive">Inactive</option>
-                </select>
-              )}
-            </div>
-            </div>
+         <form
+  onSubmit={handleFormSubmit}
+  className="flex flex-wrap gap-4 items-center justify-between"
+>
+  <div className="flex flex-wrap gap-4 w-full">
+    {/* Tenant Name */}
+    <div className="flex-1 min-w-[300px]">
+      <input
+        type="text"
+        value={formData.tenantName}
+        onChange={(e) =>
+          setFormData({ ...formData, tenantName: e.target.value })
+        }
+        placeholder="Tenant Name"
+        maxLength={40}
+        className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+      />
+     {formErrors.tenantName && (
+  <p className="text-red-500 text-sm mt-1">{formErrors.tenantName}</p>
+)}
 
-           
-            <div>
-              <input
-                type="hidden"
-                id="createdBy"
-                name="createdBy"
-                placeholder="Created By"
-                value={formData.createdBy || ''} // Ensure it defaults to an empty string
-                className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                onChange={(e) =>
-                  setFormData({ ...formData, createdBy: e.target.value })
-                } // Directly update createdBy as string
-                required
-              />
-            </div>
+    </div>
 
-           
+    {/* GST Number */}
+    <div className="flex-1 min-w-[300px]">
+      <input
+        type="text"
+        id="gstNumber"
+        name="gstNumber"
+        placeholder="GST Number"
+        value={formData.gstNumber}
+        onChange={(e) =>
+          setFormData({ ...formData, gstNumber: e.target.value })
+        }
+        className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
+        text-black outline-none focus:border-primary dark:border-form-strokedark 
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+        maxLength={15}
+      />
+     {formErrors.gstNumber && (
+  <p className="text-red-500 text-sm mt-1">{formErrors.gstNumber}</p>
+)}
+    </div>
 
-            <div className="mt-4 flex gap-4">
-              <button
-                type="submit"
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-    hover:from-[#007BFF] hover:to-[#004A99]
-    text-white transition duration-150 
-    ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                {formMode === 'Add' ? 'Save' : 'Update'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-              hover:from-[#007BFF] hover:to-[#004A99]
-              text-white transition duration-150 
-              ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+    {/* Status (only in Edit mode) */}
+    {formMode === 'Edit' && (
+      <div className="w-[300px]">
+        <select
+          value={formData.status}
+          onChange={(e) =>
+            setFormData({ ...formData, status: e.target.value })
+          }
+          className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
+          text-black outline-none focus:border-primary dark:border-form-strokedark 
+          dark:bg-form-input dark:text-white dark:focus:border-primary"
+        >
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+    )}
+  </div>
+
+  {/* Hidden Fields */}
+  <input
+    type="hidden"
+    id="tenantCode"
+    maxLength={5}
+    name="tenantCode"
+    placeholder="Tenant Code"
+    value={formData.tenantCode || ''}
+    onChange={(e) =>
+      setFormData({ ...formData, tenantCode: e.target.value })
+    }
+  />
+
+  <input
+    type="hidden"
+    id="createdBy"
+    name="createdBy"
+    value={formData.createdBy || ''}
+    onChange={(e) =>
+      setFormData({ ...formData, createdBy: e.target.value })
+    }
+  />
+
+  {/* Buttons */}
+  <div className="mt-4 flex gap-4">
+    <button
+      type="submit"
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+    >
+      {formMode === 'Add' ? 'Save' : 'Update'}
+    </button>
+    <button
+      type="button"
+      onClick={() => setShowForm(false)}
+      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+    >
+      Cancel
+    </button>
+  </div>
+</form>
+
         </div>
       )}
       <ToastContainer

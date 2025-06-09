@@ -22,25 +22,18 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                     >
                       <img
                         src={LogoIcon}
-                        className="h-14"
+                        className="h-20"
                         alt="CarePointPro Logo"
                       />
-                      <h1 className="text-3xl font-bold font-serif">
-                        {/* Logo Text */}
-                        <span>
-                          <span className="text-[#1e3a8a]">P</span>
-                          <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                            re
-                          </span>
-                          <span className="text-[#1e3a8a]">C</span>
-                          <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                            are
-                          </span>
+                      <h1 className="text-4xl font-eduHand font-SemiBold-600 tracking-wide">
+                        <span className="text-[#1e3a8a]">P</span>
+                        <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                          re
                         </span>
-
-                        {/* <span className="text-3xl font-bold bg-gradient-to-r from-[#f85757] via-[#fca150] to-[#f85757] bg-clip-text text-transparent">
-                          PreCare
-                        </span> */}
+                        <span className="text-[#1e3a8a]">C</span>
+                        <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                          are
+                        </span>
                       </h1>
                     </Link>
                     <button
@@ -82,34 +75,34 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                         </li>
                         <li>
                           <a
-                            href="#"
+                            href="#Find Hospitals"
                             className="block py-2 px-3 md:p-0 hover:text-blue-700"
                           >
-                            Video Consult
+                            Find Hospitals
                           </a>
                         </li>
                         <li>
                           <a
-                            href="#"
+                            href="#AboutUs"
                             className="block py-2 px-3 md:p-0 hover:text-blue-700"
                           >
-                            Surgeries
+                            About Us
                           </a>
                         </li>
                         <li>
                           <a
-                            href="#LabTest"
+                            href="#PricingPlan"
                             className="block py-2 px-3 md:p-0 hover:text-blue-700"
                           >
-                            Lab Tests
+                            Pricing Plans
                           </a>
                         </li>
                         <li>
                           <a
-                            href="#Medicine"
+                            href="#Contact"
                             className="block py-2 px-3 md:p-0 hover:text-blue-700"
                           >
-                            Medicines
+                            Contact
                           </a>
                         </li>
                         <li>
@@ -140,20 +133,18 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                             className="h-8"
                             alt="CarePointPro Logo"
                           />
-                          <h1 className="text-3xl font-bold font-serif">
-                            <span>
-                              <span className="text-[#1e3a8a]">P</span>
-                              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                                re
-                              </span>
-                              <span className="text-[#1e3a8a]">C</span>
-                              <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
-                                are
-                              </span>
+                          <h1 className="text-4xl font-eduHand font-SemiBold-600 tracking-wide">
+                            <span className="text-[#1e3a8a]">P</span>
+                            <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                              re
+                            </span>
+                            <span className="text-[#1e3a8a]">C</span>
+                            <span className="bg-gradient-to-r from-[#1e3a8a] to-[#fca150] bg-clip-text text-transparent">
+                              are
                             </span>
                           </h1>
                         </Link>
-                        <ul className="flex flex-wrap items-center mb-6 text-sm font-medium text-gray-500 sm:mb-0 dark:text-gray-400">
+                        {/* <ul className="flex flex-wrap items-center mb-6 text-sm font-medium text-gray-500 sm:mb-0 dark:text-gray-400">
                           <li>
                             <a
                               href="#"
@@ -183,14 +174,14 @@ const LandingPageLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
                               Contact
                             </a>
                           </li>
-                        </ul>
+                        </ul> */}
                         <span className="block text-sm text-gray-500 dark:text-gray-400">
                           © 2024{' '}
                           <a
-                            href="https://carepointpro.in/"
+                            href="https://precare.in/"
                             className="hover:underline"
                           >
-                            carepointpro.in
+                            precare.in
                           </a>
                           . All Rights Reserved.
                         </span>
