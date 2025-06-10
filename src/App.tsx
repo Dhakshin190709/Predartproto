@@ -115,6 +115,9 @@ import AdmissionPage from './pages/AdmissionPage';
 import AdmissionDetails from './pages/AdmissionDetails';
 import RoomBooking from './pages/RoomBooking';
 import OrderTracking from './pages/OrderTracking';
+import TenantSubscription from './pages/TenantSubscription';
+import TenantAddOn from './pages/TenantAddOn';
+import TenantPromoUsage from './pages/TenantPromoUsage';
 
 import Tenant from './pages/Tenant';
 import Hospital from './pages/Registration/HospitalPage';
@@ -126,6 +129,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy';
 import PromoCode from './pages/PromoCode';
 import PricePlan from './pages/PricePlan';
 import AddOn from './pages/AddOn';
+import PlanLimit from './pages/PlanLimit';
 import PlanFeature from './pages/PlanFeature';
 
 // import MedicalDocumentUpload from './pages/DoctorProfile/MedicalDocumentUpload';
@@ -392,6 +396,42 @@ function App() {
               <>
                 <PageTitle title="PrivacyPolicy | PreCare" />
                 <PrivacyPolicy />
+              </>
+            }
+          />
+          <Route
+            path="/TenantSubscription"
+            element={
+              <>
+                <PageTitle title="TenantSubscription | PreCare" />
+                <TenantSubscription />
+              </>
+            }
+          />
+          <Route
+            path="/TenantAddOn"
+            element={
+              <>
+                <PageTitle title="TenantAddOn | PreCare" />
+                <TenantAddOn />
+              </>
+            }
+          />
+          <Route
+            path="/PlanLimit"
+            element={
+              <>
+                <PageTitle title="PlanLimit | PreCare" />
+                <PlanLimit />
+              </>
+            }
+          />
+          <Route
+            path="/TenantPromoUsage"
+            element={
+              <>
+                <PageTitle title="TenantPromoUsage | PreCare" />
+                <TenantPromoUsage />
               </>
             }
           />

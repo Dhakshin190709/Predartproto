@@ -259,7 +259,7 @@ useEffect(() => {
       field: 'gst',
       sortable: true,
       filter: true,
-      width: 100,
+      width: 180,
     },
     {
       headerName: 'Status',
