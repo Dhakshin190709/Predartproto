@@ -4,7 +4,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
-import { Edit } from 'lucide-react';
+import { CheckCircle, Edit } from 'lucide-react';
 import api from '../api/request';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css'; // Import the CSS
@@ -29,11 +29,15 @@ const Tenant: React.FC = () => {
 
   const [formData, setFormData] = useState<RowData>({
     Id: 0,
- gstNumber: '',
+    gstNumber: '',
     tenantName: '',
     status: 'Active',
     tenantCode: '',
-   // tenantPlan: '',
+    // tenantPlan: '',
+
+    email: '',
+    mobile: '',
+    landline: '',
   });
 
   useEffect(() => {
@@ -66,7 +70,7 @@ const Tenant: React.FC = () => {
       tenantID: 0,
       tenantName: '',
       tenantCode: '',
-   //   tenantPlan: '',
+      //   tenantPlan: '',
       createdBy: '',
       status: 'Active',
     });
@@ -87,6 +91,122 @@ const Tenant: React.FC = () => {
       });
     }
   }, [formMode]);
+
+  const [emailOtpLoading, setEmailOtpLoading] = useState(false);
+  const [emailOtp, setEmailOtp] = useState('');
+  const [isEmailVerified, setIsEmailVerified] = useState(false);
+  const [emailSent, setEmailSent] = useState(false); // Show OTP input after send
+
+  const [mobileOtpLoading, setMobileOtpLoading] = useState(false);
+  const [mobileOtp, setMobileOtp] = useState('');
+  const [isMobileVerified, setIsMobileVerified] = useState(false);
+  const [mobileSent, setMobileSent] = useState(false);
+  const [mobileVerifyLoading, setMobileVerifyLoading] = useState(false);
+  const [emailVerifyLoading, setEmailVerifyLoading] = useState(false);
+  const [mobileOtpTimer, setMobileOtpTimer] = useState(0);
+  const [mobileResendAvailable, setMobileResendAvailable] = useState(false);
+const [emailOtpTimer, setEmailOtpTimer] = useState(0);
+const [emailResendAvailable, setEmailResendAvailable] = useState(false);
+
+  const handleSendEmailOtp = () => {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return;
+
+  setEmailOtpLoading(true);
+  setEmailSent(true);
+  setEmailResendAvailable(false);
+  setEmailOtpTimer(60); // Start countdown
+
+  setTimeout(() => {
+    setEmailOtpLoading(false);
+    toast.success('OTP sent to your email.');
+  }, 1000);
+};
+useEffect(() => {
+  let interval: any;
+
+  if (emailOtpTimer > 0) {
+    interval = setInterval(() => {
+      setEmailOtpTimer((prev) => prev - 1);
+    }, 1000);
+  } else if (emailOtpTimer === 0 && emailSent) {
+    setEmailResendAvailable(true);
+  }
+
+  return () => clearInterval(interval);
+}, [emailOtpTimer, emailSent]);
+
+
+  const handleVerifyEmailOtp = () => {
+    if (!emailOtp.trim()) {
+      toast.error('Please enter the OTP.');
+      return;
+    }
+
+    setEmailVerifyLoading(true);
+
+    setTimeout(() => {
+      if (emailOtp === '123456') {
+        setIsEmailVerified(true);
+        toast.success('Email verified.');
+      } else {
+        toast.error('Invalid email OTP.');
+      }
+      setEmailVerifyLoading(false);
+    }, 2000);
+  };
+
+  const handleVerifyMobileOtp = () => {
+    if (!mobileOtp.trim()) {
+      toast.error('Please enter the OTP.');
+      return;
+    }
+
+    if (!/^\d{6}$/.test(mobileOtp)) {
+      toast.error('OTP must be a 6-digit number.');
+      return;
+    }
+
+    setMobileVerifyLoading(true);
+
+    setTimeout(() => {
+      if (mobileOtp === '123456') {
+        setIsMobileVerified(true);
+        toast.success('Mobile number verified.');
+      } else {
+        toast.error('Invalid mobile OTP.');
+      }
+      setMobileVerifyLoading(false);
+    }, 2000); // Simulated delay
+  };
+
+  const handleSendMobileOtp = () => {
+    if (!/^[6-9]\d{9}$/.test(formData.mobile)) return;
+
+    setMobileOtpLoading(true);
+    setMobileSent(true);
+    setMobileResendAvailable(false);
+    setMobileOtpTimer(60); // 60 seconds countdown
+
+    // Fake OTP sent delay
+    setTimeout(() => {
+      setMobileOtpLoading(false);
+      toast.success('OTP sent to your mobile.');
+    }, 1000);
+  };
+
+  useEffect(() => {
+    let interval: any;
+
+    if (mobileOtpTimer > 0) {
+      interval = setInterval(() => {
+        setMobileOtpTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (mobileOtpTimer === 0 && mobileSent) {
+      setMobileResendAvailable(true);
+    }
+
+    return () => clearInterval(interval);
+  }, [mobileOtpTimer, mobileSent]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault(); // Prevent the form from submitting and refreshing the page
@@ -113,9 +233,11 @@ const Tenant: React.FC = () => {
       tenantID: tenant.tenantID,
       tenantName: tenant.tenantName,
       tenantCode: tenant.tenantCode,
-       gstNumber: tenant.gstNumber || '', 
-    //  tenantPlan: tenant.tenantPlan,
-      isActive: tenant.isActive, // Ensure this is set for editing
+      gstNumber: tenant.gstNumber || '',
+      email: tenant.email || '', // ✅ Add email
+      mobile: tenant.mobile || '', // ✅ Add mobile
+      landline: tenant.landline || '', // ✅ Add landline
+      isActive: tenant.isActive, // ✅ Already present
     });
 
     setShowForm(true); // Show the form when editing
@@ -132,84 +254,127 @@ const Tenant: React.FC = () => {
 
   // Add or update tenant
 
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isEmailVerified || !isMobileVerified) {
+      toast.error('Please verify both email and mobile before saving.');
+      return;
+    }
+    const errors: any = {};
 
-const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    const tenantNameRegex =
+      /^(?!.*(.)\1{2,})(?!.*\b(\w+)\b.*\b\2\b)(?!.*[\d_!@#$%^&*(),.?":{}|<>~`+=;\\/])(?!.*[\u{1F600}-\u{1F6FF}])^[A-Za-z ]{2,30}$/u;
+    const gstRegex =
+      /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+    const emailPattern =
+      /^(?=[^@]*[a-zA-Z])[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
 
-  const errors: any = {};
+    const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+    const landlineRegex = /^(?:\+91\s\d{2}\s\d{8}|0\d{2,4}-\d{6,8})$/;
 
-  const tenantNameRegex = /^(?!.*(.)\1{2,})(?!.*\b(\w+)\b.*\b\2\b)(?!.*[\d_!@#$%^&*(),.?":{}|<>~`+=;\\/])(?!.*[\u{1F600}-\u{1F6FF}])^[A-Za-z ]{2,30}$/u;
-  const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
-
-  // ✅ Tenant Name validation
-  if (!formData.tenantName) {
-    errors.tenantName = 'Tenant Name is required.';
-  } else if (!tenantNameRegex.test(formData.tenantName)) {
-    errors.tenantName =
-      'Only alphabets allowed. No numbers, special characters, emojis, or repeated words.';
-  }
-
-  // ✅ GST Number validation
-  if (!formData.gstNumber) {
-    errors.gstNumber = 'GST Number is required.';
-  } else if (!gstRegex.test(formData.gstNumber)) {
-    errors.gstNumber =
-      'GST must be in format like 22AAAAA0000A1Z5 (15 characters).';
-  }
-
-  // 🚫 If errors exist, stop submission
-  if (Object.keys(errors).length > 0) {
-    console.error('Validation failed:', errors);
-    toast.error('Please fix the errors before submitting.');
-    setFormErrors(errors); // ← You need to use a state like setFormErrors to display errors in UI
-    return;
-  }
-
-  // Proceed if no validation errors...
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    console.error('User ID not found in session storage.');
-    toast.error('User not logged in. Please log in again.');
-    return;
-  }
-
-  try {
-    const isActive = formData.status === 'Active';
-    const createdBy = userID;
-
-    const payload = {
-      tenantID: formData.tenantID || undefined,
-      tenantName: formData.tenantName,
-      tenantCode: formData.tenantCode?.trim() || '',
-      gstNumber: formData.gstNumber?.trim(),
-      tenantPlan: formData.tenantPlan,
-      CreatedBy: createdBy,
-      IsActive: isActive,
-    };
-
-    let response;
-    let toastMessage = '';
-
-    if (!formData.tenantID) {
-      response = await api.post('/Tenant', payload);
-      toastMessage = 'Tenant saved successfully!';
-    } else {
-      response = await api.put('/Tenant', payload);
-      toastMessage = 'Tenant updated successfully!';
+    // ✅ Tenant Name validation
+    if (!formData.tenantName) {
+      errors.tenantName = 'Tenant Name is required.';
+    } else if (!tenantNameRegex.test(formData.tenantName)) {
+      errors.tenantName =
+        'Only alphabets allowed. No numbers, special characters, emojis, or repeated words.';
     }
 
-    toast.success(toastMessage);
-    await refreshTableData();
-    resetFormData();
-    setShowForm(false);
-    setFormErrors({});
-  } catch (error: any) {
-    console.error('Error saving tenant:', error.response?.data || error.message);
-    toast.error('Failed to save/update tenant data. Please try again.');
-  }
-};
+    // ✅ GST Number validation
+    if (!formData.gstNumber) {
+      errors.gstNumber = 'GST Number is required.';
+    } else if (!gstRegex.test(formData.gstNumber)) {
+      errors.gstNumber =
+        'GST must be in format like 22AAAAA0000A1Z5 (15 characters).';
+    }
 
+    // ✅ Email validation
+    if (!formData.email) {
+      errors.email = 'Email is required.';
+    } else if (formData.email.length > 50) {
+      errors.email = 'Email must be at most 50 characters.';
+    } else if (!emailPattern.test(formData.email)) {
+      errors.email = 'Please enter a valid email address.';
+    }
 
+    // ✅ Mobile validation
+    if (!formData.mobile) {
+      errors.mobile = 'Mobile number is required.';
+    } else if (formData.mobile.length !== 10) {
+      errors.mobile = 'Mobile number must be exactly 10 digits.';
+    } else if (!phoneRegex.test(formData.mobile)) {
+      errors.mobile =
+        'Enter valid 10-digit mobile number starting with 6-9 and no repeated digits.';
+    }
+
+    // ✅ Landline validation
+    if (!formData.landline) {
+      errors.landline = 'Landline is required.';
+    } else if (formData.landline.length > 20) {
+      errors.landline = 'Landline must be at most 20 characters.';
+    } else if (!landlineRegex.test(formData.landline)) {
+      errors.landline =
+        'Enter a valid landline (e.g., 044-1234567 or +91 22 12345688).';
+    }
+
+    // 🚫 Stop submission if errors exist
+    if (Object.keys(errors).length > 0) {
+      console.error('Validation failed:', errors);
+      toast.error('Please fix the errors before submitting.');
+      setFormErrors(errors);
+      return;
+    }
+
+    // ✅ Proceed with save/update
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      toast.error('User not logged in. Please log in again.');
+      return;
+    }
+
+    try {
+      const isActive = formData.tenantID ? true : false;
+
+      const createdBy = userID;
+
+      const payload = {
+        tenantID: formData.tenantID || undefined,
+        tenantName: formData.tenantName,
+        tenantCode: formData.tenantCode?.trim() || '',
+        gstNumber: formData.gstNumber?.trim(),
+        tenantPlan: formData.tenantPlan,
+        email: formData.email?.trim(),
+        mobile: formData.mobile?.trim(),
+        landline: formData.landline?.trim(),
+        CreatedBy: createdBy,
+        isActive: isActive,
+      };
+
+      let response;
+      let toastMessage = '';
+
+      if (!formData.tenantID) {
+        response = await api.post('/Tenant', payload);
+        toastMessage = 'Tenant saved successfully!';
+      } else {
+        response = await api.put('/Tenant', payload);
+        toastMessage = 'Tenant updated successfully!';
+      }
+
+      toast.success(toastMessage);
+      await refreshTableData();
+      resetFormData();
+      setShowForm(false);
+      setFormErrors({});
+    } catch (error: any) {
+      console.error(
+        'Error saving tenant:',
+        error.response?.data || error.message,
+      );
+      toast.error('Failed to save/update tenant data. Please try again.');
+    }
+  };
 
   // Fetch updated list of tenants to refresh the table
   const refreshTableData = async () => {
@@ -273,7 +438,6 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       hide: true,
       width: 150,
     },
-
     {
       headerName: 'S.No',
       field: 'S.No',
@@ -311,23 +475,40 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       filter: true,
       width: 160,
     },
-    // {
-    //   headerName: 'Tenant Plan',
-    //   field: 'tenantPlan',
-    //   headerClass: 'left-header',
-    //   cellClass: 'text-left',
-    //   sortable: true,
-    //   filter: true,
-    //   width: 130,
-    // },
-
+    {
+      headerName: 'Email',
+      field: 'email',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 220,
+    },
+    {
+      headerName: 'Mobile',
+      field: 'mobile',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 150,
+    },
+    {
+      headerName: 'Landline',
+      field: 'landline',
+      headerClass: 'left-header',
+      cellClass: 'text-left',
+      sortable: true,
+      filter: true,
+      width: 150,
+    },
     {
       headerName: 'Status',
       field: 'isActive',
-      flex: 1,
+
       width: 120,
       headerClass: 'center-header',
-    cellClass: 'text-center',
+      cellClass: 'text-center',
       cellRenderer: (params: any) => {
         const isActive = params.value === 'Active' || params.value === true;
         return (
@@ -342,13 +523,12 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         );
       },
     },
-
     {
       headerName: 'Edit',
-      flex: 1,
+
       headerClass: 'center-header',
       cellClass: 'text-center',
-      width: 20,
+      width: 120,
       cellRenderer: (params: any) => (
         <span
           onClick={() => handleEditClick(params.data)}
@@ -361,17 +541,15 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         </span>
       ),
     },
-
     {
       headerName: 'Delete',
       hide: true,
       flex: 1,
       cellClass: 'text-center',
       headerClass: 'center-header',
-      // width: 30,
       cellRenderer: (params: any) => (
         <span
-          onClick={() => handleDelete(params.data.tenantID)} // Use tenantID here
+          onClick={() => handleDelete(params.data.tenantID)}
           className="cursor-pointer text-red-600 font-bold hover:text-red-800"
         >
           x
@@ -495,118 +673,321 @@ const handleFormSubmit = async (e: React.FormEvent) => {
           <h3 className="text-xl font-semibold mb-4">
             {formMode === 'Add' ? 'Add New Tenant' : 'Edit Tenant'}
           </h3>
-         <form
-  onSubmit={handleFormSubmit}
-  className="flex flex-wrap gap-4 items-center justify-between"
->
-  <div className="flex flex-wrap gap-4 w-full">
-    {/* Tenant Name */}
-    <div className="flex-1 min-w-[300px]">
-      <input
-        type="text"
-        value={formData.tenantName}
-        onChange={(e) =>
-          setFormData({ ...formData, tenantName: e.target.value })
-        }
-        placeholder="Tenant Name"
-        maxLength={40}
-        className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
-      />
-     {formErrors.tenantName && (
-  <p className="text-red-500 text-sm mt-1">{formErrors.tenantName}</p>
-)}
+          <form
+            onSubmit={handleFormSubmit}
+            className="flex flex-wrap gap-4 items-center justify-between"
+          >
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
+              {/* Tenant Name */}
+              <div className="min-w-[300px]">
+                <input
+                  type="text"
+                  value={formData.tenantName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, tenantName: e.target.value })
+                  }
+                  placeholder="Tenant Name"
+                  maxLength={40}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+                {formErrors.tenantName && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.tenantName}
+                  </p>
+                )}
+              </div>
 
-    </div>
+              {/* GST Number */}
+              <div className="min-w-[300px]">
+                <input
+                  type="text"
+                  value={formData.gstNumber}
+                  onChange={(e) =>
+                    setFormData({ ...formData, gstNumber: e.target.value })
+                  }
+                  placeholder="GST Number"
+                  maxLength={15}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+                {formErrors.gstNumber && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.gstNumber}
+                  </p>
+                )}
+              </div>
 
-    {/* GST Number */}
-    <div className="flex-1 min-w-[300px]">
-      <input
-        type="text"
-        id="gstNumber"
-        name="gstNumber"
-        placeholder="GST Number"
-        value={formData.gstNumber}
-        onChange={(e) =>
-          setFormData({ ...formData, gstNumber: e.target.value })
-        }
-        className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
-        maxLength={15}
-      />
-     {formErrors.gstNumber && (
-  <p className="text-red-500 text-sm mt-1">{formErrors.gstNumber}</p>
-)}
-    </div>
-
-    {/* Status (only in Edit mode) */}
-    {formMode === 'Edit' && (
-      <div className="w-[300px]">
-        <select
-          value={formData.status}
-          onChange={(e) =>
-            setFormData({ ...formData, status: e.target.value })
-          }
-          className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 
-          text-black outline-none focus:border-primary dark:border-form-strokedark 
-          dark:bg-form-input dark:text-white dark:focus:border-primary"
-        >
-          <option value="Active">Active</option>
-          <option value="Inactive">Inactive</option>
-        </select>
-      </div>
+              {/* Email with OTP */}
+              <div className="relative min-w-[300px]">
+                <input
+                  type="email"
+                  placeholder="Enter Email"
+                  value={formData.email}
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value });
+                    setIsEmailVerified(false);
+                    setEmailSent(false);
+                    setEmailOtp('');
+                  }}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+                {!isEmailVerified ? (
+                  <>
+                   {!emailSent ? (
+  <button
+    type="button"
+    onClick={handleSendEmailOtp}
+    disabled={
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) || emailOtpLoading
+    }
+    className={`absolute right-2 top-3 text-sm px-3 py-1 rounded ${
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && !emailOtpLoading
+        ? 'bg-blue-500 text-white hover:bg-blue-600'
+        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+    }`}
+  >
+    {emailOtpLoading ? (
+      <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+    ) : (
+      'Send OTP'
     )}
+  </button>
+) : emailResendAvailable ? (
+  <button
+    type="button"
+    onClick={handleSendEmailOtp}
+    className="absolute right-2 top-3 bg-yellow-500 text-white text-sm px-3 py-1 rounded hover:bg-yellow-600"
+  >
+    Resend OTP
+  </button>
+) : (
+  <div className="absolute right-3 top-4 text-sm text-gray-500">
+    Resend in {emailOtpTimer}s
   </div>
+)}
 
-  {/* Hidden Fields */}
-  <input
-    type="hidden"
-    id="tenantCode"
-    maxLength={5}
-    name="tenantCode"
-    placeholder="Tenant Code"
-    value={formData.tenantCode || ''}
-    onChange={(e) =>
-      setFormData({ ...formData, tenantCode: e.target.value })
-    }
-  />
 
-  <input
-    type="hidden"
-    id="createdBy"
-    name="createdBy"
-    value={formData.createdBy || ''}
-    onChange={(e) =>
-      setFormData({ ...formData, createdBy: e.target.value })
-    }
-  />
+                    {emailSent && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter OTP"
+                          maxLength={6}
+                          value={emailOtp}
+                          onChange={(e) => setEmailOtp(e.target.value)}
+                          className="w-1/2  rounded-lg border border-stroke bg-transparent px-2 py-1 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                        <button
+                          onClick={handleVerifyEmailOtp}
+                          disabled={emailVerifyLoading}
+                          className={`px-2 py-1 rounded text-white flex items-center justify-center ${
+                            emailVerifyLoading
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                        >
+                          {emailVerifyLoading ? (
+                            <div
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+                              style={{ borderStyle: 'dashed' }}
+                            ></div>
+                          ) : (
+                            'Verify'
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <span className="absolute right-3 top-4 text-green-600">
+                    <CheckCircle size={18} className="text-green-600" />
+                  </span>
+                )}
 
-  {/* Buttons */}
-  <div className="mt-4 flex gap-4">
-    <button
-      type="submit"
-      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+                {formErrors.email && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.email}
+                  </p>
+                )}
+              </div>
+
+              {/* Mobile with OTP */}
+              <div className="relative min-w-[300px]">
+                <input
+                  type="tel"
+                  maxLength={10}
+                  placeholder="Enter Mobile Number"
+                  value={formData.mobile}
+                  onChange={(e) => {
+                    setFormData({ ...formData, mobile: e.target.value });
+                    setIsMobileVerified(false);
+                    setMobileSent(false);
+                    setMobileOtp('');
+                  }}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+
+                {!isMobileVerified ? (
+                  <>
+                    {!mobileSent ? (
+                      <button
+                        type="button"
+                        onClick={handleSendMobileOtp}
+                        disabled={
+                          !/^[6-9]\d{9}$/.test(formData.mobile) ||
+                          mobileOtpLoading
+                        }
+                        className={`absolute right-2 top-3 text-sm px-3 py-1 rounded ${
+                          /^[6-9]\d{9}$/.test(formData.mobile) &&
+                          !mobileOtpLoading
+                            ? 'bg-blue-500 text-white hover:bg-blue-600'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        {mobileOtpLoading ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                        ) : (
+                          'Send OTP'
+                        )}
+                      </button>
+                    ) : mobileResendAvailable ? (
+                      <button
+                        type="button"
+                        onClick={handleSendMobileOtp}
+                        className="absolute right-2 top-3 bg-yellow-500 text-white text-sm px-3 py-1 rounded hover:bg-yellow-600"
+                      >
+                        Resend OTP
+                      </button>
+                    ) : (
+                      <div className="absolute right-3 top-4 text-sm text-gray-500">
+                        Resend in {mobileOtpTimer}s
+                      </div>
+                    )}
+
+                    {mobileSent && (
+                      <div className="mt-3 flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Enter OTP"
+                          maxLength={6}
+                          value={mobileOtp}
+                          onChange={(e) => setMobileOtp(e.target.value)}
+                          className="w-1/2  rounded-lg border border-stroke bg-transparent px-2 py-1 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                        />
+                        <button
+                          onClick={handleVerifyMobileOtp}
+                          disabled={mobileVerifyLoading}
+                          className={`px-2 py-1 rounded text-white flex items-center justify-center ${
+                            mobileVerifyLoading
+                              ? 'bg-gray-400 cursor-not-allowed'
+                              : 'bg-green-500 hover:bg-green-600'
+                          }`}
+                        >
+                          {mobileVerifyLoading ? (
+                            <div
+                              className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"
+                              style={{ borderStyle: 'dashed' }}
+                            ></div>
+                          ) : (
+                            'Verify'
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <span className="absolute right-3 top-4 text-green-600">
+                    <CheckCircle size={18} className="text-green-600" />
+                  </span>
+                )}
+
+                {formErrors.mobile && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.mobile}
+                  </p>
+                )}
+              </div>
+
+              {/* Landline */}
+              <div className="min-w-[300px]">
+                <input
+                  type="tel"
+                  placeholder="Landline"
+                  value={formData.landline}
+                  onChange={(e) =>
+                    setFormData({ ...formData, landline: e.target.value })
+                  }
+                  maxLength={15}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-4 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                />
+                {formErrors.landline && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.landline}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Hidden Fields */}
+            <input
+              type="hidden"
+              id="tenantCode"
+              maxLength={5}
+              name="tenantCode"
+              placeholder="Tenant Code"
+              value={formData.tenantCode || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, tenantCode: e.target.value })
+              }
+            />
+
+            <input
+              type="hidden"
+              id="createdBy"
+              name="createdBy"
+              value={formData.createdBy || ''}
+              onChange={(e) =>
+                setFormData({ ...formData, createdBy: e.target.value })
+              }
+            />
+
+            {/* Buttons */}
+            <div className="mt-4 flex gap-4">
+              <button
+                type="submit"
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
       ease-out hover:ease-in py-2 px-5 rounded-lg"
-    >
-      {formMode === 'Add' ? 'Save' : 'Update'}
-    </button>
-    <button
-      type="button"
-      onClick={() => setShowForm(false)}
-      className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-      hover:from-[#007BFF] hover:to-[#004A99]
-      text-white transition duration-150 
-      ease-out hover:ease-in py-2 px-5 rounded-lg"
-    >
-      Cancel
-    </button>
-  </div>
-</form>
-
+              >
+                {formMode === 'Add' ? 'Save' : 'Update'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false);
+                  setFormMode('Add'); // Reset mode if needed
+                  setFormData({
+                    tenantID: '',
+                    tenantName: '',
+                    tenantCode: '',
+                    gstNumber: '',
+                    email: '',
+                    mobile: '',
+                    landline: '',
+                    isActive: true,
+                    createdBy: '',
+                  });
+                  setFormErrors({});
+                }}
+                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+  hover:from-[#007BFF] hover:to-[#004A99]
+  text-white transition duration-150 
+  ease-out hover:ease-in py-2 px-5 rounded-lg"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       )}
       <ToastContainer
@@ -667,20 +1048,31 @@ const handleFormSubmit = async (e: React.FormEvent) => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={
-            filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
-          }
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10} // ✅ Default page size
-          paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
+      <div
+        className="ag-theme-alpine mt-6"
+        style={{
+          height: '400px',
+          width: '100%',
+          overflowX: 'auto', // 👈 Enables horizontal scroll
+        }}
+      >
+        <div style={{ minWidth: '1200px' }}>
+          {' '}
+          {/* 👈 Minimum width to trigger scroll */}
+          <AgGridReact
+            rowData={
+              filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
       </div>
 
       {showConfirmation && (

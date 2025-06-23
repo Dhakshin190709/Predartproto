@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 const api = axios.create({
-  baseURL: 'https://predart003-001-site1.anytempurl.com/api', 
+  baseURL: 'https://apidev.precare.in/api', 
   headers: {
     'Content-Type': 'application/json',
   },

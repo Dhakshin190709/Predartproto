@@ -173,31 +173,31 @@ const DoctorProfilePage = () => {
       });
   }, []);
 
-  useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+  // useEffect(() => {
+  //   const doctorID = sessionStorage.getItem('doctorID');
 
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
-        .then((response) => {
-          const data = response.data;
-          console.log('Award API response:', data);
-          if (
-            data?.success &&
-            Array.isArray(data.data) &&
-            data.data.length > 0
-          ) {
-            setAwards(data.data);
-            console.log('Awards set to state:', data.data);
-          } else {
-            console.warn('No awards found or response error.');
-          }
-        })
-        .catch((err) => console.error('Error fetching doctor awards:', err));
-    } else {
-      console.warn('doctorId not found in sessionStorage.');
-    }
-  }, []);
+  //   if (doctorID) {
+  //     api
+  //       .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
+  //       .then((response) => {
+  //         const data = response.data;
+  //         console.log('Award API response:', data);
+  //         if (
+  //           data?.success &&
+  //           Array.isArray(data.data) &&
+  //           data.data.length > 0
+  //         ) {
+  //           setAwards(data.data);
+  //           console.log('Awards set to state:', data.data);
+  //         } else {
+  //           console.warn('No awards found or response error.');
+  //         }
+  //       })
+  //       .catch((err) => console.error('Error fetching doctor awards:', err));
+  //   } else {
+  //     console.warn('doctorId not found in sessionStorage.');
+  //   }
+  // }, []);
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
@@ -207,14 +207,67 @@ const DoctorProfilePage = () => {
       return;
     }
 
-    // Run both requests in parallel
+    api
+      .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
+      .then((response) => {
+        const data = response.data;
+        console.log('Award API response:', data);
+
+        if (data?.success && Array.isArray(data.data) && data.data.length > 0) {
+          const rawAwards = data.data;
+
+          // 🔐 Use a strong unique key combining all relevant fields
+          const seen = new Set();
+          const uniqueAwards = rawAwards.filter((award) => {
+            const key = `${(award.awardTitle || '').trim().toLowerCase()}|${(award.description || '').trim().toLowerCase()}|${(award.awardedBy || '').trim().toLowerCase()}|${award.year?.toString().trim() || ''}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          setAwards(uniqueAwards);
+        } else {
+          console.warn('No awards found or response error.');
+          setAwards([]);
+        }
+      })
+      .catch((err) => {
+        console.error('Error fetching doctor awards:', err);
+      });
+  }, []);
+  
+  
+  
+
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+
+    if (!doctorID) {
+      console.warn('doctorId not found in sessionStorage.');
+      return;
+    }
+
     Promise.all([
       api.get(`/Doctor/GetLanguage?doctorId=${doctorID}`),
       api.get('/AppLOV?type=languageMaster'),
     ])
       .then(([doctorLangRes, langMasterRes]) => {
         if (doctorLangRes.data.success) {
-          setDoctorLanguages(doctorLangRes.data.data || []);
+          const fetchedLangs = doctorLangRes.data.data || [];
+
+          // ✅ Deduplicate by languageMasterID + read/write/speak combo
+          const uniqueLangs = [];
+          const seenKeys = new Set();
+
+          for (const lang of fetchedLangs) {
+            const key = `${lang.languageMasterID}-${lang.read}-${lang.write}-${lang.speak}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              uniqueLangs.push(lang);
+            }
+          }
+
+          setDoctorLanguages(uniqueLangs);
         } else {
           console.warn('Failed to fetch doctor languages.');
         }
@@ -229,6 +282,7 @@ const DoctorProfilePage = () => {
         console.error('Error fetching languages:', err);
       });
   }, []);
+  
 
  useEffect(() => {
   const doctorID = sessionStorage.getItem('doctorID');
@@ -284,7 +338,21 @@ const DoctorProfilePage = () => {
       .then((response) => {
         const data = response.data;
         if (data.success) {
-          setExperience(data.data);
+          const rawExperiences = data.data || [];
+
+          // ✅ Remove duplicates based on key fields
+          const uniqueExperiences = [];
+          const seenKeys = new Set();
+
+          for (const exp of rawExperiences) {
+            const key = `${exp.hospitalName}-${exp.designation}-${exp.fromDate}-${exp.toDate}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              uniqueExperiences.push(exp);
+            }
+          }
+
+          setExperience(uniqueExperiences);
         } else {
           console.error('Failed to fetch doctor experience');
         }
@@ -293,6 +361,7 @@ const DoctorProfilePage = () => {
         console.error('Error fetching doctor experience:', error);
       });
   }, []);
+  
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');

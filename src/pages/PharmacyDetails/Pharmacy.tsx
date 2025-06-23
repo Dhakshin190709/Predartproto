@@ -47,7 +47,7 @@ const Hospital: React.FC = () => {
     workHours: '',
     isActive: true,
   });
-
+const roleName = sessionStorage.getItem('roleName');
   const phoneRegex = /^[6-9]\d{9}$/;
   const [formMode, setFormMode] = useState('');
   const [formErrors, setFormErrors] = useState({});
@@ -114,23 +114,46 @@ const Hospital: React.FC = () => {
   useEffect(() => {
   const fetchPharmacies = async () => {
     try {
+      const roleName = sessionStorage.getItem('roleName');
       const tenantID = sessionStorage.getItem('tenantID');
       const unitID = sessionStorage.getItem('unitID');
 
-      if (!tenantID || !unitID) {
-        console.error('Missing tenantID or unitID in session storage.');
-        return;
+      let response;
+
+      if (roleName === 'SuperAdmin') {
+        // ✅ SuperAdmin: fetch all pharmacies without params
+        response = await api.get('/Pharmacy/List');
+      } else if (roleName === 'TenantAdmin') {
+        // ✅ TenantAdmin: fetch by tenant only
+        if (!tenantID) {
+          console.error('Missing tenantID for TenantAdmin.');
+          return;
+        }
+        response = await api.get('/Pharmacy/List', {
+          params: { tenantId: tenantID },
+        });
+      } else {
+        // ✅ Other roles: require both tenantID and hospitalID
+        if (!tenantID || !unitID) {
+          console.error('Missing tenantID or unitID for role:', roleName);
+          return;
+        }
+        response = await api.get('/Pharmacy/List', {
+          params: {
+            tenantId: tenantID,
+            hospitalId: unitID,
+          },
+        });
       }
 
-      const response = await api.get('/Pharmacy/List', {
-        params: {
-          tenantId: tenantID,
-          hospitalId: unitID,
-        },
-      });
-
       console.log('Pharmacy API Data:', response.data);
-      setRowData(response.data?.data || response.data);
+      const pharmacyData = response.data?.data ?? response.data;
+
+      if (Array.isArray(pharmacyData)) {
+        setRowData([...pharmacyData]);
+      } else {
+        console.error('Unexpected API response format:', response.data);
+      }
     } catch (error: any) {
       console.error('Error fetching pharmacy data:', error);
     }
@@ -138,6 +161,7 @@ const Hospital: React.FC = () => {
 
   fetchPharmacies();
 }, []);
+
 
 
   useEffect(() => {
@@ -278,40 +302,44 @@ const Hospital: React.FC = () => {
         );
       },
     },
-    {
-      headerName: 'Basic Edit',
-      width: 150,
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleEdit(params.data)}
-          className="cursor-pointer flex justify-center mt-3 items-center"
-        >
-          <Edit
-            size={18}
-            className="text-blue-500 hover:scale-110 transition-transform"
-          />
-        </span>
-      ),
-    },
-    {
-      headerName: 'Address Edit',
-      width: 160,
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleAddressEdit(params.data)}
-          className="cursor-pointer flex justify-center mt-3 items-center"
-        >
-          <Edit
-            size={18}
-            className="text-blue-500 hover:scale-110 transition-transform"
-          />
-        </span>
-      ),
-    },
+    ...(roleName !== 'TenantAdmin' && roleName !== 'Reception'
+    ? [
+        {
+          headerName: 'Basic Edit',
+          width: 150,
+          headerClass: 'center-header',
+          cellClass: 'text-center',
+          cellRenderer: (params: any) => (
+            <span
+              onClick={() => handleEdit(params.data)}
+              className="cursor-pointer flex justify-center mt-3 items-center"
+            >
+              <Edit
+                size={18}
+                className="text-blue-500 hover:scale-110 transition-transform"
+              />
+            </span>
+          ),
+        },
+        {
+          headerName: 'Address Edit',
+          width: 160,
+          headerClass: 'center-header',
+          cellClass: 'text-center',
+          cellRenderer: (params: any) => (
+            <span
+              onClick={() => handleAddressEdit(params.data)}
+              className="cursor-pointer flex justify-center mt-3 items-center"
+            >
+              <Edit
+                size={18}
+                className="text-blue-500 hover:scale-110 transition-transform"
+              />
+            </span>
+          ),
+        },
+      ]
+    : []),
     {
       headerName: 'Delete',
       hide: true,
@@ -837,26 +865,39 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     toast?.error?.('Failed to update pharmacy. Please try again.');
   }
 };
-
-
-
-
- const refreshTableData = async () => {
+const refreshTableData = async () => {
   try {
+    const roleName = sessionStorage.getItem('roleName');
     const tenantID = sessionStorage.getItem('tenantID');
     const unitID = sessionStorage.getItem('unitID');
 
-    if (!tenantID || !unitID) {
-      console.error('Missing tenantID or unitID in session storage.');
-      return;
-    }
+    let response;
 
-    const response = await api.get('/Pharmacy/List', {
-      params: {
-        tenantId: tenantID,
-        hospitalId: unitID,
-      },
-    });
+    if (roleName === 'SuperAdmin') {
+      // ✅ SuperAdmin: get all pharmacies, no params
+      response = await api.get('/Pharmacy/List');
+    } else if (roleName === 'TenantAdmin') {
+      // ✅ TenantAdmin: get pharmacies by tenantID
+      if (!tenantID) {
+        console.error('Missing tenantID for TenantAdmin.');
+        return;
+      }
+      response = await api.get('/Pharmacy/List', {
+        params: { tenantId: tenantID },
+      });
+    } else {
+      // ✅ Other roles: get pharmacies by tenantID and hospitalID
+      if (!tenantID || !unitID) {
+        console.error('Missing tenantID or unitID for user role:', roleName);
+        return;
+      }
+      response = await api.get('/Pharmacy/List', {
+        params: {
+          tenantId: tenantID,
+          hospitalId: unitID,
+        },
+      });
+    }
 
     const pharmacyData = response.data?.data ?? response.data;
 
@@ -864,12 +905,13 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       setRowData([...pharmacyData]);
       setFilteredData([...pharmacyData]);
     } else {
-      console.error('Unexpected API response format:', response.data);
+      console.error('Unexpected response format:', response.data);
     }
   } catch (error) {
     console.error('Error fetching pharmacy data:', error);
   }
 };
+
 
 
   const resetFormData = () => {
@@ -1523,15 +1565,17 @@ const handleChange = (field: string, value: string) => {
           </span>
         </div>
 
-        <button
-          onClick={() => navigate('/PharmacyDetails/PharmacyCreation')}
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-  hover:from-[#007BFF] hover:to-[#004A99]
-  text-white transition duration-150 
-  ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Add New
-        </button>
+       {roleName !== 'TenantAdmin' && roleName !== 'Reception' && (
+  <button
+    onClick={() => navigate('/PharmacyDetails/PharmacyCreation')}
+    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+      hover:from-[#007BFF] hover:to-[#004A99]
+      text-white transition duration-150 
+      ease-out hover:ease-in py-2 px-5 rounded-lg"
+  >
+    Add New
+  </button>
+)}
       </div>
 
       <div

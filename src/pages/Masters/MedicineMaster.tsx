@@ -244,6 +244,7 @@ const Tenant: React.FC = () => {
     {
       headerName: 'Manufacturer Code',
       field: 'manufacturerCode',
+      hide:true,
       headerClass: 'left-header',
       cellClass: 'text-left',
       sortable: true,
@@ -323,6 +324,7 @@ const Tenant: React.FC = () => {
     {
       headerName: 'Delete',
       headerClass: 'center-header',
+      hide:true,
       cellClass: 'text-center',
       width: 80,
       cellRenderer: (params: any) => (

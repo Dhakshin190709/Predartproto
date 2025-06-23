@@ -186,26 +186,34 @@ const TenantAddOn: React.FC = () => {
     }
   };
 
-  const refreshTableData = async () => {
-    try {
-      const response = await api.get('/TenantAddOn'); // ✅ Updated endpoint
+ const refreshTableData = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      if (response.data && Array.isArray(response.data.data)) {
-        setRowData([...response.data.data]);
-        setFilteredData([...response.data.data]);
-      } else {
-        console.error(
-          'Error: response.data.data is not an array',
-          response.data,
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        'Error fetching Tenant Add-On data:',
-        error.response?.data || error.message,
-      );
+    let url = '/TenantAddOn';
+
+    // If role is TenantAdmin, add TenantID to query
+    if (roleName === 'TenantAdmin' && tenantID) {
+      url += `?TenantID=${tenantID}`;
     }
-  };
+
+    const response = await api.get(url);
+
+    if (response.data && Array.isArray(response.data.data)) {
+      setRowData([...response.data.data]);
+      setFilteredData([...response.data.data]);
+    } else {
+      console.error('Error: response.data.data is not an array', response.data);
+    }
+  } catch (error: any) {
+    console.error(
+      'Error fetching Tenant Add-On data:',
+      error.response?.data || error.message,
+    );
+  }
+};
+
 
   useEffect(() => {
     refreshTableData();
@@ -452,22 +460,53 @@ const TenantAddOn: React.FC = () => {
     }
     return false;
   };
+
   useEffect(() => {
-    const fetchTenants = async () => {
+    const fetchTenantData = async () => {
       try {
-        const response = await api.get('/Tenant'); // No need for full URL since baseURL is set
-        if (response.data.success && Array.isArray(response.data.data)) {
-          setTenantList(response.data.data);
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+
+        if (roleName === 'TenantAdmin' && tenantID) {
+          const response = await api.get(`/Tenant/${tenantID}`);
+          if (response.data.success && response.data.data) {
+            const tenant = response.data.data;
+            setTenantList([tenant]); // Set as single-item list
+            setFormData((prev) => ({
+              ...prev,
+              tenantID: String(tenant.tenantID),
+            }));
+          } else {
+            console.error('Tenant fetch failed:', response.data.message);
+          }
         } else {
-          console.error('Failed to fetch tenants:', response.data.message);
+          // For other roles, fetch all tenants
+          const response = await api.get('/Tenant');
+          if (response.data.success && Array.isArray(response.data.data)) {
+            setTenantList(response.data.data);
+          }
         }
       } catch (error) {
-        console.error('Error fetching tenants:', error);
+        console.error('Error fetching tenant(s):', error);
       }
     };
 
-    fetchTenants();
+    fetchTenantData();
   }, []);
+
+  useEffect(() => {
+    if (formMode === 'Add') {
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID');
+
+      if (roleName === 'TenantAdmin' && tenantID) {
+        setFormData((prev) => ({
+          ...prev,
+          tenantID: tenantID,
+        }));
+      }
+    }
+  }, [formMode]);
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -489,20 +528,26 @@ const TenantAddOn: React.FC = () => {
               {/* Tenant Dropdown */}
               <div className="flex-1">
                 <select
-                  value={formData.tenantID}
+                  value={String(formData.tenantID || '')}
                   onChange={(e) =>
                     setFormData({ ...formData, tenantID: e.target.value })
                   }
-                   disabled={formMode === 'Edit'} 
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+                  disabled={
+                    sessionStorage.getItem('roleName') === 'TenantAdmin'
+                  }
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600"
                 >
                   <option value="">Select Tenant</option>
                   {tenantList.map((tenant) => (
-                    <option key={tenant.tenantID} value={tenant.tenantID}>
+                    <option
+                      key={tenant.tenantID}
+                      value={String(tenant.tenantID)}
+                    >
                       {tenant.tenantName}
                     </option>
                   ))}
                 </select>
+
                 {formErrors.tenantID && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.tenantID}
@@ -514,6 +559,7 @@ const TenantAddOn: React.FC = () => {
                   <div className="flex-1">
                     <input
                       type="number"
+                      placeholder='Quantity'
                       value={formData.quantity}
                       onChange={(e) =>
                         setFormData({
@@ -545,7 +591,7 @@ const TenantAddOn: React.FC = () => {
                             : '', // or null if your backend expects null
                         })
                       }
-                       disabled={formMode === 'Edit'} 
+                      disabled={formMode === 'Edit'}
                       className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
                     />
                     {formErrors.purchasedOn && (
@@ -564,7 +610,7 @@ const TenantAddOn: React.FC = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, addOnID: e.target.value })
                   }
-                   disabled={formMode === 'Edit'} 
+                  disabled={formMode === 'Edit'}
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
                 >
                   <option value="">Select Add-On</option>

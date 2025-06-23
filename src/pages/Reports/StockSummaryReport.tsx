@@ -42,6 +42,7 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [hospitalID, setHospitalID] = useState('');
   const [fromTime, setFromTime] = useState('');
   const [toTime, setToTime] = useState('');
+  const [tenantOptions, setTenantOptions] = useState<any[]>([]);
   const columnDefs = [
     {
       headerName: 'Tenant Name',
@@ -102,21 +103,39 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const storedTenantID = sessionStorage.getItem('tenantID');
-    if (storedTenantID) {
-      setTenantID(storedTenantID);
+    const role = sessionStorage.getItem('roleName');
+    setRoleName(role || '');
+
+    if (role === 'SuperAdmin') {
       api
-        .get(`/Tenant/${storedTenantID}`)
+        .get('/Tenant')
         .then((res) => {
-          if (res.data.success && res.data.data) {
-            setTenantName(res.data.data.tenantName);
-          } else {
-            console.error('Failed to fetch tenant data');
+          if (res.data.success && Array.isArray(res.data.data)) {
+            const activeTenants = res.data.data.filter(
+              (tenant: any) => tenant.isActive,
+            );
+            setTenantOptions(activeTenants);
           }
         })
-        .catch((err) => console.error('Error:', err));
+        .catch((err) => console.error('Error fetching tenants:', err));
     } else {
-      console.error('No tenantID found in sessionStorage');
+      const storedTenantID = sessionStorage.getItem('tenantID');
+      if (storedTenantID) {
+        setTenantID(storedTenantID);
+        api
+          .get(`/Tenant/${storedTenantID}`)
+          .then((res) => {
+            if (res.data.success && res.data.data) {
+              const tenantData = res.data.data;
+              setTenantName(tenantData.tenantName);
+              setFormData((prev) => ({
+                ...prev,
+                tenantName: tenantData.tenantID, // Set ID, not Name
+              }));
+            }
+          })
+          .catch((err) => console.error('Error:', err));
+      }
     }
   }, []);
 
@@ -129,26 +148,42 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     setTenantID(tenant);
     setUnitID(unit);
 
-    if (role === 'TenantAdmin' && tenant) {
-      // Fetch hospital list and enable dropdown
+    if (role === 'SuperAdmin') {
+      // Fetch all hospitals for SuperAdmin
+      api
+        .get('/Hospital/List')
+        .then((res) => {
+          const activeHospitals = res.data.filter((h: any) => h.isActive);
+          setHospitals(activeHospitals);
+          setIsDropdownDisabled(false);
+          setHospitalID('');
+        })
+        .catch((err) =>
+          console.error('Error fetching hospitals for SuperAdmin:', err),
+        );
+    } else if (role === 'TenantAdmin' && tenant) {
+      // Fetch hospitals by tenant
       api
         .get(`/Hospital/List?tenantId=${tenant}`)
         .then((res) => {
           const activeHospitals = res.data.filter((h: any) => h.isActive);
           setHospitals(activeHospitals);
           setIsDropdownDisabled(false);
-          setHospitalID(''); // ⛔️ Do NOT prefill hospitalID
+          setHospitalID('');
         })
         .catch((err) => console.error('Error fetching tenant hospitals:', err));
     } else if (unit) {
-      // Fetch single hospital details for other roles and disable dropdown
       api
         .get(`/Hospital/${unit}`)
         .then((res) => {
           if (res.data.success && res.data.data) {
-            setHospitalName(res.data.data.hospitalName);
-            setHospitalID(res.data.data.hospitalID);
-            setIsDropdownDisabled(true);
+            setHospitalName(res.data.data.hospitalName); // for label (optional)
+            setHospitalID(res.data.data.hospitalID); // internal use
+            setFormData((prev) => ({
+              ...prev,
+              hospitalName: res.data.data.hospitalID, // ✅ important
+            }));
+            setIsDropdownDisabled(true); // disable dropdown
           } else {
             console.error('Failed to fetch hospital data');
           }
@@ -184,29 +219,43 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
 
  const handleSearch = async () => {
   const roleName = sessionStorage.getItem('roleName') || '';
-  const tenantID = sessionStorage.getItem('tenantID') || '';
+  const sessionTenantID = sessionStorage.getItem('tenantID') || '';
   const sessionUnitID = sessionStorage.getItem('unitID') || '';
-  const { pharmacyID } = formData;
 
-  // hospitalID from dropdown (only relevant for TenantAdmin)
-  const selectedHospitalID = roleName === 'TenantAdmin' ? hospitalID : sessionUnitID;
+  const { tenantName, hospitalName, pharmacyName } = formData;
+  const hospitalID = hospitalName; // ✅ Define it here
 
-  if (!tenantID && !selectedHospitalID && !pharmacyID && !fromTime && !toTime) {
-    toast.error('Please select at least one filter');
+  const selectedTenantID =
+    roleName === 'SuperAdmin' ? tenantName : sessionTenantID;
+
+  const selectedHospitalID =
+    roleName === 'SuperAdmin'
+      ? hospitalName
+      : roleName === 'TenantAdmin'
+        ? hospitalID // ✅ Now it is defined
+        : sessionUnitID;
+
+  if (
+    !selectedTenantID &&
+    !selectedHospitalID &&
+    !pharmacyName &&
+    !fromTime &&
+    !toTime
+  ) {
+    toast.warn('Please select at least one filter');
     return;
   }
 
   const params: Record<string, string> = {};
 
-  if (tenantID) params.TenantID = tenantID;
+  if (selectedTenantID) params.TenantID = selectedTenantID;
+  if (selectedHospitalID) params.HospitalID = selectedHospitalID;
 
-  // role-based hospitalID logic
-  if (selectedHospitalID) {
-    params.HospitalID = selectedHospitalID;
-  }
-
-  if (pharmacyID) {
-    params.PharmacyID = pharmacyID;
+  const selectedPharmacy = pharmacies.find(
+    (p) => p.pharmacyName === pharmacyName,
+  );
+  if (selectedPharmacy) {
+    params.PharmacyID = selectedPharmacy.pharmacyID;
   }
 
   if (fromTime) params.StartDate = fromTime;
@@ -231,37 +280,35 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   }
 };
 
- const handleReset = () => {
+
+  const handleReset = () => {
     const role = sessionStorage.getItem('roleName') || '';
 
-    // Reset formData fields
-    setFormData({
+    // Reset form fields
+    setFormData((prev) => ({
+      ...prev,
+      tenantName: role === 'SuperAdmin' ? '' : prev.tenantName, // Keep tenant for TenantAdmin
+      hospitalName: '',
       pharmacyName: '',
       days: '',
-    });
+    }));
 
-    // Reset date fields
+    // Reset date filters
     setFromTime('');
     setToTime('');
 
-    // Conditionally reset hospitalID
-    if (role !== 'PharmacyAdmin') {
-      if (role !== 'TenantAdmin') {
-        setTenantID('');
-      }
+    // Role-based dropdown clearing
+    if (role === 'SuperAdmin') {
+      setTenantID('');
+      setHospitalID('');
+    } else if (role === 'TenantAdmin') {
+      // Don't reset tenant ID
       setHospitalID('');
     }
 
     // Clear grid data
     setRowData([]);
-
-    // Optional: reset dropdown selection if needed
-    if (role === 'TenantAdmin') {
-      // Keep "Select Hospital" as the first option
-      setHospitalID('');
-    }
   };
-
 
   return (
     <div className="p-4 space-y-4">
@@ -275,26 +322,55 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
         >
           {/* Row 1 */}
           <div>
-            <select
-              value={tenantID}
-              className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
-              disabled
-            >
-              {tenantName && <option value={tenantID}>{tenantName}</option>}
-            </select>
+            {roleName === 'SuperAdmin' ? (
+              <select
+                value={formData.tenantName}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    tenantName: e.target.value,
+                  }))
+                }
+                className="w-full rounded border p-2 bg-white"
+              >
+                <option value="">Select a tenant</option>
+                {tenantOptions.map((tenant) => (
+                  <option key={tenant.tenantID} value={tenant.tenantID}>
+                    {tenant.tenantName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={formData.tenantName}
+                className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
+                disabled
+              >
+                {formData.tenantName && (
+                  <option value={formData.tenantName}>{tenantName}</option>
+                )}
+              </select>
+            )}
           </div>
-
           <div>
             <select
-              value={hospitalID}
-              onChange={(e) => setHospitalID(e.target.value)}
-              className={`w-full rounded border p-2 ${isDropdownDisabled ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+              value={formData.hospitalName}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  hospitalName: e.target.value,
+                }))
+              }
+              className={`w-full rounded border p-2 ${
+                isDropdownDisabled
+                  ? 'bg-gray-100 cursor-not-allowed'
+                  : 'bg-white'
+              }`}
               disabled={isDropdownDisabled}
             >
-              {roleName === 'TenantAdmin' && (
+              {(roleName === 'TenantAdmin' || roleName === 'SuperAdmin') && (
                 <>
-                  <option value="">Select Hospital</option>{' '}
-                  {/* Default blank option */}
+                  <option value="">Select Hospital</option>
                   {hospitals.map((hospital: any) => (
                     <option
                       key={hospital.hospitalID}
@@ -306,9 +382,11 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
                 </>
               )}
 
-              {roleName !== 'TenantAdmin' && hospitalName && (
-                <option value={hospitalID}>{hospitalName}</option>
-              )}
+              {roleName !== 'TenantAdmin' &&
+                roleName !== 'SuperAdmin' &&
+                formData.hospitalName && (
+                  <option value={formData.hospitalName}>{hospitalName}</option>
+                )}
             </select>
           </div>
 
@@ -373,12 +451,11 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
             </CustomButton>
             <CustomButton
               type="button"
-                onClick={handleReset}
+              onClick={handleReset}
               className="w-1/4 opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
             >
               Reset
             </CustomButton>
-            
           </div>
 
           {/* Col 3: Leave empty or add more fields */}

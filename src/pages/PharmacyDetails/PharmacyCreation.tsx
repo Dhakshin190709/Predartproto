@@ -68,10 +68,12 @@ const EPharmacyPage: React.FC = () => {
   const validate = () => {
     const newErrors: any = {};
 
-    const namePattern = /^[A-Za-z\s]{1,20}$/;
+    const namePattern = /^(?!.*([A-Za-z])\1{2,})[A-Za-z\s]{1,30}$/;
+
     const emailPattern =
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
-    const phoneRegex = /^[6-9]\d{9}$/;
+    const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+
     const workHourPattern = /^[0-9]+$/;
     const pharmacyCodePattern = /^[A-Z0-9]{3,10}$/; // Example: 3–10 uppercase letters/digits
 
@@ -86,8 +88,11 @@ const EPharmacyPage: React.FC = () => {
     // Pharmacy Name
     if (!formData.pharmacyName.trim()) {
       newErrors.pharmacyName = 'Pharmacy Name is required';
-    } else if (!namePattern.test(formData.pharmacyName)) {
-      newErrors.pharmacyName = 'Only alphabets, max 30 characters allowed';
+    } else if (!namePattern.test(formData.pharmacyName.trim())) {
+      newErrors.pharmacyName =
+        'Only alphabets and spaces allowed, no repeating characters, max 30 characters';
+    } else {
+      delete newErrors.pharmacyName;
     }
 
     // Pharmacy Email
@@ -101,7 +106,10 @@ const EPharmacyPage: React.FC = () => {
     if (!formData.pharmacyPhoneNumber) {
       newErrors.pharmacyPhoneNumber = 'Phone number is required';
     } else if (!phoneRegex.test(formData.pharmacyPhoneNumber)) {
-      newErrors.pharmacyPhoneNumber = 'Must be 10 digits starting with 6–9';
+      newErrors.pharmacyPhoneNumber =
+        'Must be 10 digits, start with 6–9, no repeated digits.';
+    } else {
+      delete newErrors.pharmacyPhoneNumber;
     }
 
     // Work Hours
@@ -222,25 +230,40 @@ const EPharmacyPage: React.FC = () => {
     fetchAddressTypes();
   }, []);
 
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        const response = await api.get('/Tenant');
+useEffect(() => {
+  const fetchTenants = async () => {
+    try {
+      const response = await api.get('/Tenant');
 
-        if (response.data.success && Array.isArray(response.data.data)) {
-          const activeTenants = response.data.data.filter((t) => t.isActive);
-          setTenants(activeTenants);
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const activeTenants = response.data.data.filter((t) => t.isActive);
+        setTenants(activeTenants);
+
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+
+        // Prefill only if NOT SuperAdmin
+        if (roleName !== 'SuperAdmin' && tenantID) {
+          setFormData((prev) => ({
+            ...prev,
+            tenant: tenantID,
+          }));
+          setIsTenantPrefilled(true); // disable dropdown
         } else {
-          console.warn('Unexpected tenant response format');
+          setIsTenantPrefilled(false); // allow SuperAdmin to select
         }
-      } catch (error) {
-        console.error('Error fetching tenants:', error);
-        toast.error('Failed to load tenants');
+      } else {
+        console.warn('Unexpected tenant response format');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      toast.error('Failed to load tenants');
+    }
+  };
 
-    fetchTenants();
-  }, []);
+  fetchTenants();
+}, []);
+
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -275,8 +298,50 @@ const EPharmacyPage: React.FC = () => {
     const errors: { [key: string]: string } = {};
 
     if (!address.addressType) errors.addressType = 'Address type is required'; // ✅ Match this to your form field
-    if (!address.address1) errors.address1 = 'Address line 1 is required';
-    if (!address.address2) errors.address2 = 'Address line 2 is required';
+const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
+const hasText = /[a-zA-Z]/;
+const noOnlySpaces = /\S/;
+const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
+const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+const maxTwoDigits = (value: string) => (value.match(/\d/g) || []).length <= 2;
+
+if (!address.address1 || !noOnlySpaces.test(address.address1)) {
+  errors.address1 = 'Address line 1 is required';
+} else if (!hasText.test(address.address1)) {
+  errors.address1 = 'Address must include some text';
+} else if (!notRepeatedChar.test(address.address1)) {
+  errors.address1 = 'Repeated characters are not allowed';
+} else if (!noEmojis.test(address.address1)) {
+  errors.address1 = 'Emojis are not allowed';
+} else if (!onlyAllowedChars.test(address.address1)) {
+  errors.address1 = 'Only letters, numbers, spaces, comma, and slash are allowed';
+} else if (!maxTwoDigits(address.address1)) {
+  errors.address1 = 'Only up to 2 digits are allowed';
+}else if (address.address1.length < 5) {
+  errors.address1 = 'Address is too short or not meaningful';
+}
+
+
+
+if (!address.address2 || !noOnlySpaces.test(address.address2)) {
+  errors.address2 = 'Address line 2 is required';
+} else if (!hasText.test(address.address2)) {
+  errors.address2 = 'Address must include some text';
+} else if (!notRepeatedChar.test(address.address2)) {
+  errors.address2 = 'Repeated characters are not allowed';
+} else if (!noEmojis.test(address.address2)) {
+  errors.address2 = 'Emojis are not allowed';
+} else if (!onlyAllowedChars.test(address.address2)) {
+  errors.address2 = 'Only letters, numbers, spaces, comma, and slash are allowed';
+} else if (!maxTwoDigits(address.address2)) {
+  errors.address2 = 'Only up to 2 digits are allowed';
+}else if (address.address2.length < 5) {
+  errors.address2 = 'Address is too short or not meaningful';
+}
+
+
+
+
     if (!address.city) errors.city = 'City is required';
     if (!address.district) errors.district = 'District is required';
     if (!address.state) errors.state = 'State is required';
@@ -437,23 +502,26 @@ const EPharmacyPage: React.FC = () => {
 
     // Step 3: Validate address
     const validateAddressLine = (field: string) => {
-      const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-      const noOnlySpaces = /\S/;
-      const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
-      const atLeastOneLetter = /[a-zA-Z]/;
-      const containsNumber = /\d/;
-      const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
+  const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
+const hasText = /[a-zA-Z]/;
+const noOnlySpaces = /\S/;
+const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
+const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+const containsNumber = /\d/;
+const atLeastOneLetter = /[a-zA-Z]/;
+const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
 
       return (
-        field &&
-        noOnlySpaces.test(field) &&
-        noEmojis.test(field) &&
-        alphaNumericSlash.test(field) &&
-        field.length >= 3 &&
-        atLeastOneLetter.test(field) &&
-        containsNumber.test(field) &&
-        noTripleRepeat.test(field)
-      );
+  field &&
+  noOnlySpaces.test(field) &&
+  noEmojis.test(field) &&
+  onlyAllowedChars.test(field) &&
+  field.length >= 3 &&
+  atLeastOneLetter.test(field) &&
+  containsNumber.test(field) &&
+  noTripleRepeat.test(field)
+);
+
     };
 
     if (!validateAddressLine(address.address1)) {
@@ -492,7 +560,7 @@ const EPharmacyPage: React.FC = () => {
       isActive: true,
       tenantID: formData.tenant,
       hospitalID: formData.hospital,
-      pharmacyCode: formData.pharmacyCode?.trim() || "",
+      pharmacyCode: formData.pharmacyCode?.trim() || '',
       pharmacyName: formData.pharmacyName,
       pharmacyEmail: formData.pharmacyEmail,
       pharmacyPhoneNumber: formData.pharmacyPhoneNumber,
@@ -551,9 +619,9 @@ const EPharmacyPage: React.FC = () => {
         ]);
 
         setSelectedType('');
-         setTimeout(() => {
-      navigate('/Pharmacy');
-    }, 2000);
+        setTimeout(() => {
+          navigate('/Pharmacy');
+        }, 2000);
       } else {
         toast.error('Pharmacy creation failed. Please try again.');
       }
@@ -567,13 +635,14 @@ const EPharmacyPage: React.FC = () => {
 
   return (
     <div>
-       {/* Back Button */}
-        <button
-          className="text-blue-600 font-medium hover:underline mb-4"
-          onClick={() => navigate('/Pharmacy')}
-        >
-          &lt; Back
-        </button>
+      {/* Back Button */}
+      <button
+       className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+      
+        onClick={() => navigate('/Pharmacy')}
+      >
+          &larr; Back
+      </button>
       <h1 className="text-3xl font-semibold text-black text-center mb-6">
         Pharmacy Register
       </h1>
@@ -712,7 +781,7 @@ const EPharmacyPage: React.FC = () => {
 
             {/* Pharmacy Code & Work Hours */}
             <div className="flex gap-4">
-               <div className="w-1/2">
+              <div className="w-1/2">
                 <input
                   type="text"
                   maxLength={2}
@@ -741,7 +810,6 @@ const EPharmacyPage: React.FC = () => {
                   <p className="text-red-500 text-sm">{errors.pharmacyCode}</p>
                 )}
               </div>
-             
             </div>
 
             {/* Submit Button if needed */}
@@ -995,7 +1063,6 @@ const EPharmacyPage: React.FC = () => {
                 </div>
               ))}
           </div>
-          
         </div>
         <div className="flex justify-center items-center text-center space-x-4">
           <CustomButton type="submit">Save Details</CustomButton>

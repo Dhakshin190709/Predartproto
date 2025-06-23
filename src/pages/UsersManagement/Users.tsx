@@ -107,11 +107,18 @@ const Users: React.FC = () => {
     }
   };
 
-  const fetchHospitalData = async () => {
+ const fetchHospitalData = async () => {
   try {
-    const tenantID = sessionStorage.getItem('tenantID'); // Or wherever you're storing tenantID
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
 
-    const response = await api.get(`/Hospital/List?tenantID=${tenantID}`);
+    // Conditionally build URL
+    const url =
+      roleName === 'SuperAdmin'
+        ? '/Hospital/List'
+        : `/Hospital/List?tenantID=${tenantID}`;
+
+    const response = await api.get(url);
     const data = response.data;
 
     console.log('Fetched Hospitals:', data);
@@ -125,6 +132,7 @@ const Users: React.FC = () => {
     return [];
   }
 };
+
 
 
   const fetchLaboratoryData = async () => {
@@ -371,7 +379,7 @@ const Users: React.FC = () => {
 
       let endpoint = '/User';
 
-      if (roleName === 'HostitalAdmin' && unitID) {
+      if (roleName === 'HospitalAdmin' && unitID) {
         endpoint += `?hospitalId=${unitID}`;
       } else if (roleName === 'TenantAdmin' && tenantID) {
         endpoint += `?tenantId=${tenantID}`;
@@ -407,7 +415,7 @@ const Users: React.FC = () => {
         const roleName = sessionStorage.getItem('roleName');
         const tenantID = sessionStorage.getItem('tenantID');
 
-        if (roleName === 'TenantAdmin' || roleName === 'HostitalAdmin') {
+        if (roleName === 'TenantAdmin' || roleName === 'HospitalAdmin') {
           setSelectedTenant(tenantID || '');
         }
       } catch (error) {
@@ -1228,7 +1236,7 @@ if (!safeSelectedSecondItem.trim()) {
   <select
     disabled={
       formData.userID !== 0 ||
-      ['TenantAdmin', 'HostitalAdmin'].includes(
+      ['TenantAdmin', 'HospitalAdmin'].includes(
         sessionStorage.getItem('roleName') || ''
       )
     }
@@ -1238,7 +1246,7 @@ if (!safeSelectedSecondItem.trim()) {
   >
     <option value="">
       {formData.userID !== 0 ||
-      ['TenantAdmin', 'HostitalAdmin'].includes(
+      ['TenantAdmin', 'HospitalAdmin'].includes(
         sessionStorage.getItem('roleName') || ''
       )
         ? tenants.find((t) => t.tenantID == selectedTenant)?.tenantName ||
@@ -1247,7 +1255,7 @@ if (!safeSelectedSecondItem.trim()) {
     </option>
 
     {formData.userID === 0 &&
-      !['TenantAdmin', 'HostitalAdmin'].includes(
+      !['TenantAdmin', 'HospitalAdmin'].includes(
         sessionStorage.getItem('roleName') || ''
       ) &&
       tenants.map((tenant) => (

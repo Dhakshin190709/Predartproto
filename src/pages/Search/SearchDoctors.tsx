@@ -206,7 +206,7 @@ const SearchDoctors: React.FC = () => {
 
         const unitID = sessionStorage.getItem('unitID');
 
-        if (roleName === 'HostitalAdmin' && unitID && hospitalMap[unitID]) {
+        if (roleName === 'HospitalAdmin' && unitID && hospitalMap[unitID]) {
           setSelectedHospital(unitID);
           setIsHospitalDisabled(true);
         } else {
@@ -225,20 +225,24 @@ const SearchDoctors: React.FC = () => {
 
 
 
-  // ✅ 2. Fetch Doctor Data — filter by hospital if HostitalAdmin
+  // ✅ 2. Fetch Doctor Data — filter by hospital if HospitalAdmin
  const fetchAllDoctors = async () => {
   try {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
     const tenantID = sessionStorage.getItem('tenantID');
 
-    let url = `/Doctor?tenantId=${tenantID || ''}`;
+    let url = '/Doctor';
 
-    if (roleName === 'HostitalAdmin' && unitID) {
-      url += `&hospitalId=${unitID}`;
+    // ✅ Only include tenantID if role is NOT Patient
+    if (roleName !== 'Patient' && tenantID) {
+      url += `?tenantId=${tenantID}`;
     }
 
-    // Note: No need for extra condition for 'TenantAdmin' as tenantId is already included above
+    // ✅ For HospitalAdmin, add hospitalId appropriately
+    if (roleName === 'HospitalAdmin' && unitID) {
+      url += `${url.includes('?') ? '&' : '?'}hospitalId=${unitID}`;
+    }
 
     const response = await api.get(url);
     const result = response.data;
@@ -256,6 +260,7 @@ const SearchDoctors: React.FC = () => {
     setLoading(false);
   }
 };
+
 
 
   useEffect(() => {
@@ -715,11 +720,11 @@ const SearchDoctors: React.FC = () => {
       const userID = sessionStorage.getItem('userID');
       const roleName = sessionStorage.getItem('roleName');
 
-      // Only fetch if role is not Reception and not HostitalAdmin
+      // Only fetch if role is not Reception and not HospitalAdmin
       if (
         userID &&
         roleName !== 'Reception' &&
-        roleName !== 'HostitalAdmin' &&
+        roleName !== 'HospitalAdmin' &&
         roleName !== 'TenantAdmin'
       ) {
         try {
@@ -780,7 +785,7 @@ const SearchDoctors: React.FC = () => {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
 
-    if (roleName === 'HostitalAdmin' && unitID) {
+    if (roleName === 'HospitalAdmin' && unitID) {
       setSelectedHospitalID(unitID);
       setFormData((prev) => ({
         ...prev,
@@ -946,7 +951,7 @@ const SearchDoctors: React.FC = () => {
       return;
     }
     // Prevent submission for HospitalAdmin
-    if (roleName === 'HostitalAdmin') {
+    if (roleName === 'HospitalAdmin') {
       toast.warning('Hospital Admin is not allowed to submit this form.');
       return;
     }
@@ -1084,7 +1089,7 @@ const SearchDoctors: React.FC = () => {
     // Role-based filtering
     if (roleName === 'Patient' && selectedHospital) {
       queryParams.hospitalId = selectedHospital;
-    } else if (roleName === 'HostitalAdmin' && unitID) {
+    } else if (roleName === 'HospitalAdmin' && unitID) {
       queryParams.hospitalId = unitID;
     } else if (roleName === 'TenantAdmin' && tenantID) {
       queryParams.tenantId = tenantID;
@@ -1131,7 +1136,7 @@ const handleReset = async (event) => {
   setSelectedSpecializationID('');
 
   // Reset hospital based on role
-  if (roleName === 'HostitalAdmin') {
+  if (roleName === 'HospitalAdmin') {
     setSelectedHospital(unitID || '');
   } else {
     // For Patient, TenantAdmin, and others
@@ -1151,7 +1156,7 @@ const handleReset = async (event) => {
         <form className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
           <div>
             {isHospitalDisabled ? (
-              // ✅ HostitalAdmin sees readonly box with prefilled hospital name
+              // ✅ HospitalAdmin sees readonly box with prefilled hospital name
               <div className="w-full rounded-lg border border-stroke bg-gray-100 dark:bg-gray-700 py-4 pl-6 pr-10 text-black dark:text-white">
                 {selectedHospital && hospitals[selectedHospital]
                   ? hospitals[selectedHospital]
@@ -1253,6 +1258,7 @@ const handleReset = async (event) => {
         hospitals={hospitals}
         specializations={specializations}
         onBookNow={handleBookNow}
+         roleName={roleName}
       />
 
       {showPopup && selectedDoctor && (
@@ -1569,25 +1575,27 @@ const DoctorCard = ({
               {/* Content Padding */}
               <div className="p-4 space-y-3">
                 {/* Book Button */}
-                {roleName !== 'hostitalAdmin' && (
-                  <div className="flex justify-end">
-                    <button
-                      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                      onClick={() =>
-                        onBookNow({
-                          ...doctor,
-                          hospitalName:
-                            hospitals[doctor.hospitalID] || 'Unknown',
-                        })
-                      }
-                    >
-                      <span>Book Now</span>
-                    </button>
-                  </div>
-                )}
+
+                 {roleName !== 'HospitalAdmin' && (
+  <div className="flex justify-end">
+    <button
+      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+      onClick={() =>
+        onBookNow({
+          ...doctor,
+          hospitalName: hospitals[doctor.hospitalID] || 'Unknown',
+        })
+      }
+    >
+      <span>Book Now</span>
+    </button>
+  </div>
+)}
+
+              
 
                 {/* Name & Specialization */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 mt-6 gap-y-2 gap-x-6 mt-2 mb-2">
                   <div className="flex items-center gap-2 max-w-full">
                     <img src={DoctorIcon} alt="doctor" className="w-4 h-5" />
                     <span
@@ -1616,17 +1624,19 @@ const DoctorCard = ({
 
                 {/* Hospital */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
-                  <div className="flex items-center gap-2 max-w-full">
-                    <img
-                      src={HospitalIcon}
-                      alt="hospital"
-                      className="w-5 h-5 "
-                    />
-                    <span className="text-black">
-                      <span className="text-black">Hospital:</span>{' '}
-                      {hospitalName}
-                    </span>
-                  </div>
+                <div className="flex items-center gap-2 max-w-full">
+  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+  <span className="text-black whitespace-nowrap">
+    <span className="text-black">Hospital:</span>{' '}
+    <span
+      className="inline-block max-w-[200px] truncate align-middle"
+      title={hospitalName}
+    >
+      {hospitalName}
+    </span>
+  </span>
+</div>
+
                   <div className="flex items-center gap-2 max-w-full">
                     <img src={HospitalIcon} alt="mobile" className="w-5 h-5" />
                     <span className="text-black">

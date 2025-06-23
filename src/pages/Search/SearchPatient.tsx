@@ -954,7 +954,7 @@ const SearchPatient: React.FC = () => {
                     </div>
 
                     {/* Top Right: Book Now Button */}
-                    {!['Doctor', 'HostitalAdmin'].includes(
+                    {!['Doctor', 'HospitalAdmin'].includes(
                       sessionStorage.getItem('roleName') || '',
                     ) && (
                       <div className="flex justify-end mt-2 mr-2">

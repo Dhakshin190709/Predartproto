@@ -963,24 +963,34 @@ const HospitalCards = () => {
               </div>
 
               {/* Top Row: Book Button */}
-              <div className="flex justify-end mb-4">
-                <button
-                  className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                  onClick={() => handleBookNow(hospital.hospitalID)}
-                >
-                  Book Now
-                </button>
-              </div>
+
+              {roleName !== 'HospitalAdmin' && (
+                <div className="flex justify-end mb-4">
+                  <button
+                    className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                    onClick={() => handleBookNow(hospital.hospitalID)}
+                  >
+                    Book Now
+                  </button>
+                </div>
+              )}
 
               {/* Info Grid: Hospital Name & Type */}
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-800">
-                <div className="flex items-center gap-2">
-                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-                  <span className="text-black font-medium">
-                    Name:{' '}
-                    <span className="font-normal">{hospital.hospitalName}</span>
-                  </span>
-                </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-6 text-sm text-gray-800">
+              <div className="flex items-center gap-2 max-w-full">
+  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+  <span className="text-black font-medium whitespace-nowrap">
+    Name:{' '}
+    <span
+      className="font-normal inline-block max-w-[200px] truncate align-middle"
+      title={hospital.hospitalName}
+    >
+      {hospital.hospitalName}
+    </span>
+  </span>
+</div>
+
+
 
                 <div className="flex items-center gap-2">
                   <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />

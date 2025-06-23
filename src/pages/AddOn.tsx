@@ -118,27 +118,27 @@ const AddOn: React.FC = () => {
     let isValid = true;
     const errors: any = {};
 
-    // 1. AddOn Name – required & only letters
+    // 1. AddOn Name – required & allow letters, numbers, spaces, and hyphens
     if (!formData.addOnName?.trim()) {
-      errors.name = 'AddOn Name is required';
+      errors.addOnName = 'AddOn Name is required';
       isValid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(formData.addOnName)) {
-      errors.name = 'AddOn Name should contain only letters';
+    } else if (!/^[A-Za-z0-9\s-]+$/.test(formData.addOnName)) {
+      errors.addOnName =
+        'AddOn Name can only contain letters, numbers, spaces, and hyphens';
       isValid = false;
     }
 
-   
-
-    // 3. AddOn Type – required & only letters
+    // 2. AddOn Type – required & allow letters, numbers, spaces, and hyphens
     if (!formData.addOnType?.trim()) {
-      errors.type = 'AddOn Type is required';
+      errors.addOnType = 'AddOn Type is required';
       isValid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(formData.addOnType)) {
-      errors.type = 'AddOn Type should contain only letters';
+    } else if (!/^[A-Za-z0-9\s-]+$/.test(formData.addOnType)) {
+      errors.addOnType =
+        'AddOn Type can only contain letters, numbers, spaces, and hyphens';
       isValid = false;
     }
 
-    // 4. Price – required & only numbers
+    // 3. Price – required & only numbers
     if (!formData.price?.toString().trim()) {
       errors.price = 'Price is required';
       isValid = false;
@@ -147,17 +147,15 @@ const AddOn: React.FC = () => {
       isValid = false;
     }
 
-    // 5. Description – required & only letters
+    // 4. Description – required & only letters, numbers, and spaces
     if (!formData.description?.trim()) {
       errors.description = 'Description is required';
       isValid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(formData.description)) {
-      errors.description = 'Description should contain only letters';
+    } else if (!/^[A-Za-z0-9\s]+$/.test(formData.description)) {
+      errors.description =
+        'Description should contain only letters, numbers, and spaces';
       isValid = false;
     }
-
-    // 6. Required flags (example for isActive and isRequired, if needed)
-    // Optional: no validation needed unless you want them always checked
 
     setFormErrors(errors);
     return isValid;
@@ -165,58 +163,60 @@ const AddOn: React.FC = () => {
 
   // Add or update tenant
 
- const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    console.error('User ID not found in session storage.');
-    toast.error('User not logged in. Please log in again.');
-    return;
-  }
-
-  if (!validateAddOnForm()) return;
-
-  try {
-    const isActive = formData.isActive ?? true;
-    const now = new Date().toISOString();
-
-    const payload: any = {
-      addOnName: formData.addOnName.trim(),
-      addOnCode: formData.addOnCode.trim(),
-      addOnType: formData.addOnType.trim(),
-      description: formData.description.trim(),
-      price: Number(formData.price),
-      isRecurring: Boolean(formData.isRecurring),
-      isActive,
-    };
-
-    if (!formData.addOnID) {
-      // Create case
-      payload.createdBy = userID;
-      payload.createdOn = now;
-
-      const response = await api.post('/AddOn', payload);
-      toast.success('Add-on saved successfully!');
-    } else {
-      // Update case
-      payload.addOnID = formData.addOnID; // ✅ Ensure addOnID is passed
-      payload.updatedBy = userID;
-      payload.updatedOn = now;
-
-      const response = await api.put('/AddOn', payload);
-      toast.success('Add-on updated successfully!');
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      toast.error('User not logged in. Please log in again.');
+      return;
     }
 
-    await refreshTableData();
-    resetForm();
-    setShowForm(false);
-  } catch (error: any) {
-    console.error('Error saving add-on:', error.response?.data || error.message);
-    toast.error('Failed to save/update add-on. Please try again.');
-  }
-};
+    if (!validateAddOnForm()) return;
 
+    try {
+      const isActive = formData.isActive ?? true;
+      const now = new Date().toISOString();
+
+      const payload: any = {
+        addOnName: formData.addOnName.trim(),
+        addOnCode: formData.addOnCode.trim(),
+        addOnType: formData.addOnType.trim(),
+        description: formData.description.trim(),
+        price: Number(formData.price),
+        isRecurring: Boolean(formData.isRecurring),
+        isActive,
+      };
+
+      if (!formData.addOnID) {
+        // Create case
+        payload.createdBy = userID;
+        payload.createdOn = now;
+
+        const response = await api.post('/AddOn', payload);
+        toast.success('Add-on saved successfully!');
+      } else {
+        // Update case
+        payload.addOnID = formData.addOnID; // ✅ Ensure addOnID is passed
+        payload.updatedBy = userID;
+        payload.updatedOn = now;
+
+        const response = await api.put('/AddOn', payload);
+        toast.success('Add-on updated successfully!');
+      }
+
+      await refreshTableData();
+      resetForm();
+      setShowForm(false);
+    } catch (error: any) {
+      console.error(
+        'Error saving add-on:',
+        error.response?.data || error.message,
+      );
+      toast.error('Failed to save/update add-on. Please try again.');
+    }
+  };
 
   // Fetch updated list of tenants to refresh the table
   const refreshTableData = async () => {
@@ -240,8 +240,8 @@ const AddOn: React.FC = () => {
   };
 
   useEffect(() => {
-      refreshTableData();
-    }, []);
+    refreshTableData();
+  }, []);
 
   const resetFormData = () => {
     setFormData({
@@ -283,7 +283,7 @@ const AddOn: React.FC = () => {
       field: 'addOnName',
       sortable: true,
       filter: true,
-      width: 150,
+      width: 200,
     },
     {
       headerName: 'AddOn Code',
@@ -292,7 +292,7 @@ const AddOn: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 150,
+      width: 100,
     },
     {
       headerName: 'AddOn Type',
@@ -310,7 +310,7 @@ const AddOn: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 280,
+      width: 350,
     },
     {
       headerName: 'Price',
@@ -319,14 +319,14 @@ const AddOn: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 100,
+      width: 80,
     },
 
     {
       headerName: 'Status',
       field: 'isActive',
-      flex: 1,
-      width: 100,
+  
+      width: 150,
       headerClass: 'center-header',
       cellClass: 'text-center',
       cellRenderer: (params: any) => {
@@ -384,26 +384,25 @@ const AddOn: React.FC = () => {
   ];
 
   // Define applyGlobalSearch function
- const applyGlobalSearch = (data: RowData[]) => {
-  console.log('Data passed to applyGlobalSearch:', data);
+  const applyGlobalSearch = (data: RowData[]) => {
+    console.log('Data passed to applyGlobalSearch:', data);
 
-  if (!Array.isArray(data)) {
-    console.error('Data is not an array:', data);
-    return [];
-  }
+    if (!Array.isArray(data)) {
+      console.error('Data is not an array:', data);
+      return [];
+    }
 
-  const searchText = quickSearchText.toLowerCase();
+    const searchText = quickSearchText.toLowerCase();
 
-  return data.filter((row) => {
-    const matchesSearch =
-      row.code?.toLowerCase().includes(searchText) ||
-      row.description?.toLowerCase().includes(searchText) ||
-      row.price?.toString().toLowerCase().includes(searchText); // ✅ Added price
+    return data.filter((row) => {
+      const matchesSearch =
+        row.code?.toLowerCase().includes(searchText) ||
+        row.description?.toLowerCase().includes(searchText) ||
+        row.price?.toString().toLowerCase().includes(searchText); // ✅ Added price
 
-    return matchesSearch;
-  });
-};
-
+      return matchesSearch;
+    });
+  };
 
   // Filter search function (handles name and isActive filters)
   const handleFilterSearch = () => {
@@ -427,46 +426,43 @@ const AddOn: React.FC = () => {
     setGridColumnApi(params.columnApi);
   };
 
- const toggleStatus = async (params: any) => {
-  const userID = sessionStorage.getItem('userID');
+  const toggleStatus = async (params: any) => {
+    const userID = sessionStorage.getItem('userID');
 
-  if (!userID) {
-    alert('User not logged in. Please log in again.');
-    return;
-  }
-
-  const updatedStatus = !(
-    params.data.isActive === 'Active' || params.data.isActive === true
-  );
-
-  try {
-    const payload = {
-      guidID: params.data.addOnID,
-      id: params.data.id || 0,
-      updatedBy: userID,
-      updatedOn: new Date().toISOString(),
-      isActive: updatedStatus,
-    };
-
-    const response = await api.put('/AddOn/UpdateStatus', payload);
-
-    if (response.status === 200 || response.status === 204) {
-      // ✅ Update grid visually
-      params.node.setDataValue('isActive', updatedStatus);
-
-      toast.success('Add-on status updated successfully!');
-    } else {
-      console.error('Unexpected response:', response);
-      toast.error('Something went wrong. Please try again.');
+    if (!userID) {
+      alert('User not logged in. Please log in again.');
+      return;
     }
-  } catch (error: any) {
-    console.error('Error updating status:', error);
-    toast.error('Failed to update add-on status. Please try again.');
-  }
-};
 
+    const updatedStatus = !(
+      params.data.isActive === 'Active' || params.data.isActive === true
+    );
 
+    try {
+      const payload = {
+        guidID: params.data.addOnID,
+        id: params.data.id || 0,
+        updatedBy: userID,
+        updatedOn: new Date().toISOString(),
+        isActive: updatedStatus,
+      };
 
+      const response = await api.put('/AddOn/UpdateStatus', payload);
+
+      if (response.status === 200 || response.status === 204) {
+        // ✅ Update grid visually
+        params.node.setDataValue('isActive', updatedStatus);
+
+        toast.success('Add-on status updated successfully!');
+      } else {
+        console.error('Unexpected response:', response);
+        toast.error('Something went wrong. Please try again.');
+      }
+    } catch (error: any) {
+      console.error('Error updating status:', error);
+      toast.error('Failed to update add-on status. Please try again.');
+    }
+  };
 
   // Delete confirmation
   const handleDelete = (Id: number) => {

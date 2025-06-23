@@ -143,7 +143,7 @@ const SignUp: React.FC = () => {
 
     // Gender validation
     if (!formData.gender) {
-      newErrors.gender = 'Gender is required.';
+      newErrors.gender = 'please select gender.';
     }
 
     // Date of Birth validation

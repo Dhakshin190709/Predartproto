@@ -102,8 +102,6 @@ interface Address {
   type?: string; // Optional or required, based on your use case
 }
 
-
-
 const DoctorForm: React.FC = () => {
   const [form, setForm] = useState(initialState);
   const [errors, setErrors] = useState<any[]>([{}]); // ✅ It must be an array
@@ -163,9 +161,11 @@ const DoctorForm: React.FC = () => {
     { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
   ]); // New slots (only these are submitted)
   const [existingEducation, setExistingEducation] = useState([]);
+const [isPopupVisible, setPopupVisible] = useState(false);
 
   // this persists between renders
-
+  const [doctorHospitalID, setDoctorHospitalID] = useState('');
+  const [isAddressSaved, setIsAddressSaved] = useState(false);
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -181,7 +181,9 @@ const DoctorForm: React.FC = () => {
 
   // const [errors, setErrors] = useState<any[]>([]);
   const today = new Date().toISOString().split('T')[0]; // today's date in yyyy-mm-dd
-  const [educationErrors, setEducationErrors] = useState([{}]);
+  const [educationErrors, setEducationErrors] = useState<
+    Array<Record<string, string>>
+  >([]);
   const [educationList, setEducationList] = useState([initialEducationEntry]);
   const [experienceList, setExperienceList] = useState<
     { id: number; name: string }[]
@@ -307,11 +309,22 @@ const DoctorForm: React.FC = () => {
     setSlots(updatedSlots);
   };
 
+  // setDoctorHospitalID(doctor.hospitalID); // ✅ save for reuse
+
   const addNewRow = () => {
-    setNewTimeSlots([
-      ...newTimeSlots,
-      { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
+    setNewTimeSlots((prev) => [
+      ...prev,
+      {
+        day: '',
+        hospital: doctorHospitalID || '', // ✅ always prefill if available
+        duration: '',
+        fromTime: null,
+        toTime: null,
+      },
     ]);
+
+    // ✅ Clear previous validation errors
+    setErrors((prevErrors) => [...prevErrors, {}]);
   };
 
   useEffect(() => {
@@ -334,6 +347,7 @@ const DoctorForm: React.FC = () => {
           toTime: new Date(`1970-01-01T${slot.toTime}`),
           hospital: slot.hospitalID, // align with your `newTimeSlots` format
           day: slot.dayofWeek,
+          duration: Number(slot.slotDuration) || 0,
         }));
         setExistingTimeSlots(formattedSlots);
       }
@@ -365,7 +379,9 @@ const DoctorForm: React.FC = () => {
       } else if (!/^\d{1,2}$/.test(slot.duration)) {
         slotErrors.duration = 'Duration must be a number (1-2 digits only)';
         hasError = true;
-      } else if (!['1', '15', '30', '45'].includes(slot.duration)) {
+      } else if (
+        !['10', '15', '20', '25', '30', '45'].includes(slot.duration)
+      ) {
         slotErrors.duration = 'Duration must be 1, 15, 30, or 45';
         hasError = true;
       }
@@ -386,6 +402,62 @@ const DoctorForm: React.FC = () => {
     return { isValid: !hasError, errors };
   };
 
+  const formatTime = (time) => {
+    if (time instanceof Date) {
+      return time.toTimeString().slice(0, 8); // hh:mm:ss
+    }
+    if (typeof time === 'string') {
+      return time.length === 5 ? time + ':00' : time; // eg. '15:30' => '15:30:00'
+    }
+    return '00:00:00';
+  };
+
+  const generateToTimes = (fromTime: Date, duration: number): Date[] => {
+    const result: Date[] = [];
+
+    const end = new Date(fromTime);
+    end.setHours(23, 59, 59, 999);
+
+    let current = new Date(fromTime.getTime() + duration * 60000);
+
+    while (current <= end) {
+      const newTime = new Date(fromTime); // clone date
+      newTime.setHours(current.getHours(), current.getMinutes(), 0, 0);
+      result.push(newTime);
+      current = new Date(current.getTime() + duration * 60000);
+    }
+    console.log(
+      'Generated toTimes:',
+      result.map((r) => r.toLocaleTimeString()),
+    );
+    return result;
+  };
+
+  // const generateToTimes = (fromTime: Date, duration: number): Date[] => {
+  //   const result: Date[] = [];
+
+  //   const now = new Date();
+  //   const start = new Date(
+  //     now.getFullYear(),
+  //     now.getMonth(),
+  //     now.getDate(),
+  //     fromTime.getHours(),
+  //     fromTime.getMinutes(),
+  //     0,
+  //     0
+  //   );
+
+  //   let current = new Date(start.getTime() + duration * 60000);
+
+  //   while (current.getHours() < 23 || (current.getHours() === 23 && current.getMinutes() <= 59)) {
+  //     result.push(new Date(current));
+  //     current = new Date(current.getTime() + duration * 60000);
+  //   }
+
+  //   console.log("Generated toTimes:", result.map(r => r.toLocaleTimeString()));
+  //   return result;
+  // };
+
   const handleTimeSubmit = async (e) => {
     e.preventDefault();
 
@@ -393,7 +465,7 @@ const DoctorForm: React.FC = () => {
     const doctorID = sessionStorage.getItem('doctorID');
 
     if (!userID || !doctorID) {
-      alert('🚨 User or Doctor not logged in. Please log in again.');
+      alert('User or Doctor not logged in. Please log in again.');
       return;
     }
 
@@ -405,7 +477,43 @@ const DoctorForm: React.FC = () => {
       return;
     }
 
-    // Filter out duplicate time slots
+    const hasOverlappingSlot = (newSlot) => {
+      if (!newSlot.fromTime || !newSlot.toTime) return false;
+
+      const newFrom = new Date(
+        `1970-01-01T${formatTime(newSlot.fromTime)}`,
+      ).getTime();
+      const newTo = new Date(
+        `1970-01-01T${formatTime(newSlot.toTime)}`,
+      ).getTime();
+
+      return existingTimeSlots.some((existing) => {
+        if (!existing.fromTime || !existing.toTime) return false;
+
+        const existFrom = new Date(
+          `1970-01-01T${formatTime(existing.fromTime)}`,
+        ).getTime();
+        const existTo = new Date(
+          `1970-01-01T${formatTime(existing.toTime)}`,
+        ).getTime();
+
+        return (
+          existing.day === newSlot.day &&
+          existing.hospital === newSlot.hospital &&
+          newFrom < existTo &&
+          newTo > existFrom
+        );
+      });
+    };
+
+    const overlappingSlot = newTimeSlots.find((slot) =>
+      hasOverlappingSlot(slot),
+    );
+    if (overlappingSlot) {
+      toast.error('Same day & hospital already has overlapping time.');
+      return;
+    }
+
     const isDuplicate = (slot) => {
       const fromTimeStr =
         slot.fromTime?.toLocaleTimeString('en-US', { hour12: false }) ?? '';
@@ -433,13 +541,29 @@ const DoctorForm: React.FC = () => {
     const uniqueNewSlots = newTimeSlots.filter((slot) => !isDuplicate(slot));
 
     if (uniqueNewSlots.length !== newTimeSlots.length) {
-      toast.warning('Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.');
-
+      toast.warning(
+        'Duplicate time slot(s) detected. Please avoid adding the same day, time, and hospital twice.',
+      );
       return;
     }
 
-    const timestamp = new Date().toISOString();
+    // ❗ Validate slot duration
+    // const hasInvalidDuration = uniqueNewSlots.some((slot) => {
+    //   if (!slot.fromTime || !slot.toTime || !slot.duration) return false;
 
+    //   const from = new Date(`1970-01-01T${formatTime(slot.fromTime)}`);
+    //   const to = new Date(`1970-01-01T${formatTime(slot.toTime)}`);
+    //   const diffMinutes = (to - from) / (1000 * 60);
+
+    //   return diffMinutes !== Number(slot.duration);
+    // });
+
+    // if (hasInvalidDuration) {
+    //   toast.error('Please ensure From - To time matches the duration.');
+    //   return;
+    // }
+
+    const timestamp = new Date().toISOString();
     const payload = uniqueNewSlots.map((slot) => ({
       createdBy: userID,
       createdOn: timestamp,
@@ -454,28 +578,102 @@ const DoctorForm: React.FC = () => {
       toTime:
         slot.toTime?.toLocaleTimeString('en-US', { hour12: false }) ??
         '00:00:00',
-      slotDuration: slot.duration?.toString() ?? '0',
+      slotDuration: Number(slot.duration) || 0,
       isActive: true,
     }));
 
     try {
-      const response = await api.post('/Doctor/SaveDoctorTimeSlot', payload); // ✅ uses full URL from request.js
+      const response = await api.post('/Doctor/SaveDoctorTimeSlot', payload);
 
       if (response.status === 200) {
         toast.success('Unique new time slots saved successfully!');
         setNewTimeSlots([
-          { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
+          {
+            day: '',
+            hospital: doctorHospitalID,
+            duration: '',
+            fromTime: null,
+            toTime: null,
+          },
         ]);
-        fetchDoctorTimeSlots(); // Refresh the list
+        setErrors([{}]); // ✅ Reset validation
+        fetchDoctorTimeSlots();
       } else {
         toast.error('Failed to save time slots.');
-        console.error('❌ Server responded with error:', response.data);
+        console.error('Server responded with error:', response.data);
       }
     } catch (error) {
       toast.error('Network error while submitting time slots.');
-      console.error('🚨 Error submitting time slots:', error);
+      console.error('Error submitting time slots:', error);
     }
   };
+
+  useEffect(() => {
+    const doctorID = sessionStorage.getItem('doctorID');
+    if (!doctorID) return;
+
+    const fetchDoctorAndHospital = async () => {
+      try {
+        const doctorRes = await api.get(`/Doctor/${doctorID}`);
+        const doctor = doctorRes.data?.data;
+
+        if (!doctor || !doctor.hospitalID) {
+          console.warn('Doctor hospital ID not found');
+          return;
+        }
+
+        const hospitalRes = await api.get('/Hospital/List');
+        const allHospitals = hospitalRes.data;
+
+        const activeHospitals = allHospitals
+          .filter((hospital) => hospital.isActive)
+          .map((hospital) => ({
+            id: hospital.hospitalID,
+            name: hospital.hospitalName,
+          }));
+
+        const matchedHospital = activeHospitals.find(
+          (h) => h.id === doctor.hospitalID,
+        );
+
+        setHospitals(activeHospitals);
+
+        // ✅ Only prefill AFTER hospitals are ready
+        setDoctorHospitalID(doctor.hospitalID);
+
+        setNewTimeSlots([
+          {
+            day: '',
+            hospital: doctor.hospitalID,
+            duration: '',
+            fromTime: null,
+            toTime: null,
+          },
+        ]);
+      } catch (err) {
+        console.error('Error fetching doctor/hospital:', err);
+      }
+    };
+
+    fetchDoctorAndHospital();
+    fetchWeekdays();
+    fetchDoctorTimeSlots();
+  }, []);
+
+  useEffect(() => {
+    if (hospitals.length > 0 && newTimeSlots.length === 0 && doctorHospitalID) {
+      setNewTimeSlots([
+        {
+          day: '',
+          hospital: doctorHospitalID,
+          duration: '',
+          fromTime: null,
+          toTime: null,
+        },
+      ]);
+      setErrors([{}]); // ✅ Reset errors when slot is injected
+    }
+  }, [hospitals, doctorHospitalID]);
 
   const renderTimeSlotRow = (slot, index, slots, setSlots, editable = true) => (
     <div
@@ -486,17 +684,15 @@ const DoctorForm: React.FC = () => {
                 dark:text-white dark:focus:border-primary"
     >
       {/* Day */}
-      <div className="flex flex-col w-[160px]">
+      <div className="flex flex-col w-[20%]">
         <select
           value={slot.day}
           disabled={!editable}
           onChange={(e) =>
             handleTimeChange(slots, setSlots, index, 'day', e.target.value)
           }
-          className="w-full rounded-lg border border-stroke bg-transparent 
-               py-3 px-4 text-black outline-none focus:border-primary
-               dark:border-form-strokedark dark:bg-form-input
-               dark:text-white dark:focus:border-primary"
+          className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
+                      dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
         >
           <option value="">Select Day</option>
           {weekdays.map((day) => (
@@ -506,24 +702,22 @@ const DoctorForm: React.FC = () => {
           ))}
         </select>
 
-        {errors[index]?.day && (
+        {editable && errors[index]?.day && (
           <div className="text-red-500 text-sm mt-1">{errors[index].day}</div>
         )}
       </div>
 
       {/* Hospital */}
 
-      <div className="flex flex-col w-[160px]">
+      <div className="flex flex-col w-[20%]">
         <select
           value={slot.hospital}
-          disabled={!editable}
+          disabled={true} // 🔒 make hospital dropdown readonly
           onChange={(e) =>
             handleTimeChange(slots, setSlots, index, 'hospital', e.target.value)
           }
-          className="w-full rounded-lg border border-stroke bg-transparent 
-               py-3 px-4 text-black outline-none focus:border-primary
-               dark:border-form-strokedark dark:bg-form-input
-               dark:text-white dark:focus:border-primary"
+          className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
+             dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
         >
           <option value="">Select Hospital</option>
           {hospitals.map((hospital) => (
@@ -533,7 +727,7 @@ const DoctorForm: React.FC = () => {
           ))}
         </select>
 
-        {errors[index]?.hospital && (
+        {editable && errors[index]?.hospital && (
           <div className="text-red-500 text-sm mt-1">
             {errors[index].hospital}
           </div>
@@ -545,7 +739,7 @@ const DoctorForm: React.FC = () => {
         <input
           type="text"
           placeholder="Duration (mins)"
-          value={slot.duration}
+          value={slot.duration?.toString() ?? ''}
           disabled={!editable}
           onChange={(e) =>
             handleTimeChange(slots, setSlots, index, 'duration', e.target.value)
@@ -553,6 +747,7 @@ const DoctorForm: React.FC = () => {
           onKeyDown={(e) => {
             const allowed = [
               '1',
+              '2',
               '5',
               '3',
               '4',
@@ -568,7 +763,7 @@ const DoctorForm: React.FC = () => {
           className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary
                       dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
         />
-        {errors[index]?.duration && (
+        {editable && errors[index]?.duration && (
           <div className="text-red-500 text-sm mt-1">
             {errors[index].duration}
           </div>
@@ -590,7 +785,7 @@ const DoctorForm: React.FC = () => {
           className={inputFieldClass}
           disabled={!editable}
         />
-        {errors[index]?.fromTime && (
+        {editable && errors[index]?.fromTime && (
           <div className="text-red-500 text-sm mt-1">
             {errors[index].fromTime}
           </div>
@@ -600,24 +795,49 @@ const DoctorForm: React.FC = () => {
       {/* To Time */}
       <div className="w-[20%] flex flex-col">
         <DatePicker
+          key={`${slot.fromTime?.getTime()}-${slot.duration}`} // 👈 Force re-render
           selected={slot.toTime}
           onChange={(time) =>
             handleTimeChange(slots, setSlots, index, 'toTime', time)
           }
           showTimeSelect
           showTimeSelectOnly
-          timeIntervals={15}
+          includeTimes={
+            slot.fromTime && slot.duration
+              ? generateToTimes(slot.fromTime, Number(slot.duration))
+              : []
+          }
+          timeIntervals={Number(slot.duration) || 15} // ✅ dynamic interval
           dateFormat="h:mm aa"
           placeholderText="To Time"
           className={inputFieldClass}
           disabled={!editable}
         />
-        {errors[index]?.toTime && (
+        {editable && errors[index]?.toTime && (
           <div className="text-red-500 text-sm mt-1">
             {errors[index].toTime}
           </div>
         )}
       </div>
+
+      {/* <DatePicker
+  key={`${slot.fromTime?.getTime()}-${slot.duration}`} // 👈 Force re-render
+  selected={slot.toTime ?? null} // ✅ Ensure controlled
+  onChange={(time) =>
+    handleTimeChange(slots, setSlots, index, 'toTime', time)
+  }
+  showTimeSelect
+  showTimeSelectOnly
+  includeTimes={
+    slot.fromTime && slot.duration
+      ? generateToTimes(slot.fromTime, Number(slot.duration))
+      : []
+  }
+  dateFormat="h:mm aa"
+  placeholderText="To Time"
+  className={inputFieldClass}
+  disabled={!editable}
+/> */}
     </div>
   );
 
@@ -646,24 +866,29 @@ const DoctorForm: React.FC = () => {
 
   // Fetch Uploaded Documents
   const fetchUploadedDocuments = async () => {
-    const userID = sessionStorage.getItem('userID');
-    const doctorID = sessionStorage.getItem('doctorID');
+  const doctorID = sessionStorage.getItem('doctorID');
 
-    if (!userID || !doctorID) {
-      console.warn('User ID or Doctor ID is missing. Please log in again.');
-      return;
-    }
+  if (!doctorID) {
+    console.warn('Doctor ID is missing. Please log in again.');
+    return;
+  }
 
-    try {
-      const response = await api.get(
-        `/Doctor/GetDocuments?doctorID=${doctorID}&userID=${userID}`,
-      );
+  try {
+    const response = await api.get(`/Document/GetDocuments?ID=${doctorID}`);
 
+    // Log to confirm structure
+    console.log('📄 Uploaded Documents Response:', response.data);
+
+    if (response.data?.success) {
       setUploadedDocuments(response.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch uploaded documents:', error);
+    } else {
+      console.warn('Unexpected response format:', response.data);
     }
-  };
+  } catch (error) {
+    console.error('❌ Failed to fetch uploaded documents:', error);
+  }
+};
+
 
   // const handleFileChange = (event) => {
   //   setSelectedFile(event.target.files[0]);
@@ -695,44 +920,53 @@ const DoctorForm: React.FC = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     if (isUploading) return;
-  
+
     if (!selectedFile || !selectedType) {
       alert('Please select a file and document type.');
       return;
     }
-  
+
     const isDuplicate = uploadedDocuments.some(
       (doc) =>
         normalizeDocumentType(doc.documentType) ===
         normalizeDocumentType(selectedType),
     );
-  
+
     if (isDuplicate) {
       alert('🚫 This document has already been uploaded.');
       return;
     }
-  
+
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-  
+    const tenantID = sessionStorage.getItem('tenantID');
+    const token = sessionStorage.getItem('token');
+
+    // if (!token) {
+    //   toast.error('Token missing. Please log in again.');
+    //   return;
+    // }
+
     if (!userID || !doctorID) {
       alert('User or Doctor ID missing. Please log in again.');
       return;
     }
-  
+
     // ✅ File size check (max 5MB)
     const MAX_FILE_SIZE_MB = 2;
     const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
-  
+
     if (selectedFile.size > MAX_FILE_SIZE) {
-      alert(`File size exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`);
+      alert(
+        `File size exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`,
+      );
       return;
     }
-  
+
     setIsUploading(true);
-  
+
     const reader = new FileReader();
     reader.readAsDataURL(selectedFile);
     reader.onload = async () => {
@@ -743,10 +977,10 @@ const DoctorForm: React.FC = () => {
         setIsUploading(false);
         return;
       }
-  
+
       const fileExtension = selectedFile.name.split('.').pop() || '';
       const filePath = `uploads/${selectedFile.name}`;
-  
+
       const payload = {
         id: doctorID,
         createdBy: userID,
@@ -757,17 +991,24 @@ const DoctorForm: React.FC = () => {
         fileLocation: filePath,
         fileBase64: base64String,
         fileExtension: fileExtension,
+        tenantID: tenantID,
       };
-  
+
       try {
-        const response = await api.post('/Doctor/SaveDocuments', payload);
+        const response = await api.post('/Document', payload, {
+          headers: {
+            Authorization: `Bearer ${sessionStorage.getItem('token')}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
         console.log('Upload successful:', response.data);
-  
+
         setSelectedFile(null);
         setPreviewSrc(null);
         setSelectedType('');
         await fetchUploadedDocuments();
-  
+
         toast.success('Document uploaded successfully!');
       } catch (error: any) {
         console.error('Upload failed:', error);
@@ -777,47 +1018,146 @@ const DoctorForm: React.FC = () => {
       }
     };
   };
-  
-  
+
+  //   const handleUpload = async (e: React.FormEvent) => {
+  //     e.preventDefault();
+
+  //     if (isUploading) return;
+
+  //     if (!selectedFile || !selectedType) {
+  //       alert('Please select a file and document type.');
+  //       return;
+  //     }
+
+  //     const isDuplicate = uploadedDocuments.some(
+  //       (doc) =>
+  //         normalizeDocumentType(doc.documentType) ===
+  //         normalizeDocumentType(selectedType),
+  //     );
+
+  //     if (isDuplicate) {
+  //       alert('🚫 This document has already been uploaded.');
+  //       return;
+  //     }
+
+  //     // ✅ Get required info from sessionStorage or localStorage
+  //     const userID = sessionStorage.getItem('userID');
+  // const doctorID = sessionStorage.getItem('doctorID');
+  // const tenantID = sessionStorage.getItem('tenantID');
+  // const yourToken = sessionStorage.getItem('token');
+
+  // console.log('🧩 userID:', userID);
+  // console.log('🧩 doctorID:', doctorID);
+  // console.log('🧩 tenantID:', tenantID);
+  // console.log('🧩 token:', yourToken);
+
+  // if (!userID || !doctorID || !tenantID || !yourToken) {
+  //   alert('Missing user/doctor/tenant/token info. Please log in again.');
+  //   return;
+  // }
+
+  //     // ✅ File size check (max 2MB)
+  //     const MAX_FILE_SIZE_MB = 2;
+  //     const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+  //     if (selectedFile.size > MAX_FILE_SIZE) {
+  //       alert(`File size exceeds ${MAX_FILE_SIZE_MB}MB. Please upload a smaller file.`);
+  //       return;
+  //     }
+
+  //     setIsUploading(true);
+
+  //     const reader = new FileReader();
+  //     reader.readAsDataURL(selectedFile);
+
+  //     reader.onload = async () => {
+  //       const base64String = reader.result?.toString().split(',')[1];
+  //       if (!base64String) {
+  //         console.error('Failed to convert file to Base64');
+  //         alert('Failed to read file. Please try again.');
+  //         setIsUploading(false);
+  //         return;
+  //       }
+
+  //       const fileExtension = selectedFile.name.split('.').pop() || '';
+  //       const filePath = `uploads/${selectedFile.name}`;
+
+  //       const payload = {
+  //         createdBy: userID,
+  //         isActive: true,
+  //         documentID: doctorID,
+  //         id: doctorID,
+  //         type: 'doctor',
+  //         documentType: selectedType,
+  //         fileName: selectedFile.name,
+  //         fileLocation: filePath,
+  //         fileBase64: base64String,
+  //         fileExtenstion: fileExtension, // keep this typo as per API
+  //         tenantID: tenantID,
+  //       };
+
+  //       try {
+  //         const response = await api.post('/Document', payload, {
+  //           headers: {
+  //             Authorization: `Bearer ${localStorage.getItem('token')}`, // or sessionStorage if that's where you store it
+  //             'Content-Type': 'application/json',
+  //           },
+  //         });
+
+  //         console.log('Upload successful:', response.data);
+  //         setSelectedFile(null);
+  //         setPreviewSrc(null);
+  //         setSelectedType('');
+  //         await fetchUploadedDocuments();
+  //         toast.success('Document uploaded successfully!');
+  //       } catch (error: any) {
+  //         console.error('Upload failed:', error);
+  //         toast.error(`Upload failed: ${error.message || 'Unknown error'}`);
+  //       } finally {
+  //         setIsUploading(false);
+  //       }
+  //     };
+  //   };
+
   // View Document in Modal
- const handleViewDocument = async (documentID: string, fileName: string) => {
-  try {
-    const response = await api.get(`/Doctor/Documents/${documentID}`);
-    
-    const fileBase64 = response.data?.data?.fileBase64;
-    if (!fileBase64) {
-      alert('Invalid file data received.');
-      return;
+  const handleViewDocument = async (documentID: string, fileName: string) => {
+    try {
+      const response = await api.get(`/Document/${documentID}`);
+
+      const fileBase64 = response.data?.data?.fileBase64;
+      if (!fileBase64) {
+        alert('Invalid file data received.');
+        return;
+      }
+
+      // Determine if the file is an image by extension
+      const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
+      setIsImage(isImageFile);
+
+      // Decode base64 to binary data
+      const byteCharacters = atob(fileBase64);
+      const byteArray = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteArray[i] = byteCharacters.charCodeAt(i);
+      }
+
+      // Determine MIME type based on file extension
+      let fileType = 'application/pdf';
+      if (isImageFile) {
+        const ext = fileName.split('.').pop()?.toLowerCase();
+        fileType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+      }
+
+      const blob = new Blob([byteArray], { type: fileType });
+      const url = URL.createObjectURL(blob);
+
+      setDocumentURL(url);
+      setModalOpen(true);
+    } catch (error) {
+      console.error('Error viewing document:', error);
+      alert('Error loading document.');
     }
-
-    // Determine if the file is an image by extension
-    const isImageFile = /\.(jpg|jpeg|png|gif)$/i.test(fileName);
-    setIsImage(isImageFile);
-
-    // Decode base64 to binary data
-    const byteCharacters = atob(fileBase64);
-    const byteArray = new Uint8Array(byteCharacters.length);
-    for (let i = 0; i < byteCharacters.length; i++) {
-      byteArray[i] = byteCharacters.charCodeAt(i);
-    }
-
-    // Determine MIME type based on file extension
-    let fileType = 'application/pdf';
-    if (isImageFile) {
-      const ext = fileName.split('.').pop()?.toLowerCase();
-      fileType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
-    }
-
-    const blob = new Blob([byteArray], { type: fileType });
-    const url = URL.createObjectURL(blob);
-
-    setDocumentURL(url);
-    setModalOpen(true);
-  } catch (error) {
-    console.error('Error viewing document:', error);
-    alert('Error loading document.');
-  }
-};
+  };
   // Extract Only Filename (Ignore ID)
   const getFormattedFileName = (fileName) => {
     return fileName.split('_').pop();
@@ -829,15 +1169,14 @@ const DoctorForm: React.FC = () => {
 
   const [awardErrors, setAwardErrors] = useState<{ [index: number]: any }>({});
 
-
   const handleAwardChange = (index: number, field: string, value: string) => {
     const updatedAwards = [...awards];
     const updatedErrors = { ...awardErrors };
-  
+
     if (field === 'year') {
       const numericYear = value.replace(/\D/g, '').slice(0, 4);
       const currentYear = new Date().getFullYear();
-  
+
       if (numericYear.length === 4 && parseInt(numericYear) > currentYear) {
         updatedErrors[index] = {
           ...updatedErrors[index],
@@ -846,11 +1185,11 @@ const DoctorForm: React.FC = () => {
         setAwardErrors(updatedErrors);
         return;
       }
-  
+
       updatedAwards[index][field] = numericYear;
     } else if (field === 'description') {
       const validDescriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
-  
+
       if (!validDescriptionPattern.test(value)) {
         updatedErrors[index] = {
           ...updatedErrors[index],
@@ -859,68 +1198,78 @@ const DoctorForm: React.FC = () => {
         setAwardErrors(updatedErrors);
         return;
       }
-  
+
       updatedAwards[index][field] = value;
     } else {
       updatedAwards[index][field] = value;
     }
-  
+
     // Clear any previous error for this field
     updatedErrors[index] = {
       ...updatedErrors[index],
       [field]: '',
     };
-  
+
     setAwards(updatedAwards);
     setAwardErrors(updatedErrors);
     setToastShown(''); // ✅ Allow fresh toast messages
   };
-  
+
   const emptyAwardTemplate = {
     name: '',
     year: '',
     description: '',
   };
-  
+
   const handleAddAward = () => {
     const newIndex = awards.length;
     setAwards((prev) => [...prev, emptyAwardTemplate]);
     setAwardErrors((prevErrors) => ({ ...prevErrors, [newIndex]: {} }));
     setToastShown('');
   };
-  
-
   const validateAwards = () => {
     let valid = true;
     const updatedAwards = [...awards];
-    const descriptionPattern = /^[a-zA-Z0-9\s,.'"-]*$/;
+
+    // Only allow letters, numbers, common punctuation — no emojis or unsafe symbols
+    const textRegex = /^[a-zA-Z0-9\s.,'"():;!?-]*$/;
 
     updatedAwards.forEach((award, index) => {
       const errors = {};
+      const name = award.name?.trim() || '';
+      const description = award.description?.trim() || '';
+      const year = award.year;
 
-      // Award name validation
-      if (!award.name) {
+      // Award Name
+      if (!name) {
         errors.name = 'Award name is required.';
         valid = false;
-      } else if (award.name.trim().length < 3) {
-        errors.name = 'Award name must be at least 3 characters.';
+      } else if (name.length < 3 || name.length > 100) {
+        errors.name = 'Award name must be between 3 and 100 characters.';
+        valid = false;
+      } else if (!textRegex.test(name)) {
+        errors.name = 'Award name contains invalid characters.';
         valid = false;
       }
 
-      // Award year validation
-      if (!award.year || isNaN(Number(award.year))) {
+      // Award Year
+      const currentYear = new Date().getFullYear();
+      if (!year || isNaN(Number(year))) {
         errors.year = 'Valid award year is required.';
         valid = false;
+      } else if (year < 1900 || year > currentYear) {
+        errors.year = `Year must be between 1900 and ${currentYear}.`;
+        valid = false;
       }
 
-      // Description validation
-      if (!award.description) {
+      // Description
+      if (!description) {
         errors.description = 'Description is required.';
         valid = false;
-      } else if (award.description.trim().length < 10) {
-        errors.description = 'Description must be at least 10 characters.';
+      } else if (description.length < 10 || description.length > 300) {
+        errors.description = 'Description must be 10–300 characters.';
         valid = false;
-      } else if (!descriptionPattern.test(award.description)) {
+      } else if (!textRegex.test(description)) {
         errors.description = 'Description contains invalid characters.';
         valid = false;
       }
@@ -948,13 +1297,113 @@ const DoctorForm: React.FC = () => {
 
   const [lastSubmittedAwards, setLastSubmittedAwards] = useState([]);
 
+  // const handleAwardSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+
+  //   const doctorID = sessionStorage.getItem('doctorID');
+  //   const userID = sessionStorage.getItem('userID');
+
+  //   if (!doctorID || !userID) {
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('Missing doctorID or userID in session.');
+  //       setToastShown('error');
+  //     }
+  //     return;
+  //   }
+
+  //   // Check for validation errors
+  //   if (!validateAwards()) {
+  //     if (toastShown !== 'validation') {
+  //       toast.dismiss();
+  //       toast.error('Please correct the validation errors.');
+  //       setToastShown('validation');
+  //     }
+  //     return;
+  //   }
+
+  //   // Check for duplicate awards
+  //   const seen = new Set<string>();
+  //   let hasDuplicate = false;
+
+  //   for (const award of awards) {
+  //     const key = `${award.name.trim().toLowerCase()}-${award.year}`;
+  //     if (seen.has(key)) {
+  //       hasDuplicate = true;
+  //       break;
+  //     }
+  //     seen.add(key);
+  //   }
+
+  //   if (hasDuplicate) {
+  //     if (toastShown !== 'duplicate') {
+  //       toast.dismiss();
+  //       toast.error('Duplicate awards are not allowed.');
+  //       setToastShown('duplicate');
+  //     }
+  //     return;
+  //   }
+
+  //   const payload = awards.map((award) => ({
+  //     awardID: uuidv4(),
+  //     doctorID,
+  //     awardName: award.name?.replace(/[^\w\s.,'"():;!?-]/g, '').trim().slice(0, 100), // max 100 chars
+  //     awardYear: Number(award.year),
+  //     description: award.description
+  //       ?.replace(/[^\w\s.,'"():;!?-]/g, '')
+  //       .replace(/\s+/g, ' ')
+  //       .trim()
+  //       .slice(0, 500), // max 500 chars
+  //     createdBy: userID,
+  //     createdOn: new Date().toISOString(),
+  //     updatedBy: userID,
+  //     updatedOn: new Date().toISOString(),
+  //     isActive: true,
+  //   }));
+
+  //   const isSameAsLast =
+  //     JSON.stringify(payload) === JSON.stringify(lastSubmittedAwards);
+  //   if (isSameAsLast) return;
+
+  //   try {
+  //     // ✅ Only send the first award (adjust if needed)
+  //     const response = await api.post('/Doctor/SaveDoctorAward', payload[0], {
+  //       headers: {
+  //         Accept: '*/*',
+  //         'Content-Type': 'application/json',
+  //       },
+  //     });
+
+  //     if (response.status === 200 || response.status === 201) {
+  //       if (toastShown !== 'success') {
+  //         toast.dismiss();
+  //         toast.success('Award submitted successfully!');
+  //         setToastShown('success');
+  //         setLastSubmittedAwards(payload);
+  //       }
+  //     } else {
+  //       if (toastShown !== 'error') {
+  //         toast.dismiss();
+  //         toast.error('Failed to submit award.');
+  //         setToastShown('error');
+  //       }
+  //     }
+  //   } catch (error: any) {
+  //     console.error('Submission error:', error.response?.data || error.message || error);
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('Submission failed. Please try again.');
+  //       setToastShown('error');
+  //     }
+  //   }
+  // };
 
   const handleAwardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
       if (toastShown !== 'error') {
         toast.dismiss();
@@ -963,8 +1412,7 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
-    // Check for validation errors
+
     if (!validateAwards()) {
       if (toastShown !== 'validation') {
         toast.dismiss();
@@ -973,11 +1421,10 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
-    // Check for duplicate awards
+
     const seen = new Set<string>();
     let hasDuplicate = false;
-  
+
     for (const award of awards) {
       const key = `${award.name.trim().toLowerCase()}-${award.year}`;
       if (seen.has(key)) {
@@ -986,7 +1433,7 @@ const DoctorForm: React.FC = () => {
       }
       seen.add(key);
     }
-  
+
     if (hasDuplicate) {
       if (toastShown !== 'duplicate') {
         toast.dismiss();
@@ -995,23 +1442,27 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     const payload = awards.map((award) => ({
       awardID: uuidv4(),
       doctorID,
-      awardName: award.name,
+      awardName: award.name?.replace(/[^\w\s.,'"():;!?-]/g, '').trim(),
       awardYear: Number(award.year),
-      description: award.description,
+      description: award.description
+        ?.replace(/[^\w\s.,'"():;!?-]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim(),
       createdBy: userID,
       createdOn: new Date().toISOString(),
       updatedBy: userID,
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-  
-    const isSameAsLast = JSON.stringify(payload) === JSON.stringify(lastSubmittedAwards);
+
+    const isSameAsLast =
+      JSON.stringify(payload) === JSON.stringify(lastSubmittedAwards);
     if (isSameAsLast) return;
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctorAward', payload, {
         headers: {
@@ -1019,7 +1470,7 @@ const DoctorForm: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-  
+
       if (response.status === 200 || response.status === 201) {
         if (toastShown !== 'success') {
           toast.dismiss();
@@ -1034,8 +1485,11 @@ const DoctorForm: React.FC = () => {
           setToastShown('error');
         }
       }
-    } catch (error) {
-      console.error('Request failed:', error);
+    } catch (error: any) {
+      console.error(
+        'Request failed:',
+        error.response?.data || error.message || error,
+      );
       if (toastShown !== 'error') {
         toast.dismiss();
         toast.error('Submission failed. Please try again.');
@@ -1043,7 +1497,7 @@ const DoctorForm: React.FC = () => {
       }
     }
   };
-  
+
   const [skills, setSkills] = useState([
     { skill: '', years: '', months: '', description: '', errors: {} },
   ]);
@@ -1102,7 +1556,7 @@ const DoctorForm: React.FC = () => {
   const validateSkills = () => {
     let valid = true;
     const updatedSkills = [...skills];
-    const specialCharRegex = /^[a-zA-Z0-9\s.,'-]*$/;
+    const specialCharRegex = /^[a-zA-Z0-9\s.,'"\-:;()&]+$/;
     updatedSkills.forEach((skill, index) => {
       const errors = {};
 
@@ -1149,7 +1603,7 @@ const DoctorForm: React.FC = () => {
     const seen = new Map();
     let foundDuplicate = false;
     const newErrors: { [index: number]: { skill?: string } } = {};
-  
+
     skills.forEach((entry, index) => {
       const key = entry.skill;
       if (seen.has(key)) {
@@ -1162,19 +1616,18 @@ const DoctorForm: React.FC = () => {
         seen.set(key, index);
       }
     });
-  
+
     setErrors(newErrors);
     return foundDuplicate;
   };
-  
 
   const [lastSubmittedSkills, setLastSubmittedSkills] = useState([]);
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
       if (toastShown !== 'missing') {
         toast.dismiss();
@@ -1183,7 +1636,7 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     if (!skills || skills.length === 0) {
       if (toastShown !== 'empty') {
         toast.dismiss();
@@ -1192,7 +1645,7 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     if (hasDuplicateSkills()) {
       if (toastShown !== 'duplicate') {
         toast.dismiss();
@@ -1201,16 +1654,16 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     if (!validateSkills()) {
-      if (toastShown !== 'invalid') {
+      if (toastShown !== 'error') {
         toast.dismiss();
-        toast.info('Please fix validation errors before submitting.');
-        setToastShown('invalid');
+        toast.error('Please fill all fields correctly.');
+        setToastShown('error');
       }
       return;
     }
-  
+
     const payload = skills.map((entry) => ({
       doctorID,
       createdBy: userID,
@@ -1222,10 +1675,16 @@ const DoctorForm: React.FC = () => {
       skillID: entry.skill,
       yearOfExperience: Number(entry.years),
       monthOfExperience: Number(entry.months),
-      description: entry.description || '',
+      description:
+        entry.description
+          ?.replace(/[^\w\s.,'"()\-:;]+/g, '') // remove emojis and special chars
+          .replace(/\s+/g, ' ') // normalize spaces
+          .trim()
+          .substring(0, 250) || '', // limit to 250 chars
     }));
-  
-    const isSameAsLast = JSON.stringify(payload) === JSON.stringify(lastSubmittedSkills);
+
+    const isSameAsLast =
+      JSON.stringify(payload) === JSON.stringify(lastSubmittedSkills);
     if (isSameAsLast) {
       if (toastShown !== 'same') {
         toast.dismiss();
@@ -1234,7 +1693,7 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctorSkill', payload, {
         headers: {
@@ -1242,7 +1701,7 @@ const DoctorForm: React.FC = () => {
           'Content-Type': 'application/json',
         },
       });
-  
+
       if (response.status === 200 || response.status === 201) {
         if (toastShown !== 'success') {
           toast.dismiss();
@@ -1266,8 +1725,7 @@ const DoctorForm: React.FC = () => {
       }
     }
   };
-  
-  
+
   const emptySkillTemplate = {
     skill: '',
     years: '',
@@ -1279,13 +1737,13 @@ const DoctorForm: React.FC = () => {
     setSkills((prev) => [...prev, emptySkillTemplate]);
     setErrors((prevErrors) => ({ ...prevErrors, [newIndex]: {} }));
     setToastShown(''); // ✅ Allow new toast after interaction
-  };  
-  
+  };
+
   const handleSkillChange = (index: number, key: string, value: string) => {
     const updated = [...skills];
     updated[index][key] = value;
     setSkills(updated);
-  
+
     setErrors((prevErrors) => ({
       ...prevErrors,
       [index]: {
@@ -1293,11 +1751,10 @@ const DoctorForm: React.FC = () => {
         [key]: '',
       },
     }));
-  
+
     setToastShown(''); // ✅ Reset toast so new validation/submission can show message
   };
-  
-  
+
   // const [experiences, setExperiences] = useState([
   //   {
   //     type: '',
@@ -1315,7 +1772,6 @@ const DoctorForm: React.FC = () => {
     setExperiences(updated);
     console.log(`Updated experience at index ${index}:`, updated[index]);
   };
-  
 
   // const handleAddExperiences = () => {
   //   setExperiences([
@@ -1332,27 +1788,26 @@ const DoctorForm: React.FC = () => {
   // };
 
   const validateExperience = (): boolean => {
-  
     const newErrors = experiences.map((exp) => {
       const error: any = {};
-  
+
       // Type check
       if (!exp.type || !exp.type.trim()) {
         error.type = 'Type is required';
       }
-  
+
       // Specialization check
       if (!exp.specialization || !exp.specialization.trim()) {
         error.specialization = 'Specialization is required';
       }
-  
+
       // Hospital name check
       if (!exp.hospitalName || !exp.hospitalName.trim()) {
         error.hospitalName = 'Hospital name is required';
       } else if (!/^[a-zA-Z0-9 .,&'-]{3,100}$/.test(exp.hospitalName.trim())) {
         error.hospitalName = 'Enter a valid hospital name';
       }
-  
+
       // Join date validation
       if (!exp.joinDate) {
         error.joinDate = 'Join date is required';
@@ -1364,14 +1819,14 @@ const DoctorForm: React.FC = () => {
           error.joinDate = 'Join date cannot be in the future';
         }
       }
-  
+
       // Leave date validation
       if (!exp.leaveDate) {
         error.leaveDate = 'Leave date is required';
       } else {
         const leave = new Date(exp.leaveDate);
         const join = exp.joinDate ? new Date(exp.joinDate) : null;
-  
+
         if (isNaN(leave.getTime())) {
           error.leaveDate = 'Leave date is invalid';
         } else if (!join || isNaN(join.getTime())) {
@@ -1380,29 +1835,29 @@ const DoctorForm: React.FC = () => {
           error.leaveDate = 'Leave date must be after join date';
         } else if (leave > today) {
           error.leaveDate = 'Leave date cannot be in the future';
-        } 
-        
+        }
+
         // Optional: check minimum experience duration (e.g., 6 months)
         // const diffMonths = (leave.getFullYear() - join.getFullYear()) * 12 + (leave.getMonth() - join.getMonth());
         // if (diffMonths < 6) {
         //   error.leaveDate = 'Experience duration must be at least 6 months';
         // }
       }
-  
+
       return error;
     });
-  
+
     if (experiences.length === 0) {
       alert('Please add at least one experience.');
       return false;
     }
-  
+
     setErrors(newErrors);
     console.log('Validation errors:', newErrors);
-  
-    return newErrors.every(err => Object.keys(err).length === 0);
+
+    return newErrors.every((err) => Object.keys(err).length === 0);
   };
-  
+
   useEffect(() => {
     const fetchSkills = async () => {
       try {
@@ -1459,15 +1914,103 @@ const DoctorForm: React.FC = () => {
     );
   };
 
-  
+  // const handleExperienceSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   console.log('Final experiences data:', experiences);
+
+  //   const doctorID = sessionStorage.getItem('doctorID');
+  //   const userID = sessionStorage.getItem('userID');
+
+  //   if (!doctorID || !userID) {
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('Missing doctorID or userID.');
+  //       setToastShown('error');
+  //     }
+  //     return;
+  //   }
+
+  //   // Prevent submitting again if already done and unchanged
+  //   if (submittedOnce && toastShown === 'success') return;
+
+  //   // Validation
+  //   if (!validateExperience()) {
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('Please fill all fields correctly.');
+  //       setToastShown('error');
+  //     }
+  //     return;
+  //   }
+
+  //   // Prevent duplicates
+  //   const seen = new Set();
+  //   const hasDuplicate = experiences.some((exp) => {
+  //     const key = `${exp.type}-${exp.specialization}-${exp.hospitalName}-${exp.joinDate}-${exp.leaveDate}`;
+  //     if (seen.has(key)) return true;
+  //     seen.add(key);
+  //     return false;
+  //   });
+
+  //   if (hasDuplicate) {
+  //     if (toastShown !== 'duplicate') {
+  //       toast.dismiss();
+  //       toast.error('Duplicate experience entries found.');
+  //       setToastShown('duplicate');
+  //     }
+  //     return;
+  //   }
+
+  //   // Build payload
+  //   const payload = experiences.map((exp) => ({
+  //     doctorID,
+  //     employmentType: exp.type,
+  //     specializationID: exp.specialization,
+  //     hospitalName: exp.hospitalName,
+  //     joinDate: new Date(exp.joinDate).toISOString(),
+  //     leaveDate: new Date(exp.leaveDate).toISOString(),
+  //     exprienceID: exp.experience || '00000000-0000-0000-0000-000000000000',
+  //     createdBy: userID,
+  //     createdOn: new Date().toISOString(),
+  //     updatedBy: userID,
+  //     updatedOn: new Date().toISOString(),
+  //     isActive: true,
+  //   }));
+
+  //   try {
+  //     const response = await api.post('/Doctor/SaveDoctorExprience', payload);
+
+  //     if (response.status === 200 || response.status === 201) {
+  //       if (toastShown !== 'success') {
+  //         toast.dismiss();
+  //         toast.success('Experience details submitted successfully!');
+  //         setToastShown('success');
+  //       }
+  //       setSubmittedOnce(true); // ✅ Block re-submit
+  //     } else {
+  //       if (toastShown !== 'error') {
+  //         toast.dismiss();
+  //         toast.error('Unexpected server response.');
+  //         setToastShown('error');
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('Submission error:', error);
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('An error occurred during experience submission.');
+  //       setToastShown('error');
+  //     }
+  //   }
+  // };
 
   const handleExperienceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Final experiences data:', experiences);
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
       if (toastShown !== 'error') {
         toast.dismiss();
@@ -1476,10 +2019,10 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
     // Prevent submitting again if already done and unchanged
     if (submittedOnce && toastShown === 'success') return;
-  
+
     // Validation
     if (!validateExperience()) {
       if (toastShown !== 'error') {
@@ -1489,8 +2032,8 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
-    // Prevent duplicates
+
+    // ✅ Check for duplicate experience entries
     const seen = new Set();
     const hasDuplicate = experiences.some((exp) => {
       const key = `${exp.type}-${exp.specialization}-${exp.hospitalName}-${exp.joinDate}-${exp.leaveDate}`;
@@ -1498,7 +2041,7 @@ const DoctorForm: React.FC = () => {
       seen.add(key);
       return false;
     });
-  
+
     if (hasDuplicate) {
       if (toastShown !== 'duplicate') {
         toast.dismiss();
@@ -1507,8 +2050,36 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
-    // Build payload
+
+    // ✅ Check for overlapping dates
+    const isDateRangeOverlapping = () => {
+      for (let i = 0; i < experiences.length; i++) {
+        const aStart = new Date(experiences[i].joinDate);
+        const aEnd = new Date(experiences[i].leaveDate);
+
+        for (let j = i + 1; j < experiences.length; j++) {
+          const bStart = new Date(experiences[j].joinDate);
+          const bEnd = new Date(experiences[j].leaveDate);
+
+          const overlap = aStart <= bEnd && bStart <= aEnd;
+          if (overlap) return true;
+        }
+      }
+      return false;
+    };
+
+    if (isDateRangeOverlapping()) {
+      if (toastShown !== 'overlap') {
+        toast.dismiss();
+        toast.error(
+          'This experience period overlaps with an existing entry. Please enter a valid, non-overlapping time range.',
+        );
+        setToastShown('overlap');
+      }
+      return;
+    }
+
+    // ✅ Build payload
     const payload = experiences.map((exp) => ({
       doctorID,
       employmentType: exp.type,
@@ -1516,24 +2087,24 @@ const DoctorForm: React.FC = () => {
       hospitalName: exp.hospitalName,
       joinDate: new Date(exp.joinDate).toISOString(),
       leaveDate: new Date(exp.leaveDate).toISOString(),
-      exprienceID: exp.experience,
+      exprienceID: exp.experience || '00000000-0000-0000-0000-000000000000',
       createdBy: userID,
       createdOn: new Date().toISOString(),
       updatedBy: userID,
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
-    
+
     try {
       const response = await api.post('/Doctor/SaveDoctorExprience', payload);
-  
+
       if (response.status === 200 || response.status === 201) {
         if (toastShown !== 'success') {
           toast.dismiss();
           toast.success('Experience details submitted successfully!');
           setToastShown('success');
         }
-        setSubmittedOnce(true); // ✅ Block re-submit
+        setSubmittedOnce(true);
       } else {
         if (toastShown !== 'error') {
           toast.dismiss();
@@ -1550,7 +2121,7 @@ const DoctorForm: React.FC = () => {
       }
     }
   };
-  
+
   const handleExperienceChange = (
     index: number,
     field: keyof Experience,
@@ -1579,27 +2150,24 @@ const DoctorForm: React.FC = () => {
     experience: '',
   };
 
-  const [experiences, setExperiences] = React.useState<Experience[]>([emptyExperience]);
+  const [experiences, setExperiences] = React.useState<Experience[]>([
+    emptyExperience,
+  ]);
 
   const handleAddExperience = () => {
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-  
+
     const newExperience = {
       ...emptyExperience,
       joinDate: '',
       leaveDate: '',
     };
-  
+
     setExperiences([...experiences, newExperience]);
     setErrors([...errors, {}]);
     setToastShown(null);
     setSubmittedOnce(false);
   };
-  
-
-  
-  
-  
 
   const [languages, setLanguages] = useState([
     { language: '', read: false, write: false, speak: false, errors: {} },
@@ -1688,6 +2256,7 @@ const DoctorForm: React.FC = () => {
   }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lastSubmittedPayload = useRef<string | null>(null);
 
   const handleLanguageSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1799,6 +2368,111 @@ const DoctorForm: React.FC = () => {
     }
   };
 
+  // const handleLanguageSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+
+  //   const doctorID = sessionStorage.getItem('doctorID');
+  //   const userID = sessionStorage.getItem('userID');
+
+  //   if (!doctorID || !userID) {
+  //     toast.dismiss();
+  //     toast.error('Missing doctorID or userID in session.');
+  //     setToastShown('error');
+  //     return;
+  //   }
+
+  //   if (!validateLanguages()) {
+  //     if (toastShown !== 'error') {
+  //       toast.dismiss();
+  //       toast.error('Please fix language validation errors.');
+  //       setToastShown('error');
+  //     }
+  //     return;
+  //   }
+
+  //   const validLanguages = languages.filter(
+  //     (entry) => entry.language.trim() !== '',
+  //   );
+
+  //   if (validLanguages.length === 0) {
+  //     if (toastShown !== 'empty') {
+  //       toast.dismiss();
+  //       toast.warning('Please enter at least one language before submitting.');
+  //       setToastShown('empty');
+  //     }
+  //     return;
+  //   }
+
+  //   const seen = new Set();
+  //   const hasDuplicates = validLanguages.some((entry) => {
+  //     const key = entry.language.trim().toLowerCase();
+  //     if (seen.has(key)) return true;
+  //     seen.add(key);
+  //     return false;
+  //   });
+
+  //   if (hasDuplicates) {
+  //     if (toastShown !== 'duplicate') {
+  //       toast.dismiss();
+  //       toast.error('Duplicate languages found. Please remove duplicates.');
+  //       setToastShown('duplicate');
+  //     }
+  //     return;
+  //   }
+
+  //   try {
+  //     const payload = validLanguages.map((entry) => {
+  //       const langID =
+  //         languageOptions.find((lang) => lang.name === entry.language)
+  //           ?.appLOVID || '';
+
+  //       if (!langID) {
+  //         throw new Error(`Invalid language selected: ${entry.language}`);
+  //       }
+
+  //       return {
+  //         id: doctorID,
+  //         createdBy: userID,
+  //         createdOn: new Date().toISOString(),
+  //         updatedBy: userID,
+  //         updatedOn: new Date().toISOString(),
+  //         isActive: true,
+  //         languageMasterID: langID,
+  //         read: entry.read,
+  //         write: entry.write,
+  //         speak: entry.speak,
+  //         type: 'Doctor',
+  //       };
+  //     });
+
+  //     // NEW: Prevent same data submission
+  //     const currentPayloadString = JSON.stringify(payload);
+  //     if (lastSubmittedPayload.current === currentPayloadString) {
+  //       toast.dismiss();
+  //       toast.info('No changes to save.');
+  //       return;
+  //     }
+
+  //     const response = await api.post('/Doctor/SaveLanguage', payload);
+
+  //     if (response.status >= 200 && response.status < 300) {
+  //       toast.dismiss();
+  //       toast.success('Language details saved successfully!');
+  //       setToastShown('success');
+  //       lastSubmittedPayload.current = currentPayloadString; // Update last submitted
+  //     } else {
+  //       toast.dismiss();
+  //       toast.error(`${response.data?.message || 'Something went wrong'}`);
+  //       setToastShown('error');
+  //     }
+  //   } catch (error) {
+  //     console.error('Submission error:', error);
+  //     toast.dismiss();
+  //     toast.error('An error occurred during submission.');
+  //     setToastShown('error');
+  //   }
+  // };
+
   const emptyLanguageTemplate = {
     language: '',
     read: false,
@@ -1852,7 +2526,11 @@ const DoctorForm: React.FC = () => {
 
   const handlePaste = (e) => {
     const pastedText = e.clipboardData.getData('text');
-    if (!/^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(pastedText)) {
+
+    // Only allow alphabets (including accented letters) and space
+    const isValid = /^[A-Za-zÀ-ÖØ-öø-ÿ\s]+$/.test(pastedText);
+
+    if (!isValid) {
       e.preventDefault();
     }
   };
@@ -1861,46 +2539,73 @@ const DoctorForm: React.FC = () => {
     console.log('Education list:', educationList);
   }, [educationList]);
 
-  const degreeRegex =
-    /^(Bachelor of (Science|Engineering|Commerce|Medicine|Dental Surgery)|Master of (Science|Technology|Commerce|Computer Applications|Philosophy|Surgery)|MBBS|MDS|BDS|BAMS|BHMS|BUMS|BNYS|PhD|B\.?(Sc|E|Com)|M\.?(Sc|Tech|Com|CA|Phil))$/i;
+  // const degreeRegex =
+  //   /^(Bachelor of (Science|Engineering|Commerce|Medicine|Dental Surgery)|Master of (Science|Technology|Commerce|Computer Applications|Philosophy|Surgery)|MBBS|MDS|BDS|BAMS|BHMS|BUMS|BNYS|PhD|B\.?(Sc|E|Com)|M\.?(Sc|Tech|Com|CA|Phil))$/i;
+
+  const degreeRegex = /^[A-Za-z\s().,/-]{2,100}$/;
+  const isMeaningfulText = (text: string) => {
+    const wordCount = text.trim().split(/\s+/).length;
+    const hasCapital = /[A-Z]/.test(text);
+    const repeatedChars = /(.)\1{3,}/; // 3+ repeated letters
+
+    return (
+      wordCount >= 2 && // Minimum 2 words
+      hasCapital && // At least one capital letter
+      !repeatedChars.test(text) // No junk like "aaaaa" or "eeee"
+    );
+  };
 
   const validateEntry = (entry) => {
     const errors = {};
-  
+
     if (!entry.degree || !entry.degree.trim()) {
       errors.degree = 'Degree is required';
     } else if (!degreeRegex.test(entry.degree.trim())) {
       errors.degree = 'Enter a valid degree name';
+    } else if (!isMeaningfulText(entry.degree.trim())) {
+      errors.degree = 'Enter a valid degree name';
+    } else if (containsEmoji(entry.degree.trim())) {
+      errors.degree = 'Emoji not allowed in degree';
     }
-  
-    if (!entry.location || !isValidText(entry.location)) {
+
+    if (!entry.location || !entry.location.trim()) {
       errors.location = 'Location is required';
+    } else if (!degreeRegex.test(entry.location.trim())) {
+      errors.location = 'Enter a valid location name';
+    } else if (!isMeaningfulText(entry.location.trim())) {
+      errors.location = 'Enter a valid location name';
+    } else if (containsEmoji(entry.location.trim())) {
+      errors.location = 'Emoji not allowed in location';
     }
-  
+
     if (!entry.specialization) {
       errors.specialization = 'Specialization is required';
     }
-  
+
     if (!entry.UG) {
-      errors.qualification = 'Qualification is required';
+      errors.UG = 'Qualification is required';
     }
-  
+
     if (!entry.university || !entry.university.trim()) {
       errors.university = 'University is required';
-    } else if (!/^[a-zA-Z .,&'-]{3,100}$/.test(entry.university.trim())) {
+    } else if (!/^[a-zA-Z .,&'-]{6,100}$/.test(entry.university.trim())) {
       errors.university = 'Enter a valid university name';
+    } else if (!isMeaningfulText(entry.university.trim())) {
+      errors.university = 'Enter a valid university name';
+    } else if (containsEmoji(entry.university.trim())) {
+      errors.university = 'Emoji not allowed in university name';
     }
-  
+
     const startDate = entry.startDate ? new Date(entry.startDate) : null;
     const endDate = entry.endDate ? new Date(entry.endDate) : null;
     const today = new Date();
-  
+
     if (!startDate) {
       errors.startDate = 'Start date is required';
     } else if (startDate > today) {
       errors.startDate = 'Start date cannot be in the future';
     }
-  
+
     if (!endDate) {
       errors.endDate = 'End date is required';
     } else if (!startDate) {
@@ -1908,10 +2613,19 @@ const DoctorForm: React.FC = () => {
     } else if (endDate.getFullYear() - startDate.getFullYear() < 4) {
       errors.endDate = 'End date must be at least 4 years after the start date';
     }
-  
+
     return errors;
   };
-  
+
+  const containsEmoji = (text) => {
+    return /[\p{Emoji}]/u.test(text);
+  };
+
+  const handleInputs = (e) => {
+    const noEmojiText = e.target.value.replace(/[\p{Emoji}]/gu, '');
+    e.target.value = noEmojiText;
+  };
+
   const handleInputChange = (index: number, field: string, value: any) => {
     const updatedList = [...educationList];
     updatedList[index] = {
@@ -1919,13 +2633,12 @@ const DoctorForm: React.FC = () => {
       [field]: value,
     };
     setEducationList(updatedList);
-  
+
     const errors = validateEntry(updatedList[index]);
     const updatedErrors = [...educationErrors];
     updatedErrors[index] = errors;
     setEducationErrors(updatedErrors);
   };
-  
 
   const handleAddEntry = () => {
     setEducationList([...educationList, { ...initialEducationEntry }]);
@@ -1989,95 +2702,127 @@ const DoctorForm: React.FC = () => {
   const [toastShown, setToastShown] = useState<
     'error' | 'duplicate' | 'success' | null
   >(null);
-
+  const [submitting, setSubmitting] = useState(false);
 
   const handleFieldSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     const doctorID = sessionStorage.getItem('doctorID');
     const userID = sessionStorage.getItem('userID');
-  
+
     if (!doctorID || !userID) {
-      toast.dismiss();
-      toast.error('Missing doctorID or userID in session.');
-      setToastShown('error');
-      return;
-    }
-  
-    let hasErrors = false;
-    let hasDuplicates = false;
-    const allErrors = educationList.map(() => ({}));
-    const seen = new Set<string>();
-    let isAnyFieldFilled = false;
-  
-    const validEducationList = educationList.filter((entry, index) => {
-      const isFullyEmpty =
-        !entry.UG?.trim() &&
-        !entry.degree?.trim() &&
-        !entry.specialization?.trim() &&
-        !entry.university?.trim() &&
-        !entry.location?.trim() &&
-        !entry.startDate &&
-        !entry.endDate;
-  
-      if (isFullyEmpty) return false;
-  
-      const isFilled =
-        entry.UG?.trim() ||
-        entry.degree?.trim() ||
-        entry.specialization?.trim() ||
-        entry.university?.trim() ||
-        entry.location?.trim() ||
-        entry.startDate ||
-        entry.endDate;
-  
-      if (isFilled) isAnyFieldFilled = true;
-  
-      const rawErrors = validateEntry(entry);
-      const errors = Object.fromEntries(
-        Object.entries(rawErrors).filter(([_, val]) => val?.trim())
-      );
-  
-      if (Object.keys(errors).length > 0) {
-        allErrors[index] = errors;
-        hasErrors = true;
-        return false;
-      }
-  
-      const key = `${entry.UG?.trim().toLowerCase()}-${entry.degree?.trim().toLowerCase()}-${entry.specialization?.trim().toLowerCase()}-${entry.university?.trim().toLowerCase()}-${entry.location?.trim().toLowerCase()}`;
-  
-      if (seen.has(key)) {
-        allErrors[index] = {
-          ...allErrors[index],
-          duplicate: 'Duplicate entry detected.',
-        };
-        hasErrors = true;
-        hasDuplicates = true;
-        return false;
-      }
-  
-      seen.add(key);
-      return true;
-    });
-  
-    setEducationErrors(allErrors);
-  
-    if (!isAnyFieldFilled) return;
-  
-    if (hasErrors || validEducationList.length === 0) {
-      if (hasDuplicates && toastShown !== 'duplicate') {
+      if (toastShown !== 'error') {
         toast.dismiss();
-        toast.error('Duplicate education entries found.');
-        setToastShown('duplicate');
-      } else if (!hasDuplicates && toastShown !== 'error') {
-        toast.dismiss();
-        toast.error('Please fix validation errors.');
+        toast.error('Missing doctorID or userID.');
         setToastShown('error');
       }
       return;
     }
-  
-    const payload = validEducationList.map((entry) => ({
+
+    // Prevent duplicate submit
+    if (submittedOnce && toastShown === 'success') return;
+
+    // Validation
+    let hasErrors = false;
+    const allErrors = educationList.map((entry, index) => {
+      const errors: any = {};
+
+      if (!entry.UG?.trim()) errors.UG = 'Qualification is required';
+      if (!entry.degree?.trim()) errors.degree = 'Degree is required';
+      if (!entry.specialization?.trim())
+        errors.specialization = 'Specialization is required';
+      if (!entry.university?.trim())
+        errors.university = 'University is required';
+      if (!entry.location?.trim()) errors.location = 'Location is required';
+      if (!entry.startDate) errors.startDate = 'Start date is required';
+      if (!entry.endDate) errors.endDate = 'End date is required';
+
+      if (Object.keys(errors).length > 0) hasErrors = true;
+      return errors;
+    });
+
+    setEducationErrors(allErrors);
+
+    if (hasErrors) {
+      if (toastShown !== 'error') {
+        toast.dismiss();
+        toast.error('Please fill all fields correctly.');
+        setToastShown('error');
+      }
+      return;
+    }
+
+    // Normalize key for each entry
+    const normalizeKey = (entry: any) =>
+      `${entry.UG?.trim().toLowerCase()}-${entry.degree?.trim().toLowerCase()}-${entry.specialization?.trim().toLowerCase()}-${entry.university?.trim().toLowerCase()}-${entry.location?.trim().toLowerCase()}-${new Date(entry.startDate).toISOString()}-${new Date(entry.endDate).toISOString()}`;
+
+    const seen = new Set();
+    const hasDuplicateInForm = educationList.some((edu) => {
+      const key = normalizeKey(edu);
+      if (seen.has(key)) return true;
+      seen.add(key);
+      return false;
+    });
+
+    if (hasDuplicateInForm) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.error('Duplicate education entries found.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+
+    // Already saved keys
+    const savedKeys = new Set(
+      (lastSavedEducation || []).map((entry: any) => normalizeKey(entry)),
+    );
+
+    // Filter only truly new entries
+    const filteredEducationList = educationList.filter((entry) => {
+      const key = normalizeKey(entry);
+      return !savedKeys.has(key);
+    });
+
+    if (filteredEducationList.length === 0) {
+      if (toastShown !== 'duplicate') {
+        toast.dismiss();
+        toast.error('No new entries to save.');
+        setToastShown('duplicate');
+      }
+      return;
+    }
+
+    // Check overlapping date ranges
+    const isDateRangeOverlapping = () => {
+      for (let i = 0; i < educationList.length; i++) {
+        const aStart = new Date(educationList[i].startDate);
+        const aEnd = new Date(educationList[i].endDate);
+
+        for (let j = i + 1; j < educationList.length; j++) {
+          const bStart = new Date(educationList[j].startDate);
+          const bEnd = new Date(educationList[j].endDate);
+
+          const overlap = aStart <= bEnd && bStart <= aEnd;
+          if (overlap) return true;
+        }
+      }
+      return false;
+    };
+
+    if (isDateRangeOverlapping()) {
+      if (toastShown !== 'overlap') {
+        toast.dismiss();
+        toast.error(
+          'This education period overlaps with another entry. Please use non-overlapping dates.',
+        );
+        setToastShown('overlap');
+      }
+      return;
+    }
+
+    // Prepare payload
+    const payload = filteredEducationList.map((entry) => ({
       doctorID,
       graduateID: entry.UG,
       degreeName: entry.degree,
@@ -2090,34 +2835,32 @@ const DoctorForm: React.FC = () => {
       createdBy: userID,
       isActive: true,
     }));
-  
-    const isSameAsLastSaved =
-      JSON.stringify(payload) === JSON.stringify(lastSavedEducation);
-    if (isSameAsLastSaved) return;
-  
+
     try {
-      const res = await api.post('/Doctor/SaveDoctorEducation', payload);
-  
-      if (res?.status >= 200 && res?.status < 300) {
-        if (toastShown !== 'success') {
-          toast.dismiss();
-          toast.success('Education details submitted successfully!');
-          setToastShown('success');
-        }
-  
-        setEducationErrors([]);
+      const response = await api.post('/Doctor/SaveDoctorEducation', payload);
+
+      if (
+        response?.status === 200 ||
+        response?.status === 201 ||
+        response?.data?.success
+      ) {
+        toast.dismiss();
+        toast.success('Education details submitted successfully!');
+        setLastSavedEducation([
+          ...lastSavedEducation,
+          ...filteredEducationList,
+        ]);
+        setToastShown('success');
         setSubmittedOnce(true);
-        setUnsavedChanges(false);
-        setLastSavedEducation(JSON.parse(JSON.stringify(payload)));
       } else {
         if (toastShown !== 'error') {
           toast.dismiss();
-          toast.error(`${res?.data?.message || 'Submission failed.'}`);
+          toast.error(response?.data?.message || 'Unexpected server response.');
           setToastShown('error');
         }
       }
-    } catch (err) {
-      console.error('Submission error:', err);
+    } catch (error) {
+      console.error('Submission error:', error);
       if (toastShown !== 'error') {
         toast.dismiss();
         toast.error('An error occurred during submission.');
@@ -2125,11 +2868,8 @@ const DoctorForm: React.FC = () => {
       }
     }
   };
-  
-    
-  
-  
-  
+
+ 
   const emptyEducationTemplate = {
     UG: '',
     degree: '',
@@ -2276,12 +3016,13 @@ const DoctorForm: React.FC = () => {
     } else if (!addressRegex.test(address.address2)) {
       errors.address2 = 'Please enter a valid address with area or street name';
     }
-    const cityRegex = /^[A-Za-z\s]+$/;
+    const cityRegex = /^[A-Za-z\s.]+$/;
     if (!address.city) {
       errors.city = 'City is required';
     } else if (!cityRegex.test(address.city)) {
-      errors.city = 'Only letters and spaces allowed in City';
+      errors.city = 'City name must contain only letters, spaces, and dots';
     }
+
     // else if (address.city.length < 5) {
     //   errors.city = 'City must be at least 5 characters';
     // }
@@ -2310,6 +3051,7 @@ const DoctorForm: React.FC = () => {
   };
 
   const isAddressFetched = useRef(false);
+  const isEducationFetched = useRef(false);
 
   useEffect(() => {
     fetchPatientAddress();
@@ -2331,16 +3073,16 @@ const DoctorForm: React.FC = () => {
     const allErrors: { [idx: number]: { [field: string]: string } } = {};
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     let hasError = false;
     let hasDuplicate = false;
     const validAddresses: any[] = [];
-  
+
     const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
     const noOnlySpaces = /\S/;
     const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
     const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
-  
+
     const validateField = (
       value: string,
       key: string,
@@ -2352,12 +3094,14 @@ const DoctorForm: React.FC = () => {
       if (!value || !noOnlySpaces.test(value))
         errors[key] = 'Address Type is required.';
       else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
-      else if (!notRepeated.test(value)) errors[key] = 'No repetitive characters.';
+      else if (!notRepeated.test(value))
+        errors[key] = 'No repetitive characters.';
       else if (value.length < min || !pattern.test(value)) errors[key] = msg;
     };
-  
-    const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
-  
+
+    const capitalize = (str: string) =>
+      str.charAt(0).toUpperCase() + str.slice(1);
+
     const validateAddressLine = (
       value: string,
       key: string,
@@ -2379,42 +3123,45 @@ const DoctorForm: React.FC = () => {
       } else if (!/\d/.test(value)) {
         errors[key] = 'Must contain at least one number.';
       }
-  
+
       if (/^\d+$/.test(value)) {
         errors[key] =
           `${capitalize(key)} cannot be numbers only. Include area or street name.`;
       }
     };
-  
+
     const validateCity = (value: string, errors: Record<string, string>) => {
-      const onlyLettersAndSpace = /^[A-Za-z\s]+$/;
+      const onlyLettersAndSpace = /^[A-Za-z\s.]+$/;
       if (!value || !/\S/.test(value)) {
         errors.city = 'City is required.';
       } else if (!onlyLettersAndSpace.test(value)) {
-        errors.city =
-          'Only letters and spaces are allowed. No numbers or special characters.';
+        errors.city = 'City name must contain only letters,spaces and dots';
       } else if (value.length < 5) {
         errors.city = 'City must be at least 5 characters long.';
       }
     };
-  
+
     const isDuplicateAddress = (addr: any, list: any[]) => {
       return list.some(
         (existing) =>
-          existing.address1.trim().toLowerCase() === addr.address1.trim().toLowerCase() &&
-          existing.address2.trim().toLowerCase() === addr.address2.trim().toLowerCase() &&
-          existing.city.trim().toLowerCase() === addr.city.trim().toLowerCase() &&
-          existing.state.trim().toLowerCase() === addr.state.trim().toLowerCase() &&
-          existing.zipCode.trim() === addr.zipCode.trim()
+          existing.address1.trim().toLowerCase() ===
+            addr.address1.trim().toLowerCase() &&
+          existing.address2.trim().toLowerCase() ===
+            addr.address2.trim().toLowerCase() &&
+          existing.city.trim().toLowerCase() ===
+            addr.city.trim().toLowerCase() &&
+          existing.state.trim().toLowerCase() ===
+            addr.state.trim().toLowerCase() &&
+          existing.zipCode.trim() === addr.zipCode.trim(),
       );
     };
-  
+
     let isAnyFieldFilled = false;
-  
+
     for (let i = 0; i < addresses.length; i++) {
       const addr = addresses[i];
       const errors: Record<string, string> = {};
-  
+
       if (
         addr.addressType ||
         addr.address1 ||
@@ -2426,7 +3173,7 @@ const DoctorForm: React.FC = () => {
       ) {
         isAnyFieldFilled = true;
       }
-  
+
       validateField(
         addr.addressType,
         'addressType',
@@ -2438,37 +3185,45 @@ const DoctorForm: React.FC = () => {
       validateAddressLine(addr.address1, 'address1', errors);
       validateAddressLine(addr.address2, 'address2', errors);
       validateCity(addr.city, errors);
-  
+
       if (!addr.city) errors.city = 'City is required.';
       if (!addr.district) errors.district = 'District is required.';
       if (!addr.state) errors.state = 'State is required.';
       if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
-  
+
       if (Object.keys(errors).length === 0) {
-        const duplicateInCurrentForm = addresses.some((otherAddr, j) =>
-          j !== i &&
-          otherAddr.address1?.trim().toLowerCase() === addr.address1?.trim().toLowerCase() &&
-          otherAddr.address2?.trim().toLowerCase() === addr.address2?.trim().toLowerCase() &&
-          otherAddr.city?.trim().toLowerCase() === addr.city?.trim().toLowerCase() &&
-          otherAddr.state?.trim().toLowerCase() === addr.state?.trim().toLowerCase() &&
-          otherAddr.zipCode?.trim() === addr.zipCode?.trim()
+        const duplicateInCurrentForm = addresses.some(
+          (otherAddr, j) =>
+            j !== i &&
+            otherAddr.address1?.trim().toLowerCase() ===
+              addr.address1?.trim().toLowerCase() &&
+            otherAddr.address2?.trim().toLowerCase() ===
+              addr.address2?.trim().toLowerCase() &&
+            otherAddr.city?.trim().toLowerCase() ===
+              addr.city?.trim().toLowerCase() &&
+            otherAddr.state?.trim().toLowerCase() ===
+              addr.state?.trim().toLowerCase() &&
+            otherAddr.zipCode?.trim() === addr.zipCode?.trim(),
         );
-  
-        if (isDuplicateAddress(addr, validAddresses) || duplicateInCurrentForm) {
+
+        if (
+          isDuplicateAddress(addr, validAddresses) ||
+          duplicateInCurrentForm
+        ) {
           errors.duplicate = 'Duplicate address found.';
           hasDuplicate = true;
           hasError = true;
           allErrors[i] = errors;
-          continue; // 👈 Do NOT push duplicates
+          continue; // ❌ Do not push duplicates
         }
       }
-  
+
       if (Object.keys(errors).length) {
         allErrors[i] = errors;
         hasError = true;
         continue;
       }
-  
+
       validAddresses.push({
         createdBy: userID,
         updatedBy: userID,
@@ -2485,11 +3240,11 @@ const DoctorForm: React.FC = () => {
         isPrimary: addr.isPrimary || false,
       });
     }
-  
+
     setFormErrors(allErrors);
-  
+
     if (!isAnyFieldFilled) return;
-  
+
     if (hasError || validAddresses.length === 0) {
       if (toastShown !== 'duplicate' && hasDuplicate) {
         toast.error('Duplicate addresses are not allowed.');
@@ -2500,19 +3255,25 @@ const DoctorForm: React.FC = () => {
       }
       return;
     }
-  
+
+    // Remove duplicate entries from form display
+    const filteredAddresses = addresses.filter((addr, index) => {
+      return !allErrors[index]?.duplicate;
+    });
+    setAddresses(filteredAddresses);
+
     if (validAddresses.length > 0) {
       const isSameAsLastSaved =
         JSON.stringify(validAddresses) === JSON.stringify(lastSavedAddresses);
       if (isSameAsLastSaved) return;
     }
-  
+
     try {
       await api.post('/Address', validAddresses);
-      if (toastShown !== 'success') {
-        toast.success('All addresses saved successfully!');
-        setToastShown('success');
-      }
+      toast.dismiss();
+      toast.success('All addresses saved successfully!');
+      setIsAddressSaved(true); // ✅ Enable Next button
+      setToastShown('success');
       setLastSavedAddresses(JSON.parse(JSON.stringify(validAddresses)));
     } catch (err) {
       console.error('API error:', err);
@@ -2522,7 +3283,7 @@ const DoctorForm: React.FC = () => {
       }
     }
   };
-  
+
   const emptyAddressTemplate = {
     addressLine1: '',
     addressLine2: '',
@@ -2574,6 +3335,38 @@ const DoctorForm: React.FC = () => {
   const isValidName = (name: string): boolean => {
     const cleaned = name.replace(/^Dr\.\s*/, ''); // Remove "Dr. " at start
     return /^[A-Za-z\s]+$/.test(cleaned.trim());
+  };
+
+  const isValidAadhaar = (aadhaar: string): boolean => {
+    // 1. Must be 12 digits
+    const aadhaarRegex = /^\d{12}$/;
+    if (!aadhaarRegex.test(aadhaar)) return false;
+
+    // 2. Disallow all 12 digits same (e.g., 000000000000)
+    if (/^(\d)\1{11}$/.test(aadhaar)) return false;
+
+    // 3. Disallow 11 same digits + 1 different (e.g., 000000000001)
+    if (/^(\d)\1{10}\d$/.test(aadhaar)) return false;
+
+    // 4. Disallow obvious dummy/test numbers
+    const disallowed = new Set([
+      '123456789012',
+      '111111111111',
+      '222222222222',
+      '333333333333',
+      '444444444444',
+      '555555555555',
+      '666666666666',
+      '777777777777',
+      '888888888888',
+      '999999999999',
+      '000000000001',
+      '000000000002',
+      '000000000003',
+    ]);
+    if (disallowed.has(aadhaar)) return false;
+
+    return true; // ✅ Passed all checks
   };
 
   const validate = () => {
@@ -2698,12 +3491,12 @@ const DoctorForm: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-  
+
     if (!validate()) return;
-  
+
     const loggedInUserID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     const doctorData = {
       doctorID: doctorID,
       createdBy: loggedInUserID,
@@ -2721,10 +3514,10 @@ const DoctorForm: React.FC = () => {
       aadhaarNumber: form.aadhaarNumber,
       panNumber: form.panNumber,
     };
-  
+
     try {
       const response = await api.post('/Doctor/SaveDoctor', doctorData);
-  
+
       if (response.status === 200) {
         if (toastShown !== 'success') {
           toast.success('Doctor data saved successfully!');
@@ -2783,7 +3576,7 @@ const DoctorForm: React.FC = () => {
   //2.Address
 
   const fetchPatientAddress = async () => {
-    const doctorID = sessionStorage.getItem('doctorID'); // ✅ fixed typo
+    const doctorID = sessionStorage.getItem('doctorID');
     if (!doctorID) return;
 
     if (isAddressFetched.current) return;
@@ -2792,7 +3585,6 @@ const DoctorForm: React.FC = () => {
       const response = await api.get(
         `/Address/getaddress?id=${doctorID}&Type=Doctor`,
       );
-
       const addressData = response.data?.data || [];
 
       if (!Array.isArray(addressData)) {
@@ -2818,7 +3610,17 @@ const DoctorForm: React.FC = () => {
         return;
       }
 
-      const formatted = addressData.map((addr: any) => ({
+      // ✅ Remove duplicate addresses from API response
+      const seen = new Set();
+      const filteredUnique = addressData.filter((addr: any) => {
+        const key = `${addr.address1?.trim().toLowerCase()}|${addr.address2?.trim().toLowerCase()}|${addr.city?.trim().toLowerCase()}|${addr.state?.trim().toLowerCase()}|${addr.zipCode?.trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      // ✅ Format addresses for form
+      const formatted = filteredUnique.map((addr: any) => ({
         addressID: addr.addressID || '',
         addressType: addr.addressType || '',
         address1: addr.address1 || '',
@@ -2832,6 +3634,7 @@ const DoctorForm: React.FC = () => {
       }));
 
       setAddresses(formatted);
+      setLastSavedAddresses(JSON.parse(JSON.stringify(formatted))); // ✅ Prevent re-saving same data
       isAddressFetched.current = true;
 
       // Optional: preload state, district, city data
@@ -2862,33 +3665,74 @@ const DoctorForm: React.FC = () => {
 
   //3.Eductaions
   useEffect(() => {
-  const doctorID = sessionStorage.getItem('doctorID');
+    const doctorID = sessionStorage.getItem('doctorID');
+    if (!doctorID) return;
 
-  if (!doctorID) return;
+    if (isEducationFetched.current) return;
 
-  api
-    .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
-    .then((res) => {
-      const educationData = res.data?.data || [];
+    api
+      .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
+      .then((res) => {
+        const educationData = res.data?.data || [];
+        const seen = new Set();
 
-      const seen = new Set();
-      const formatDate = (dateStr) => {
-        if (!dateStr) return '';
-        const d = new Date(dateStr);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        return `${yyyy}-${mm}-${dd}`;
-      };
+        const formatDate = (dateStr) => {
+          if (!dateStr) return '';
+          const d = new Date(dateStr);
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          return `${yyyy}-${mm}-${dd}`;
+        };
 
-      const uniqueData = educationData.filter((item) => {
-        const key = `${item.degreeName?.trim()?.toLowerCase() || ''}-${item.graduateID || ''}-${item.specializationID || ''}-${item.location?.trim()?.toLowerCase() || ''}-${item.universityName?.trim()?.toLowerCase() || ''}-${formatDate(item.startDate)}-${formatDate(item.endDate)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
+        const normalizeKey = (entry) =>
+          `${entry.degreeName?.trim().toLowerCase() || ''}-${entry.graduateID || ''}-${entry.specializationID || ''}-${entry.location?.trim().toLowerCase() || ''}-${entry.universityName?.trim().toLowerCase() || ''}-${formatDate(entry.startDate)}-${formatDate(entry.endDate)}`;
 
-      if (uniqueData.length === 0) {
+        const uniqueData = educationData.filter((item) => {
+          const key = normalizeKey(item);
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        if (uniqueData.length === 0) {
+          setEducationList([
+            {
+              degree: '',
+              UG: '',
+              specialization: '',
+              location: '',
+              university: '',
+              startDate: '',
+              endDate: '',
+              highestEducation: false,
+              errors: {},
+            },
+          ]);
+          setEducationErrors([{}]);
+        } else {
+          const formattedData = uniqueData.map((item) => ({
+            educationID: item.educationID,
+            degree: item.degreeName || '',
+            UG: item.graduateID || '',
+            specialization: item.specializationID || '',
+            location: item.location || '',
+            university: item.universityName || '',
+            startDate: item.startDate ? new Date(item.startDate) : '',
+            endDate: item.endDate ? new Date(item.endDate) : '',
+            highestEducation: item.isHighestEducation || false,
+            errors: {},
+          }));
+
+          // 👉 Update both display list and lastSavedEducation reference
+          setEducationList(formattedData);
+          setLastSavedEducation(formattedData); // ⬅ this line is key
+          setEducationErrors(Array(formattedData.length).fill({}));
+          isEducationFetched.current = true;
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch doctor education data', err);
         setEducationList([
           {
             degree: '',
@@ -2903,110 +3747,19 @@ const DoctorForm: React.FC = () => {
           },
         ]);
         setEducationErrors([{}]);
-      } else {
-        const formattedData = uniqueData.map((item) => ({
-          educationID: item.educationID,
-          degree: item.degreeName || '',
-          UG: item.graduateID || '',
-          specialization: item.specializationID || '',
-          location: item.location || '',
-          university: item.universityName || '',
-          startDate: item.startDate ? new Date(item.startDate) : '',
-          endDate: item.endDate ? new Date(item.endDate) : '',
-          highestEducation: item.isHighestEducation || false,
-          errors: {},
-        }));
+      });
+  }, []);
 
-        setEducationList(formattedData);
-      }
-    })
-    .catch((err) => {
-      console.error('Failed to fetch doctor education data', err);
-      setEducationList([
-        {
-          degree: '',
-          UG: '',
-          specialization: '',
-          location: '',
-          university: '',
-          startDate: '',
-          endDate: '',
-          highestEducation: false,
-          errors: {},
-        },
-      ]);
-      setEducationErrors([{}]);
-    });
-}, []);
-
-  // const handleSaveEducationDetails = async (educationData) => {
-  //   const doctorID = sessionStorage.getItem('doctorID');
-
-  //   const requests = educationData.map((data) => {
-  //     const payload = {
-  //       doctorId: doctorID,
-  //       degreeName: data.degree,
-  //       graduateID: data.UG,
-  //       specializationID: data.specialization,
-  //       location: data.location,
-  //       universityName: data.university,
-  //       startDate: data.startDate ? new Date(data.startDate).toISOString() : null,
-  //       endDate: data.endDate ? new Date(data.endDate).toISOString() : null,
-  //       isHighestEducation: data.highestEducation,
-  //     };
-
-  //     const isFilled =
-  //       data.degree &&
-  //       data.UG &&
-  //       data.specialization &&
-  //       data.location &&
-  //       data.university &&
-  //       data.startDate &&
-  //       data.endDate;
-
-  //     // Update if educationID is present (even if partial fields)
-  //     if (data.educationID && data.educationID !== 0) {
-  //       return axios.put(
-  //         'https://predart003-001-site1.anytempurl.com/api/Doctor/SaveDoctorEducation',
-  //         {
-  //           educationID: data.educationID,
-  //           ...payload,
-  //         }
-  //       );
-  //     }
-  //     // Create new if all fields are filled
-  //     else if (isFilled) {
-  //       return axios.post(
-  //         'https://predart003-001-site1.anytempurl.com/api/Doctor/AddDoctorEducation',
-  //         payload
-  //       );
-  //     }
-  //     // Else, skip
-  //     else {
-  //       return Promise.resolve();
-  //     }
-  //   });
-
-  //   try {
-  //     await Promise.all(requests);
-  //     alert('✅ Education details saved successfully!');
-  //   } catch (error) {
-  //     console.error('❌ Error saving education:', error);
-  //     alert('Some entries could not be saved. Check console for details.');
-  //   }
-  // };
-
-  // 4.Language
-
+ 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
         .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
         .then((res) => {
           const langData = res.data?.data || [];
-  
+
           // Filter duplicates
           const seen = new Set();
           const uniqueLangData = langData.filter((item) => {
@@ -3015,13 +3768,13 @@ const DoctorForm: React.FC = () => {
             seen.add(key);
             return true;
           });
-  
+
           if (uniqueLangData.length > 0) {
             const formattedLanguages = uniqueLangData.map((item) => {
               const lang = languageOptions.find(
-                (opt) => opt.appLOVID === item.languageMasterID
+                (opt) => opt.appLOVID === item.languageMasterID,
               );
-  
+
               return {
                 language: lang?.name || '', // ✅ Make sure this matches exactly
                 read: item.read ?? false,
@@ -3033,7 +3786,7 @@ const DoctorForm: React.FC = () => {
                 errors: {},
               };
             });
-  
+
             setLanguages(formattedLanguages); // ✅ Only set clean data
           }
         })
@@ -3042,18 +3795,18 @@ const DoctorForm: React.FC = () => {
         });
     }
   }, [languageOptions]); // ✅ Add this dependency to wait until dropdown options are available
-  
+
   //5.Doctor Experience
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (doctorID) {
       api
         .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
         .then((res) => {
           const experienceData = res.data?.data || [];
-  
+
           const uniqueData = experienceData.filter(
             (value, index, self) =>
               index ===
@@ -3067,7 +3820,7 @@ const DoctorForm: React.FC = () => {
                   t.endDate === value.endDate,
               ),
           );
-  
+
           const formattedData = uniqueData.map((item) => ({
             type: item.employmentType || '',
             specialization: item.specializationID || '',
@@ -3076,8 +3829,7 @@ const DoctorForm: React.FC = () => {
             leaveDate: item.leaveDate ? item.leaveDate.split('T')[0] : '',
             errors: {},
           }));
-          
-  
+
           setExperiences(
             formattedData.length > 0
               ? formattedData
@@ -3098,7 +3850,7 @@ const DoctorForm: React.FC = () => {
         });
     }
   }, []);
-  
+
   //6.Doctor Skill
 
   useEffect(() => {
@@ -3144,18 +3896,18 @@ const DoctorForm: React.FC = () => {
 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
-  
+
     if (!doctorID) return;
-  
+
     api
       .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
       .then((res) => {
         const awardData = res.data?.data || [];
-  
+
         // Remove logical duplicates (case-insensitive awardName + year)
         const seen = new Set();
         const uniqueAwards = [];
-  
+
         for (const award of awardData) {
           const key = `${award.awardName?.trim().toLowerCase() || ''}-${award.awardYear}`;
           if (!seen.has(key)) {
@@ -3168,7 +3920,7 @@ const DoctorForm: React.FC = () => {
             });
           }
         }
-  
+
         // Set awards state (at least one empty if no data)
         setAwards(
           uniqueAwards.length > 0
@@ -3180,9 +3932,9 @@ const DoctorForm: React.FC = () => {
                   description: '',
                   errors: {},
                 },
-              ]
+              ],
         );
-  
+
         // Store for submission comparison
         setLastSubmittedAwards(uniqueAwards);
       })
@@ -3190,17 +3942,12 @@ const DoctorForm: React.FC = () => {
         console.error('Failed to fetch doctor award data:', err);
       });
   }, []);
-  
+
   const handleComplete = () => {
     console.log('Form completed!');
-    // Handle form completion logic here
+    setPopupVisible(true);
   };
-
-  const finishButtonTemplate = (handleComplete: () => void) => (
-    <button className="finish-button" onClick={handleComplete}>
-      Finish
-    </button>
-  );
+  
 
   <div className="step-navigation">
     {steps.map((step, index) => (
@@ -3226,7 +3973,15 @@ const DoctorForm: React.FC = () => {
       Back
     </button>
   );
+ const handleClosePopup = () => {
+    setPopupVisible(false);
+  };
 
+  const finishButtonTemplate = (handleComplete: () => void) => (
+    <button className="finish-button" onClick={handleComplete}>
+      Finish
+    </button>
+  );
   return (
     <>
       <FormWizard
@@ -3236,18 +3991,7 @@ const DoctorForm: React.FC = () => {
         onComplete={handleComplete}
         backButtonTemplate={backTemplate}
         nextButtonTemplate={nextButtonTemplate}
-        finishButtonTemplate={(onComplete) => (
-          <button
-            className="finish-button"
-            onClick={() => {
-              console.log('Form completed!');
-              toast.success('Doctor profile completed successfully');
-              onComplete();
-            }}
-          >
-            Finish
-          </button>
-        )}
+         finishButtonTemplate={finishButtonTemplate}
       >
         <FormWizard.TabContent
           title="Basic Details"
@@ -3260,487 +4004,509 @@ const DoctorForm: React.FC = () => {
             </div>
           }
         >
-          <form
-            onSubmit={handleSubmit}
-            className="grid grid-cols-3 gap-4 p-4 max-w-6xl mx-auto"
-          >
-            <div className="flex flex-col">
-              <select
-                name="tenant"
-                value={form.tenant || ''}
-                onChange={handleChange}
-                className={inputFieldClass}
-              >
-                <option value="">Select Tenant</option>
-                {tenants?.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name}
-                  </option>
-                ))}
-              </select>
-              {errors.tenant && (
-                <span className="text-red-500 text-sm">{errors.tenant}</span>
-              )}
-            </div>
+          <div className="w-full max-w-screen-2xl mx-auto p-4">
+            <h2 className="text-lg font-semibold text-gray-700">
+              Basic Details
+            </h2>
+            <form
+              onSubmit={handleSubmit}
+              className="grid grid-cols-3 gap-4 p-4 max-w-screen-2xl mx-auto"
+            >
+              <div className="flex flex-col">
+                <select
+                  name="tenant"
+                  value={form.tenant || ''}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                >
+                  <option value="">Select Tenant</option>
+                  {tenants?.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.tenant && (
+                  <span className="text-red-500 text-sm">{errors.tenant}</span>
+                )}
+              </div>
 
-            <div className="flex flex-col">
-              <select
-                name="hospital"
-                value={form.hospital || ''}
-                onChange={handleChange}
-                className={inputFieldClass}
-              >
-                <option value="">Select Hospital</option>
-                {hospitals.map((hospital) => (
-                  <option key={hospital.id} value={hospital.id}>
-                    {hospital.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col">
+                <select
+                  name="hospital"
+                  value={form.hospital || ''}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                >
+                  <option value="">Select Hospital</option>
+                  {hospitals.map((hospital) => (
+                    <option key={hospital.id} value={hospital.id}>
+                      {hospital.name}
+                    </option>
+                  ))}
+                </select>
 
-              {errors.hospital && (
-                <span className="text-red-500 text-sm">{errors.hospital}</span>
-              )}
-            </div>
+                {errors.hospital && (
+                  <span className="text-red-500 text-sm">
+                    {errors.hospital}
+                  </span>
+                )}
+              </div>
 
-            <div className="flex flex-col">
-              <input
-                type="text"
-                name="doctorName"
-                placeholder="Enter Doctor Name"
-                value={form.doctorName}
-                onChange={handleChange}
-                className={inputFieldClass}
-              />
-              {errors.doctorName && (
-                <span className="text-red-500 text-sm">
-                  {errors.doctorName}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <input
-                type="text"
-                name="doctorEmail"
-                placeholder="Enter Email"
-                value={form.doctorEmail}
-                onChange={handleChange}
-                className={inputFieldClass}
-              />
-              {errors.doctorEmail && (
-                <span className="text-red-500 text-sm">
-                  {errors.doctorEmail}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <input
-                type="text"
-                name="doctorPhoneNumber"
-                placeholder="Enter Phone Number"
-                value={form.doctorPhoneNumber}
-                onChange={handleChange}
-                className={inputFieldClass}
-                pattern="[0-9]{10}"
-                maxLength={10}
-                inputMode="numeric"
-                onKeyDown={(e) => {
-                  if (
-                    [
-                      'Backspace',
-                      'Tab',
-                      'ArrowLeft',
-                      'ArrowRight',
-                      'Delete',
-                    ].includes(e.key)
-                  )
-                    return;
-                  if (!/^\d$/.test(e.key)) e.preventDefault();
-                }}
-              />
-              {errors.doctorPhoneNumber && (
-                <span className="text-red-500 text-sm">
-                  {errors.doctorPhoneNumber}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <input
-                type="text"
-                name="aadhaarNumber"
-                placeholder="Enter Aadhaar Number"
-                value={form.aadhaarNumber}
-                onChange={handleChange}
-                className={inputFieldClass}
-                pattern="[0-9]{12}"
-                maxLength={12}
-                inputMode="numeric"
-                onKeyDown={(e) => {
-                  if (
-                    [
-                      'Backspace',
-                      'Tab',
-                      'ArrowLeft',
-                      'ArrowRight',
-                      'Delete',
-                    ].includes(e.key)
-                  )
-                    return;
-                  if (!/^\d$/.test(e.key)) e.preventDefault();
-                }}
-              />
-              {errors.aadhaarNumber && (
-                <span className="text-red-500 text-sm">
-                  {errors.aadhaarNumber}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col">
-              <input
-                type="text"
-                name="panNumber"
-                placeholder="Enter PAN Number"
-                value={form.panNumber}
-                onChange={handleChange}
-                className={inputFieldClass}
-              />
-              {errors.panNumber && (
-                <span className="text-red-500 text-sm">{errors.panNumber}</span>
-              )}
-            </div>
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="doctorName"
+                  placeholder="Enter Doctor Name"
+                  value={form.doctorName}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                />
+                {errors.doctorName && (
+                  <span className="text-red-500 text-sm">
+                    {errors.doctorName}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="doctorEmail"
+                  placeholder="Enter Email"
+                  value={form.doctorEmail}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                />
+                {errors.doctorEmail && (
+                  <span className="text-red-500 text-sm">
+                    {errors.doctorEmail}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="doctorPhoneNumber"
+                  placeholder="Enter Phone Number"
+                  value={form.doctorPhoneNumber}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                  pattern="[0-9]{10}"
+                  maxLength={10}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (
+                      [
+                        'Backspace',
+                        'Tab',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Delete',
+                      ].includes(e.key)
+                    )
+                      return;
+                    if (!/^\d$/.test(e.key)) e.preventDefault();
+                  }}
+                />
+                {errors.doctorPhoneNumber && (
+                  <span className="text-red-500 text-sm">
+                    {errors.doctorPhoneNumber}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="aadhaarNumber"
+                  placeholder="Enter Aadhaar Number"
+                  value={form.aadhaarNumber}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                  pattern="[0-9]{12}"
+                  maxLength={12}
+                  inputMode="numeric"
+                  onKeyDown={(e) => {
+                    if (
+                      [
+                        'Backspace',
+                        'Tab',
+                        'ArrowLeft',
+                        'ArrowRight',
+                        'Delete',
+                      ].includes(e.key)
+                    )
+                      return;
+                    if (!/^\d$/.test(e.key)) e.preventDefault();
+                  }}
+                  onBlur={() => {
+                    if (!isValidAadhaar(form.aadhaarNumber)) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        aadhaarNumber:
+                          'Please enter a valid 12-digit Aadhaar number',
+                      }));
+                    } else {
+                      setErrors((prev) => ({
+                        ...prev,
+                        aadhaarNumber: '',
+                      }));
+                    }
+                  }}
+                />
 
-            <div className="flex flex-col">
-              <select
-                name="qualification"
-                value={form.qualification || ''}
-                onChange={handleChange}
-                className={inputFieldClass}
-              >
-                <option value="">Select Qualification</option>
-                {qualifications.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name}
-                  </option>
-                ))}
-              </select>
-              {errors.qualification && (
-                <span className="text-red-500 text-sm">
-                  {errors.qualification}
-                </span>
-              )}
-            </div>
+                {errors.aadhaarNumber && (
+                  <span className="text-red-500 text-sm">
+                    {errors.aadhaarNumber}
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-col">
+                <input
+                  type="text"
+                  name="panNumber"
+                  placeholder="Enter PAN Number"
+                  value={form.panNumber}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                />
+                {errors.panNumber && (
+                  <span className="text-red-500 text-sm">
+                    {errors.panNumber}
+                  </span>
+                )}
+              </div>
 
-            <div className="flex flex-col">
-              <select
-                name="specialization"
-                value={form.specialization || ''}
-                onChange={handleChange}
-                className={inputFieldClass}
-              >
-                <option value="">Select Specialization</option>
-                {specializations.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name}
-                  </option>
-                ))}
-              </select>
-              {errors.specialization && (
-                <span className="text-red-500 text-sm">
-                  {errors.specialization}
-                </span>
-              )}
-            </div>
+              <div className="flex flex-col">
+                <select
+                  name="qualification"
+                  value={form.qualification || ''}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                >
+                  <option value="">Select Qualification</option>
+                  {qualifications.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.qualification && (
+                  <span className="text-red-500 text-sm">
+                    {errors.qualification}
+                  </span>
+                )}
+              </div>
 
-            <div className="flex flex-col">
-              <input
-                type="date"
-                name="doctorDateOfBirth"
-                placeholder="Select Date of Birth"
-                value={form.doctorDateOfBirth}
-                onChange={handleChange}
-                className={inputFieldClass}
-                max={new Date().toISOString().split('T')[0]}
-              />
-              {errors.doctorDateOfBirth && (
-                <span className="text-red-500 text-sm">
-                  {errors.doctorDateOfBirth}
-                </span>
-              )}
-            </div>
+              <div className="flex flex-col">
+                <select
+                  name="specialization"
+                  value={form.specialization || ''}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                >
+                  <option value="">Select Specialization</option>
+                  {specializations.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.specialization && (
+                  <span className="text-red-500 text-sm">
+                    {errors.specialization}
+                  </span>
+                )}
+              </div>
 
-            <div className="flex flex-col">
-              <select
-                name="gender"
-                value={form.gender || ''}
-                onChange={handleChange}
-                className={inputFieldClass}
-              >
-                <option value="">Select Gender</option>
-                {genders.map((opt) => (
-                  <option key={opt.id} value={opt.id}>
-                    {opt.name}
-                  </option>
-                ))}
-              </select>
-              {errors.gender && (
-                <span className="text-red-500 text-sm">{errors.gender}</span>
-              )}
-            </div>
+              <div className="flex flex-col">
+                <input
+                  type="date"
+                  name="doctorDateOfBirth"
+                  placeholder="Select Date of Birth"
+                  value={form.doctorDateOfBirth}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                  max={new Date().toISOString().split('T')[0]}
+                />
+                {errors.doctorDateOfBirth && (
+                  <span className="text-red-500 text-sm">
+                    {errors.doctorDateOfBirth}
+                  </span>
+                )}
+              </div>
 
-            <div className="flex justify-end mt-6">
-                <button
+              <div className="flex flex-col">
+                <select
+                  name="gender"
+                  value={form.gender || ''}
+                  onChange={handleChange}
+                  className={inputFieldClass}
+                >
+                  <option value="">Select Gender</option>
+                  {genders.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.name}
+                    </option>
+                  ))}
+                </select>
+                {errors.gender && (
+                  <span className="text-red-500 text-sm">{errors.gender}</span>
+                )}
+              </div>
+
+              <div className="flex justify-end">
+                <CustomButton
                   type="submit"
                   className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
                 >
                   Submit
-                </button>
+                </CustomButton>
               </div>
 
-            <ToastContainer position="top-right" autoClose={3000} />
-          </form>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </form>
 
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              // handleSubmit will only handle the current form state
-              handleAddressSubmit();
-            }}
-          >
-            <h2 className="text-lg font-bold text-black-700 text-left mt-8">
-              Address
-            </h2>
-            {addresses &&
-              addresses.length > 0 &&
-              addresses.map((address, index) => (
-                <div
-                  key={index}
-                  onClick={() => handleSelectAddress(index)}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  {/* Address Type */}
-                  <div className="mb-4">
-                    <div className="flex flex-col">
-                      <select
-                        className="w-[200px] rounded-lg border border-stroke p-2 pl-4 text-black outline-none bg-transparent dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.addressType}
-                        onChange={(e) =>
-                          updateAddress(index, 'addressType', e.target.value)
-                        }
-                      >
-                        <option value="">Select Address Type</option>
-                        {addressTypes.map((type) => (
-                          <option key={type.appLOVID} value={type.name}>
-                            {type.name}
-                          </option>
-                        ))}
-                      </select>
-                      {formErrors[index]?.addressType && (
-                        <p className="text-red-500 text-sm mt-1 text-left">
-                          {formErrors[index].addressType}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Address Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <input
-                        type="text"
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.address1}
-                        onChange={(e) => {
-                          const sanitizedValue = e.target.value.replace(
-                            /[^a-zA-Z0-9, /]/g,
-                            '',
-                          );
-                          updateAddress(index, 'address1', sanitizedValue);
-                        }}
-                        placeholder="Enter address line 1"
-                      />
-                      {formErrors[index]?.address1 && (
-                        <p className="text-red-500 text-sm">
-                          {formErrors[index].address1}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <input
-                        type="text"
-                        className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        value={address.address2}
-                        onChange={(e) => {
-                          const sanitizedValue = e.target.value.replace(
-                            /[^a-zA-Z0-9, /]/g,
-                            '',
-                          );
-                          updateAddress(index, 'address2', sanitizedValue);
-                        }}
-                        placeholder="Enter address line 2"
-                      />
-                      {formErrors[index]?.address2 && (
-                        <p className="text-red-500 text-sm">
-                          {formErrors[index].address2}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* City, District, State, Zip Code */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                    {/* Section 1: State & District */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                // handleSubmit will only handle the current form state
+                handleAddressSubmit();
+              }}
+            >
+              <h2 className="text-lg font-semibold text-gray-700">Address</h2>
+              {addresses &&
+                addresses.length > 0 &&
+                addresses.map((address, index) => (
+                  <div
+                    key={index}
+                    onClick={() => handleSelectAddress(index)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    {/* Address Type */}
+                    <div className="mb-4">
+                      <div className="flex flex-col">
                         <select
-                          value={address.state || ''}
-                          onChange={(e) => handleStateChange(e, index)}
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        >
-                          <option value="">Select State</option>
-                          {states.map((state) => (
-                            <option key={state.id} value={state.stateName}>
-                              {state.stateName}
-                            </option>
-                          ))}
-                        </select>
-                        {formErrors[index]?.state && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].state}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <select
-                          value={address.district || ''}
-                          onChange={(e) => handleDistrictChange(e, index)}
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                        >
-                          <option value="">Select District</option>
-                          {[
-                            ...new Map(
-                              districts.map((d) => [d.districtName, d]),
-                            ).values(),
-                          ].map((dist) => (
-                            <option key={dist.id} value={dist.districtName}>
-                              {dist.districtName}
-                            </option>
-                          ))}
-                        </select>
-                        {formErrors[index]?.district && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].district}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Section 2: Pincode & City */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <select
-                          value={address.zipCode || ''}
+                          className="w-[200px] rounded-lg border border-stroke p-2 pl-4 text-black outline-none bg-transparent dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={address.addressType}
                           onChange={(e) =>
-                            updateAddress(index, 'zipCode', e.target.value)
+                            updateAddress(index, 'addressType', e.target.value)
                           }
-                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
                         >
-                          <option value="">Select Pincode</option>
-                          {pincodes.map((pin, index) => (
-                            <option key={index} value={pin}>
-                              {pin}
+                          <option value="">Select Address Type</option>
+                          {addressTypes.map((type) => (
+                            <option key={type.appLOVID} value={type.name}>
+                              {type.name}
                             </option>
                           ))}
                         </select>
-
-                        {formErrors[index]?.zipCode && (
-                          <p className="text-red-500 text-sm">
-                            {formErrors[index].zipCode}
+                        {formErrors[index]?.addressType && (
+                          <p className="text-red-500 text-sm mt-1 text-left">
+                            {formErrors[index].addressType}
                           </p>
                         )}
                       </div>
+                    </div>
 
+                    {/* Address Fields */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        {showCityInput ? (
-                          <>
-                            <input
-                              type="text"
-                              value={address.city || ''}
-                              onChange={(e) => {
-                                handleCityChange(e, index);
-                                setManualCity(e.target.value);
-                              }}
-                              placeholder="Enter City"
-                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                            />
-
-                            {formErrors[index]?.city && (
-                              <p className="text-red-500 text-sm">
-                                {formErrors[index].city}
-                              </p>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <select
-                              value={address.city || ''}
-                              onChange={(e) =>
-                                updateAddress(index, 'city', e.target.value)
-                              }
-                              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                            >
-                              <option value="">Select City</option>
-                              {cities.map((city) => (
-                                <option key={city.id} value={city.cityName}>
-                                  {city.cityName}
-                                </option>
-                              ))}
-                            </select>
-
-                            {formErrors[index]?.city && (
-                              <p className="text-red-500 text-sm">
-                                {formErrors[index].city}
-                              </p>
-                            )}
-                          </>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={address.address1}
+                          onChange={(e) => {
+                            const sanitizedValue = e.target.value.replace(
+                              /[^a-zA-Z0-9, /]/g,
+                              '',
+                            );
+                            updateAddress(index, 'address1', sanitizedValue);
+                          }}
+                          placeholder="Enter address line 1"
+                        />
+                        {formErrors[index]?.address1 && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].address1}
+                          </p>
+                        )}
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          value={address.address2}
+                          onChange={(e) => {
+                            const sanitizedValue = e.target.value.replace(
+                              /[^a-zA-Z0-9, /]/g,
+                              '',
+                            );
+                            updateAddress(index, 'address2', sanitizedValue);
+                          }}
+                          placeholder="Enter address line 2"
+                        />
+                        {formErrors[index]?.address2 && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors[index].address2}
+                          </p>
                         )}
                       </div>
                     </div>
+
+                    {/* City, District, State, Zip Code */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                      {/* Section 1: State & District */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <select
+                            value={address.state || ''}
+                            onChange={(e) => handleStateChange(e, index)}
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          >
+                            <option value="">Select State</option>
+                            {states.map((state) => (
+                              <option key={state.id} value={state.stateName}>
+                                {state.stateName}
+                              </option>
+                            ))}
+                          </select>
+                          {formErrors[index]?.state && (
+                            <p className="text-red-500 text-sm">
+                              {formErrors[index].state}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          <select
+                            value={address.district || ''}
+                            onChange={(e) => handleDistrictChange(e, index)}
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          >
+                            <option value="">Select District</option>
+                            {[
+                              ...new Map(
+                                districts.map((d) => [d.districtName, d]),
+                              ).values(),
+                            ].map((dist) => (
+                              <option key={dist.id} value={dist.districtName}>
+                                {dist.districtName}
+                              </option>
+                            ))}
+                          </select>
+                          {formErrors[index]?.district && (
+                            <p className="text-red-500 text-sm">
+                              {formErrors[index].district}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Section 2: Pincode & City */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <select
+                            value={address.zipCode || ''}
+                            onChange={(e) =>
+                              updateAddress(index, 'zipCode', e.target.value)
+                            }
+                            className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                          >
+                            <option value="">Select Pincode</option>
+                            {pincodes.map((pin, index) => (
+                              <option key={index} value={pin}>
+                                {pin}
+                              </option>
+                            ))}
+                          </select>
+
+                          {formErrors[index]?.zipCode && (
+                            <p className="text-red-500 text-sm">
+                              {formErrors[index].zipCode}
+                            </p>
+                          )}
+                        </div>
+
+                        <div>
+                          {showCityInput ? (
+                            <>
+                              <input
+                                type="text"
+                                value={address.city || ''}
+                                onChange={(e) => {
+                                  handleCityChange(e, index);
+                                  setManualCity(e.target.value);
+                                }}
+                                placeholder="Enter City"
+                                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                              />
+
+                              {formErrors[index]?.city && (
+                                <p className="text-red-500 text-sm">
+                                  {formErrors[index].city}
+                                </p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <select
+                                value={address.city || ''}
+                                onChange={(e) =>
+                                  updateAddress(index, 'city', e.target.value)
+                                }
+                                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                              >
+                                <option value="">Select City</option>
+                                {cities.map((city) => (
+                                  <option key={city.id} value={city.cityName}>
+                                    {city.cityName}
+                                  </option>
+                                ))}
+                              </select>
+
+                              {formErrors[index]?.city && (
+                                <p className="text-red-500 text-sm">
+                                  {formErrors[index].city}
+                                </p>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end items-center mt-4">
+                      <label className="flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input
+                          type="checkbox"
+                          checked={address.isPrimary}
+                          onChange={() => handlePrimaryChange(index)}
+                        />
+                        Set as Primary
+                      </label>
+                    </div>
                   </div>
-                  <div className="flex justify-end items-center mt-4">
-                    <label className="flex items-center gap-2 text-sm text-black dark:text-white">
-                      <input
-                        type="checkbox"
-                        checked={address.isPrimary}
-                        onChange={() => handlePrimaryChange(index)}
-                      />
-                      Set as Primary
-                    </label>
-                  </div>
+                ))}
+
+              {/* Add New Address */}
+              <div className="flex items-center justify-end gap-1">
+                <div
+                  className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+                  onClick={handleAddAddress}
+                >
+                  +
                 </div>
-              ))}
-
-            {/* Add New Address */}
-            <div className="flex items-center justify-end gap-1">
-              <div
-                className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
-                onClick={handleAddAddress}
-              >
-                +
+                <span className="text-sm font-medium text-black-600">Add</span>
               </div>
-              <span className="text-sm font-medium text-black-600">Add</span>
-            </div>
 
-            <div className="flex justify-end">
-              <CustomButton
-                type="submit"
-                className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-              >
-                Save Address
-              </CustomButton>
-            </div>
-          </form>
+              <div className="flex justify-end">
+                <CustomButton
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Save Address
+                </CustomButton>
+              </div>
+            </form>
+          </div>
         </FormWizard.TabContent>
 
         <FormWizard.TabContent
@@ -3754,413 +4520,435 @@ const DoctorForm: React.FC = () => {
             </div>
           }
         >
-          <form onSubmit={handleFieldSubmit}>
-            <div className="p-6 space-y-6">
-              {educationList.map((entry, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-3 gap-4 p-4 max-w-6xl mx-auto border border-[#d1d5db] rounded-md"
-                >
-                  <div></div>
-                  <div className="col-span-1"></div>
+          <div className="w-full max-w-screen-2xl mx-auto p-4">
+            <form onSubmit={handleFieldSubmit}>
+              <div className="p-6 space-y-6">
+                <h2 className="text-lg font-semibold text-gray-700">
+                  Education
+                </h2>
+                {educationList.map((entry, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-3 gap-4 p-4 max-w-screen-2xl mx-auto border border-[#d1d5db] rounded-md"
+                  >
+                    <div></div>
+                    <div className="col-span-1"></div>
 
-                  {/* Highest Education */}
-                  <div className="col-span-1 flex items-end justify-end">
-                    <label className="flex items-center space-x-2">
+                    {/* Highest Education */}
+                    <div className="col-span-1 flex items-end justify-end">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          checked={entry.highestEducation}
+                          onChange={(e) =>
+                            handleInputChange(
+                              index,
+                              'highestEducation',
+                              e.target.checked,
+                            )
+                          }
+                          className="form-checkbox h-4 w-4 text-blue-600"
+                        />
+                        <span className="font-semibold text-gray-900 text-sm">
+                          Is this your highest education
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* Degree */}
+                    <div className="col-span-1 flex flex-col">
                       <input
-                        type="checkbox"
-                        checked={entry.highestEducation}
+                        type="text"
+                        value={entry.degree}
+                        onChange={(e) =>
+                          handleInputChange(index, 'degree', e.target.value)
+                        }
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        onInput={handleInputs}
+                        placeholder="Enter your degree"
+                        className={inputFieldClass}
+                      />
+                      {educationErrors[index]?.degree && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].degree}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Qualification */}
+                    <div className="col-span-1 flex flex-col">
+                      <select
+                        value={entry.UG || ''}
+                        onChange={(e) =>
+                          handleInputChange(index, 'UG', e.target.value)
+                        }
+                        className={inputFieldClass}
+                      >
+                        <option value="">Select Qualification</option>
+                        {qualifications.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                      {educationErrors[index]?.UG && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].UG}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Specialization */}
+                    <div className="col-span-1 flex flex-col">
+                      <select
+                        value={entry.specialization || ''}
                         onChange={(e) =>
                           handleInputChange(
                             index,
-                            'highestEducation',
-                            e.target.checked,
+                            'specialization',
+                            e.target.value,
                           )
                         }
-                        className="form-checkbox h-4 w-4 text-blue-600"
+                        className={inputFieldClass}
+                      >
+                        <option value="">Select Specialization</option>
+                        {specializations.map((item) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name}
+                          </option>
+                        ))}
+                      </select>
+                      {educationErrors[index]?.specialization && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].specialization}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Location */}
+                    <div className="col-span-1 flex flex-col">
+                      <input
+                        type="text"
+                        value={entry.location}
+                        onChange={(e) =>
+                          handleInputChange(index, 'location', e.target.value)
+                        }
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        onInput={handleInputs}
+                        placeholder="Enter your location"
+                        className={inputFieldClass}
                       />
-                      <span className="font-semibold text-gray-900 text-sm">
-                        Is this your highest education
-                      </span>
-                    </label>
-                  </div>
+                      {educationErrors[index]?.location && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].location}
+                        </p>
+                      )}
+                    </div>
 
-                  {/* Degree */}
-                  <div className="col-span-1 flex flex-col">
-                    <input
-                      type="text"
-                      value={entry.degree}
-                      onChange={(e) =>
-                        handleInputChange(index, 'degree', e.target.value)
-                      }
-                      onKeyDown={handleKeyDown}
-                      onPaste={handlePaste}
-                      placeholder="Enter your degree"
-                      className={inputFieldClass}
-                    />
-                    {educationErrors[index]?.degree && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].degree}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Qualification */}
-                  <div className="col-span-1 flex flex-col">
-                    <select
-                      value={entry.UG || ''}
-                      onChange={(e) =>
-                        handleInputChange(index, 'UG', e.target.value)
-                      }
-                      className={inputFieldClass}
-                    >
-                      <option value="">Select Qualification</option>
-                      {qualifications.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                    {educationErrors[index]?.qualification && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].qualification}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Specialization */}
-                  <div className="col-span-1 flex flex-col">
-                    <select
-                      value={entry.specialization || ''}
-                      onChange={(e) =>
-                        handleInputChange(
-                          index,
-                          'specialization',
-                          e.target.value,
-                        )
-                      }
-                      className={inputFieldClass}
-                    >
-                      <option value="">Select Specialization</option>
-                      {specializations.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.name}
-                        </option>
-                      ))}
-                    </select>
-                    {educationErrors[index]?.specialization && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].specialization}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Location */}
-                  <div className="col-span-1 flex flex-col">
-                    <input
-                      type="text"
-                      value={entry.location}
-                      onChange={(e) =>
-                        handleInputChange(index, 'location', e.target.value)
-                      }
-                      onKeyDown={handleKeyDown}
-                      onPaste={handlePaste}
-                      placeholder="Enter your location"
-                      className={inputFieldClass}
-                    />
-                    {educationErrors[index]?.location && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].location}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* University */}
-                  <div className="col-span-1 flex flex-col">
-                    <input
-                      type="text"
-                      value={entry.university}
-                      onChange={(e) =>
-                        handleInputChange(index, 'university', e.target.value)
-                      }
-                      // onKeyDown={handleKeyDown}
-                      onPaste={handlePaste}
-                      placeholder="Enter your university name"
-                      className={inputFieldClass}
-                    />
-                    {educationErrors[index]?.university && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].university}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Start Date */}
-                  <div className="col-span-1 flex flex-col">
-                    <input
-                      type={entry.startDate ? 'date' : 'text'}
-                      name="startDate"
-                      placeholder="Starting Date"
-                      value={
-                        entry.startDate
-                          ? new Date(entry.startDate).toISOString().split('T')[0]
-                          : ''
-                      }
-                      max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                      onFocus={(e) => (e.target.type = 'date')}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = 'text';
-                      }}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleInputChange(index, 'startDate', value);
-
-                        if (new Date(value) > new Date()) {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [index]: {
-                              ...prev[index],
-                              startDate: 'Start date cannot be in the future',
-                            },
-                          }));
-                        } else {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [index]: {
-                              ...prev[index],
-                              startDate: '',
-                            },
-                          }));
+                    {/* University */}
+                    <div className="col-span-1 flex flex-col">
+                      <input
+                        type="text"
+                        value={entry.university}
+                        onChange={(e) =>
+                          handleInputChange(index, 'university', e.target.value)
                         }
-                      }}
-                      className={`${inputFieldClass} ${
-                        educationErrors[index]?.startDate
-                          ? 'border-red-500'
-                          : 'border-gray-300'
-                      } ${!entry.startDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                      style={{
-                        paddingTop: !entry.startDate ? '1.25rem' : undefined,
-                      }}
-                    />
+                        // onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        onInput={handleInputs}
+                        placeholder="Enter your university name"
+                        className={inputFieldClass}
+                      />
+                      {educationErrors[index]?.university && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].university}
+                        </p>
+                      )}
+                    </div>
 
-                    {educationErrors[index]?.startDate && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].startDate}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* End Date */}
-                  <div className="col-span-1 flex flex-col">
-                    <input
-                      type={entry.endDate ? 'date' : 'text'}
-                      name="endDate"
-                      placeholder="Ending Date"
-                      value={
-                        entry.endDate
-                          ? new Date(entry.endDate).toISOString().split('T')[0]
-                          : ''
-                      }
-                      max={new Date().toISOString().split('T')[0]} // Prevent future dates
-                      onFocus={(e) => (e.target.type = 'date')}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = 'text';
-                      }}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleInputChange(index, 'endDate', value);
-
-                        if (new Date(value) > new Date()) {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [index]: {
-                              ...prev[index],
-                              endDate: 'End date cannot be in the future',
-                            },
-                          }));
-                        } else {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [index]: {
-                              ...prev[index],
-                              endDate: '',
-                            },
-                          }));
+                    {/* Start Date */}
+                    <div className="col-span-1 flex flex-col">
+                      <input
+                        type={entry.startDate ? 'date' : 'text'}
+                        name="startDate"
+                        placeholder="Starting Date"
+                        value={
+                          entry.startDate
+                            ? new Date(
+                                new Date(entry.startDate).getTime() -
+                                  new Date(
+                                    entry.startDate,
+                                  ).getTimezoneOffset() *
+                                    60000,
+                              )
+                                .toISOString()
+                                .split('T')[0]
+                            : ''
                         }
-                      }}
-                      className={`${inputFieldClass} ${
-                        errors[index]?.endDate
-                          ? 'border-red-500'
-                          : 'border-gray-300'
-                      } ${!entry.endDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                      style={{
-                        paddingTop: !entry.endDate ? '1.25rem' : undefined,
-                      }}
-                    />
+                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange(index, 'startDate', value);
 
-                    {educationErrors[index]?.endDate && (
-                      <p className="text-red-500 text-sm">
-                        {educationErrors[index].endDate}
-                      </p>
-                    )}
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                startDate: 'Start date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                startDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          educationErrors[index]?.startDate
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        } ${!entry.startDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !entry.startDate ? '1.25rem' : undefined,
+                        }}
+                      />
+
+                      {educationErrors[index]?.startDate && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].startDate}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* End Date */}
+                    <div className="col-span-1 flex flex-col">
+                      <input
+                        type={entry.endDate ? 'date' : 'text'}
+                        name="endDate"
+                        placeholder="Ending Date"
+                        value={
+                          entry.endDate
+                            ? new Date(
+                                new Date(entry.endDate).getTime() -
+                                  new Date(entry.endDate).getTimezoneOffset() *
+                                    60000,
+                              )
+                                .toISOString()
+                                .split('T')[0]
+                            : ''
+                        }
+                        max={new Date().toISOString().split('T')[0]} // Prevent future dates
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleInputChange(index, 'endDate', value);
+
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                endDate: 'End date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [index]: {
+                                ...prev[index],
+                                endDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[index]?.endDate
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        } ${!entry.endDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !entry.endDate ? '1.25rem' : undefined,
+                        }}
+                      />
+
+                      {educationErrors[index]?.endDate && (
+                        <p className="text-red-500 text-sm">
+                          {educationErrors[index].endDate}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
 
-              {/* Add Entry Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleAddEducation}
-                  disabled={isAddDisabled}
-                  className={`flex items-center space-x-2 font-semibold transition-colors duration-300 ${
-                    isAddDisabled
-                      ? 'text-gray-400 cursor-not-allowed'
-                      : 'text-blue-600 hover:text-blue-800'
-                  }`}
-                >
-                  <div
-                    className={`flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer transition-colors duration-300 text-lg ${
+                {/* Add Entry Button */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleAddEducation}
+                    disabled={isAddDisabled}
+                    className={`flex items-center space-x-2 font-semibold transition-colors duration-300 ${
                       isAddDisabled
-                        ? 'bg-gray-300'
-                        : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
+                        ? 'text-gray-400 cursor-not-allowed'
+                        : 'text-blue-600 hover:text-blue-800'
                     }`}
                   >
-                    +
-                  </div>
-                  <span
-                    className={`transition-colors duration-300 ${
-                      isAddDisabled ? 'text-gray-400' : 'text-blue-600'
-                    }`}
-                  >
-                    Add
-                  </span>
-                </button>
-              </div>
-
-              {/* Submit Button - centered */}
-              <div className="flex justify-end mt-6">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                >
-                  Submit
-                </button>
-              </div>
-
-              <ToastContainer position="top-right" autoClose={3000} />
-            </div>
-          </form>
-
-          <form onSubmit={handleLanguageSubmit}>
-            <div className="p-6 space-y-6 w-200">
-              <h2 className="text-lg font-semibold text-gray-700">
-                Language Known
-              </h2>
-
-              {languages.map((entry, index) => (
-                <div
-                  key={index}
-                  className="flex flex-col gap-2 border border-[#d1d5db] rounded-md p-4"
-                >
-                  <div className="flex items-center gap-4 flex-wrap">
-                    {/* Language Dropdown */}
-                    <select
-                      value={entry.language}
-                      onChange={(e) =>
-                        handle(index, 'language', e.target.value)
-                      }
-                      className={inputFieldClass + ' max-w-xs'}
+                    <div
+                      className={`flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer transition-colors duration-300 text-lg ${
+                        isAddDisabled
+                          ? 'bg-gray-300'
+                          : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
+                      }`}
                     >
-                      <option value="">-- Select a Language --</option>
-                      {languageOptions.map((lang) => (
-                        <option key={lang.appLOVID} value={lang.name}>
-                          {lang.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Read */}
-                    <label className="flex items-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={entry.read}
-                        onChange={(e) =>
-                          handle(index, 'read', e.target.checked)
-                        }
-                        className="form-checkbox"
-                      />
-                      <span>Read</span>
-                    </label>
-
-                    {/* Write */}
-                    <label className="flex items-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={entry.write}
-                        onChange={(e) =>
-                          handle(index, 'write', e.target.checked)
-                        }
-                        className="form-checkbox"
-                      />
-                      <span>Write</span>
-                    </label>
-
-                    {/* Speak */}
-                    <label className="flex items-center space-x-1">
-                      <input
-                        type="checkbox"
-                        checked={entry.speak}
-                        onChange={(e) =>
-                          handle(index, 'speak', e.target.checked)
-                        }
-                        className="form-checkbox"
-                      />
-                      <span>Speak</span>
-                    </label>
-                  </div>
-
-                  {/* Error Messages */}
-                  {entry.errors?.language && (
-                    <span className="text-red-500 text-sm">
-                      {entry.errors.language}
+                      +
+                    </div>
+                    <span
+                      className={`transition-colors duration-300 ${
+                        isAddDisabled ? 'text-gray-400' : 'text-blue-600'
+                      }`}
+                    >
+                      Add
                     </span>
-                  )}
-                  {entry.errors?.skill && (
-                    <span className="text-red-500 text-sm">
-                      {entry.errors.skill}
-                    </span>
-                  )}
-
-                  {/* Submit Button */}
+                  </button>
                 </div>
-              ))}
 
-              {/* Add Button */}
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleAddLanguage}
-                  className="flex items-center space-x-2 text-blue-600 font-semibold"
-                >
-                  <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
-                    +
+                {/* Submit Button - centered */}
+                <div className="flex justify-end">
+                  <CustomButton
+                    type="submit"
+                    className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                  >
+                    Save Education
+                  </CustomButton>
+                </div>
+
+                <ToastContainer position="top-right" autoClose={3000} />
+              </div>
+            </form>
+
+            <form onSubmit={handleLanguageSubmit}>
+              <div className="p-6 space-y-6 w-200">
+                <h2 className="text-lg font-semibold text-gray-700">
+                  Language Known
+                </h2>
+
+                {languages.map((entry, index) => (
+                  <div
+                    key={index}
+                    className="flex flex-col gap-2 border border-[#d1d5db] rounded-md p-4"
+                  >
+                    <div className="flex items-center gap-4 flex-wrap">
+                      {/* Language Dropdown */}
+                      <select
+                        value={entry.language}
+                        onChange={(e) =>
+                          handle(index, 'language', e.target.value)
+                        }
+                        className={inputFieldClass + ' max-w-xs'}
+                      >
+                        <option value="">-- Select a Language --</option>
+                        {languageOptions.map((lang) => (
+                          <option key={lang.appLOVID} value={lang.name}>
+                            {lang.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      {/* Read */}
+                      <label className="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={entry.read}
+                          onChange={(e) =>
+                            handle(index, 'read', e.target.checked)
+                          }
+                          className="form-checkbox"
+                        />
+                        <span>Read</span>
+                      </label>
+
+                      {/* Write */}
+                      <label className="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={entry.write}
+                          onChange={(e) =>
+                            handle(index, 'write', e.target.checked)
+                          }
+                          className="form-checkbox"
+                        />
+                        <span>Write</span>
+                      </label>
+
+                      {/* Speak */}
+                      <label className="flex items-center space-x-1">
+                        <input
+                          type="checkbox"
+                          checked={entry.speak}
+                          onChange={(e) =>
+                            handle(index, 'speak', e.target.checked)
+                          }
+                          className="form-checkbox"
+                        />
+                        <span>Speak</span>
+                      </label>
+                    </div>
+
+                    {/* Error Messages */}
+                    {entry.errors?.language && (
+                      <span className="text-red-500 text-sm">
+                        {entry.errors.language}
+                      </span>
+                    )}
+                    {entry.errors?.skill && (
+                      <span className="text-red-500 text-sm">
+                        {entry.errors.skill}
+                      </span>
+                    )}
+
+                    {/* Submit Button */}
                   </div>
-                  <span>Add</span>
-                </button>
-              </div>
+                ))}
 
-              <div className="flex justify-end mt-6">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                >
-                  Submit
-                </button>
+                {/* Add Button */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleAddLanguage}
+                    className="flex items-center space-x-2 text-blue-600 font-semibold"
+                  >
+                    <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
+                      +
+                    </div>
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <div className="flex justify-end">
+                  <CustomButton
+                    type="submit"
+                    className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                  >
+                    Save Language
+                  </CustomButton>
+                </div>
               </div>
-            </div>
-            <ToastContainer position="top-right" autoClose={3000} />
-          </form>
+              <ToastContainer position="top-right" autoClose={3000} />
+            </form>
+          </div>
         </FormWizard.TabContent>
 
         <FormWizard.TabContent
@@ -4256,7 +5044,7 @@ const DoctorForm: React.FC = () => {
 
                             // Allow only letters and spaces
                             const filteredValue = inputValue.replace(
-                              /[^A-Za-z\s]/g,
+                              /[^A-Za-z_\s]/g,
                               '',
                             );
 
@@ -4303,109 +5091,107 @@ const DoctorForm: React.FC = () => {
 
                     {/* Join Date */}
                     <div className="w-full relative">
-                    <input
-                      type="date"
-                      name="joinDate"
-                      placeholder="Join Date"
-                      value={exp.joinDate || ''}
-                      max={today} // prevent future dates
-                      onFocus={(e) => (e.target.type = 'date')}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = 'text';
-                      }}
-                      onChange={(e) => {
-                        const value = e.target.value; // YYYY-MM-DD
-                        handleExperience(idx, 'joinDate', value);
+                      <input
+                        type="date"
+                        name="joinDate"
+                        placeholder="Join Date"
+                        value={exp.joinDate || ''}
+                        max={today} // prevent future dates
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value; // YYYY-MM-DD
+                          handleExperience(idx, 'joinDate', value);
 
-                        if (new Date(value) > new Date()) {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [idx]: {
-                              ...prev[idx],
-                              joinDate: 'Join date cannot be in the future',
-                            },
-                          }));
-                        } else {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [idx]: {
-                              ...prev[idx],
-                              joinDate: '',
-                            },
-                          }));
-                        }
-                      }}
-                      className={`${inputFieldClass} ${
-                        errors[idx]?.joinDate ? 'border-red-500' : 'border-gray-300'
-                      } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                      style={{
-                        paddingTop: !exp.joinDate ? '1.25rem' : undefined,
-                      }}
-                    />
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                joinDate: 'Join date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                joinDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[idx]?.joinDate
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        } ${!exp.joinDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !exp.joinDate ? '1.25rem' : undefined,
+                        }}
+                      />
                       {errors[idx]?.joinDate && (
-                        <p className="text-red-600 text-sm mt-1">{errors[idx].joinDate}</p>
+                        <p className="text-red-600 text-sm mt-1">
+                          {errors[idx].joinDate}
+                        </p>
                       )}
                     </div>
 
                     {/* Leave Date */}
                     <div className="w-full relative">
-                    <input
-                      type="date"
-                      name="leaveDate"
-                      placeholder="Leave Date"
-                      value={exp.leaveDate || ''}
-                      max={today}
-                      onFocus={(e) => (e.target.type = 'date')}
-                      onBlur={(e) => {
-                        if (!e.target.value) e.target.type = 'text';
-                      }}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleExperience(idx, 'leaveDate', value);
+                      <input
+                        type="date"
+                        name="leaveDate"
+                        placeholder="Leave Date"
+                        value={exp.leaveDate || ''}
+                        max={today}
+                        onFocus={(e) => (e.target.type = 'date')}
+                        onBlur={(e) => {
+                          if (!e.target.value) e.target.type = 'text';
+                        }}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleExperience(idx, 'leaveDate', value);
 
-                        if (new Date(value) > new Date()) {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [idx]: {
-                              ...prev[idx],
-                              leaveDate: 'Leave date cannot be in the future',
-                            },
-                          }));
-                        } else {
-                          setErrors((prev) => ({
-                            ...prev,
-                            [idx]: {
-                              ...prev[idx],
-                              leaveDate: '',
-                            },
-                          }));
-                        }
-                      }}
-                      className={`${inputFieldClass} ${
-                        errors[idx]?.leaveDate ? 'border-red-500' : 'border-gray-300'
-                      } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
-                      style={{
-                        paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
-                      }}
-                    />
+                          if (new Date(value) > new Date()) {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                leaveDate: 'Leave date cannot be in the future',
+                              },
+                            }));
+                          } else {
+                            setErrors((prev) => ({
+                              ...prev,
+                              [idx]: {
+                                ...prev[idx],
+                                leaveDate: '',
+                              },
+                            }));
+                          }
+                        }}
+                        className={`${inputFieldClass} ${
+                          errors[idx]?.leaveDate
+                            ? 'border-red-500'
+                            : 'border-gray-300'
+                        } ${!exp.leaveDate ? 'text-gray-400' : 'text-black'} appearance-none relative z-10`}
+                        style={{
+                          paddingTop: !exp.leaveDate ? '1.25rem' : undefined,
+                        }}
+                      />
                       {errors[idx]?.leaveDate && (
-                        <p className="text-red-600 text-sm">{errors[idx].leaveDate}</p>
+                        <p className="text-red-600 text-sm">
+                          {errors[idx].leaveDate}
+                        </p>
                       )}
                     </div>
-
                   </div>
                 </div>
               ))}
 
-              {/* ✅ Submit Button */}
-              <div className="flex justify-center mt-6">
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                >
-                  Submit
-                </button>
-              </div>
               {/* Add Button */}
               <div className="flex justify-end px-5 mt-4">
                 <button
@@ -4418,6 +5204,15 @@ const DoctorForm: React.FC = () => {
                   </div>
                   <span>Add</span>
                 </button>
+              </div>
+              {/* ✅ Submit Button */}
+              <div className="flex justify-end">
+                <CustomButton
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Save Experience
+                </CustomButton>
               </div>
             </div>
           </form>
@@ -4518,31 +5313,31 @@ const DoctorForm: React.FC = () => {
                 </div>
               ))}
 
-              <div className="flex justify-center">
-                <button
-                  type="button"
-                  onClick={handleSkillSubmit}
-                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                >
-                  Submit
-                </button>
-              </div>
               {/* </div> */}
               {/* ))} */}
             </div>
 
             <div className="flex justify-end px-5">
-            <button
-              type="button"
-              onClick={handleAddSkill}
-              className="flex items-center space-x-2 text-blue-600 font-semibold"
-            >
-              <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
-                +
-              </div>
-              <span>Add</span>
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleAddSkill}
+                className="flex items-center space-x-2 text-blue-600 font-semibold"
+              >
+                <div className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]">
+                  +
+                </div>
+                <span>Add</span>
+              </button>
+            </div>
+            {/* ✅ Submit Button */}
+            <div className="flex justify-end">
+              <CustomButton
+                type="submit"
+                className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+              >
+                Save Skills
+              </CustomButton>
+            </div>
           </form>
         </FormWizard.TabContent>
 
@@ -4575,6 +5370,7 @@ const DoctorForm: React.FC = () => {
                         placeholder="Enter award name"
                         value={award.name}
                         onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
                         onInput={handleInput}
                         onChange={(e) =>
                           handleAwardChange(index, 'name', e.target.value)
@@ -4625,7 +5421,6 @@ const DoctorForm: React.FC = () => {
                       </p>
                     )}
                   </div>
-                  
                 </div>
               ))}
 
@@ -4641,15 +5436,15 @@ const DoctorForm: React.FC = () => {
                   <span>Add</span>
                 </button>
               </div>
-              <div className="flex justify-center">
-                    <button
-                      type="submit"
-                      onClick={handleAwardSubmit}
-                      className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
-                    >
-                      Submit
-                    </button>
-                  </div>
+              {/* ✅ Submit Button */}
+              <div className="flex justify-end">
+                <CustomButton
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
+                >
+                  Save Awards
+                </CustomButton>
+              </div>
             </div>
           </form>
         </FormWizard.TabContent>
@@ -4665,7 +5460,7 @@ const DoctorForm: React.FC = () => {
             </div>
           }
         >
-          <form>
+          <form onSubmit={handleTimeSubmit}>
             <div className="col-span-2">
               <h3 className="text-lg font-semibold mb-2">
                 Existing Time Slots
@@ -4678,6 +5473,7 @@ const DoctorForm: React.FC = () => {
                     existingTimeSlots,
                     setExistingTimeSlots,
                     false,
+                    [],
                   ),
                 )
               ) : (
@@ -4686,7 +5482,14 @@ const DoctorForm: React.FC = () => {
 
               <h3 className="text-lg font-semibold my-4">Add New Time Slots</h3>
               {newTimeSlots.map((slot, index) =>
-                renderTimeSlotRow(slot, index, newTimeSlots, setNewTimeSlots),
+                renderTimeSlotRow(
+                  slot,
+                  index,
+                  newTimeSlots,
+                  setNewTimeSlots,
+                  true,
+                  errors,
+                ),
               )}
               <div className="flex items-center mt-2 justify-end gap-1">
                 {/* Clickable Icon */}
@@ -4704,13 +5507,15 @@ const DoctorForm: React.FC = () => {
               </div>
 
               {/* Save Button */}
-              <div className="flex justify-end mt-4">
-                <button
-                  onClick={handleTimeSubmit}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              {/* ✅ Submit Button */}
+
+              <div className="flex justify-end">
+                <CustomButton
+                  type="submit"
+                  className="bg-blue-600 text-white px-6 py-2 rounded mt-5"
                 >
                   Save Time Slots
-                </button>
+                </CustomButton>
               </div>
             </div>
           </form>
@@ -4757,28 +5562,26 @@ const DoctorForm: React.FC = () => {
                 {/* Preview Icon */}
                 {previewSrc && (
                   <button
-  type="button"
-  onClick={() => setIsPreviewOpen(true)}
-  className="text-blue-500"
->
-  <Eye className="w-5 h-5" />
-</button>
-
+                    type="button"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="text-blue-500"
+                  >
+                    <Eye className="w-5 h-5" />
+                  </button>
                 )}
 
                 {/* Upload Button */}
-               <button
-  onClick={handleUpload}
-  disabled={isUploading}
-  className={`w-[15%] py-2 px-4 rounded-lg text-sm text-white ${
-    isUploading
-      ? 'bg-gray-400 cursor-not-allowed'
-      : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
-  }`}
->
-  {isUploading ? 'Uploading...' : 'Upload'}
-</button>
-
+                <button
+                  onClick={handleUpload}
+                  disabled={isUploading}
+                  className={`w-[15%] py-2 px-4 rounded-lg text-sm text-white ${
+                    isUploading
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]'
+                  }`}
+                >
+                  {isUploading ? 'Uploading...' : 'Upload'}
+                </button>
               </div>
 
               {/* Uploaded Documents Table */}
@@ -4788,9 +5591,10 @@ const DoctorForm: React.FC = () => {
                 <table className="w-full border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
-                      <th className="border px-4 py-2">File Name</th>
-                      <th className="border px-4 py-2">Document Type</th>
+                        <th className="border px-4 py-2">Document Type</th>
 
+                      <th className="border px-4 py-2">File Name</th>
+                    
                       <th className="border px-4 py-2">Date</th>
                       <th className="border px-4 py-2">Actions</th>
                     </tr>
@@ -4878,41 +5682,55 @@ const DoctorForm: React.FC = () => {
                 </div>
               )}
               {/* Modal for Viewing Documents */}
-               {modalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-4 rounded shadow-lg max-w-xl w-full relative flex flex-col items-center">
-            <button
-              className="absolute top-2 right-2 text-gray-500 text-xl"
-              onClick={() => setModalOpen(false)}
-            >
-              &times;
-            </button>
-            <h2 className="text-lg font-bold mb-2">View Document</h2>
-            <div className="flex justify-center items-center w-full max-h-[80vh]">
-              {isImage ? (
-  <img
-    src={documentURL}
-    alt="Uploaded document"
-    style={{ maxWidth: '100%', maxHeight: '80vh' }}
-  />
-) : (
-  <iframe
-    src={documentURL}
-    title="PDF Document"
-    width="100%"
-    height="600px"
-    style={{ border: 'none' }}
-  />
-)}
-
-            </div>
-          </div>
-        </div>
-      )}
+              {modalOpen && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                  <div className="bg-white p-4 rounded shadow-lg max-w-xl w-full relative flex flex-col items-center">
+                    <button
+                      className="absolute top-2 right-2 text-gray-500 text-xl"
+                      onClick={() => setModalOpen(false)}
+                    >
+                      &times;
+                    </button>
+                    <h2 className="text-lg font-bold mb-2">View Document</h2>
+                    <div className="flex justify-center items-center w-full max-h-[80vh]">
+                      {isImage ? (
+                        <img
+                          src={documentURL}
+                          alt="Uploaded document"
+                          style={{ maxWidth: '100%', maxHeight: '80vh' }}
+                        />
+                      ) : (
+                        <iframe
+                          src={documentURL}
+                          title="PDF Document"
+                          width="100%"
+                          height="600px"
+                          style={{ border: 'none' }}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </form>
         </FormWizard.TabContent>
       </FormWizard>
+      {isPopupVisible && (
+            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+              <div className="bg-white p-6 rounded-lg shadow-lg w-[300px] text-center">
+                <h3 className="text-xl font-bold">
+                  Profile Completed Successfully
+                </h3>
+                <button
+                  onClick={handleClosePopup}
+                  className="mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Add Style */}
@@ -5076,6 +5894,7 @@ const DoctorForm: React.FC = () => {
           .base-button:active {
           transform: translateY(2px);
           }
+          
 
         .finish-button{
           background-color: green;

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import CustomButton from '../../components/CustomButton';
-
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { ToastContainer } from 'react-toastify';
 import { AgGridReact } from 'ag-grid-react';
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
@@ -23,42 +25,44 @@ const HospitalDropdown = () => {
   )?.doctorName;
 
   useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const roleName = sessionStorage.getItem('roleName');
-        const unitID = sessionStorage.getItem('unitID');
-        const tenantID = sessionStorage.getItem('tenantID');
+   const fetchHospitals = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
+    const tenantID = sessionStorage.getItem('tenantID');
 
-        // Build params conditionally
-        const params: Record<string, string> = {};
+    const params: Record<string, string> = {};
 
-        if (roleName === 'TenantAdmin' && tenantID) {
-          params['tenantID'] = tenantID;
-        }
+    // Only TenantAdmin requires tenantID as param
+    if (roleName === 'TenantAdmin' && tenantID) {
+      params['tenantID'] = tenantID;
+    }
 
-        const response = await api.get('/Hospital/List', { params });
-        const data: any[] = response.data || [];
+    const response = await api.get('/Hospital/List', { params });
+    const data: any[] = response.data || [];
 
-        const activeHospitals = data.filter(
-          (hospital) => hospital.isActive === true,
-        );
-        setHospitals(activeHospitals);
+    const activeHospitals = data.filter(
+      (hospital) => hospital.isActive === true
+    );
+    setHospitals(activeHospitals);
 
-        // Preselect only for Doctor and HospitalAdmin
-        if (roleName === 'Doctor') {
-          const doctorID = sessionStorage.getItem('doctorID');
-          setSelectedDoctor(doctorID || '');
-          setSelectedHospital(unitID || '');
-          setSelectedHospitalId(unitID || '');
-        } else if (roleName === 'HostitalAdmin') {
-          setSelectedHospital(unitID || '');
-          setSelectedHospitalId(unitID || '');
-        }
-        // For TenantAdmin, no preselection
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
+    // Prefill for Doctor and HospitalAdmin only
+    if (roleName === 'Doctor') {
+      const doctorID = sessionStorage.getItem('doctorID');
+      setSelectedDoctor(doctorID || '');
+      setSelectedHospital(unitID || '');
+      setSelectedHospitalId(unitID || '');
+    } else if (roleName === 'HospitalAdmin') {
+      setSelectedHospital(unitID || '');
+      setSelectedHospitalId(unitID || '');
+    }
+
+    // ✅ For SuperAdmin or TenantAdmin, do not prefill
+  } catch (error) {
+    console.error('Error fetching hospitals:', error);
+  }
+};
+
 
     fetchHospitals();
   }, []);
@@ -115,19 +119,18 @@ const HospitalDropdown = () => {
     const tenantID = sessionStorage.getItem('tenantID');
 
     // Check if TenantAdmin and no filters selected
-    if (
-      roleName === 'TenantAdmin' &&
-      !tenantID &&
-      !selectedHospitalId &&
-      !selectedDoctor &&
-      !fromTime &&
-      !toTime
-    ) {
-      // You can replace alert with your toast function
-      alert('Please select at least one filter field before searching.');
-      setLoading(false);
-      return;
-    }
+   if (
+  (roleName === 'TenantAdmin' || roleName === 'SuperAdmin') &&
+  !selectedHospitalId &&
+  !selectedDoctor &&
+  !fromTime &&
+  !toTime
+) {
+  toast.warning('Please select at least one filter field before searching.');
+  setLoading(false);
+  return;
+}
+
 
     const params = new URLSearchParams();
 
@@ -214,13 +217,13 @@ const HospitalDropdown = () => {
       setFromTime('');
       setToTime('');
       setAppointments([]);
-    } else if (roleName === 'HostitalAdmin') {
+    } else if (roleName === 'HospitalAdmin') {
       // For HospitalAdmin role, keep the hospital prefilled
       setSelectedDoctor('');
       setFromTime('');
       setToTime('');
       setAppointments([]);
-    } else if (roleName === 'TenantAdmin') {
+    } else if (roleName === 'TenantAdmin' || roleName === 'SuperAdmin') {
       // For TenantAdmin role, reset all fields
       setSelectedHospital('');
       setSelectedHospitalId('');
@@ -237,19 +240,23 @@ const HospitalDropdown = () => {
         Consolidated Report
       </h1>
       <div className="flex flex-wrap items-center gap-4">
-        <select
-          value={selectedHospital}
-          onChange={handleHospitalChange}
-          disabled={sessionStorage.getItem('roleName') !== 'TenantAdmin'}
-          className="w-full md:w-60 rounded border p-2 bg-gray-100"
-        >
-          <option value="">Select a hospital</option>
-          {hospitals.map((hospital) => (
-            <option key={hospital.hospitalID} value={hospital.hospitalID}>
-              {hospital.hospitalName}
-            </option>
-          ))}
-        </select>
+       <select
+  value={selectedHospital}
+  onChange={handleHospitalChange}
+  disabled={
+    !['TenantAdmin', 'SuperAdmin'].includes(
+      sessionStorage.getItem('roleName') || ''
+    )
+  }
+  className="w-full md:w-60 rounded border p-2 bg-gray-100"
+>
+  <option value="">Select a hospital</option>
+  {hospitals.map((hospital) => (
+    <option key={hospital.hospitalID} value={hospital.hospitalID}>
+      {hospital.hospitalName}
+    </option>
+  ))}
+</select>
 
         {roleName === 'Doctor' ? (
           // Prefilled and non-editable input for Doctor role
@@ -314,6 +321,7 @@ const HospitalDropdown = () => {
           Reset
         </CustomButton>
       </div>
+       <ToastContainer />
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
         <AgGridReact
           rowData={appointments}

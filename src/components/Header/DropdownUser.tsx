@@ -40,12 +40,15 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
   console.log('Role Name:', roleNameRaw);
 
   // Determine path based on roleName
-  const profilePath =
-    roleName === 'patient'
-      ? '/patientFormWizard'
-      : roleName === 'doctor'
-        ? '/DoctorFormWizard'
-        : '/HospitalFormWizard';
+ const profilePath =
+  roleName === 'patient'
+    ? '/patientFormWizard'
+    : roleName === 'doctor'
+    ? '/DoctorFormWizard'
+    : roleName === 'tenantadmin'
+    ? '/TenantFormWizard'
+    : '/HospitalFormWizard';
+
 
   const handleLogout = () => {
     dispatch(logout());
@@ -66,28 +69,26 @@ useEffect(() => {
     }
 
     try {
-       const docListRes = await api.get(`/Doctor/GetDocuments?doctorId=${patientID}`);
-       
-      const documents = docListRes.data?.data ?? [];
-      console.log('Documents fetched:', documents);
+      // const docListRes = await api.get(`/Doctor/GetDocuments?doctorId=${patientID}`);
+      // const documents = docListRes.data?.data ?? [];
+      // console.log('Documents fetched:', documents);
 
-      const photoDoc = documents.find((doc) => doc.documentType === 'Photo');
-      console.log('Photo Document:', photoDoc);
+      // const photoDoc = documents.find((doc) => doc.documentType === 'Photo');
+      // console.log('Photo Document:', photoDoc);
 
-      if (!photoDoc?.documentID) {
-        // No photo found, show Avatar by default
-        setLoading(false);
-        return;
-      }
+      // if (!photoDoc?.documentID) {
+      //   // No photo found, show Avatar by default
+      //   setLoading(false);
+      //   return;
+      // }
 
-       const imageRes = await api.get(`/Doctor/Documents/${photoDoc.documentID}`);
-       
-      const base64 = imageRes?.data?.data?.fileBase64;
-      console.log('Image base64 response:', base64);
+      // const imageRes = await api.get(`/Doctor/Documents/${photoDoc.documentID}`);
+      // const base64 = imageRes?.data?.data?.fileBase64;
+      // console.log('Image base64 response:', base64);
 
-      if (base64) {
-        setImageBase64(base64);
-      }
+      // if (base64) {
+      //   setImageBase64(base64);
+      // }
     } catch (err) {
       console.error('Error fetching photo:', err);
       // Optional: omit error message to fallback to Avatar

@@ -24,6 +24,9 @@ import {
   FaTachometerAlt,
   FaBalanceScale,
   FaStopwatch,
+  FaVials,
+  FaPrescriptionBottleAlt,
+  FaNotesMedical,
 } from 'react-icons/fa';
 
 import {
@@ -40,7 +43,7 @@ import {
   FaUserCheck,
   FaCashRegister,
   FaFlask,
-  FaToolbox ,
+  FaToolbox,
   FaBuilding,
   FaExchangeAlt,
   FaShieldAlt,
@@ -77,12 +80,11 @@ import { BiDetail } from 'react-icons/bi';
 
 // Define types
 interface MenuItem {
-  roleName: string;
-  roleID: string;
   menuID: string;
-  parentID: string | null;
-  order: number;
   title: string;
+  order: number;
+  parentID: string | null;
+  children?: MenuItem[];
 }
 
 interface SidebarProps {
@@ -116,9 +118,9 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Events: { icon: <FaCalendarCheck />, route: '#' },
   Offers: { icon: <FaTag />, route: '/offers' },
   PromoCode: { icon: <FaTag />, route: '/PromoCode' },
-  PricePlan: { icon: <FaCoins  />, route: '/PricePlan' },
-  AddOn: { icon: <FaPlusCircle  />, route: '/AddOn' },
-  PlanLimit: { icon: <FaStopwatch    />, route: '/PlanLimit' },
+  PricePlan: { icon: <FaCoins />, route: '/PricePlan' },
+  AddOn: { icon: <FaPlusCircle />, route: '/AddOn' },
+  PlanLimit: { icon: <FaStopwatch />, route: '/PlanLimit' },
   PlanFeature: { icon: <FaListAlt />, route: '/PlanFeature' },
   FeedBack: { icon: <FaCommentAlt />, route: '/Feedback/FeedBackForm' },
   Settings: { icon: <FaCog />, route: '#' },
@@ -150,12 +152,17 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Hospitals: { icon: <MdLocalHospital />, route: '/hospital' },
   Doctors: { icon: <FaUserMd />, route: '/search/doctors' },
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
-  Diagnostics: { icon: <FaGitlab />, route: '#' },
+  Diagnostics: { icon: <FaGitlab />, route: '/Diagnostics' },
+  LabTestPackage: { icon: <FaVials />, route: '/Masters/LabTestPackage' },
+  LabTestMaster: { icon: <FaMicroscope  />, route: '/Masters/LabTestMaster' },
+  DoctorPrescription: { icon: <FaNotesMedical />, route: '/medical' },
   PharmacyRegister: {
     icon: <FaFirstAid />,
     route: '/PharmacyDetails/PharmacyCreation',
   },
   Pharmacy: { icon: <FaFirstAid />, route: '/Pharmacy' },
+  MedicalCamp: { icon: <FaFirstAid />, route: '/MedicalCamp' },
+
   PharmacyMedicine: {
     icon: <FaFirstAid />,
     route: '/PharmacyDetails/PharmacyMedicine',
@@ -164,11 +171,14 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   ConsolidatedReport: { icon: <FaFileMedical />, route: '/consolidatedReport' },
   MISReport: { icon: <FaFileExport />, route: '/MISReport' },
   ExpiringStockReport: {
-    icon: <FaHourglassHalf  />,
+    icon: <FaHourglassHalf />,
     route: '/reports/ExpiringStockReport',
   },
   LowStockReport: { icon: <FaChartLine />, route: '/reports/LowStockReport' },
-  MedicineTransferReport: { icon: <FaExchangeAlt />, route: '#' },
+  MedicineTransferReport: {
+    icon: <FaExchangeAlt />,
+    route: '/Reports/MedicineTransferReport',
+  },
   StockSummaryReport: {
     icon: <FaChartBar />,
     route: '/reports/StockSummaryReport',
@@ -176,7 +186,10 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
   MedicineTransfer: { icon: <FaFileExport />, route: '/MedicineTransfer' },
   Registration: { icon: <FaFileSignature />, route: '#' },
-  DiagnosticsRegister: { icon: <FaMicroscope />, route: '#' },
+  DiagnosticsRegister: {
+    icon: <FaMicroscope />,
+    route: '/Registration/DiagnosticRegister',
+  },
 
   AppointmentHistory: {
     icon: <FaClipboardCheck />,
@@ -204,7 +217,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Menus: { icon: <FaListUl />, route: '/usersmanagement/menus' },
   Roles: { icon: <FaUserShield />, route: '/usersmanagement/roles' },
   Rights: { icon: <FaKey />, route: '/usersmanagement/rights' },
-  AssignRole: { icon: <FaIdBadge  />, route: '/usersmanagement/assignrole' },
+  AssignRole: { icon: <FaIdBadge />, route: '/usersmanagement/assignrole' },
   Transfer: { icon: <FaExchangeAlt />, route: '/usersmanagement/transfer' },
   Conference: { icon: <FaVideo />, route: '/events/conference' },
   MedicalCamp: { icon: <FaHeartbeat />, route: '/events/medicalcamp' },
@@ -213,11 +226,11 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Communication: { icon: <FaCommentAlt />, route: '/settings/communication' },
   Privacy: { icon: <FaShieldAlt />, route: '/settings/privacy' },
   Family: { icon: <FaUsers />, route: '/settings/family' },
-  Masters: { icon: <FaDatabase  />, route: '#' },
+  Masters: { icon: <FaDatabase />, route: '#' },
   TenantMaster: { icon: <FaUsers />, route: '#' },
-  TenantAddOn: { icon: <FaToolbox  />, route: '/TenantAddOn' },
-  TenantSubscription: { icon: <FaCrown  />, route: '/TenantSubscription' },
-  TenantPromoUsage: { icon: <FaTicketAlt  />, route: '/TenantPromoUsage' },
+  TenantAddOn: { icon: <FaToolbox />, route: '/TenantAddOn' },
+  TenantSubscription: { icon: <FaCrown />, route: '/TenantSubscription' },
+  TenantPromoUsage: { icon: <FaTicketAlt />, route: '/TenantPromoUsage' },
   Notification: { icon: <FaBell />, route: '/settings/notification' },
   MedicalDocument: {
     icon: <FaCloudUploadAlt />,
@@ -231,31 +244,23 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   const [openMenus, setOpenMenus] = useState<string[]>([]);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  const [menus, setMenus] = useState<MenuItem[]>([]);
   useEffect(() => {
-    const storedUserID = sessionStorage.getItem('userID');
+    const storedMenus = sessionStorage.getItem('menuSummary'); // or 'roleMenus'
 
-    if (storedUserID) {
-      console.log('Stored User ID:', storedUserID);
-
-      const fetchUserMenu = async () => {
-        try {
-          const response = await api.get(`/Login/${storedUserID}`);
-
-          console.log('API Response:', response.data);
-
-          if (response.data?.data && Array.isArray(response.data.data)) {
-            setMenuItems(response.data.data);
-          } else {
-            console.warn('Unexpected data format:', response.data);
-          }
-        } catch (error) {
-          console.error('Error fetching user menu data:', error);
-        }
-      };
-      fetchUserMenu();
+    if (storedMenus) {
+      try {
+        const parsedMenus: MenuItem[] = JSON.parse(storedMenus);
+        console.log('✅ Parsed menus from sessionStorage:', parsedMenus);
+        setMenus(parsedMenus);
+      } catch (error) {
+        console.error(
+          '❌ Failed to parse storedMenus from sessionStorage:',
+          error,
+        );
+      }
     } else {
-      console.warn('No User ID found in session storage.');
+      console.warn('⚠️ No menuSummary found in sessionStorage.');
     }
   }, []);
 
@@ -274,7 +279,6 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       }
     });
 
-    // Sort root items and child items
     rootItems.sort((a, b) => a.order - b.order);
     Object.keys(menuTree).forEach((parentID) => {
       if (menuTree[parentID]) {
@@ -285,7 +289,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
     return { rootItems, menuTree };
   };
 
-  const { rootItems, menuTree } = buildMenuTree(menuItems);
+  const { rootItems, menuTree } = buildMenuTree(menus);
 
   const toggleDropdown = (parentID: string) => {
     setOpenMenus((prevState) =>
@@ -325,7 +329,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
       <div className="sidebar-menu overflow-y-auto flex-1">
         <nav>
           {rootItems.map((parent) => (
-            <div key={parent.menuID} className="p-4">
+            <div key={parent.menuID} className="p-1">
               <NavLink
                 to={iconMapping[parent.title]?.route || '#'}
                 className={`flex items-center text-white font-semibold text-base cursor-pointer rounded-lg px-3 py-2
@@ -364,7 +368,7 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
               {!isCollapsed &&
                 openMenus.includes(parent.menuID) &&
                 menuTree[parent.menuID] && (
-                  <div className="ml-6 mt-2 space-y-2">
+                  <div className="ml-2 mt-2 space-y-2">
                     {menuTree[parent.menuID].map((child) => (
                       <NavLink
                         key={child.menuID}

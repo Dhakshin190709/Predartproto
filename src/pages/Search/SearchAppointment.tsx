@@ -152,7 +152,7 @@ const SearchAppointment: React.FC = () => {
         );
         setHospitals(activeHospitals);
 
-        if (role.toLowerCase() === 'hostitaladmin' && unitID) {
+        if (role.toLowerCase() === 'hospitalAdmin' && unitID) {
           setSelectedHospitalID(unitID);
         }
       } catch (error) {
@@ -179,7 +179,7 @@ const SearchAppointment: React.FC = () => {
       params = { DoctorID: doctorID, UnitID: unitID };
     } else if (roleName === 'reception' && unitID) {
       params = { UnitID: unitID };
-    } else if (roleName === 'hostitaladmin' && unitID) {
+    } else if (roleName === 'hospitalAdmin' && unitID) {
       params = { HospitalID: unitID };
     }
 
@@ -202,7 +202,7 @@ const SearchAppointment: React.FC = () => {
           fetchedAppointments.filter((a) => a.doctorID === doctorID),
         );
       } else if (
-        (roleName === 'reception' || roleName === 'hostitaladmin') &&
+        (roleName === 'reception' || roleName === 'hospitalAdmin') &&
         unitID
       ) {
         setAppointments(
@@ -262,7 +262,7 @@ const SearchAppointment: React.FC = () => {
   }, []);
   useEffect(() => {
     const roleName = sessionStorage.getItem('roleName')?.toLowerCase();
-    if (roleName === 'hostitaladmin') {
+    if (roleName === 'hospitalAdmin') {
       const unitID = sessionStorage.getItem('unitID') || '';
       setSelectedHospitalID(unitID); // Set only once when component loads
     }
@@ -281,7 +281,9 @@ const SearchAppointment: React.FC = () => {
 
     const isDoctor = roleName === 'doctor';
     const isPatient = roleName === 'patient';
-    const isAdmin = roleName === 'hostitaladmin';
+   const isReception = roleName === 'reception';
+const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
+
     const isTenantAdmin = roleName === 'tenantadmin';
 
     const isPatientFiltersEmpty =
@@ -296,19 +298,20 @@ const SearchAppointment: React.FC = () => {
       return;
     }
 
-    const isDoctorFiltersEmpty =
-      isDoctor && !startDate && !endDate && !patientID;
+ const isDoctorOrReceptionFiltersEmpty = !startDate && !endDate && !selectedPatientName;
+  if ((isDoctor || isReception) && isDoctorOrReceptionFiltersEmpty) {
+    toast.warning('Please select at least one filter before searching.');
+    return;
+  }
 
-    const isAdminFiltersEmpty =
-      isAdmin && !startDate && !endDate && !doctorID && !patientID;
 
-    if (
-      (isDoctor && isDoctorFiltersEmpty) ||
-      (isAdmin && isAdminFiltersEmpty)
-    ) {
-      toast.warning('Please select at least one filter before searching.');
-      return;
-    }
+
+  if (isAdmin && !startDate && !endDate) {
+  toast.warning('Please select at least one filter before searching.');
+  return;
+}
+
+
 
     if (isTenantAdmin && !startDate && !endDate) {
       toast.warning('Please select at least one date.');
@@ -329,11 +332,12 @@ const SearchAppointment: React.FC = () => {
 
     const params = {};
 
-    if (isDoctor) {
-      if (unitID) params.HospitalID = unitID;
-      if (doctorID) params.DoctorID = doctorID;
-      if (patientID) params.PatientID = patientID;
-    }
+  if (isDoctor || isReception) {
+    if (unitID) params.HospitalID = unitID;
+    if (doctorID) params.DoctorID = doctorID;
+    if (selectedPatientName) params.PatientName = selectedPatientName;
+  }
+
 
     if (isPatient) {
       if (selectedHospitalID) params.HospitalID = selectedHospitalID;
@@ -389,7 +393,7 @@ const SearchAppointment: React.FC = () => {
         setSelectedDoctorID('');
         setSelectedHospitalID('');
         break;
-      case 'hostitaladmin':
+      case 'hospitalAdmin':
         setSelectedDoctorID('');
         setSelectedPatientID('');
         setSelectedPatientName('');
@@ -551,7 +555,7 @@ const SearchAppointment: React.FC = () => {
         )}
 
         {/* Hospital Admin */}
-        {roleName === 'hostitaladmin' && (
+        {roleName === 'hospitalAdmin' && (
           <>
             <div className="w-full flex flex-col mb-0">
               <select
@@ -665,18 +669,19 @@ const SearchAppointment: React.FC = () => {
             Reset
           </CustomButton>
 
-          {roleName !== 'doctor' && roleName !== 'hostitaladmin' && (
-            <button
-              type="button"
-              className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
-      hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 
-      ease-out hover:ease-in rounded-lg"
-              onClick={() => navigate('/appointment/booking')}
-            >
-              <CalendarCheck className="w-5 h-5" />
-              <span>Book</span>
-            </button>
-          )}
+         {roleName?.toLowerCase() !== 'doctor' && roleName?.toLowerCase() !== 'hospitaladmin' && roleName?.toLowerCase() !== 'reception'&& (
+  <button
+    type="button"
+    className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+    hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 
+    ease-out hover:ease-in rounded-lg"
+    onClick={() => navigate('/appointment/booking')}
+  >
+    <CalendarCheck className="w-5 h-5" />
+    <span>Book</span>
+  </button>
+)}
+
 
           <ToastContainer position="top-right" autoClose={3000} />
         </div>

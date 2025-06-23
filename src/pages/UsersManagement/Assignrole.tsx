@@ -46,12 +46,13 @@ const Assignrole: React.FC = () => {
   const [showPopup, setShowPopup] = useState(false); // Popup visibility
   const [roles, setRoles] = useState<string[]>([]); // Fetched role names
   const [selectedUser, setSelectedUser] = useState<any>(null); // User details for whom roles are assigned
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]); // Store selected role IDs
+ const [selectedRoles, setSelectedRoles] = useState<number | null>(null);
+
   const [currentUserID, setCurrentUserID] = useState<string | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [allRoles, setAllRoles] = useState<any[]>([]);
 
-const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
+  const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
 
   const [name, setName] = useState('');
   const [tenant, setTenant] = useState('');
@@ -98,9 +99,10 @@ const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
 
   // Fetch tenant data
 
-   useEffect(() => {
+  useEffect(() => {
     // Using axios to fetch the tenant data
-    api.get('/Tenant') // Use the base URL from the axios instance
+    api
+      .get('/Tenant') // Use the base URL from the axios instance
       .then((response) => {
         console.log('Tenant Data:', response.data);
         setTenants(response.data.data || response.data); // Adjust based on API structure
@@ -112,14 +114,12 @@ const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
 
   // Fetch user data and map tenantName
   useEffect(() => {
- 
+    if (tenants.length > 0) {
+      fetchUsers();
+    }
+  }, [tenants]);
 
-  if (tenants.length > 0) {
-    fetchUsers();
-  }
-}, [tenants]);
-
- const fetchUsers = async () => {
+  const fetchUsers = async () => {
     try {
       // Get tenantID and roleName from sessionStorage or your state management
       const tenantID = sessionStorage.getItem('tenantID');
@@ -146,10 +146,13 @@ const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
         return;
       }
 
-      const tenantLookup = tenants.reduce((acc, tenant) => {
-        acc[tenant.tenantID] = tenant.tenantName;
-        return acc;
-      }, {} as Record<number, string>);
+      const tenantLookup = tenants.reduce(
+        (acc, tenant) => {
+          acc[tenant.tenantID] = tenant.tenantName;
+          return acc;
+        },
+        {} as Record<number, string>,
+      );
 
       const transformedData = usersArray.map((user: User) => ({
         ...user,
@@ -173,11 +176,9 @@ const tenantID = sessionStorage.getItem('tenantID'); // Or from context/store
     console.log(`Selected Tenant: ${e.target.value}`);
   };
 
- 
-
-const handleSaveRoles = async () => {
-  if (selectedRoles.length === 0) {
-    toast.warn('Please select at least one role.');
+ const handleSaveRoles = async () => {
+  if (!selectedRoles) {
+    toast.warn('Please select one role.');
     return;
   }
 
@@ -194,14 +195,17 @@ const handleSaveRoles = async () => {
     return;
   }
 
-  const roleAssignments = selectedRoles.map((roleID) => ({
+  const roleAssignments = [{
     userID,
-    roleID,
+    roleID: selectedRoles,
     createdBy,
-  }));
+  }];
 
   try {
-    const response = await api.post('/UserRoles/AssignRoles', roleAssignments);
+    const response = await api.post(
+      '/UserRoles/AssignRoles',
+      roleAssignments,
+    );
     const result = response.data;
 
     if (response.status !== 200) {
@@ -214,7 +218,7 @@ const handleSaveRoles = async () => {
     toast.success('Roles assigned successfully!');
 
     const updatedRowData = rowData.map((row) =>
-      row.userID === userID ? { ...row, assignRoleStatus: 'success' } : row,
+      row.userID === userID ? { ...row, assignRoleStatus: 'success' } : row
     );
     setRowData([...updatedRowData]);
     setShowPopup(false);
@@ -245,6 +249,7 @@ const handleSaveRoles = async () => {
       setSelectedRoles((prev) => prev.filter((r) => r !== role));
     }
   };
+
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -351,55 +356,48 @@ const handleSaveRoles = async () => {
   };
 
   const handleChangeRole = async (user: any) => {
-    setSelectedUser(user); // Store the selected user details
-    setShowPopup(true); // Open the popup
+  setSelectedUser(user);
+  setShowPopup(true);
 
-    try {
-      // Fetch all available roles
-      const rolesResponse = await api.get('/Role');
+  try {
+    const rolesResponse = await api.get('/Role');
     if (rolesResponse.status !== 200) throw new Error('Failed to fetch roles');
 
     const rolesResult = rolesResponse.data;
+    if (rolesResult.success && Array.isArray(rolesResult.data)) {
+      setAllRoles(rolesResult.data);
+    } else {
+      console.error('Roles response is not an array:', rolesResult);
+      return;
+    }
 
-      // Ensure roles data is an array
-      if (rolesResult.success && Array.isArray(rolesResult.data)) {
-        setAllRoles(rolesResult.data);
-      } else {
-        console.error('Roles response is not an array:', rolesResult);
-        return;
-      }
-
-      // Fetch roles assigned to the selected user
-     const userRolesResponse = await api.get(`/UserRoles/${user.userID}`);
-    if (userRolesResponse.status !== 200) throw new Error('Failed to fetch user roles');
+    const userRolesResponse = await api.get(`/UserRoles/${user.userID}`);
+    if (userRolesResponse.status !== 200)
+      throw new Error('Failed to fetch user roles');
 
     const userRolesResult = userRolesResponse.data;
+    console.log('Fetched user roles response:', userRolesResult);
 
-      // **Debugging Log**
-      console.log('Fetched user roles response:', userRolesResult);
-
-      // Ensure user roles data is an array before processing
-      if (userRolesResult.success && Array.isArray(userRolesResult.data)) {
-        const assignedRoleIDs = userRolesResult.data.map(
-          (role: any) => role.roleID,
-        );
-        setSelectedRoles(assignedRoleIDs);
+    if (userRolesResult.success && Array.isArray(userRolesResult.data)) {
+      if (userRolesResult.data.length > 0) {
+        const assignedRoleID = userRolesResult.data[0].roleID;
+        setSelectedRoles(assignedRoleID); // ✅ For radio button
       } else {
-        console.error('User roles response is not an array:', userRolesResult);
+        setSelectedRoles(null); // No role assigned yet
       }
-    } catch (error) {
-      console.error('Error fetching roles or user roles:', error);
+    } else {
+      console.error('User roles response is not an array:', userRolesResult);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching roles or user roles:', error);
+  }
+};
 
-  const handleRoleChange = (roleID: number) => {
-    setSelectedRoles(
-      (prevSelectedRoles) =>
-        prevSelectedRoles.includes(roleID)
-          ? prevSelectedRoles.filter((id) => id !== roleID) // Remove the role
-          : [...prevSelectedRoles, roleID], // Add the role
-    );
-  };
+
+ const handleRoleChange = (roleID: number) => {
+  setSelectedRoles(roleID); // only one role can be selected
+};
+
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -446,31 +444,33 @@ const handleSaveRoles = async () => {
   };
 
   const handleSearch = async () => {
-  if (!tenantID || !username) {
-    alert('Please select a user.');
-    return;
-  }
-
-  try {
-   const response = await api.get(`/User?tenantId=${tenantID}&userName=${username}`);
-
-    const result = response.data;
-
-    console.log('Filtered User Result:', result);
-
-    let usersArray = [];
-    if (Array.isArray(result)) {
-      usersArray = result;
-    } else if (result.success && Array.isArray(result.data)) {
-      usersArray = result.data;
+    if (!tenantID || !username) {
+      alert('Please select a user.');
+      return;
     }
 
-    setRowData(usersArray); // or however you show the result
-  } catch (error) {
-    console.error('Error during user search:', error);
-    alert('Failed to search user.');
-  }
-};
+    try {
+      const response = await api.get(
+        `/User?tenantId=${tenantID}&userName=${username}`,
+      );
+
+      const result = response.data;
+
+      console.log('Filtered User Result:', result);
+
+      let usersArray = [];
+      if (Array.isArray(result)) {
+        usersArray = result;
+      } else if (result.success && Array.isArray(result.data)) {
+        usersArray = result.data;
+      }
+
+      setRowData(usersArray); // or however you show the result
+    } catch (error) {
+      console.error('Error during user search:', error);
+      alert('Failed to search user.');
+    }
+  };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -480,78 +480,33 @@ const handleSaveRoles = async () => {
 
       {/* Dropdowns for Tenant, Hospitality, and Users */}
       <div className="flex gap-4 mb-4 items-center">
-        {/* Tenant Dropdown */}
-        {/*        
-  <select
-  value={selectedTenant || ''}
- 
-  onChange={(e) => setSelectedTenant(e.target.value)}
-  className="w-35 rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
-  text-black outline-none focus:border-primary dark:border-form-strokedark 
-  dark:bg-form-input dark:text-white dark:focus:border-primary"
->
-  <option value="" disabled>Select Tenant</option>
-  {tenants.map((tenant) => (
-    <option key={tenant.tenantID} value={tenant.tenantID}>
-      {tenant.tenantName}
-    </option>
-  ))}
-</select> */}
-
-        {/* <select
-    id="hospitalType"
-    name="hospitalType"
-    value={formData.hospitalType}
-    className="w-38 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-    onChange={(e) =>
-      setFormData({ ...formData, hospitalType: e.target.value })
-    }
-    required
-  >
-    <option value="">Hospital Type</option>
-    {hospitalTypes.length > 0 ? (
-      hospitalTypes.map((type) => (
-        <option key={type.appLOVID} value={type.name}>
-          {type.name} 
-        </option>
-      ))
-    ) : (
-      <option value="">No Hospital Types Available</option>
-    )}
-  </select> */}
-
         <select
-         value={username} 
-  className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  onChange={(e) => setUserName(e.target.value)}
->
-  <option value="">Select User</option>
-  {users.map((username, index) => (
-    <option key={index} value={username}>
-      {username}
-    </option>
-  ))}
-</select>
+          value={username}
+          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+          onChange={(e) => setUserName(e.target.value)}
+        >
+          <option value="">Select User</option>
+          {users.map((username, index) => (
+            <option key={index} value={username}>
+              {username}
+            </option>
+          ))}
+        </select>
 
-<CustomButton onClick={handleSearch}>Search</CustomButton>
-<CustomButton
-   className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
-            
-  onClick={() => {
-    setUserName(''); // Use the correct setter name here
-    fetchUsers();
-  }}
->
-  Reset
-</CustomButton>
-
-
+        <CustomButton onClick={handleSearch}>Search</CustomButton>
+        <CustomButton
+          className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
+          onClick={() => {
+            setUserName(''); // Use the correct setter name here
+            fetchUsers();
+          }}
+        >
+          Reset
+        </CustomButton>
       </div>
 
       {/* Grid Table */}
-  <ToastContainer position="top-right" autoClose={3000} />
+      <ToastContainer position="top-right" autoClose={3000} />
       <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
         <AgGridReact
           columnDefs={columnDefs}
@@ -582,21 +537,24 @@ const handleSaveRoles = async () => {
               </div>
 
               {/* Dynamically render roles in multiple rows with 3 checkboxes per row */}
-              <div className="grid grid-cols-3 gap-6 mb-4">
-                {allRoles.map((role) => (
-                  <div key={role.roleID} className="role-checkbox">
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        value={role.roleID}
-                        checked={selectedRoles.includes(role.roleID)} // Checked if the role is in the array
-                        onChange={() => handleRoleChange(role.roleID)} // Toggle role
-                      />
-                      {role.roleName}
-                    </label>
-                  </div>
-                ))}
-              </div>
+            {/* Dynamically render roles in multiple rows with 3 radio buttons per row */}
+<div className="grid grid-cols-3 gap-6 mb-4">
+  {allRoles.map((role) => (
+    <div key={role.roleID} className="role-radio">
+      <label className="flex items-center gap-2">
+        <input
+          type="radio"
+          name="userRole" // all radios should share the same name
+          value={role.roleID}
+          checked={selectedRoles === role.roleID}
+          onChange={() => handleRoleChange(role.roleID)}
+        />
+        {role.roleName}
+      </label>
+    </div>
+  ))}
+</div>
+
 
               {/* Buttons */}
               <div className="mt-4 flex gap-4 justify-end">
@@ -606,6 +564,7 @@ const handleSaveRoles = async () => {
 
                 <CustomButton onClick={handleSaveRoles}>Save</CustomButton>
               </div>
+              
             </form>
           </div>
         </div>

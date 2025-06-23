@@ -29,7 +29,7 @@ const Hospital: React.FC = () => {
   const [isActive, setIsActive] = useState(true); // Active filter for UI
   const [rowData, setRowData] = useState([]);
   const [tenants, setTenants] = useState([]); // State for tenant data
-  const [selectedTenant, setSelectedTenant] = useState(''); // State for selected tenan
+
   const [hospitalTypes, setHospitalTypes] = useState([]);
   const [filteredData, setFilteredData] = useState<RowData[]>([]); // Data filtered based on table search
   const [quickSearchText, setQuickSearchText] = useState(''); // For global search
@@ -43,6 +43,8 @@ const Hospital: React.FC = () => {
   const [manualCity, setManualCity] = useState('');
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
+  const roleName = sessionStorage.getItem('roleName'); // or localStorage
+
   const navigate = useNavigate();
   const [touchedFields, setTouchedFields] = useState<{
     [key: string]: boolean;
@@ -107,6 +109,9 @@ const Hospital: React.FC = () => {
   const editFormRef = useRef<HTMLDivElement | null>(null);
   // Fetch data from the API
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState<string>(() => {
+    return sessionStorage.getItem('tenantID') || '';
+  });
 
   useEffect(() => {
     const fetchHospitals = async () => {
@@ -169,58 +174,56 @@ const Hospital: React.FC = () => {
 
     const now = new Date().toISOString();
 
-   const payload = {
-  createdBy: userID,
-  createdOn: now,
-  updatedBy: userID,
-  updatedOn: now,
-  isActive: formData.isActive,
-  tenantID: selectedTenant,
-  hospitalName: formData.hospitalName.trim(),
-  hospitalCode: formData.hospitalCode.trim() || '',
-  hospitalType: formData.hospitalType.trim(),
-  email: formData.email?.trim() || '',
-  mobile: formData.mobile?.trim() || '',
-  landline: formData.landline?.trim() || '',
-  gst: formData.gst?.trim() || '',
+    const payload = {
+      createdBy: userID,
+      createdOn: now,
+      updatedBy: userID,
+      updatedOn: now,
+      isActive: formData.isActive,
+      tenantID: selectedTenant,
+      hospitalName: formData.hospitalName.trim(),
+      hospitalCode: formData.hospitalCode.trim() || '',
+      hospitalType: formData.hospitalType.trim(),
+      email: formData.email?.trim() || '',
+      mobile: formData.mobile?.trim() || '',
+      landline: formData.landline?.trim() || '',
+      gst: formData.gst?.trim() || '',
 
-  address: {
-    createdBy: userID,
-    createdOn: now,
-    updatedBy: userID,
-    updatedOn: now,
-    isActive: true,
-    id: null, // ✅ explicitly set to null
-    type: 'Hospital',
-    addressType: address.addressType || '',
-    address1: address.address1 || '',
-    address2: address.address2 || '',
-    city: address.city || '',
-    district: address.district || '',
-    state: address.state || '',
-    zipCode: address.zipCode || '',
-    isPrimary: true,
-  },
-};
+      address: {
+        createdBy: userID,
+        createdOn: now,
+        updatedBy: userID,
+        updatedOn: now,
+        isActive: true,
+        id: null, // ✅ explicitly set to null
+        type: 'Hospital',
+        addressType: address.addressType || '',
+        address1: address.address1 || '',
+        address2: address.address2 || '',
+        city: address.city || '',
+        district: address.district || '',
+        state: address.state || '',
+        zipCode: address.zipCode || '',
+        isPrimary: true,
+      },
+    };
 
+    try {
+      const response = await api.post('/Hospital', payload);
+      if (response.status === 201 || response.status === 200) {
+        toast.success('Hospital and address saved successfully!');
 
-   try {
-  const response = await api.post('/Hospital', payload);
-  if (response.status === 201 || response.status === 200) {
-    toast.success('Hospital and address saved successfully!');
-
-    // ⏳ Wait 2 seconds before navigating
-    setTimeout(() => {
-      navigate('/hospital');
-    }, 2000);
-  } else {
-    toast.error('Failed to save hospital. Please try again.');
-  }
-} catch (error) {
-  console.error('API call failed:', error);
-  toast.error('Failed to save hospital. Please try again.');
-}
-
+        // ⏳ Wait 2 seconds before navigating
+        setTimeout(() => {
+          navigate('/hospital');
+        }, 2000);
+      } else {
+        toast.error('Failed to save hospital. Please try again.');
+      }
+    } catch (error) {
+      console.error('API call failed:', error);
+      toast.error('Failed to save hospital. Please try again.');
+    }
   };
 
   const resetForm = () => {
@@ -357,8 +360,49 @@ const Hospital: React.FC = () => {
     const errors: { [key: string]: string } = {};
 
     if (!address.addressType) errors.addressType = 'Address type is required';
-    if (!address.address1) errors.address1 = 'Address line 1 is required';
-    if (!address.address2) errors.address2 = 'Address line 2 is required';
+  const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
+const hasText = /[a-zA-Z]/;
+const noOnlySpaces = /\S/;
+const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
+const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+const maxTwoDigits = (value: string) => (value.match(/\d/g) || []).length <= 2;
+
+if (!address.address1 || !noOnlySpaces.test(address.address1)) {
+  errors.address1 = 'Address line 1 is required';
+} else if (!hasText.test(address.address1)) {
+  errors.address1 = 'Address must include some text';
+} else if (!notRepeatedChar.test(address.address1)) {
+  errors.address1 = 'Repeated characters are not allowed';
+} else if (!noEmojis.test(address.address1)) {
+  errors.address1 = 'Emojis are not allowed';
+} else if (!onlyAllowedChars.test(address.address1)) {
+  errors.address1 = 'Only letters, numbers, spaces, comma, and slash are allowed';
+} else if (!maxTwoDigits(address.address1)) {
+  errors.address1 = 'Only up to 2 digits are allowed';
+}else if (address.address1.length < 5) {
+  errors.address1 = 'Address is too short or not meaningful';
+}
+
+
+
+if (!address.address2 || !noOnlySpaces.test(address.address2)) {
+  errors.address2 = 'Address line 2 is required';
+} else if (!hasText.test(address.address2)) {
+  errors.address2 = 'Address must include some text';
+} else if (!notRepeatedChar.test(address.address2)) {
+  errors.address2 = 'Repeated characters are not allowed';
+} else if (!noEmojis.test(address.address2)) {
+  errors.address2 = 'Emojis are not allowed';
+} else if (!onlyAllowedChars.test(address.address2)) {
+  errors.address2 = 'Only letters, numbers, spaces, comma, and slash are allowed';
+} else if (!maxTwoDigits(address.address2)) {
+  errors.address2 = 'Only up to 2 digits are allowed';
+}else if (address.address2.length < 5) {
+  errors.address2 = 'Address is too short or not meaningful';
+}
+
+
+
     if (!address.city) errors.city = 'City is required';
     if (!address.district) errors.district = 'District is required';
     if (!address.state) errors.state = 'State is required';
@@ -374,7 +418,8 @@ const Hospital: React.FC = () => {
     const errors = {};
     const emailRegex =
       /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
-    const phoneRegex = /^[6-9]\d{9}$/;
+    const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+
     const hospitalNameRegex = /^[A-Za-z_]{1,50}$/;
     const landlineRegex = /^(?:\+91\s\d{2}\s\d{8}|0\d{2,4}-\d{6,8})$/;
 
@@ -487,7 +532,6 @@ const Hospital: React.FC = () => {
     if (sessionHospitalID) setIsHospitalPrefilled(true);
   }, []);
 
- 
   useEffect(() => {
     if (!formData.email) {
       setFormErrors((prev) => ({ ...prev, email: '' }));
@@ -519,67 +563,68 @@ const Hospital: React.FC = () => {
     return () => clearTimeout(timer);
   }, [formData.email]);
 
- const handleMobileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  let value = e.target.value;
+  const handleMobileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    let value = e.target.value;
 
-  // Remove non-digit characters
-  value = value.replace(/\D/g, '');
+    // Remove non-digit characters
+    value = value.replace(/\D/g, '');
 
-  // Update the state with digits-only value
-  setFormData((prev) => ({ ...prev, mobile: value }));
+    // Update the state with digits-only value
+    setFormData((prev) => ({ ...prev, mobile: value }));
 
-  const phoneRegex = /^[6-9]\d{9}$/;
+   const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
 
-  if (!value) {
-    setFormErrors((prev) => ({
-      ...prev,
-      mobile: 'Mobile number is required.',
-    }));
-    setMobileValid(false);
-    return;
-  } else if (!phoneRegex.test(value)) {
-    setFormErrors((prev) => ({
-      ...prev,
-      mobile:
-        'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.',
-    }));
-    setMobileValid(false);
-    return;
-  }
 
-  try {
-    const result = await checkPhoneAvailability(value);
-
-    if (!result.success) {
+    if (!value) {
       setFormErrors((prev) => ({
         ...prev,
-        mobile: result.message,
+        mobile: 'Mobile number is required.',
       }));
       setMobileValid(false);
-    } else {
-      setFormErrors((prev) => ({ ...prev, mobile: '' }));
-      setMobileValid(true);
+      return;
+    } else if (!phoneRegex.test(value)) {
+      setFormErrors((prev) => ({
+        ...prev,
+        mobile:
+          'Enter a valid 10-digit mobile number starting with 6, 7, 8, or 9.',
+      }));
+      setMobileValid(false);
+      return;
     }
-  } catch (error) {
-    console.error('Phone availability check failed:', error);
-    setFormErrors((prev) => ({
-      ...prev,
-      mobile: 'Something went wrong. Please try again.',
-    }));
-    setMobileValid(false);
-  }
-};
 
+    try {
+      const result = await checkPhoneAvailability(value);
+
+      if (!result.success) {
+        setFormErrors((prev) => ({
+          ...prev,
+          mobile: result.message,
+        }));
+        setMobileValid(false);
+      } else {
+        setFormErrors((prev) => ({ ...prev, mobile: '' }));
+        setMobileValid(true);
+      }
+    } catch (error) {
+      console.error('Phone availability check failed:', error);
+      setFormErrors((prev) => ({
+        ...prev,
+        mobile: 'Something went wrong. Please try again.',
+      }));
+      setMobileValid(false);
+    }
+  };
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       {/* Back Button */}
-        <button
-          className="text-blue-600 font-medium hover:underline mb-4"
-          onClick={() => navigate('/hospital')}
-        >
-          &lt; Back
-        </button>
+      <button
+        onClick={() => navigate('/hospital')}
+        className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+      >
+        &larr; Back
+      </button>
+
       <h1 className="text-3xl font-semibold text-black text-center mb-6">
         Hospital Registration
       </h1>
@@ -597,20 +642,20 @@ const Hospital: React.FC = () => {
               <div>
                 <select
                   value={selectedTenant || ''}
+                  disabled={roleName !== 'SuperAdmin'} // Conditionally enable/disable based on role
                   onChange={(e) => setSelectedTenant(e.target.value)}
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-6 
-        text-black outline-none focus:border-primary dark:border-form-strokedark 
-        dark:bg-form-input dark:text-white dark:focus:border-primary"
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
-                  <option value="" disabled>
-                    Select Tenant
-                  </option>
+                  <option value="">Select Tenant</option>
                   {tenants.map((tenant) => (
                     <option key={tenant.tenantID} value={tenant.tenantID}>
                       {tenant.tenantName}
                     </option>
                   ))}
                 </select>
+
                 {formErrors.selectedTenant && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.selectedTenant}

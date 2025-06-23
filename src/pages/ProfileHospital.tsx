@@ -175,7 +175,8 @@ useEffect(() => {
     <div className="p-4">
        {/* Profile Section */}
         <button
-          className="text-blue-600 font-medium hover:underline"
+          className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+
           onClick={() => navigate('/search/hospital')}
         >
           &lt; Back

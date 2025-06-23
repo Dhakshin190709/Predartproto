@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../api/request';
-
+import { useLocation, useNavigate } from 'react-router-dom';
 declare global {
   interface Window {
     Razorpay: any;
@@ -10,7 +10,17 @@ declare global {
 }
 
 const Razorpay: React.FC = () => {
-  const [amount, setAmount] = useState<number>(1);
+   const location = useLocation();
+  const {
+    totalAmount,
+    planName,
+    subscriptionPrice,
+    setupPrice,
+    sgst,
+    cgst
+  } = location.state || {};
+  const [amount, setAmount] = useState<number>(totalAmount || 0);
+const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isVerified, setIsVerified] = useState<boolean>(false);
 
@@ -103,43 +113,67 @@ const Razorpay: React.FC = () => {
     }
   };
 
+
+useEffect(() => {
+  if (isVerified) {
+    // Redirect to FormWizard step 5 after verification
+   sessionStorage.setItem('jumpToStep', '3');
+navigate('/TenantFormWizard');
+
+  }
+}, [isVerified, navigate]);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-blue-50 p-6 relative">
-      {isLoading && (
-        <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50">
-          <div className="border-4 border-blue-500 border-t-transparent rounded-full w-16 h-16 animate-spin"></div>
-        </div>
-      )}
-
-      {isVerified ? (
-        <div className="bg-green-100 border border-green-400 text-green-800 px-8 py-6 rounded-2xl shadow-xl text-center">
-          <h2 className="text-2xl font-bold mb-2">Payment Verified</h2>
-          <p className="text-lg">Thank you for your payment!</p>
-        </div>
-      ) : (
-        <div className={`w-full max-w-md bg-white shadow-lg rounded-2xl p-8 space-y-6 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
-          <h2 className="text-2xl font-bold text-center text-blue-800">Razorpay Payment</h2>
-
-          <input
-            type="number"
-            min={1}
-            value={amount}
-            onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-            placeholder="Enter amount in ₹"
-          />
-
-          <button
-            className="w-full bg-blue-600 text-white font-medium px-4 py-3 rounded-lg hover:bg-blue-700 transition-all"
-            onClick={initiatePayment}
-          >
-            Pay ₹{amount}
-          </button>
-        </div>
-      )}
-
-      <ToastContainer position="top-right" autoClose={3000} />
+   <div className="flex flex-col items-center justify-center min-h-screen bg-blue-50 p-6 relative">
+  {isLoading && (
+    <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center z-50">
+      <div className="border-4 border-blue-500 border-t-transparent rounded-full w-16 h-16 animate-spin"></div>
     </div>
+  )}
+
+  {isVerified ? (
+    <div className="bg-green-100 border border-green-400 text-green-800 px-8 py-6 rounded-2xl shadow-xl text-center">
+      <h2 className="text-2xl font-bold mb-2">Payment Verified</h2>
+      <p className="text-lg">Thank you for your payment!</p>
+    </div>
+  ) : (
+    <div className={`w-full max-w-md bg-white shadow-lg rounded-2xl p-8 space-y-6 ${isLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+      <h2 className="text-2xl font-bold text-center text-blue-800">Razorpay Payment</h2>
+
+      {/* Total Amount shown in input field */}
+      <input
+        type="number"
+        value={totalAmount}
+        readOnly
+        className="w-full border border-gray-300 rounded-lg px-4 py-3 bg-gray-100 text-gray-700 cursor-not-allowed"
+        placeholder="Total Amount in ₹"
+      />
+
+      <button
+        className="w-full bg-blue-600 text-white font-medium px-4 py-3 rounded-lg hover:bg-blue-700 transition-all"
+        onClick={initiatePayment}
+      >
+        Pay ₹{totalAmount}
+      </button>
+    </div>
+  )}
+  
+
+  {/* <div className="p-6">
+    <h2 className="text-xl font-bold mb-4">Payment Summary</h2>
+    <p><strong>Plan Name:</strong> {planName}</p>
+    <p><strong>Subscription Price:</strong> ₹{subscriptionPrice}</p>
+    <p><strong>Setup Price:</strong> ₹{setupPrice}</p>
+    <p><strong>SGST (9%):</strong> ₹{sgst}</p>
+    <p><strong>CGST (9%):</strong> ₹{cgst}</p>
+    <p className="font-semibold text-lg text-green-700 pt-2">
+      Total Amount: ₹{totalAmount}
+    </p>
+  </div> */}
+
+  <ToastContainer position="top-right" autoClose={3000} />
+</div>
+
   );
 };
 

@@ -233,6 +233,7 @@ const LovMasters: React.FC = () => {
     {
       headerName: 'Delete',
       field: 'delete',
+      hide:true,
       flex: 0.8,
       width: 80, // Reduced width
       headerClass: 'center-header',
@@ -394,6 +395,7 @@ const LovMasters: React.FC = () => {
           <option value="Weekday">Weekday</option>
 
           <option value="MedicineTransfer">MedicineTransfer</option>
+          <option value="MedicalRecordDocument">MedicalRecordDocument</option>
         </select>
 
         {/* Name Filter */}
@@ -473,6 +475,7 @@ const LovMasters: React.FC = () => {
                 <option value="Weekday">Weekday</option>
 
                 <option value="MedicineTransfer">MedicineTransfer</option>
+                 <option value="MedicalRecordDocument">MedicalRecordDocument</option>
               </select>
 
               {/* Name Input */}

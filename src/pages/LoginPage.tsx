@@ -27,7 +27,6 @@ type ResultWithoutPayload = {
 
 type Result = ResultWithPayload | ResultWithoutPayload;
 
-
 const Login: React.FC = () => {
   const [emailOrMobile, setEmailOrMobile] = useState('');
   const [emailOrMobileError, setEmailOrMobileError] = useState('');
@@ -56,11 +55,11 @@ const Login: React.FC = () => {
   const [isResendEnabled, setIsResendEnabled] = useState(true);
   const [loginSuccess, setLoginSuccess] = useState(false);
   const navigate = useNavigate();
-const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
-const handleCaptchaChange = (token: string | null) => {
-  setCaptchaToken(token);
-};
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token);
+  };
   const handleEmailOrMobileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
   ) => {
@@ -222,25 +221,24 @@ const handleCaptchaChange = (token: string | null) => {
         return;
       }
 
-       const response = await api.post('/login/SendOTP', result.payload);
+      const response = await api.post('/login/SendOTP', result.payload);
 
+      if (response.status === 200) {
+        toast.success(
+          `OTP has been sent to your ${result.method.toLowerCase()}..!`,
+        );
+        setIsSendOtpDisabled(true);
 
-      
-
-     if (response.status === 200) {
-      toast.success(
-        `OTP has been sent to your ${result.method.toLowerCase()}..!`,
-      );
-      setIsSendOtpDisabled(true);
-
-      setTimeout(() => {
-        setIsOtpSent(true);
-        setCooldown(30);
-        setIsResendEnabled(false);
-      }, 1000);
-    } else {
-      toast.error(response.data.message || 'Failed to send OTP. Please try again.');
-    }
+        setTimeout(() => {
+          setIsOtpSent(true);
+          setCooldown(30);
+          setIsResendEnabled(false);
+        }, 1000);
+      } else {
+        toast.error(
+          response.data.message || 'Failed to send OTP. Please try again.',
+        );
+      }
     } catch (error) {
       console.error('Error sending OTP:', error);
       toast.error('An error occurred while sending OTP. Please try again.');
@@ -249,185 +247,179 @@ const handleCaptchaChange = (token: string | null) => {
     }
   };
 
- const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
-  e?.preventDefault();
+  const handleLogin = async (e?: React.FormEvent<HTMLFormElement>) => {
+    e?.preventDefault();
 
-  if (isSubmitting) return;
-  setIsSubmitting(true);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
 
-  if (rememberMe) {
-    toast.info('Your login info will be saved securely by the browser.');
-  }
-  // if (!captchaToken) {
-  //   toast.error('Please verify you are not a robot.');
-  //   return;
-  // }
-  if (!emailOrMobile) {
-    toast.error('Please enter your email or mobile number.');
-    setIsSubmitting(false);
-    return;
-  }
-
-  if (isOtp && (!otp || otp.some((digit) => digit === ''))) {
-    toast.error('Please enter the complete OTP.');
-    setIsSubmitting(false);
-    return;
-  }
-
-  if (!isOtp && !password) {
-    toast.error('Please enter your password.');
-    setIsSubmitting(false);
-    return;
-  }
-
-  const isMobileNumber = /^\d{10}$/.test(emailOrMobile);
-  const loginType = isMobileNumber ? 'Mobile' : 'Email';
-
-  const payload = isOtp
-    ? {
-        method: loginType,
-        [loginType.toLowerCase()]: emailOrMobile,
-        otp: otp.join(''),
-        loginType,
-      }
-    : {
-        username: emailOrMobile,
-        password,
-        loginType,
-      };
-
-  const endpoint = isOtp
-    ? '/login/ValidateOTP'
-    : '/login';
-
-  try {
-    const response = await api.post(endpoint, payload);  // using the api instance
-
-    const responseBody = response.data;  // response.data is where axios stores the response data
-
-    const keysToStore = [
-      'userPlan',
-      'tenantID',
-      'unitID',
-      'unitType',
-      'userID',
-      'username',
-    ];
-
-    if (
-      (isOtp || (response.status === 200 && responseBody.status !== 'OTP Invalid')) &&
-      responseBody.data
-    ) {
-      keysToStore.forEach((key) => {
-        const value = responseBody.data?.[key] || '';
-        sessionStorage.setItem(key, value);
-        console.log(`${key}:`, value);
-      });
-
-      const unitID = responseBody.data?.unitID;
-      if (unitID) {
-        sessionStorage.setItem('unitID', unitID);
-        console.log('unitID from session:', unitID);
-      }
-
-      // Store the token in localStorage
-      const token = responseBody.data?.token?.result?.value;
-      if (token) {
-        // Store the token in localStorage
-        localStorage.setItem('authToken', token);
-        console.log('Token saved in localStorage:', token);
-
-        // Optionally, set the token in the axios headers for subsequent requests
-        api.defaults.headers['Authorization'] = `Bearer ${token}`;
-        console.log('Authorization header set for future requests');
-      }
-
-      const userID = responseBody.data?.userID;
-      if (userID) {
-        const roleResponse = await api.get(`/UserRoles/${userID}`);
-        const roleResponseBody = roleResponse.data;
-
-        if (
-          roleResponse.status === 200 &&
-          roleResponseBody.success &&
-          roleResponseBody.data?.length > 0
-        ) {
-          const roleID = roleResponseBody.data[0].roleID;
-          console.log('User Role ID:', roleID);
-          sessionStorage.setItem('roleID', roleID);
-
-          const roleDetailsResponse = await api.get(`/Role/${roleID}`);
-          const roleDetailsResponseBody = roleDetailsResponse.data;
-
-          if (
-            roleDetailsResponse.status === 200 &&
-            roleDetailsResponseBody.success &&
-            roleDetailsResponseBody.data
-          ) {
-            const roleName = roleDetailsResponseBody.data.roleName;
-            console.log('Role Name:', roleName);
-            sessionStorage.setItem('roleName', roleName);
-
-            if (roleName === 'Patient') {
-              const patientResponse = await api.get(`/Patient/GetPatientByUserID?userId=${userID}`);
-              const patientResponseBody = patientResponse.data;
-              if (
-                patientResponse.status === 200 &&
-                patientResponseBody.success &&
-                patientResponseBody.data
-              ) {
-                const patientID = patientResponseBody.data.patientID;
-                console.log('Patient ID:', patientID);
-                sessionStorage.setItem('patientID', patientID);
-              } else {
-                console.error('Failed to fetch patient details');
-              }
-            } else if (roleName === 'Doctor') {
-              const doctorResponse = await api.get(`/Doctor/GetDoctorsByUserID?userId=${userID}`);
-              const doctorResponseBody = doctorResponse.data;
-              if (
-                doctorResponse.status === 200 &&
-                doctorResponseBody.success &&
-                doctorResponseBody.data
-              ) {
-                const doctorID = doctorResponseBody.data.doctorID;
-                console.log('Doctor ID:', doctorID);
-                sessionStorage.setItem('doctorID', doctorID);
-              } else {
-                console.error('Failed to fetch doctor details');
-              }
-            } else {
-              console.log('User is neither a Patient nor a Doctor');
-            }
-
-            toast.success(responseBody.message || 'Login successful!');
-            setTimeout(() => {
-              if (roleName === 'HostitalAdmin') {
-                navigate('/homePage');
-              } else {
-                navigate('/dashboard');
-              }
-            }, 1000);
-          } else {
-            console.error(
-              'Failed to fetch role details or role data is empty',
-            );
-          }
-        } else {
-          console.error('Failed to fetch user role ID or role data is empty');
-        }
-      }
-    } else {
-      toast.error(responseBody.message || 'Login failed. Please try again.');
+    if (rememberMe) {
+      toast.info('Your login info will be saved securely by the browser.');
     }
-  } catch (error) {
-    console.error('Login Error:', error);
-    toast.error('An error occurred while processing your request.');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+    // if (!captchaToken) {
+    //   toast.error('Please verify you are not a robot.');
+    //   return;
+    // }
+    if (!emailOrMobile) {
+      toast.error('Please enter your email or mobile number.');
+      setIsSubmitting(false);
+      return;
+    }
 
+    if (isOtp && (!otp || otp.some((digit) => digit === ''))) {
+      toast.error('Please enter the complete OTP.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!isOtp && !password) {
+      toast.error('Please enter your password.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const isMobileNumber = /^\d{10}$/.test(emailOrMobile);
+    const loginType = isMobileNumber ? 'Mobile' : 'Email';
+
+    const payload = isOtp
+      ? {
+          method: loginType,
+          [loginType.toLowerCase()]: emailOrMobile,
+          otp: otp.join(''),
+          loginType,
+        }
+      : {
+          username: emailOrMobile,
+          password,
+          loginType,
+        };
+
+    const endpoint = isOtp ? '/login/ValidateOTP' : '/login';
+
+    try {
+      // ✅ 2 second wait to show loading animation
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      const response = await api.post(endpoint, payload);
+      const responseBody = response.data;
+
+      if (
+        (isOtp ||
+          (response.status === 200 && responseBody.status !== 'OTP Invalid')) &&
+        responseBody.data
+      ) {
+        const {
+          userPlan,
+          tenantID,
+          unitID,
+          unitType,
+          userID,
+          username,
+          roleID,
+          roleName,
+          token,
+          roleMenuRights,
+          menus, // <--- added
+        } = responseBody.data;
+
+        // Save session and token
+        sessionStorage.setItem('userPlan', userPlan || '');
+        sessionStorage.setItem('tenantID', tenantID || '');
+        sessionStorage.setItem('unitID', unitID || '');
+        sessionStorage.setItem('unitType', unitType || '');
+        sessionStorage.setItem('userID', userID || '');
+        sessionStorage.setItem('username', username || '');
+        sessionStorage.setItem('roleID', roleID || '');
+        sessionStorage.setItem('roleName', roleName || '');
+        sessionStorage.setItem(
+          'roleMenuRights',
+          JSON.stringify(roleMenuRights || []),
+        );
+        // ✅ Store full menus
+        sessionStorage.setItem('roleMenus', JSON.stringify(menus || []));
+        console.log('✅ Full menus stored in sessionStorage:', menus);
+
+        // ✅ Store simplified menu summary (menuID, title, order, parentID)
+        if (Array.isArray(menus)) {
+          const simplifiedMenus = menus.map(
+            ({ menuID, title, order, parentID }) => ({
+              menuID,
+              title,
+              order,
+              parentID,
+            }),
+          );
+
+          sessionStorage.setItem(
+            'menuSummary',
+            JSON.stringify(simplifiedMenus),
+          );
+          console.log(
+            '✅ Simplified menu summary stored in sessionStorage:',
+            simplifiedMenus,
+          );
+        } else {
+          console.warn(
+            '⚠️ menus is not an array. Cannot create simplified menu summary.',
+          );
+        }
+
+        // Store token in localStorage and set default Authorization header
+        if (token) {
+          localStorage.setItem('authToken', token); // 🔐 Token saved
+          api.defaults.headers['Authorization'] = `Bearer ${token}`; // 🔒 Set token for future API calls
+          console.log('Token stored and Authorization header set.');
+        }
+
+        // Fetch Patient or Doctor ID if needed
+        if (roleName === 'Patient') {
+          const patientResponse = await api.get(
+            `/Patient/GetPatientByUserID?userId=${userID}`,
+          );
+          const patientData = patientResponse.data;
+          if (
+            patientResponse.status === 200 &&
+            patientData.success &&
+            patientData.data
+          ) {
+            sessionStorage.setItem('patientID', patientData.data.patientID);
+          } else {
+            console.error('Failed to fetch patient details');
+          }
+        } else if (roleName === 'Doctor') {
+          const doctorResponse = await api.get(
+            `/Doctor/GetDoctorsByUserID?userId=${userID}`,
+          );
+          const doctorData = doctorResponse.data;
+          if (
+            doctorResponse.status === 200 &&
+            doctorData.success &&
+            doctorData.data
+          ) {
+            sessionStorage.setItem('doctorID', doctorData.data.doctorID);
+          } else {
+            console.error('Failed to fetch doctor details');
+          }
+        }
+
+        // toast.success(responseBody.message || 'Login successful!');
+        setTimeout(() => {
+          if (roleName === 'HospitalAdmin') {
+            navigate('/homePage');
+          } else {
+            navigate('/dashboard');
+          }
+        }, 1000);
+      } else {
+        toast.error(responseBody.message || 'Login failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Login Error:', error);
+      toast.error('An error occurred while processing your request.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleOtpChange = (index: number, value: string) => {
     if (/^\d?$/.test(value)) {
@@ -468,52 +460,60 @@ const handleCaptchaChange = (token: string | null) => {
     e.preventDefault();
   };
 
- const handleResendOtp = async () => {
-  const trimmedInput = emailOrMobile.trim();
+  const handleResendOtp = async () => {
+    const trimmedInput = emailOrMobile.trim();
 
-  if (!trimmedInput) {
-    toast.error('Please enter your email or mobile number.', { autoClose: 2000 });
-    return;
-  }
-
-  const { method, payload, isMobile, error } = getLoginMethodPayload(trimmedInput);
-
-  if (error) {
-    toast.error(error, { autoClose: 2000 });
-    return;
-  }
-
-  setIisMobile(isMobile);
-  console.log(`Identified as ${method}. Resending OTP...`);
-
-  try {
-    // ✅ Use Axios instance instead of fetch
-    const response = await api.post('/login/SendOTP', payload);
-
-    if (response.status === 200) {
-      toast.success(`OTP has been resent to your ${method.toLowerCase()}..!`, { autoClose: 2000 });
-      setCooldown(30);
-      setIsResendEnabled(false);
-
-      // ✅ Clear OTP fields
-      setOtp(['', '', '', '', '', '']);
-
-      // Focus the first OTP input
-      const firstInput = document.getElementById('otp-0');
-      firstInput?.focus();
-    } else {
-      toast.error(response.data.message || 'Failed to resend OTP. Please try again.', { autoClose: 2000 });
+    if (!trimmedInput) {
+      toast.error('Please enter your email or mobile number.', {
+        autoClose: 2000,
+      });
+      return;
     }
-  } catch (error: any) {
-    console.error('Error resending OTP:', error);
-    toast.error(
-      error.response?.data?.message || 'An error occurred while resending OTP. Please try again.',
-      { autoClose: 2000 }
-    );
-  }
-};
 
-  
+    const { method, payload, isMobile, error } =
+      getLoginMethodPayload(trimmedInput);
+
+    if (error) {
+      toast.error(error, { autoClose: 2000 });
+      return;
+    }
+
+    setIisMobile(isMobile);
+    console.log(`Identified as ${method}. Resending OTP...`);
+
+    try {
+      // ✅ Use Axios instance instead of fetch
+      const response = await api.post('/login/SendOTP', payload);
+
+      if (response.status === 200) {
+        toast.success(
+          `OTP has been resent to your ${method.toLowerCase()}..!`,
+          { autoClose: 2000 },
+        );
+        setCooldown(30);
+        setIsResendEnabled(false);
+
+        // ✅ Clear OTP fields
+        setOtp(['', '', '', '', '', '']);
+
+        // Focus the first OTP input
+        const firstInput = document.getElementById('otp-0');
+        firstInput?.focus();
+      } else {
+        toast.error(
+          response.data.message || 'Failed to resend OTP. Please try again.',
+          { autoClose: 2000 },
+        );
+      }
+    } catch (error: any) {
+      console.error('Error resending OTP:', error);
+      toast.error(
+        error.response?.data?.message ||
+          'An error occurred while resending OTP. Please try again.',
+        { autoClose: 2000 },
+      );
+    }
+  };
 
   useEffect(() => {
     if (cooldown > 0) {
@@ -734,7 +734,7 @@ const handleCaptchaChange = (token: string | null) => {
                         Forgot password?
                       </Link>
                     </div>
-{/* <div className="form-group my-4">
+                    {/* <div className="form-group my-4">
   <ReCAPTCHA
     sitekey="YOUR_SITE_KEY" // Replace with your actual reCAPTCHA site key
     onChange={handleCaptchaChange}
@@ -743,16 +743,58 @@ const handleCaptchaChange = (token: string | null) => {
 
                     {/* <div className="mt-9 flex justify-center"> */}
                     <div className="mt-4 flex items-center justify-between">
-                      <CustomButton
-                        type="submit"
-                        disabled={isSubmitting}
-                        style={{
-                          pointerEvents: isSubmitting ? 'none' : 'auto',
-                          opacity: isSubmitting ? 0.6 : 1,
-                        }}
-                      >
-                        {isSubmitting ? 'Logging in...' : 'Login'}
-                      </CustomButton>
+                      <>
+                        {/* Overlay while submitting */}
+                        {isSubmitting && (
+                          <div className="fixed inset-0 z-50 flex items-center justify-center backdrop-blur-sm bg-blue-100/40">
+                            <div className="flex flex-col items-center">
+                            <div className="relative w-64 h-64"> {/* 🟢 Larger loader container */}
+  {[...Array(12)].map((_, i) => {
+    const size = 8 + i; // 🟢 Larger dots
+    const angle = i * 30;
+    const radius = 100; // 🟢 Wider circle radius
+    const radian = (angle * Math.PI) / 180;
+    const x = Math.cos(radian) * radius;
+    const y = Math.sin(radian) * radius;
+
+    return (
+      <span
+        key={i}
+        className="absolute rounded-full bg-blue-500 opacity-90"
+        style={{
+          width: `${size}px`,
+          height: `${size}px`,
+          top: `calc(50% + ${y}px)`,
+          left: `calc(50% + ${x}px)`,
+          transform: 'translate(-50%, -50%)',
+          animation: 'dotFade 1.2s linear infinite',
+          animationDelay: `${i * 0.1}s`,
+        }}
+      ></span>
+    );
+  })}
+</div>
+
+
+                              <p className="mt-6 text-blue-700 font-semibold animate-pulse text-xl">
+                                Logging you in...
+                              </p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Your login button */}
+                        <CustomButton
+                          type="submit"
+                          disabled={isSubmitting}
+                          style={{
+                            pointerEvents: isSubmitting ? 'none' : 'auto',
+                            opacity: isSubmitting ? 0.6 : 1,
+                          }}
+                        >
+                          {isSubmitting ? 'Logging in...' : 'Login'}
+                        </CustomButton>
+                      </>
 
                       <p>
                         Don’t have an account?{' '}
@@ -770,7 +812,6 @@ const handleCaptchaChange = (token: string | null) => {
                     )}
                     <ToastContainer position="top-right" autoClose={3000} />
                   </form>
-
                 </div>
               </div>
             </div>

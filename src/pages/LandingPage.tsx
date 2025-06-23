@@ -728,6 +728,7 @@ import Hospitals from './Navbar/Hospitals';
 import Contact from './Navbar/Contact';
 import PricingPlan from './Navbar/PricingPlan';
 import AboutUs from './Navbar/AboutUs';
+import Features from './Navbar/Features';
 const countries = [
   'Afghanistan',
   'Albania',
@@ -1019,10 +1020,10 @@ const LandingPage = () => {
   return (
     <>
       <div
-        className="flex flex-col pb-0 bg-cover bg-center bg-no-repeat"
+        className="flex flex-col pb-0 bg-cover bg-center bg-no-repeat "
         style={{
           backgroundImage:
-            "url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQocF0_W3_Iss4h4vfLqv29iUn4F96XV3o2xA&s')",
+            "url('https://plus.unsplash.com/premium_photo-1668487827029-2bd54133c303?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8aGVhcnQlMjBiZWF0fGVufDB8fDB8fHww')",
         }}
       >
         <div className="container">
@@ -1244,14 +1245,14 @@ const LandingPage = () => {
       </div>
 
       <div
-        className="flex py-20"
-        style={{
-          backgroundImage:
-            "url('https://img.freepik.com/premium-vector/health-care-medical-pattern-innovation-concept-background-design-abstract-geometric-hexagons_230610-1181.jpg')",
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-        }}
+        className="flex py-20 bg-[#ededed]"
+        // style={{
+        //   backgroundImage:
+        //     "url('https://img.freepik.com/premium-vector/health-care-medical-pattern-innovation-concept-background-design-abstract-geometric-hexagons_230610-1181.jpg')",
+        //   backgroundSize: 'cover',
+        //   backgroundPosition: 'center',
+        //   backgroundRepeat: 'no-repeat',
+        // }}
       >
         <div className="container">
           <div className="max-w-screen-xl mx-auto">
@@ -1317,6 +1318,9 @@ const LandingPage = () => {
       </div>
       <div>
         <PricingPlan />
+      </div>
+      <div>
+        <Features />
       </div>
       {/* <div>
         <Medicine />

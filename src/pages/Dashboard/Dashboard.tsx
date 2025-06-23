@@ -76,7 +76,7 @@ const AppointmentCard: React.FC = () => {
   const [appointments, setAppointments] = useState([]);
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
-  const [fromTime, setFromTime] = useState('');
+
   const [toTime, setToTime] = useState('');
   const [appointmentType, setAppointmentType] = useState(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -100,6 +100,10 @@ const AppointmentCard: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [mobileNo, setMobileNo] = useState('');
   const [email, setEmail] = useState('');
+  const [fromTime, setFromTime] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // "YYYY-MM-DD"
+  });
 
   const unitID = sessionStorage.getItem('unitID'); // or from props/state
 
@@ -143,7 +147,7 @@ const AppointmentCard: React.FC = () => {
     date: null as Date | null,
     time: null as Date | null,
   });
- const [updates, setUpdates] = useState([]);
+  const [updates, setUpdates] = useState([]);
   const [errors, setErrors] = useState({
     name: '',
     relationship: '',
@@ -156,54 +160,55 @@ const AppointmentCard: React.FC = () => {
     time: '',
   });
 
+  useEffect(() => {
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl('https://apidev.precare.in/dashboardHub', {
+        accessTokenFactory: () => localStorage.getItem('jwtToken'),
+      })
+      .withAutomaticReconnect()
+      .build();
 
-useEffect(() => {
-  const connection = new signalR.HubConnectionBuilder()
-    .withUrl('https://predart003-001-site1.anytempurl.com/dashboardHub', {
-      accessTokenFactory: () => localStorage.getItem('jwtToken')
-    })
-    .withAutomaticReconnect()
-    .build();
+    connection
+      .start()
+      .then(() => console.log('✅ Connected to SignalR'))
+      .catch(console.error);
 
-  connection.start()
-    .then(() => console.log('✅ Connected to SignalR'))
-    .catch(console.error);
+    // Update existing appointment
+    connection.on('ReceiveStatusUpdate', (updatedAppointment) => {
+      console.log('📥 Received status update:', updatedAppointment);
 
-  // Update existing appointment
-  connection.on('ReceiveStatusUpdate', (updatedAppointment) => {
-    console.log('📥 Received status update:', updatedAppointment);
-
-    setAppointments(prevAppointments => {
-      return prevAppointments.map(appointment =>
-        appointment.appointmentID === updatedAppointment.appointmentID
-          ? { ...appointment, ...updatedAppointment }
-          : appointment
-      );
+      setAppointments((prevAppointments) => {
+        return prevAppointments.map((appointment) =>
+          appointment.appointmentID === updatedAppointment.appointmentID
+            ? { ...appointment, ...updatedAppointment }
+            : appointment,
+        );
+      });
     });
-  });
 
-  // Add new appointment
-  connection.on('AppointmentNew', (newAppointment) => {
-    console.log('🆕 New appointment received:', newAppointment);
+    // Add new appointment
+    connection.on('AppointmentNew', (newAppointment) => {
+      console.log('🆕 New appointment received:', newAppointment);
 
-    setAppointments(prevAppointments => {
-      const exists = prevAppointments.some(
-        a => a.appointmentID === newAppointment.appointmentID
-      );
-      return exists ? prevAppointments : [...prevAppointments, newAppointment];
+      setAppointments((prevAppointments) => {
+        const exists = prevAppointments.some(
+          (a) => a.appointmentID === newAppointment.appointmentID,
+        );
+        return exists
+          ? prevAppointments
+          : [...prevAppointments, newAppointment];
+      });
     });
-  });
 
-  return () => {
-    connection.stop()
-      .then(() => console.log('SignalR connection stopped'))
-      .catch(err => console.error('Error stopping SignalR connection:', err));
-  };
-}, []);
-
- 
-
-
+    return () => {
+      connection
+        .stop()
+        .then(() => console.log('SignalR connection stopped'))
+        .catch((err) =>
+          console.error('Error stopping SignalR connection:', err),
+        );
+    };
+  }, []);
 
   useEffect(() => {
     if (roleName && roleName !== 'Patient') {
@@ -337,73 +342,71 @@ useEffect(() => {
   };
 
   const fetchAppointmentsBasedOnRole = async (userID: string, role: string) => {
-  setLoading(true);
-  setAppointments([]);
+    setLoading(true);
+    setAppointments([]);
 
-  try {
-    const todayDate = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
-    let endpoint = `/Appointment/GetAppointment?StartDate=${todayDate}`; // relative path
+    try {
+      const todayDate = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
+      let endpoint = `/Appointment/GetAppointment?StartDate=${todayDate}`; // relative path
 
-    if (role === 'Patient') {
-      const patientID = sessionStorage.getItem('patientID');
-      if (!patientID) {
-        console.warn('⚠️ patientID not found in sessionStorage.');
-        return;
-      }
-      endpoint += `&PatientID=${patientID}`;
-    } else if (role === 'Doctor') {
-      const doctorID = sessionStorage.getItem('doctorID');
-      if (!doctorID) {
-        console.warn('⚠️ doctorID not found in sessionStorage.');
-        return;
-      }
-      endpoint += `&DoctorID=${doctorID}`;
-    } else if (
-      ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
-    ) {
-      const unitID = sessionStorage.getItem('unitID');
-      if (!unitID) {
-        console.warn('⚠️ unitID not found in sessionStorage.');
-        return;
-      }
-      endpoint += `&HospitalID=${unitID}`;
+      if (role === 'Patient') {
+        const patientID = sessionStorage.getItem('patientID');
+        if (!patientID) {
+          console.warn('⚠️ patientID not found in sessionStorage.');
+          return;
+        }
+        endpoint += `&PatientID=${patientID}`;
+      } else if (role === 'Doctor') {
+        const doctorID = sessionStorage.getItem('doctorID');
+        if (!doctorID) {
+          console.warn('⚠️ doctorID not found in sessionStorage.');
+          return;
+        }
+        endpoint += `&DoctorID=${doctorID}`;
+      } else if (
+        ['Reception', 'Medical', 'LABIncharge', 'Cash'].includes(role)
+      ) {
+        const unitID = sessionStorage.getItem('unitID');
+        if (!unitID) {
+          console.warn('⚠️ unitID not found in sessionStorage.');
+          return;
+        }
+        endpoint += `&HospitalID=${unitID}`;
 
-      const statusMap: Record<string, string> = {
-        Medical: 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396',
-        LABIncharge: 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396',
-        Cash: '5855b16d-1447-4856-b4be-08dd57ac7396',
-      };
+        const statusMap: Record<string, string> = {
+          Medical: 'af33b3bb-b1b7-46f5-b4bf-08dd57ac7396',
+          LABIncharge: 'a1c4ba4c-a87b-4b25-b4c0-08dd57ac7396',
+          Cash: '5855b16d-1447-4856-b4be-08dd57ac7396',
+        };
 
-      if (statusMap[role]) {
-        endpoint += `&StatusID=${statusMap[role]}`;
+        if (statusMap[role]) {
+          endpoint += `&StatusID=${statusMap[role]}`;
+        }
+      } else if (role === 'TenantAdmin') {
+        const tenantID = sessionStorage.getItem('tenantID');
+        if (!tenantID) {
+          console.warn('⚠️ tenantID not found in sessionStorage.');
+          return;
+        }
+        endpoint += `&TenantID=${tenantID}`;
       }
-    } else if (role === 'TenantAdmin') {
-      const tenantID = sessionStorage.getItem('tenantID');
-      if (!tenantID) {
-        console.warn('⚠️ tenantID not found in sessionStorage.');
-        return;
+
+      const response = await api.get(endpoint);
+      const apptData = response.data;
+
+      if (Array.isArray(apptData)) {
+        setAppointments(apptData);
+        setNoAppointments(apptData.length === 0);
+      } else {
+        setAppointments([]);
+        setNoAppointments(true);
       }
-      endpoint += `&TenantID=${tenantID}`;
+    } catch (error) {
+      console.error('❌ Error fetching appointments:', error);
+    } finally {
+      setLoading(false);
     }
-
-    const response = await api.get(endpoint);
-    const apptData = response.data;
-
-    if (Array.isArray(apptData)) {
-      setAppointments(apptData);
-      setNoAppointments(apptData.length === 0);
-    } else {
-      setAppointments([]);
-      setNoAppointments(true);
-    }
-  } catch (error) {
-    console.error('❌ Error fetching appointments:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
+  };
 
   const filteredTimeSlots = availableSlots.filter(
     (slot) => slot.date === selectedDate,
@@ -482,7 +485,7 @@ useEffect(() => {
       timeSlotID: selectedAppointment.timeSlotID,
       appointmentDate,
       appointmentTime: timeFormatted,
-      statusID: '82d2585e-3e84-404d-b4c2-08dd57ac7396', // 💥 Force "Reschedule" status
+      statusID: '1e244651-44d7-47e3-a765-08dda4b836cc', // 💥 Force "Reschedule" status
       phoneNumber: selectedAppointment.phoneNumber,
       notes: selectedAppointment.notes,
       toWhom: selectedAppointment.toWhom,
@@ -516,27 +519,27 @@ useEffect(() => {
 
   const loggedInUserID = 'your-logged-in-user-id'; // get dynamically from auth context or state
 
-  const updateAppointmentStatus = async (
-    appointmentID: string,
-    payload: Partial<AppointmentPayload>,
-  ) => {
-    try {
-      const updatedPayload: AppointmentPayload = {
-        ...payload,
-        updatedBy: loggedInUserID,
-        updatedOn: new Date().toISOString(),
-      };
+  // const updateAppointmentStatus = async (
+  //   appointmentID: string,
+  //   payload: Partial<AppointmentPayload>,
+  // ) => {
+  //   try {
+  //     const updatedPayload: AppointmentPayload = {
+  //       ...payload,
+  //       updatedBy: loggedInUserID,
+  //       updatedOn: new Date().toISOString(),
+  //     };
 
-      const response = await axios.put(
-        `https://predart003-001-site1.anytempurl.com/api/Appointment/${appointmentID}`,
-        updatedPayload,
-      );
-      return response.data;
-    } catch (error) {
-      console.error('Failed to update appointment:', error);
-      throw error;
-    }
-  };
+  //     const response = await axios.put(
+  //       `https://predart003-001-site1.anytempurl.com/api/Appointment/${appointmentID}`,
+  //       updatedPayload,
+  //     );
+  //     return response.data;
+  //   } catch (error) {
+  //     console.error('Failed to update appointment:', error);
+  //     throw error;
+  //   }
+  // };
 
   useEffect(() => {
     if (isEditModalOpen && selectedAppointment) {
@@ -586,7 +589,7 @@ useEffect(() => {
   useEffect(() => {
     const fetchStatusList = async () => {
       try {
-        const response = await api.get('/AppLOV?type=appointmentstauts');
+        const response = await api.get('/AppLOV?type=AppointmentStatus');
         // Filter only active items
         if (Array.isArray(response.data?.data)) {
           const activeStatusList = response.data.data.filter(
@@ -602,42 +605,43 @@ useEffect(() => {
     fetchStatusList();
   }, []);
 
-useEffect(() => {
-  api
-    .get('/Doctor')
-    .then((response) => {
-      if (response.data.success && Array.isArray(response.data.data)) {
-        // Step 1: Remove duplicates
-        const uniqueMap = new Map();
+  useEffect(() => {
+    api
+      .get('/Doctor')
+      .then((response) => {
+        if (response.data.success && Array.isArray(response.data.data)) {
+          // Step 1: Remove duplicates
+          const uniqueMap = new Map();
 
-        response.data.data.forEach((doctor) => {
-          const nameKey = doctor.doctorName.toLowerCase().trim();
-          if (!uniqueMap.has(nameKey)) {
-            uniqueMap.set(nameKey, doctor);
-          }
-        });
+          response.data.data.forEach((doctor) => {
+            const nameKey = doctor.doctorName.toLowerCase().trim();
+            if (!uniqueMap.has(nameKey)) {
+              uniqueMap.set(nameKey, doctor);
+            }
+          });
 
-        const uniqueDoctors = Array.from(uniqueMap.values());
+          const uniqueDoctors = Array.from(uniqueMap.values());
 
-        // Step 2: Forcefully sort Dr. names under 'D'
-        const sortedDoctors = uniqueDoctors.sort((a, b) => {
-          const nameA = a.doctorName.trim();
-          const nameB = b.doctorName.trim();
+          // Step 2: Forcefully sort Dr. names under 'D'
+          const sortedDoctors = uniqueDoctors.sort((a, b) => {
+            const nameA = a.doctorName.trim();
+            const nameB = b.doctorName.trim();
 
-          // Dr. names go by full string comparison as-is
-          return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
-        });
+            // Dr. names go by full string comparison as-is
+            return nameA.localeCompare(nameB, undefined, {
+              sensitivity: 'base',
+            });
+          });
 
-        setDoctors(sortedDoctors);
-      } else {
-        console.error('Invalid data format');
-      }
-    })
-    .catch((error) => {
-      console.error('Error fetching doctors:', error);
-    });
-}, []);
-
+          setDoctors(sortedDoctors);
+        } else {
+          console.error('Invalid data format');
+        }
+      })
+      .catch((error) => {
+        console.error('Error fetching doctors:', error);
+      });
+  }, []);
 
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
@@ -1373,6 +1377,7 @@ useEffect(() => {
             onChange={(e) => setFromTime(e.target.value)}
             className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
           />
+
           <input
             type="text"
             placeholder="To Date"
@@ -1410,7 +1415,17 @@ useEffect(() => {
 
         {roleName === 'Reception' && (
           <div className="flex space-x-5">
-            <CustomButton onClick={() => setIsModalOpen(true)}>
+            <CustomButton
+              onClick={() => {
+                setMobileNo('');
+                setEmail('');
+                setPhoneError('');
+                setEmailError('');
+                setPatients([]); // ✅ old patient list clear
+                setCheckAttempted(false); // ✅ don't show result box
+                setIsModalOpen(true); // ✅ open modal
+              }}
+            >
               Check Patient
             </CustomButton>
           </div>
@@ -1419,12 +1434,14 @@ useEffect(() => {
 
       <ToastContainer position="top-right" />
       {/* Render message only if not loading and no appointments exist */}
- <div>
-      <h2>Live Appointment Status Updates</h2>
-      <ul>
-        {updates.map((msg, i) => <li key={i}>{msg}</li>)}
-      </ul>
-    </div>
+      <div>
+        <h2>Live Appointment Status Updates</h2>
+        <ul>
+          {updates.map((msg, i) => (
+            <li key={i}>{msg}</li>
+          ))}
+        </ul>
+      </div>
       {loading ? (
         <p>Loading appointments...</p>
       ) : appointments.length === 0 ? (
@@ -1492,7 +1509,7 @@ useEffect(() => {
                   {/* Edit icon logic */}
                   {((roleName === 'Patient' &&
                     appointment?.statusID ===
-                      '71cb1b67-af86-48f0-b4c5-08dd57ac7396') ||
+                      '1830c480-8aa4-4162-a766-08dda4b836cc') ||
                     roleName === 'Reception' ||
                     roleName === 'SuperAdmin') && (
                     <FaEdit
@@ -1573,15 +1590,32 @@ useEffect(() => {
                   {getStatusInfo(appointment.statusID)}
                 </span>
 
-                {/* Change Status button: hide if role is Patient */}
-                {roleName !== 'Patient' && (
-                  <button
-                    onClick={() => toggleDropdown(index)}
-                    className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
-                  >
-                    Update Status
-                  </button>
-                )}
+                {/* Button group aligned to right */}
+                <div className="flex gap-2 ml-auto">
+                  {roleName === 'Doctor' && (
+                    <button
+                      onClick={() => {
+                        console.log(
+                          'Prescribe clicked for appointment:',
+                          appointment,
+                        ); // ✅ log to console
+                        navigate('/medical', { state: { appointment } }); // ✅ navigate with data
+                      }}
+                      className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 whitespace-nowrap"
+                    >
+                      Prescribe
+                    </button>
+                  )}
+
+                  {roleName !== 'Patient' && (
+                    <button
+                      onClick={() => toggleDropdown(index)}
+                      className="px-3 py-1 bg-blue-400 text-white rounded-md hover:bg-blue-500 whitespace-nowrap"
+                    >
+                      Update Status
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* Status Dropdown */}
@@ -1596,12 +1630,12 @@ useEffect(() => {
                     setSelectedStatus(status);
                     setSelectedAppointmentId(appointment.appointmentID);
 
-                    if (status === '82d2585e-3e84-404d-b4c2-08dd57ac7396') {
+                    if (status === '1e244651-44d7-47e3-a765-08dda4b836cc') {
                       // Reschedule
                       setSelectedAppointment(appointment);
                       setIsEditModalOpen(true);
                     } else if (
-                      status === '71cb1b67-af86-48f0-b4c5-08dd57ac7396'
+                      status === '1830c480-8aa4-4162-a766-08dda4b836cc'
                     ) {
                       // Consult Another Doctor
                       setShowDoctorDropdown(true);
@@ -1945,8 +1979,6 @@ useEffect(() => {
         </div>
       )}
 
-
-
       {/* Modal Backdrop */}
       {isModalOpen && (
         <div
@@ -2026,48 +2058,50 @@ useEffect(() => {
             </button>
 
             {/* Patient Cards */}
-            <div className="mt-6 max-h-72 overflow-y-auto space-y-4">
-              {patients.map((patient) => (
-                <div
-                  key={patient.patientID}
-                  className="border rounded p-4 shadow-sm hover:shadow-md transition"
-                >
-                  <p>
-                    <span className="font-semibold">Name:</span>{' '}
-                    {patient.patientName}
-                  </p>
-                  <p>
-                    <span className="font-semibold">DOB:</span>{' '}
-                    {new Date(patient.patientDateOfBirth).toLocaleDateString()}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Gender:</span>{' '}
-                    {patient.patientGender}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Phone:</span>{' '}
-                    {patient.patientPhoneNumber}
-                  </p>
-                  <p>
-                    <span className="font-semibold">Email:</span>{' '}
-                    {patient.patientEmail}
-                  </p>
-                  <p>
-                    <span className="font-semibold">UHID:</span> {patient.uhid}
-                  </p>
-                </div>
-              ))}
-
-              {checkAttempted && !loading && (
-                <div className="mt-4 text-center text-gray-600">
-                  {patients.length === 0 ? (
+            {checkAttempted && !loading && (
+              <div className="mt-6 max-h-72 overflow-y-auto space-y-4">
+                {patients.length > 0 ? (
+                  patients.map((patient) => (
+                    <div
+                      key={patient.patientID}
+                      className="border rounded p-4 shadow-sm hover:shadow-md transition"
+                    >
+                      <p>
+                        <span className="font-semibold">Name:</span>{' '}
+                        {patient.patientName}
+                      </p>
+                      <p>
+                        <span className="font-semibold">DOB:</span>{' '}
+                        {new Date(
+                          patient.patientDateOfBirth,
+                        ).toLocaleDateString()}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Gender:</span>{' '}
+                        {patient.patientGender}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Phone:</span>{' '}
+                        {patient.patientPhoneNumber}
+                      </p>
+                      <p>
+                        <span className="font-semibold">Email:</span>{' '}
+                        {patient.patientEmail}
+                      </p>
+                      <p>
+                        <span className="font-semibold">UHID:</span>{' '}
+                        {patient.uhid}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="mt-4 text-center text-gray-600">
                     <p>No patients found, please register.</p>
-                  ) : (
-                    <p>Please click Enroll.</p>
-                  )}
-                </div>
-              )}
-            </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action Button based on API response */}
             <div className="mt-4 flex justify-between items-center space-x-4">
               {checkAttempted && patients.length === 0 && !loading ? (

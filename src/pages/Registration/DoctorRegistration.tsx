@@ -54,7 +54,8 @@ const DoctorRegistration: React.FC = () => {
   }>({});
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [aadhaarExists, setAadhaarExists] = useState<boolean | null>(null); // null: not checked, false: does not exist, true: exists
-const [panExists, setPanExists] = useState<boolean | null>(null);
+  const [panExists, setPanExists] = useState<boolean | null>(null);
+  const roleName = sessionStorage.getItem('roleName');
 
   const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
 
@@ -80,12 +81,12 @@ const [panExists, setPanExists] = useState<boolean | null>(null);
       DateOfBirth: '',
     };
 
-const nameRegex = /^[A-Za-z][A-Za-z0-9._\s]{1,49}$/;
+    const nameRegex = /^[A-Za-z][A-Za-z0-9._\s]{1,49}$/;
 
-const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
+    const emailRegex =
+      /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
 
-
-   const phoneRegex = /^[6-9]\d{9}$/;
+    const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
 
     const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
     const trimmedPan = formData.pan?.trim() || '';
@@ -93,22 +94,25 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     const aadhaarRegex = /^\d{12}$/;
 
     // Basic checks
-  if (!formData.name) {
-  newErrors.name = 'Name is required.';
-} else if (!nameRegex.test(formData.name)) {
-  newErrors.name = 'Enter a valid name (2-50 characters, start with a letter, allow letters, digits, ., _, space).';
-}
+    if (!formData.name) {
+      newErrors.name = 'Name is required.';
+    } else if (!nameRegex.test(formData.name)) {
+      newErrors.name =
+        'Enter a valid name (2-50 characters, start with a letter, allow letters, digits, ., _, space).';
+    }
     if (!formData.email) {
-  newErrors.email = 'Email is required.';
-} else if (!emailRegex.test(formData.email)) {
-  newErrors.email = 'Invalid email format. Please enter a valid email like example@example.com';
-}
+      newErrors.email = 'Email is required.';
+    } else if (!emailRegex.test(formData.email)) {
+      newErrors.email =
+        'Invalid email format. Please enter a valid email like example@example.com';
+    }
 
-   if (!formData.phone) {
-  newErrors.phone = 'Phone number is required.';
-} else if (!phoneRegex.test(formData.phone)) {
-  newErrors.phone = 'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
-}
+    if (!formData.phone) {
+      newErrors.phone = 'Phone number is required.';
+    } else if (!phoneRegex.test(formData.phone)) {
+      newErrors.phone =
+        'Phone number must start with 6, 7, 8, or 9 and be exactly 10 digits.';
+    }
 
     if (!formData.qualification)
       newErrors.qualification = 'Qualification is required.';
@@ -118,11 +122,19 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     if (!formData.hospitalType)
       newErrors.hospitalType = 'Hospital is required.';
     if (!formData.gender) newErrors.gender = 'Gender is required.';
+
     if (!formData.aadhaar) {
-      newErrors.aadhaar = 'Aadhaar is required.';
-    } else if (!aadhaarRegex.test(formData.aadhaar)) {
-      newErrors.aadhaar = 'Aadhaar must be a 12-digit number.';
-    }
+  newErrors.aadhaar = 'Aadhaar is required.';
+} else if (!/^\d{12}$/.test(formData.aadhaar)) {
+  newErrors.aadhaar = 'Aadhaar must be a 12-digit number.';
+} else if (
+  /^(\d)\1{11}$/.test(formData.aadhaar) ||       // Same digit repeated 12 times (e.g., 000000000000)
+  /^0{6,}\d{6,}$/.test(formData.aadhaar) ||      // 6+ leading 0s (e.g., 000000123456)
+  /^(\d{6})\1$/.test(formData.aadhaar)           // Repeating 6-digit blocks (e.g., 123456123456)
+) {
+  newErrors.aadhaar = 'Invalid Aadhaar number.';
+}
+
 
     if (!trimmedPan) {
       newErrors.pan = 'PAN is required.';
@@ -147,48 +159,55 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     }
 
     // API checks for duplicates
-     // API checks for duplicates (only if no error exists)
-  try {
-    const apiPromises = [];
+    // API checks for duplicates (only if no error exists)
+    try {
+      const apiPromises = [];
 
-    // Check for duplicate name
-    if (!newErrors.name) {
-      apiPromises.push(
-        api.get(`/Login/CheckUserNameExist?UserName=${formData.name}`).then((res) => {
-          if (res.data.success) newErrors.name = 'Name already exists.';
-        })
-      );
+      // Check for duplicate name
+      if (!newErrors.name) {
+        apiPromises.push(
+          api
+            .get(`/Login/CheckUserNameExist?UserName=${formData.name}`)
+            .then((res) => {
+              if (res.data.success) newErrors.name = 'Name already exists.';
+            }),
+        );
+      }
+
+      // Check for duplicate email
+      if (!newErrors.email) {
+        apiPromises.push(
+          api
+            .get(`/Login/CheckEmailExist?Email=${formData.email}`)
+            .then((res) => {
+              if (res.data.success) newErrors.email = 'Email already exists.';
+            }),
+        );
+      }
+
+      // Check for duplicate phone
+      if (!newErrors.phone) {
+        apiPromises.push(
+          api
+            .get(`/Login/CheckMobileExist?Mobile=${formData.phone}`)
+            .then((res) => {
+              if (res.data.success)
+                newErrors.phone = 'Mobile number already exists.';
+            }),
+        );
+      }
+
+      // Wait for all API requests to finish
+      await Promise.all(apiPromises);
+    } catch (err) {
+      console.error('Error checking duplicates:', err);
     }
 
-    // Check for duplicate email
-    if (!newErrors.email) {
-      apiPromises.push(
-        api.get(`/Login/CheckEmailExist?Email=${formData.email}`).then((res) => {
-          if (res.data.success) newErrors.email = 'Email already exists.';
-        })
-      );
-    }
+    setErrors(newErrors);
 
-    // Check for duplicate phone
-    if (!newErrors.phone) {
-      apiPromises.push(
-        api.get(`/Login/CheckMobileExist?Mobile=${formData.phone}`).then((res) => {
-          if (res.data.success) newErrors.phone = 'Mobile number already exists.';
-        })
-      );
-    }
-
-    // Wait for all API requests to finish
-    await Promise.all(apiPromises);
-  } catch (err) {
-    console.error('Error checking duplicates:', err);
-  }
-
-  setErrors(newErrors);
-
-  // If any field has an error, return false
-  return Object.values(newErrors).every((error) => error === '');
-};
+    // If any field has an error, return false
+    return Object.values(newErrors).every((error) => error === '');
+  };
 
   const handleRegister = async () => {
     const userID = sessionStorage.getItem('userID');
@@ -225,9 +244,9 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     };
 
     try {
-       const response = await api.post('/Doctor/SaveDoctor', requestData); // Using the axios instance
+      const response = await api.post('/Doctor/SaveDoctor', requestData); // Using the axios instance
 
-    console.log('API Response:', response);
+      console.log('API Response:', response);
 
       if (response.status === 200 || response.status === 201) {
         const doctorID = response.data.data;
@@ -235,19 +254,25 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
         console.log('Stored doctorID:', doctorID);
 
         toast.success('Doctor registered successfully!');
-        setFormData({
+        setFormData((prev) => ({
+          ...prev,
           name: '',
           email: '',
           phone: '',
           qualification: '',
           specialization: '',
           gender: '',
-          tenant: '',
-          hospitalType: '',
           DateOfBirth: '',
           aadhaar: '',
           pan: '',
-        });
+          // 👇 retain these
+          tenant: prev.tenant,
+          hospitalType: prev.hospitalType,
+        }));
+        setErrors({});
+        // ✅ Clear Aadhaar/PAN existence checks
+        setAadhaarExists(null);
+        setPanExists(null);
       } else {
         toast.error('Something went wrong. Please try again.');
       }
@@ -258,56 +283,66 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
   };
 
   const handleSingleInputChange = (field: string, value: string) => {
-  // Only convert PAN to uppercase
-  const inputValue = field === 'pan' ? value.toUpperCase() : value;
+    // Only convert PAN to uppercase
+    const inputValue = field === 'pan' ? value.toUpperCase() : value;
 
-  setFormData({ ...formData, [field]: inputValue });
-  setErrors({ ...errors, [field]: '' });
+    setFormData({ ...formData, [field]: inputValue });
+    setErrors({ ...errors, [field]: '' });
 
-  // Aadhaar check
-  if (field === 'aadhaar') {
-    setAadhaarExists(null);
-    if (value.length === 12) {
-      checkAadhaarExists(value);
+    // Aadhaar check
+    if (field === 'aadhaar') {
+      setAadhaarExists(null);
+
+      const aadhaarPattern = /^\d{12}$/;
+      const isInvalid =
+        !aadhaarPattern.test(value) ||
+        /^(\d)\1{11}$/.test(value) ||
+        /^0{6,}\d{6,}$/.test(value) ||
+        /^(\d{6})\1$/.test(value);
+
+      if (isInvalid) {
+        setErrors((prev) => ({ ...prev, aadhaar: 'Invalid Aadhaar number.' }));
+      } else {
+        setErrors((prev) => ({ ...prev, aadhaar: '' }));
+        checkAadhaarExists(value);
+      }
     }
-  }
 
-  // PAN check
-  if (field === 'pan') {
-    setPanExists(null);
-    if (/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(inputValue)) {
-      checkPanExists(inputValue);
+    // PAN check
+    if (field === 'pan') {
+      setPanExists(null);
+      if (/^[A-Z]{5}[0-9]{4}[A-Z]$/.test(inputValue)) {
+        checkPanExists(inputValue);
+      }
     }
-  }
-};
-
+  };
 
   const checkAadhaarExists = async (uid: string) => {
-  try {
-    const response = await api.get(`/Login/CheckUIDExist?UID=${uid}`);
-    const data = response.data;
+    try {
+      const response = await api.get(`/Login/CheckUIDExist?UID=${uid}`);
+      const data = response.data;
 
-    setAadhaarExists(data.success); // success: false → available; true → exists
-  } catch (error) {
-    console.error('Error checking Aadhaar:', error);
-    setAadhaarExists(null); // fallback to null in case of error
-  }
-};
+      setAadhaarExists(data.success); // success: false → available; true → exists
+    } catch (error) {
+      console.error('Error checking Aadhaar:', error);
+      setAadhaarExists(null); // fallback to null in case of error
+    }
+  };
 
   const checkPanExists = async (pan: string) => {
-  try {
-    const response = await api.get(`/Login/CheckPANExist?PanNumber=${pan}`);
-    const data = response.data;
+    try {
+      const response = await api.get(`/Login/CheckPANExist?PanNumber=${pan}`);
+      const data = response.data;
 
-    // Assuming 'data.success' indicates whether PAN exists or not
-    setPanExists(data.success); // true = exists, false = available
-  } catch (error) {
-    console.error("Error checking PAN:", error);
-    setPanExists(null); // Set to null in case of error
-  }
-};
+      // Assuming 'data.success' indicates whether PAN exists or not
+      setPanExists(data.success); // true = exists, false = available
+    } catch (error) {
+      console.error('Error checking PAN:', error);
+      setPanExists(null); // Set to null in case of error
+    }
+  };
 
-   useEffect(() => {
+  useEffect(() => {
     const fetchAppLOV = async () => {
       try {
         const response = await api.get('/AppLOV');
@@ -315,9 +350,21 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
 
         if (data) {
           // Filter and set state based on item type
-          setQualifications(data.data.filter((item: { type: string }) => item.type === 'Qualification'));
-          setSpecializations(data.data.filter((item: { type: string }) => item.type === 'Specializations'));
-          setGenders(data.data.filter((item: { type: string }) => item.type === 'Gender'));
+          setQualifications(
+            data.data.filter(
+              (item: { type: string }) => item.type === 'Qualification',
+            ),
+          );
+          setSpecializations(
+            data.data.filter(
+              (item: { type: string }) => item.type === 'Specializations',
+            ),
+          );
+          setGenders(
+            data.data.filter(
+              (item: { type: string }) => item.type === 'Gender',
+            ),
+          );
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -327,19 +374,26 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
     fetchAppLOV();
   }, []);
 
-
- 
   useEffect(() => {
     const fetchHospitals = async () => {
+      const tenantID = sessionStorage.getItem('tenantID');
+
+      if (!tenantID) {
+        console.error('Tenant ID not found in session storage.');
+        return;
+      }
+
       try {
-        const response = await api.get('/Hospital/List');
+        const response = await api.get(`/Hospital/List?tenantId=${tenantID}`);
         const data = response.data;
 
-        console.log('API Response:', data); // Log the array of hospital objects
+        console.log('API Response:', data);
+
         if (Array.isArray(data)) {
-          // Filter hospitals to only include active ones
-          const activeHospitals = data.filter((hospital: { isActive: boolean }) => hospital.isActive);
-          setHospitals(activeHospitals); // Set only active hospitals
+          const activeHospitals = data.filter(
+            (hospital: { isActive: boolean }) => hospital.isActive,
+          );
+          setHospitals(activeHospitals);
         } else {
           console.warn('Unexpected response format:', data);
         }
@@ -350,7 +404,6 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
 
     fetchHospitals();
   }, []);
-
 
   // Prefill the dropdown with hospital from session
   useEffect(() => {
@@ -375,39 +428,44 @@ const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$
       return;
     }
 
-    
-const fetchUserRoles = async () => {
-  try {
-    // Fetch user roles
-    const roleResponse = await api.get(`/UserRoles/${userID}`);
-
-    if (!roleResponse.data.success || !Array.isArray(roleResponse.data.data) || roleResponse.data.data.length === 0) {
-      throw new Error('No user roles found.');
-    }
-
-    const roleIDs = roleResponse.data.data.map((item: { roleID: number }) => item.roleID);
-
-    // Fetch role names for each role ID
-    const roleNamesPromises = roleIDs.map(async (roleID: number) => {
+    const fetchUserRoles = async () => {
       try {
-        const roleResponse = await api.get(`/Role/${roleID}`);
-        return roleResponse.data.data?.roleName || `Unknown Role (${roleID})`;
+        // Fetch user roles
+        const roleResponse = await api.get(`/UserRoles/${userID}`);
+
+        if (
+          !roleResponse.data.success ||
+          !Array.isArray(roleResponse.data.data) ||
+          roleResponse.data.data.length === 0
+        ) {
+          throw new Error('No user roles found.');
+        }
+
+        const roleIDs = roleResponse.data.data.map(
+          (item: { roleID: number }) => item.roleID,
+        );
+
+        // Fetch role names for each role ID
+        const roleNamesPromises = roleIDs.map(async (roleID: number) => {
+          try {
+            const roleResponse = await api.get(`/Role/${roleID}`);
+            return (
+              roleResponse.data.data?.roleName || `Unknown Role (${roleID})`
+            );
+          } catch (error) {
+            console.error(`Failed to fetch role for roleID: ${roleID}`);
+            return null; // Handle failure gracefully
+          }
+        });
+
+        const resolvedRoleNames = await Promise.all(roleNamesPromises);
+
+        // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
+        setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
       } catch (error) {
-        console.error(`Failed to fetch role for roleID: ${roleID}`);
-        return null; // Handle failure gracefully
+        console.error('Error fetching user roles:', error);
       }
-    });
-
-    const resolvedRoleNames = await Promise.all(roleNamesPromises);
-
-    // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
-    setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
-
-  } catch (error) {
-    console.error('Error fetching user roles:', error);
-  }
-};
-
+    };
 
     fetchUserRoles();
   }, []);
@@ -416,10 +474,10 @@ const fetchUserRoles = async () => {
     const fetchTenantData = async () => {
       try {
         // Using axios to fetch tenant data
-        const response = await api.get('/Tenant');  // '/Tenant' is the endpoint
+        const response = await api.get('/Tenant'); // '/Tenant' is the endpoint
         console.log('Tenant Data:', response.data);
 
-        const tenantList = response.data.data || response.data;  // Adjust based on your response structure
+        const tenantList = response.data.data || response.data; // Adjust based on your response structure
         setTenants(tenantList);
 
         // Check for stored tenantID in sessionStorage
@@ -428,9 +486,9 @@ const fetchUserRoles = async () => {
           const tenantExists = tenantList.find(
             (tenant) =>
               tenant.tenantID === storedTenantID ||
-              tenant.id === storedTenantID
+              tenant.id === storedTenantID,
           );
-          
+
           if (tenantExists) {
             setFormData((prev) => ({ ...prev, tenant: storedTenantID }));
           }
@@ -441,8 +499,7 @@ const fetchUserRoles = async () => {
     };
 
     fetchTenantData();
-  }, []);  // Empty dependency array means this will run once when the component mounts
-
+  }, []); // Empty dependency array means this will run once when the component mounts
 
   const handleUsernameBlur = async () => {
     setTouchedFields((prev) => ({ ...prev, name: true }));
@@ -468,8 +525,22 @@ const fetchUserRoles = async () => {
     }
   };
 
-  const handlePhoneBlur = async () => {
-    const { success, message } = await checkPhoneAvailability(formData.phone);
+ const handlePhoneBlur = async () => {
+  const phone = formData.phone.trim();
+  const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+
+  if (!phoneRegex.test(phone)) {
+    setErrors((prev) => ({
+      ...prev,
+      phone: 'Invalid phone number format.',
+    }));
+    setPhoneAvailable(false);
+    return;
+  }
+
+  try {
+    const { success, message } = await checkPhoneAvailability(phone);
+
     if (!success) {
       setErrors((prev) => ({ ...prev, phone: message }));
       setPhoneAvailable(false);
@@ -477,7 +548,16 @@ const fetchUserRoles = async () => {
       setErrors((prev) => ({ ...prev, phone: '' }));
       setPhoneAvailable(true);
     }
-  };
+  } catch (error) {
+    console.error('Phone availability check failed:', error);
+    setErrors((prev) => ({
+      ...prev,
+      phone: 'Error checking phone availability.',
+    }));
+    setPhoneAvailable(false);
+  }
+};
+
 
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -549,14 +629,16 @@ const fetchUserRoles = async () => {
               {/* Hospital */}
               <div>
                 <select
-                  value={formData.hospitalType} // The pre-filled hospital ID value
-                  disabled
+                  value={formData.hospitalType}
+                  disabled={
+                    roleName !== 'SuperAdmin' && roleName !== 'TenantAdmin'
+                  }
                   onChange={(e) =>
                     handleSingleInputChange('hospitalType', e.target.value)
                   }
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-    text-black outline-none focus:border-primary dark:border-form-strokedark 
-    dark:bg-form-input dark:text-white dark:focus:border-primary"
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
                   <option value="">Select Hospital</option>
                   {hospitals.length > 0 ? (
@@ -583,7 +665,6 @@ const fetchUserRoles = async () => {
               <div className="relative">
                 <input
                   type="text"
-                  
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
@@ -787,35 +868,38 @@ const fetchUserRoles = async () => {
               </div>
 
               {/* PAN */}
-             <div className="relative">
-  <input
-    type="text"
-   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+              <div className="relative">
+                <input
+                  type="text"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
     text-black outline-none focus:border-primary dark:border-form-strokedark 
     dark:bg-form-input dark:text-white dark:focus:border-primary"
-    value={formData.pan}
-    onChange={(e) => handleSingleInputChange('pan', e.target.value)}
-    placeholder="Enter your PAN"
-    maxLength={10}
-  />
+                  value={formData.pan}
+                  onChange={(e) =>
+                    handleSingleInputChange('pan', e.target.value)
+                  }
+                  placeholder="Enter your PAN"
+                  maxLength={10}
+                />
 
-  {/* ✅ Green Tick */}
-  {panExists === false && (
-    <div className="absolute top-4 right-4 text-green-500">
-     <CheckCircle className="w-5 h-5" />
-    </div>
-  )}
+                {/* ✅ Green Tick */}
+                {panExists === false && (
+                  <div className="absolute top-4 right-4 text-green-500">
+                    <CheckCircle className="w-5 h-5" />
+                  </div>
+                )}
 
-  {/* ❌ Already exists error */}
-  {panExists === true && (
-    <p className="text-red-500 text-sm mt-1">PAN already exists</p>
-  )}
+                {/* ❌ Already exists error */}
+                {panExists === true && (
+                  <p className="text-red-500 text-sm mt-1">
+                    PAN already exists
+                  </p>
+                )}
 
-  {errors.pan && (
-    <p className="text-red-500 text-sm mt-1">{errors.pan}</p>
-  )}
-</div>
-
+                {errors.pan && (
+                  <p className="text-red-500 text-sm mt-1">{errors.pan}</p>
+                )}
+              </div>
             </div>
 
             {/* Gender */}

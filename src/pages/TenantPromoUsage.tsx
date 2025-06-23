@@ -74,29 +74,107 @@ const TenantPromoUsage: React.FC = () => {
     }
   }, [formMode]);
 
-  const fetchTenants = async () => {
-    try {
+ const fetchTenants = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
+
+    console.log('Role:', roleName);
+    console.log('Tenant ID from session:', tenantID);
+
+    if (roleName === 'TenantAdmin' && tenantID) {
+      console.log('Fetching single tenant...');
+      const response = await api.get(`/Tenant/${tenantID}`);
+      console.log('Single tenant API response:', response.data);
+
+      if (response.data.success && response.data.data) {
+        const tenant = response.data.data;
+
+        console.log('Setting tenant options:', [
+          {
+            tenantID: tenant.tenantID,
+            tenantName: tenant.tenantName,
+          },
+        ]);
+
+        setTenantOptions([
+          {
+            tenantID: tenant.tenantID,
+            tenantName: tenant.tenantName,
+          },
+        ]);
+
+        setTenantNameMap({
+          [tenant.tenantID]: tenant.tenantName,
+        });
+
+        setFormData((prev) => {
+          const updatedForm = {
+            ...prev,
+            tenantID: tenant.tenantID,
+          };
+          console.log('FormData after prefill:', updatedForm);
+          return updatedForm;
+        });
+      }
+    } else {
+      console.log('Fetching all tenants...');
       const response = await api.get('/Tenant');
+      console.log('All tenant API response:', response.data);
+
       if (response.data.success) {
         const activeTenants = response.data.data.filter(
-          (tenant: any) => tenant.isActive,
+          (tenant: any) => tenant.isActive
         );
+        console.log('Active Tenants:', activeTenants);
+
         setTenantOptions(
           activeTenants.map((tenant: any) => ({
             tenantID: tenant.tenantID,
             tenantName: tenant.tenantName,
-          })),
+          }))
         );
+
         const map: { [key: string]: string } = {};
         activeTenants.forEach((tenant: any) => {
           map[tenant.tenantID] = tenant.tenantName;
         });
+        console.log('Tenant Name Map:', map);
+
         setTenantNameMap(map);
       }
-    } catch (error) {
-      console.error('Failed to fetch tenants:', error);
     }
-  };
+  } catch (error) {
+    console.error('❌ Failed to fetch tenants:', error);
+  }
+};
+
+const [roleName, setRoleName] = useState('');
+
+
+
+useEffect(() => {
+  console.log('🔄 useEffect triggered for tenantOptions change');
+  const tenantID = sessionStorage.getItem('tenantID');
+  const roleName = sessionStorage.getItem('roleName');
+
+  console.log('Current tenantOptions:', tenantOptions);
+  console.log('Current formData:', formData);
+
+  if (
+    roleName === 'TenantAdmin' &&
+    tenantOptions.length > 0 &&
+    tenantID &&
+    !formData.tenantID
+  ) {
+    console.log('🔁 Resetting tenantID after options loaded');
+    setFormData((prev) => ({
+      ...prev,
+      tenantID: tenantID,
+    }));
+  }
+}, [tenantOptions]);
+
 
   const fetchPromoCodes = async () => {
     try {
@@ -121,6 +199,10 @@ const TenantPromoUsage: React.FC = () => {
   };
 
   useEffect(() => {
+    const storedRole = sessionStorage.getItem('roleName');
+  if (storedRole) {
+    setRoleName(storedRole);
+  }
     fetchTenants();
     fetchPromoCodes();
   }, []);
@@ -176,10 +258,12 @@ const TenantPromoUsage: React.FC = () => {
 
     let isValid = true;
 
-    if (!formData.tenantID) {
-      errors.tenantID = 'Tenant is required';
-      isValid = false;
-    }
+  const roleName = sessionStorage.getItem('roleName');
+
+if (roleName !== 'TenantAdmin' && !formData.tenantID) {
+  errors.tenantID = 'Tenant is required';
+  isValid = false;
+}
 
     if (!formData.promoCodeID) {
       errors.promoCodeID = 'Promo name is required';
@@ -195,65 +279,81 @@ const TenantPromoUsage: React.FC = () => {
     return isValid;
   };
 
-  const handleFormSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+ const handleFormSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (!validateForm()) {
-      return; // Stop if invalid
+  const roleName = sessionStorage.getItem('roleName');
+  let tenantIDToUse = formData.tenantID?.trim(); // from formData
+
+  // If formData.tenantID is empty and role is TenantAdmin, use sessionStorage value
+  if (roleName === 'TenantAdmin' && !tenantIDToUse) {
+    tenantIDToUse = sessionStorage.getItem('tenantID') || '';
+  }
+
+  if (!tenantIDToUse) {
+    toast.error('Tenant ID is missing!');
+    return;
+  }
+
+  const userID = sessionStorage.getItem('userID');
+  if (!userID) {
+    toast.error('User not logged in.');
+    return;
+  }
+
+  try {
+    const now = new Date().toISOString();
+    const payload = {
+      createdBy: userID,
+      updatedBy: userID,
+      isActive: formData.isActive ?? true,
+      tenantID: tenantIDToUse, // ✅ guaranteed to be set
+      promoCodeID: formData.promoCodeID?.trim() || '',
+      usedOn: formData.usedOn || now,
+    };
+
+    console.log('Payload:', payload); // ✅ check this
+
+    const response = await api.post('/TenantPromoUsage', payload);
+    toast.success('Tenant promo usage saved successfully!');
+    await refreshTableData();
+    resetForm();
+    setShowForm(false);
+  } catch (error: any) {
+    console.error('❌ Error saving tenant promo usage:', error.response?.data || error.message);
+    toast.error('Failed to save tenant promo usage.');
+  }
+};
+
+
+ const refreshTableData = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    let url = '/TenantPromoUsage';
+
+    // If the role is TenantAdmin, append TenantID to the API URL
+    if (roleName === 'TenantAdmin' && tenantID) {
+      url += `?TenantID=${tenantID}`;
     }
 
-    const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      console.error('User ID not found in session storage.');
-      toast.error('User not logged in. Please log in again.');
-      return;
+    const response = await api.get(url); // baseURL is assumed set in api
+
+    if (response.data && Array.isArray(response.data.data)) {
+      setTenantRowData([...response.data.data]);
+      setFilteredTenantData([...response.data.data]);
+    } else {
+      console.error('Error: response.data.data is not an array', response.data);
     }
+  } catch (error: any) {
+    console.error(
+      'Error fetching tenant promo usage data:',
+      error.response?.data || error.message,
+    );
+  }
+};
 
-    try {
-      const now = new Date().toISOString();
-
-      const payload = {
-        createdBy: userID,
-        updatedBy: userID,
-        isActive: formData.isActive ?? true,
-        tenantID: formData.tenantID?.trim() || '',
-        promoCodeID: formData.promoCodeID?.trim() || '',
-        usedOn: formData.usedOn || now,
-      };
-
-      const response = await api.post('/TenantPromoUsage', payload);
-      toast.success('Tenant promo usage saved successfully!');
-      await refreshTableData();
-      resetForm();
-      setShowForm(false);
-    } catch (error: any) {
-      console.error(
-        'Error saving tenant PromoUasge:',
-        error.response?.data || error.message,
-      );
-      toast.error('Failed to save tenant PromoUasge. Please try again.');
-    }
-  };
-
-  const refreshTableData = async () => {
-    try {
-      const response = await api.get('/TenantPromoUsage'); // ✅ Updated endpoint
-      if (response.data && Array.isArray(response.data.data)) {
-        setTenantRowData([...response.data.data]); // Update table with promo usage data
-        setFilteredTenantData([...response.data.data]); // For search/filter use
-      } else {
-        console.error(
-          'Error: response.data.data is not an array',
-          response.data,
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        'Error fetching tenant promo usage data:',
-        error.response?.data || error.message,
-      );
-    }
-  };
 
   useEffect(() => {
     refreshTableData();
@@ -281,15 +381,14 @@ const TenantPromoUsage: React.FC = () => {
       width: 100,
     },
     {
-      headerName: 'Tenant Name',
-      field: 'tenantID',
+     headerName: 'Tenant Name',
+  field: 'tenantID',
       headerClass: 'left-header',
       cellClass: 'text-left',
       sortable: true,
       filter: true,
       width: 300,
-      valueFormatter: (params: any) =>
-        tenantNameMap[params.value] || params.value,
+      valueFormatter: (params: any) => tenantNameMap[params.value] || params.value,
     },
 
     {
@@ -470,6 +569,7 @@ const TenantPromoUsage: React.FC = () => {
     setDeleteRowId(null);
   };
 
+
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">
@@ -489,20 +589,31 @@ const TenantPromoUsage: React.FC = () => {
             {/* Row 1: PromoCode Name, Discount, Valid From, Valid To */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="flex flex-col">
-                <select
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-                  value={formData.tenantID}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tenantID: e.target.value })
-                  }
-                >
-                  <option value="">Select Tenant</option>
-                  {tenantOptions.map((tenant) => (
-                    <option key={tenant.tenantID} value={tenant.tenantID}>
-                      {tenant.tenantName}
-                    </option>
-                  ))}
-                </select>
+           <select
+  value={formData.tenantID || ''}
+  onChange={(e) =>
+    setFormData((prev) => ({ ...prev, tenantID: e.target.value }))
+  }
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+  disabled={roleName === 'TenantAdmin'}
+>
+  {/* Show 'Select Tenant' option only if not TenantAdmin */}
+  {roleName !== 'TenantAdmin' && (
+    <option value="" disabled>
+      Select Tenant
+    </option>
+  )}
+
+  {tenantOptions.map((tenant) => (
+    <option key={tenant.tenantID} value={String(tenant.tenantID)}>
+      {tenant.tenantName}
+    </option>
+  ))}
+</select>
+
+
+
+
                 {formErrors.tenantID && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.tenantID}

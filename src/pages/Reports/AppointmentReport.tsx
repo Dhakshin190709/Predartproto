@@ -100,7 +100,7 @@ const AppointmentReport: React.FC = () => {
 
     if (role === 'doctor') {
       hasAnyFilter = !!selectedStatus || !!filterFromDate || !!filterToDate;
-    } else if (role === 'reception' || role === 'hostitaladmin') {
+    } else if (role === 'reception' || role === 'HospitalAdmin') {
       hasAnyFilter =
         !!selectedStatus || !!filterFromDate || !!filterToDate || !!doctorID;
     } else {
@@ -112,10 +112,11 @@ const AppointmentReport: React.FC = () => {
         !!hospitalID;
     }
 
-    if (!hasAnyFilter) {
-      toast.warning('Please select at least one filter before searching.');
-      return;
-    }
+   if (!hasAnyFilter && role !== 'doctor'&& role !== 'reception') {
+  toast.warning('Please select at least one filter before searching.');
+  return;
+}
+
 
     try {
       // Using axios with params object automatically encodes query parameters
@@ -272,18 +273,30 @@ const AppointmentReport: React.FC = () => {
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
-  useEffect(() => {
+ useEffect(() => {
   const fetchHospitals = async () => {
     try {
+      const roleName = sessionStorage.getItem('roleName');
       const tenantID = sessionStorage.getItem('tenantID');
-      const response = await api.get('/Hospital/List', {
-        params: { tenantId: tenantID }, // ⬅️ Pass tenantID as query param
-      });
+
+      let response;
+
+      if (roleName === 'SuperAdmin') {
+        // No params needed
+        response = await api.get('/Hospital/List');
+      } else {
+        // Pass tenantID as query param
+        response = await api.get('/Hospital/List', {
+          params: { tenantId: tenantID },
+        });
+      }
 
       const data = response.data;
 
       // Filter only active hospitals
-      const activeHospitals = data.filter((hospital) => hospital.isActive === true);
+      const activeHospitals = data.filter(
+        (hospital) => hospital.isActive === true
+      );
 
       setHospitals(activeHospitals);
     } catch (error) {
@@ -293,6 +306,7 @@ const AppointmentReport: React.FC = () => {
 
   fetchHospitals();
 }, []);
+
 
 
   useEffect(() => {
@@ -339,7 +353,7 @@ const AppointmentReport: React.FC = () => {
       }
     } else if (role === 'Reception') {
       if (unitID) setSelectedHospitalID(unitID);
-    } else if (role === 'HostitalAdmin') {
+    } else if (role === 'HospitalAdmin') {
       if (unitID) setSelectedHospitalID(unitID);
     }
   }, []);
@@ -409,7 +423,7 @@ const AppointmentReport: React.FC = () => {
 
   // Dynamically add Doctor Name if role is Reception or HospitalAdmin
   const columns = [...allColumns];
-  if (roleName === 'Reception' || roleName === 'HostitalAdmin') {
+  if (roleName === 'Reception' || roleName === 'HospitalAdmin') {
     columns.splice(3, 0, {
       headerName: 'Doctor Name',
       field: 'doctorName',
@@ -436,7 +450,7 @@ const AppointmentReport: React.FC = () => {
     if (role === 'Doctor' && doctorID && unitID) {
       params['DoctorID'] = doctorID;
       params['HospitalID'] = unitID;
-    } else if ((role === 'Reception' || role === 'HostitalAdmin') && unitID) {
+    } else if ((role === 'Reception' || role === 'HospitalAdmin') && unitID) {
       params['HospitalID'] = unitID;
     }else if (role === 'TenantAdmin' && tenantID) {
     params['tenantID'] = tenantID;
@@ -465,7 +479,7 @@ const AppointmentReport: React.FC = () => {
   const fetchStatusOptions = async () => {
     try {
       const response = await api.get('/AppLOV', {
-        params: { type: 'AppointmentStauts' },
+        params: { type: 'AppointmentStatus' },
       });
 
       const data = response.data?.data || [];

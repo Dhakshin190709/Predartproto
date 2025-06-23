@@ -171,7 +171,7 @@ const ProfileSection: React.FC = () => {
     if (lowerRole === 'patient') {
       apiUrl = `/Appointment/GetAppointment?PatientID=${patientID}`;
     } else if (
-      (lowerRole === 'doctor' || lowerRole === 'tenantadmin') &&
+      (lowerRole === 'doctor' || lowerRole === 'tenantadmin'|| lowerRole === 'superadmin') &&
       selectedPatientID
     ) {
       const idKey = lowerRole === 'doctor' ? 'DoctorID' : 'TenantID';
@@ -688,7 +688,7 @@ const ProfileSection: React.FC = () => {
       <h1 className="text-3xl font-semibold text-black mb-6">Patient Record</h1>
       <div className="h-screen flex flex-col">
         {/* Top Search Bar */}
-        {['Doctor', 'TenantAdmin'].includes(roleName) && !selectedPatientID && (
+        {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) && !selectedPatientID && (
           <div className="p-4 flex items-start gap-4 bg-gray-100 mb-2 flex-wrap">
             {/* Patient Name Input with Error Placeholder */}
             <div className="flex flex-col w-[40%]">
@@ -855,7 +855,7 @@ const ProfileSection: React.FC = () => {
           )}
 
          {/* Back to Patient List Link */}
-{['Doctor', 'TenantAdmin'].includes(roleName) &&
+{['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
   selectedPatientID &&
   patientData && (
     <a
@@ -871,7 +871,7 @@ const ProfileSection: React.FC = () => {
 
 
           {/* Patient Cards Display */}
-          {['Doctor', 'TenantAdmin'].includes(roleName) &&
+          {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
             isSearchPerformed &&
             patientArray.length > 0 &&
             !selectedPatientID && (
@@ -924,7 +924,7 @@ const ProfileSection: React.FC = () => {
             )}
 
           {/* Patient Profile Details */}
-        {['Doctor', 'TenantAdmin'].includes(roleName) &&
+        {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
   selectedPatientID &&
   patientData && (
             <>

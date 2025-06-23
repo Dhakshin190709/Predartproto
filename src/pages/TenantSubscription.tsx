@@ -47,7 +47,7 @@ const TenantSubscription: React.FC = () => {
   // handle Add button click
   const handleAdd = () => {
     setFormData({
-      tenantSubscriptionID:'',
+      tenantSubscriptionID: '',
       tenantID: '',
       pricePlanID: '',
       subscribedOn: '',
@@ -76,56 +76,55 @@ const TenantSubscription: React.FC = () => {
     }
   }, [formMode]);
 
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        const response = await api.get('/Tenant');
-        if (response.data.success) {
-          const activeTenants = response.data.data.filter(
-            (tenant: any) => tenant.isActive,
-          );
-          setTenantOptions(
-            activeTenants.map((tenant: any) => ({
-              tenantID: tenant.tenantID,
-              tenantName: tenant.tenantName,
-            })),
-          );
-        } else {
-          console.error('API returned success: false');
-        }
-      } catch (error) {
-        console.error('Failed to fetch tenants:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchTenants = async () => {
+  //     try {
+  //       const response = await api.get('/Tenant');
+  //       if (response.data.success) {
+  //         const activeTenants = response.data.data.filter(
+  //           (tenant: any) => tenant.isActive,
+  //         );
+  //         setTenantOptions(
+  //           activeTenants.map((tenant: any) => ({
+  //             tenantID: tenant.tenantID,
+  //             tenantName: tenant.tenantName,
+  //           })),
+  //         );
+  //       } else {
+  //         console.error('API returned success: false');
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to fetch tenants:', error);
+  //     }
+  //   };
 
-    fetchTenants();
-  }, []);
+  //   fetchTenants();
+  // }, []);
 
-  useEffect(() => {
-    const fetchPricePlans = async () => {
-      try {
-        const response = await api.get('/PricePlan');
-        if (response.data.success) {
-          const activePlans = response.data.data.filter(
-            (plan: any) => plan.isActive,
-          );
-          setPricePlans(
-            activePlans.map((plan: any) => ({
-              pricePlanID: plan.pricePlanID,
-              planName: plan.planName,
-            })),
-          );
-        } else {
-          console.error('API returned success: false');
-        }
-      } catch (error) {
-        console.error('Failed to fetch price plans:', error);
-      }
-    };
+  // useEffect(() => {
+  //   const fetchPricePlans = async () => {
+  //     try {
+  //       const response = await api.get('/PricePlan');
+  //       if (response.data.success) {
+  //         const activePlans = response.data.data.filter(
+  //           (plan: any) => plan.isActive,
+  //         );
+  //         setPricePlans(
+  //           activePlans.map((plan: any) => ({
+  //             pricePlanID: plan.pricePlanID,
+  //             planName: plan.planName,
+  //           })),
+  //         );
+  //       } else {
+  //         console.error('API returned success: false');
+  //       }
+  //     } catch (error) {
+  //       console.error('Failed to fetch price plans:', error);
+  //     }
+  //   };
 
-    fetchPricePlans();
-  }, []);  
-  
+  //   fetchPricePlans();
+  // }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault(); // Prevent the form from submitting and refreshing the page
@@ -141,10 +140,25 @@ const TenantSubscription: React.FC = () => {
   };
 
   const resetForm = () => {
-    setShowForm(false); // Show the fields again
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+    const createdBy = sessionStorage.getItem('userID');
+
+    setFormData({
+      tenantID: roleName === 'TenantAdmin' ? tenantID || '' : '',
+      pricePlanID: '',
+      subscribedOn: '',
+      expiresOn: '',
+      isActive: true,
+      isEnabled: false,
+      paymentStatus: false,
+      createdBy: createdBy || '',
+    });
+
     setFormMode('');
-    setName(''); // Reset input fields if necessary
+    setName('');
     setIsActive(false);
+    setShowForm(true); // <-- Move this AFTER setting formData
   };
 
   const handleEditClick = (tenant: RowData) => {
@@ -216,7 +230,6 @@ const TenantSubscription: React.FC = () => {
     setFormErrors(errors);
     return isValid;
   };
-  
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,7 +262,7 @@ const TenantSubscription: React.FC = () => {
 
       const response = await api.post('/TenantSubscription', payload);
       toast.success('Tenant subscription saved successfully!');
-      await refreshTableData();
+      await fetchTenantSubscriptions(tenantMap, pricePlanMap);
       resetForm();
       setShowForm(false);
     } catch (error: any) {
@@ -260,30 +273,156 @@ const TenantSubscription: React.FC = () => {
       toast.error('Failed to save tenant subscription. Please try again.');
     }
   };
-  
-  const refreshTableData = async () => {
+
+  const [tenantList, setTenantList] = useState<any[]>([]); // store full tenant list
+  const [tenantMap, setTenantMap] = useState<Record<string, string>>({});
+  const [pricePlanMap, setPricePlanMap] = useState<Record<string, string>>({});
+
+  const fetchTenantSubscriptions = async (
+    tenantMap: Record<string, string>,
+    pricePlanMap: Record<string, string>,
+  ) => {
     try {
-      const response = await api.get('/TenantSubscription'); // ✅ Changed endpoint
-      if (response.data && Array.isArray(response.data.data)) {
-        tenantRowData([...response.data.data]); // Update table with tenant subscriptions
-        filteredTenantData([...response.data.data]); // For search/filter use
-      } else {
-        console.error(
-          'Error: response.data.data is not an array',
-          response.data,
-        );
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID');
+
+      let url = '/TenantSubscription';
+
+      if (roleName === 'TenantAdmin' && tenantID) {
+        url = `/TenantSubscription?TenantID=${tenantID}`;
       }
-    } catch (error: any) {
-      console.error(
-        'Error fetching tenant subscriptions:',
-        error.response?.data || error.message,
-      );
+
+      const res = await api.get(url);
+
+      if (Array.isArray(res.data.data)) {
+        const enriched = res.data.data.map((item: any) => ({
+          ...item,
+          tenantName: tenantMap[item.tenantID] || item.tenantID,
+          planName: pricePlanMap[item.pricePlanID] || item.pricePlanID,
+        }));
+
+        setTenantRowData(enriched);
+        setFilteredTenantData(enriched);
+      }
+    } catch (error) {
+      console.error('Failed to fetch tenant subscriptions:', error);
     }
   };
-  
+
+  const fetchData = async () => {
+    try {
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID');
+
+      let tenantMapLocal: Record<string, string> = {};
+      let tenantOptionsLocal: any[] = [];
+
+      if (roleName === 'TenantAdmin' && tenantID) {
+        const tenantRes = await api.get(`/Tenant/${tenantID}`);
+        if (tenantRes.data.success && tenantRes.data.data) {
+          const tenant = tenantRes.data.data;
+
+          tenantMapLocal[tenant.tenantID] = tenant.tenantName;
+          tenantOptionsLocal = [
+            {
+              tenantID: tenant.tenantID,
+              tenantName: tenant.tenantName,
+            },
+          ];
+
+          // ✅ PREFILL tenantID in formData
+          setFormData((prev) => ({
+            ...prev,
+            tenantID: tenant.tenantID,
+          }));
+        }
+      } else {
+        const tenantRes = await api.get('/Tenant');
+        if (tenantRes.data.success) {
+          const tenants = tenantRes.data.data;
+
+          tenantMapLocal = tenants.reduce(
+            (map, t) => {
+              map[t.tenantID] = t.tenantName;
+              return map;
+            },
+            {} as Record<string, string>,
+          );
+
+          tenantOptionsLocal = tenants
+            .filter((t: any) => t.isActive)
+            .map((t: any) => ({
+              tenantID: t.tenantID,
+              tenantName: t.tenantName,
+            }));
+        }
+      }
+
+      setTenantMap(tenantMapLocal);
+      setTenantOptions(tenantOptionsLocal);
+
+      // Price Plans
+      const planRes = await api.get('/PricePlan');
+      let pricePlanMapLocal: Record<string, string> = {};
+      let pricePlansLocal: any[] = [];
+
+      if (planRes.data.success) {
+        const plans = planRes.data.data;
+
+        pricePlanMapLocal = plans.reduce(
+          (map, p) => {
+            map[p.pricePlanID] = p.planName;
+            return map;
+          },
+          {} as Record<string, string>,
+        );
+
+        pricePlansLocal = plans
+          .filter((p: any) => p.isActive)
+          .map((p: any) => ({
+            pricePlanID: p.pricePlanID,
+            planName: p.planName,
+          }));
+
+        setPricePlanMap(pricePlanMapLocal);
+        setPricePlans(pricePlansLocal);
+      }
+
+      await fetchTenantSubscriptions(tenantMapLocal, pricePlanMapLocal);
+    } catch (error) {
+      console.error('❌ Failed to fetch data:', error);
+    }
+  };
   useEffect(() => {
-    refreshTableData();
+    console.log('📌 tenantID set in formData:', formData.tenantID);
+  }, [formData.tenantID]);
+
+  useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    if (
+      showForm &&
+      formMode === 'Add' &&
+      roleName === 'TenantAdmin' &&
+      tenantID
+    ) {
+      setFormData((prev) => ({
+        ...prev,
+        tenantID,
+      }));
+    }
+  }, [showForm, formMode]);
+
+  useEffect(() => {
+    fetchData();
   }, []);
+
+  useEffect(() => {
+    if (Object.keys(tenantMap).length && Object.keys(pricePlanMap).length) {
+      fetchTenantSubscriptions(tenantMap, pricePlanMap);
+    }
+  }, [tenantMap, pricePlanMap]);
 
   const resetFormData = () => {
     setFormData({
@@ -311,23 +450,22 @@ const TenantSubscription: React.FC = () => {
     },
     {
       headerName: 'Tenant Name',
-      field: 'TenantName',
+      field: 'tenantName', // <-- use tenantName here
       headerClass: 'left-header',
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-
-      width: 250,
+      width: 400,
     },
+
     {
       headerName: 'Price Plan',
-      field: 'PricePlan',
+      field: 'planName', // ✅ Use the enriched field
       sortable: true,
       headerClass: 'left-header',
       cellClass: 'text-left',
       filter: true,
-
-      width: 150,
+      width: 250,
     },
     {
       headerName: 'Subscribed On',
@@ -378,7 +516,7 @@ const TenantSubscription: React.FC = () => {
 
     {
       headerName: 'Edit',
- hide: true,
+      hide: true,
       headerClass: 'center-header',
       cellClass: 'text-center',
       width: 150,
@@ -417,7 +555,6 @@ const TenantSubscription: React.FC = () => {
 
   // Define applyGlobalSearch function
   const applyGlobalSearch = (data: RowData[]) => {
-    console.log('Data passed to applyGlobalSearch:', data);
     if (!Array.isArray(data)) return [];
 
     const searchText = quickSearchText.toLowerCase();
@@ -426,8 +563,8 @@ const TenantSubscription: React.FC = () => {
     return data.filter((row) => {
       const discountString = row.discountValue?.toString().toLowerCase() || '';
       return (
-        row.TenantName?.toLowerCase().includes(searchText) ||
-        row.PricePlan?.toLowerCase().includes(searchText) ||
+        row.tenantName?.toLowerCase().includes(searchText) || // ✅ correct field name
+        row.planName?.toLowerCase().includes(searchText) || // ✅ correct field name
         row.subscribedOn?.toLowerCase().includes(searchText) ||
         row.expiresOn?.toLowerCase().includes(searchText)
       );
@@ -443,13 +580,6 @@ const TenantSubscription: React.FC = () => {
           : true) && (isActive ? item.isActive === true : true),
     );
     return filtered;
-  };
-
-  // Call applyGlobalSearch after filtering
-  const handleSearch = () => {
-    const filtered = handleFilterSearch();
-    const globallySearched = applyGlobalSearch(filtered);
-    filteredTenantData(globallySearched);
   };
 
   const onGridReady = (params) => {
@@ -476,7 +606,7 @@ const TenantSubscription: React.FC = () => {
         updatedOn,
         isActive: updatedStatus,
       });
-
+      await fetchTenantSubscriptions();
       // ✅ Update only that record in filtered data
       const updatedFiltered = filteredTenantData.map((item) =>
         item.tenantSubscriptionID === tenantSubscriptionID
@@ -484,7 +614,8 @@ const TenantSubscription: React.FC = () => {
           : item,
       );
 
-      filteredTenantData(updatedFiltered);
+      setFilteredTenantData(updatedFiltered); // ✅ update filteredTenantData
+      setTenantRowData(updatedFiltered); // ✅ optional: update original data too
 
       toast.success(
         `Tenant subscription status updated to ${updatedStatus ? 'Active' : 'Inactive'}!`,
@@ -497,7 +628,7 @@ const TenantSubscription: React.FC = () => {
       toast.error('Failed to update status. Please try again.');
     }
   };
-  
+
   // Delete confirmation
   const handleDelete = (Id: number) => {
     setDeleteRowId(Id);
@@ -532,9 +663,12 @@ const TenantSubscription: React.FC = () => {
               <div className="flex flex-col">
                 <select
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-                  value={formData.tenantID}
+                  value={formData.tenantID || ''}
                   onChange={(e) =>
                     setFormData({ ...formData, tenantID: e.target.value })
+                  }
+                  disabled={
+                    sessionStorage.getItem('roleName') === 'TenantAdmin'
                   }
                 >
                   <option value="">Select Tenant</option>
@@ -544,6 +678,7 @@ const TenantSubscription: React.FC = () => {
                     </option>
                   ))}
                 </select>
+
                 {formErrors.tenantID && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.tenantID}
@@ -597,22 +732,24 @@ const TenantSubscription: React.FC = () => {
               </div>
 
               <div>
-                <input
-                  type={formData.expiresOn ? 'date' : 'text'}
-                  placeholder="Expires On"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-                  value={formData.expiresOn || ''}
-                  onFocus={(e) => (e.target.type = 'date')}
-                  onBlur={(e) => {
-                    if (!e.target.value) e.target.type = 'text';
-                  }}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      expiresOn: e.target.value,
-                    }))
-                  }
-                />
+               <input
+  type={formData.expiresOn ? 'date' : 'text'}
+  placeholder="Expires On"
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+  value={formData.expiresOn || ''}
+  min={formData.subscribedOn || ''} // 👈 restrict past dates
+  onFocus={(e) => (e.target.type = 'date')}
+  onBlur={(e) => {
+    if (!e.target.value) e.target.type = 'text';
+  }}
+  onChange={(e) =>
+    setFormData((prev) => ({
+      ...prev,
+      expiresOn: e.target.value,
+    }))
+  }
+/>
+
                 {formErrors.expiresOn && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.expiresOn}

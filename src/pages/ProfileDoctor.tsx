@@ -174,8 +174,19 @@ const DoctorProfilePage = () => {
             Array.isArray(data.data) &&
             data.data.length > 0
           ) {
-            setAwards(data.data);
-            console.log('Awards set to state:', data.data);
+            const fetchedAwards = data.data;
+
+            // ✅ Remove duplicates based on award name + year
+            const seenKeys = new Set();
+            const uniqueAwards = fetchedAwards.filter((award) => {
+              const key = `${award.awardName}-${award.awardYear}`;
+              if (seenKeys.has(key)) return false;
+              seenKeys.add(key);
+              return true;
+            });
+
+            setAwards(uniqueAwards);
+            console.log('Awards set to state (deduplicated):', uniqueAwards);
           } else {
             console.warn('No awards found or response error.');
           }
@@ -190,15 +201,31 @@ const DoctorProfilePage = () => {
 
   useEffect(() => {
     if (doctorID) {
+      // Fetch doctor's selected languages
       api
         .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
         .then((res) => {
           if (res.data.success) {
-            setDoctorLanguages(res.data.data || []);
+            const fetchedLanguages = res.data.data || [];
+
+            // ✅ Remove duplicates based on languageMasterID + read/write/speak combo
+            const uniqueLanguages = [];
+            const seenKeys = new Set();
+
+            for (const lang of fetchedLanguages) {
+              const key = `${lang.languageMasterID}-${lang.read}-${lang.write}-${lang.speak}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueLanguages.push(lang);
+              }
+            }
+
+            setDoctorLanguages(uniqueLanguages);
           }
         })
         .catch((err) => console.error('Error fetching doctor languages:', err));
 
+      // Fetch language master list
       api
         .get(`/AppLOV?type=languageMaster`)
         .then((res) => {
@@ -235,8 +262,19 @@ const DoctorProfilePage = () => {
           setProfile(profileRes.data.data);
         }
 
-        if (eduRes.data.success) {
-          setEducationList(eduRes.data.data || []);
+        if (eduRes.data.success && Array.isArray(eduRes.data.data)) {
+          const fetchedEdu = eduRes.data.data;
+
+          // ✅ Remove duplicates based on degree + specialization + university
+          const seenKeys = new Set();
+          const uniqueEducation = fetchedEdu.filter((edu) => {
+            const key = `${edu.degreeName}-${edu.specialization}-${edu.universityName}`;
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
+
+          setEducationList(uniqueEducation);
         }
       } catch (err) {
         console.error('Error fetching doctor profile or education:', err);
@@ -256,37 +294,6 @@ const DoctorProfilePage = () => {
 
   useEffect(() => {
     if (!doctorID) {
-      console.warn('No doctorID found in session storage.');
-      setLoading(false);
-      return;
-    }
-
-    const fetchProfile = api.get(`/Doctor/${doctorID}`);
-    const fetchEducation = api.get(
-      `/Doctor/GetDoctorEducation?doctorId=${doctorID}`,
-    );
-
-    Promise.all([fetchProfile, fetchEducation])
-      .then(([profileRes, educationRes]) => {
-        if (profileRes.data.success) {
-          setProfile(profileRes.data.data);
-        }
-
-        if (
-          educationRes.data.success &&
-          Array.isArray(educationRes.data.data)
-        ) {
-          setEducationList(educationRes.data.data);
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching data:', error);
-      })
-      .finally(() => setLoading(false));
-  }, [doctorID]);
-
-  useEffect(() => {
-    if (!doctorID) {
       console.error('No doctorID found in session');
       return;
     }
@@ -295,7 +302,18 @@ const DoctorProfilePage = () => {
       .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
       .then((response) => {
         if (response.data.success) {
-          setExperience(response.data.data || []);
+          const experienceData = response.data.data || [];
+
+          // ✅ Remove duplicates based on hospitalName + specialization + joinDate + leaveDate
+          const seenKeys = new Set();
+          const uniqueExperience = experienceData.filter((exp) => {
+            const key = `${exp.hospitalName}-${exp.specialization}-${exp.joinDate}-${exp.leaveDate}`;
+            if (seenKeys.has(key)) return false;
+            seenKeys.add(key);
+            return true;
+          });
+
+          setExperience(uniqueExperience);
         } else {
           console.error('Failed to fetch doctor experience');
         }
@@ -402,7 +420,8 @@ const DoctorProfilePage = () => {
       <div className="w-full p-6 bg-white text-gray-900 rounded-xl shadow-lg space-y-8">
         {/* Back Button */}
         <button
-          className="text-blue-600 font-medium hover:underline mb-4"
+         className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+
           onClick={() => navigate('/search/doctors')}
         >
           &lt; Back

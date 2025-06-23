@@ -45,6 +45,7 @@ import LabTest from './pages/LabTest/LabTest';
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
 import DiagnosticsCenter from './pages/Registration/DiagnosticsCenter';
+import DiagnosticRegister from './pages/Registration/DiagnosticRegister';
 import Dashboard from './pages/Dashboard/Dashboard';
 
 import Profile from './pages/Profile';
@@ -85,6 +86,9 @@ import SearchMedicals from './pages/Search/SearchMedicals';
 
 import AppointmentHistory from './pages/History/AppointmentHistory';
 import PatientHistory from './pages/History/PatientHistory';
+import LabTestPackage from './pages/Masters/LabTestPackage';
+import LabTestMaster from './pages/Masters/LabTestMaster';
+import DoctorPrescription from './pages/DoctorPrescription';
 
 import EventCreation from './pages/CreationPage/EventCreation';
 import CampCreation from './pages/CreationPage/CampCreation';
@@ -99,6 +103,8 @@ import PaymentReport from './pages/Reports/PaymentReport';
 import DischargeReport from './pages/Reports/DischargeReport';
 import SurveyReport from './pages/Reports/SurveyReport';
 import EventReport from './pages/Reports/EventReport';
+import MedicineTransferReport from './pages/Reports/MedicineTransferReport';
+
 import ConsolidatedReport from './pages/Reports/ConsolidatedReport';
 import MISReport from './pages/Reports/MISReport';
 import ExpiringStockReport from './pages/Reports/ExpiringStockReport';
@@ -110,6 +116,7 @@ import FeedBack from './pages/FeedBack';
 import Offers from './pages/Offers';
 import Chart from './pages/Chart';
 import HomePage from './pages/HomePage';
+import TenantFormWizard from './pages/TenantFormWizard';
 
 import AdmissionPage from './pages/AdmissionPage';
 import AdmissionDetails from './pages/AdmissionDetails';
@@ -120,6 +127,7 @@ import TenantAddOn from './pages/TenantAddOn';
 import TenantPromoUsage from './pages/TenantPromoUsage';
 
 import Tenant from './pages/Tenant';
+import Diagnostics from './pages/Diagnostics';
 import Hospital from './pages/Registration/HospitalPage';
 
 import LabProfile from './pages/Profile/LabProfile';
@@ -131,6 +139,7 @@ import PricePlan from './pages/PricePlan';
 import AddOn from './pages/AddOn';
 import PlanLimit from './pages/PlanLimit';
 import PlanFeature from './pages/PlanFeature';
+import MedicalCamp from './pages/MedicalCamp';
 
 // import MedicalDocumentUpload from './pages/DoctorProfile/MedicalDocumentUpload';
 import AccountSettings from './pages/AccountSettings';
@@ -280,6 +289,16 @@ function App() {
             }
           />
           <Route
+            path="/TenantFormWizard"
+            element={
+              <>
+                <PageTitle title="TenantFormWizard | PreCare" />
+
+                <TenantFormWizard />
+              </>
+            }
+          />
+          <Route
             path="/reschedule"
             element={
               <>
@@ -308,12 +327,40 @@ function App() {
               </>
             }
           />
+
+          <Route
+            path="/Registration/DiagnosticRegister"
+            element={
+              <>
+                <PageTitle title="DiagnosticRegister | PreCare" />
+                <DiagnosticRegister />
+              </>
+            }
+          />
           <Route
             path="/homepage"
             element={
               <>
                 <PageTitle title="HomePage | PreCare" />
                 <HomePage />
+              </>
+            }
+          />
+          <Route
+            path="/medical"
+            element={
+              <>
+                <PageTitle title="DoctorPrescription | PreCare" />
+                <DoctorPrescription />
+              </>
+            }
+          />
+          <Route
+            path="/MedicalCamp"
+            element={
+              <>
+                <PageTitle title="MedicalCamp | PreCare" />
+                <MedicalCamp />
               </>
             }
           />
@@ -405,6 +452,24 @@ function App() {
               <>
                 <PageTitle title="TenantSubscription | PreCare" />
                 <TenantSubscription />
+              </>
+            }
+          />
+          <Route
+            path="/Diagnostics"
+            element={
+              <>
+                <PageTitle title="Diagnostics | PreCare" />
+                <Diagnostics />
+              </>
+            }
+          />
+          <Route
+            path="Reports/MedicineTransferReport"
+            element={
+              <>
+                <PageTitle title="MedicineTransferReport | PreCare" />
+                <MedicineTransferReport />
               </>
             }
           />
@@ -586,6 +651,15 @@ function App() {
               <>
                 <PageTitle title="FeedBackForm | PreCare" />
                 <FeedBackForm />
+              </>
+            }
+          />
+          <Route
+            path="/Masters/LabTestMaster"
+            element={
+              <>
+                <PageTitle title="LabTestMaster | PreCare" />
+                <LabTestMaster />
               </>
             }
           />
@@ -936,6 +1010,15 @@ function App() {
               <>
                 <PageTitle title="RazorPay | PreCare" />
                 <RazorPay />
+              </>
+            }
+          />
+          <Route
+            path="/Masters/LabTestPackage"
+            element={
+              <>
+                <PageTitle title="LabTestPackage | PreCare" />
+                <LabTestPackage />
               </>
             }
           />

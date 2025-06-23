@@ -191,7 +191,8 @@ useEffect(() => {
     </h1>
     <div className="w-full p-6 bg-white text-gray-900 rounded-xl shadow-lg space-y-8">
         <button
-        className="text-blue-600 font-medium hover:underline mb-4"
+         className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+
         onClick={() => navigate("/search/patient")}
       >
         &lt; Back
