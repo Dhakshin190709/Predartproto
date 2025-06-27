@@ -118,34 +118,34 @@ const Tenant: React.FC = () => {
     setIsActive(false);
   };
 
- const handleEditClick = (medicine: RowData) => {
-  setFormData({
-    medicineID: medicine.medicineID || '',
-    medicineName: medicine.medicineName || '',
-    medicineCode: medicine.medicineCode || '',
-    brand: medicine.brand || '',
-    unit: medicine.unit || 0,
-    manufacturerName: medicine.manufacturerName || '',
-    manufacturerCode: medicine.manufacturerCode || '',
-    isActive: medicine.isActive ?? '',
-    
-    // ✅ Newly added fields
-    dosage: medicine.dosage || '',
-    description: medicine.description || '',
-    medicineType: medicine.medicineType || '',
-  });
+  const handleEditClick = (medicine: RowData) => {
+    setFormData({
+      medicineID: medicine.medicineID || '',
+      medicineName: medicine.medicineName || '',
+      medicineCode: medicine.medicineCode || '',
+      brand: medicine.brand || '',
+      unit: medicine.unit || 0,
+      manufacturerName: medicine.manufacturerName || '',
+      manufacturerCode: medicine.manufacturerCode || '',
+      isActive: medicine.isActive ?? '',
 
-  setShowForm(true);
-  setFormMode('Edit');
-
-  // Optional: Scroll to form
-  setTimeout(() => {
-    editFormRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
+      // ✅ Newly added fields
+      dosage: medicine.dosage || '',
+      description: medicine.description || '',
+      medicineType: medicine.medicineType || '',
     });
-  }, 100);
-};
+
+    setShowForm(true);
+    setFormMode('Edit');
+
+    // Optional: Scroll to form
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  };
 
   const resetFormData = () => {
     setFormData({
@@ -244,7 +244,7 @@ const Tenant: React.FC = () => {
     {
       headerName: 'Manufacturer Code',
       field: 'manufacturerCode',
-      hide:true,
+      hide: true,
       headerClass: 'left-header',
       cellClass: 'text-left',
       sortable: true,
@@ -324,7 +324,7 @@ const Tenant: React.FC = () => {
     {
       headerName: 'Delete',
       headerClass: 'center-header',
-      hide:true,
+      hide: true,
       cellClass: 'text-center',
       width: 80,
       cellRenderer: (params: any) => (
@@ -424,7 +424,8 @@ const Tenant: React.FC = () => {
     setDeleteRowId(null);
   };
 
-  const alphabetRegex = /^[A-Za-z\s]+$/;
+  const alphabetRegex = /^[A-Za-z0-9 .-]+$/;
+
   const alphanumericRegex = /^[A-Za-z0-9]+$/;
 
   const digitsOnlyRegex = /^\d+$/;
@@ -437,7 +438,8 @@ const Tenant: React.FC = () => {
     if (!formData.medicineName.trim()) {
       newErrors.medicineName = 'Medicine Name is required';
     } else if (!alphabetRegex.test(formData.medicineName.trim())) {
-      newErrors.medicineName = 'Medicine Name must contain alphabets only';
+      newErrors.medicineName =
+        'Medicine Name can contain letters, numbers, spaces, dots, or hyphens only';
     }
 
     // medicineCode: required, alphanumeric, max length 5
@@ -449,11 +451,12 @@ const Tenant: React.FC = () => {
     //   newErrors.medicineCode = 'Medicine Code must be max 5 characters';
     // }
 
-    // brand: required, alphabets only
+    // Brand
     if (!formData.brand.trim()) {
       newErrors.brand = 'Brand is required';
     } else if (!alphabetRegex.test(formData.brand.trim())) {
-      newErrors.brand = 'Brand must contain alphabets only';
+      newErrors.brand =
+        'Brand can contain letters, numbers, spaces, dots, or hyphens only';
     }
 
     // unit: required, digits only
@@ -465,12 +468,12 @@ const Tenant: React.FC = () => {
       newErrors.unit = 'Unit must be greater than zero';
     }
 
-    // manufacturerName: required, alphabets only
+    // Manufacturer Name
     if (!formData.manufacturerName.trim()) {
       newErrors.manufacturerName = 'Manufacturer Name is required';
     } else if (!alphabetRegex.test(formData.manufacturerName.trim())) {
       newErrors.manufacturerName =
-        'Manufacturer Name must contain alphabets only';
+        'Manufacturer Name can contain letters, numbers, spaces, dots, or hyphens only';
     }
 
     // manufacturerCode: required, alphanumeric, max length 5
@@ -496,9 +499,11 @@ const Tenant: React.FC = () => {
 
     const payload = {
       ...formData,
-
-      unit: Number(formData.unit), // ✅ Ensure 'unit' is a number
-      isActive: formData.isActive === 'Active' || formData.isActive === true,
+      unit: Number(formData.unit),
+      isActive:
+        formMode === 'Add'
+          ? true
+          : formData.isActive === 'Active' || formData.isActive === true,
       createdBy: sessionStorage.getItem('userID'),
     };
 
@@ -528,9 +533,9 @@ const Tenant: React.FC = () => {
         manufacturerName: '',
         manufacturerCode: '',
         isActive: '',
-          dosage: '',
-      description: '',
-      medicineType: '',
+        dosage: '',
+        description: '',
+        medicineType: '',
       });
 
       setShowForm(false);
@@ -816,7 +821,8 @@ const Tenant: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+     <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           rowData={filteredData} // ✅ Use filteredData instead of original rowData
           columnDefs={columnDefs}
@@ -829,6 +835,7 @@ const Tenant: React.FC = () => {
           rowHeight={40}
           onGridReady={onGridReady}
         />
+      </div>
       </div>
 
       {showConfirmation && (

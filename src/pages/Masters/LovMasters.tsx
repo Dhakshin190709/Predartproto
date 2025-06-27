@@ -396,6 +396,8 @@ const LovMasters: React.FC = () => {
 
           <option value="MedicineTransfer">MedicineTransfer</option>
           <option value="MedicalRecordDocument">MedicalRecordDocument</option>
+          <option value="LabType">LabType</option>
+          <option value="LabFacilities">LabFacilities</option>
         </select>
 
         {/* Name Filter */}
@@ -446,7 +448,8 @@ const LovMasters: React.FC = () => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-            <div className="flex gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
+
               {/* Type Dropdown */}
               <select
                 value={formData.type}
@@ -476,6 +479,8 @@ const LovMasters: React.FC = () => {
 
                 <option value="MedicineTransfer">MedicineTransfer</option>
                  <option value="MedicalRecordDocument">MedicalRecordDocument</option>
+                 <option value="LabType">LabType</option>
+                    <option value="LabFacilities">LabFacilities</option>
               </select>
 
               {/* Name Input */}
@@ -573,10 +578,8 @@ const LovMasters: React.FC = () => {
       </div>
 
       {/* Table Component */}
-      <div
-        className="ag-theme-alpine mt-6 w-fit"
-        style={{ height: '400px', width: '100%' }}
-      >
+      <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           rowData={rowData}
           columnDefs={columnDefs}
@@ -588,6 +591,7 @@ const LovMasters: React.FC = () => {
           rowHeight={40} // Adjust row height
           onGridReady={onGridReady}
         />
+      </div>
       </div>
 
       {/* Conditional Confirmation Message Box */}

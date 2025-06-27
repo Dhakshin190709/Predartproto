@@ -161,9 +161,10 @@ const DoctorForm: React.FC = () => {
     { day: '', hospital: '', duration: '', fromTime: null, toTime: null },
   ]); // New slots (only these are submitted)
   const [existingEducation, setExistingEducation] = useState([]);
-const [isPopupVisible, setPopupVisible] = useState(false);
+  const [isPopupVisible, setPopupVisible] = useState(false);
 
   // this persists between renders
+  const [lastSavedExperiences, setLastSavedExperiences] = useState<any[]>([]);
   const [doctorHospitalID, setDoctorHospitalID] = useState('');
   const [isAddressSaved, setIsAddressSaved] = useState(false);
   const [selectedState, setSelectedState] = useState('');
@@ -866,29 +867,28 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
   // Fetch Uploaded Documents
   const fetchUploadedDocuments = async () => {
-  const doctorID = sessionStorage.getItem('doctorID');
+    const doctorID = sessionStorage.getItem('doctorID');
 
-  if (!doctorID) {
-    console.warn('Doctor ID is missing. Please log in again.');
-    return;
-  }
-
-  try {
-    const response = await api.get(`/Document/GetDocuments?ID=${doctorID}`);
-
-    // Log to confirm structure
-    console.log('📄 Uploaded Documents Response:', response.data);
-
-    if (response.data?.success) {
-      setUploadedDocuments(response.data.data || []);
-    } else {
-      console.warn('Unexpected response format:', response.data);
+    if (!doctorID) {
+      console.warn('Doctor ID is missing. Please log in again.');
+      return;
     }
-  } catch (error) {
-    console.error('❌ Failed to fetch uploaded documents:', error);
-  }
-};
 
+    try {
+      const response = await api.get(`/Document/GetDocuments?ID=${doctorID}`);
+
+      // Log to confirm structure
+      console.log('📄 Uploaded Documents Response:', response.data);
+
+      if (response.data?.success) {
+        setUploadedDocuments(response.data.data || []);
+      } else {
+        console.warn('Unexpected response format:', response.data);
+      }
+    } catch (error) {
+      console.error('❌ Failed to fetch uploaded documents:', error);
+    }
+  };
 
   // const handleFileChange = (event) => {
   //   setSelectedFile(event.target.files[0]);
@@ -1297,107 +1297,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
   const [lastSubmittedAwards, setLastSubmittedAwards] = useState([]);
 
-  // const handleAwardSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-
-  //   const doctorID = sessionStorage.getItem('doctorID');
-  //   const userID = sessionStorage.getItem('userID');
-
-  //   if (!doctorID || !userID) {
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('Missing doctorID or userID in session.');
-  //       setToastShown('error');
-  //     }
-  //     return;
-  //   }
-
-  //   // Check for validation errors
-  //   if (!validateAwards()) {
-  //     if (toastShown !== 'validation') {
-  //       toast.dismiss();
-  //       toast.error('Please correct the validation errors.');
-  //       setToastShown('validation');
-  //     }
-  //     return;
-  //   }
-
-  //   // Check for duplicate awards
-  //   const seen = new Set<string>();
-  //   let hasDuplicate = false;
-
-  //   for (const award of awards) {
-  //     const key = `${award.name.trim().toLowerCase()}-${award.year}`;
-  //     if (seen.has(key)) {
-  //       hasDuplicate = true;
-  //       break;
-  //     }
-  //     seen.add(key);
-  //   }
-
-  //   if (hasDuplicate) {
-  //     if (toastShown !== 'duplicate') {
-  //       toast.dismiss();
-  //       toast.error('Duplicate awards are not allowed.');
-  //       setToastShown('duplicate');
-  //     }
-  //     return;
-  //   }
-
-  //   const payload = awards.map((award) => ({
-  //     awardID: uuidv4(),
-  //     doctorID,
-  //     awardName: award.name?.replace(/[^\w\s.,'"():;!?-]/g, '').trim().slice(0, 100), // max 100 chars
-  //     awardYear: Number(award.year),
-  //     description: award.description
-  //       ?.replace(/[^\w\s.,'"():;!?-]/g, '')
-  //       .replace(/\s+/g, ' ')
-  //       .trim()
-  //       .slice(0, 500), // max 500 chars
-  //     createdBy: userID,
-  //     createdOn: new Date().toISOString(),
-  //     updatedBy: userID,
-  //     updatedOn: new Date().toISOString(),
-  //     isActive: true,
-  //   }));
-
-  //   const isSameAsLast =
-  //     JSON.stringify(payload) === JSON.stringify(lastSubmittedAwards);
-  //   if (isSameAsLast) return;
-
-  //   try {
-  //     // ✅ Only send the first award (adjust if needed)
-  //     const response = await api.post('/Doctor/SaveDoctorAward', payload[0], {
-  //       headers: {
-  //         Accept: '*/*',
-  //         'Content-Type': 'application/json',
-  //       },
-  //     });
-
-  //     if (response.status === 200 || response.status === 201) {
-  //       if (toastShown !== 'success') {
-  //         toast.dismiss();
-  //         toast.success('Award submitted successfully!');
-  //         setToastShown('success');
-  //         setLastSubmittedAwards(payload);
-  //       }
-  //     } else {
-  //       if (toastShown !== 'error') {
-  //         toast.dismiss();
-  //         toast.error('Failed to submit award.');
-  //         setToastShown('error');
-  //       }
-  //     }
-  //   } catch (error: any) {
-  //     console.error('Submission error:', error.response?.data || error.message || error);
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('Submission failed. Please try again.');
-  //       setToastShown('error');
-  //     }
-  //   }
-  // };
-
+  
   const handleAwardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1444,7 +1344,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
     }
 
     const payload = awards.map((award) => ({
-      awardID: uuidv4(),
+      awardID: award.awardID || uuidv4(), // <-- use existing or generate new
       doctorID,
       awardName: award.name?.replace(/[^\w\s.,'"():;!?-]/g, '').trim(),
       awardYear: Number(award.year),
@@ -1477,6 +1377,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
           toast.success('Award(s) submitted successfully!');
           setToastShown('success');
           setLastSubmittedAwards(payload);
+           await fetchDoctorAwards(); 
         }
       } else {
         if (toastShown !== 'error') {
@@ -1622,6 +1523,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
   };
 
   const [lastSubmittedSkills, setLastSubmittedSkills] = useState([]);
+
   const handleSkillSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -1666,21 +1568,21 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
     const payload = skills.map((entry) => ({
       doctorID,
+      skillID: entry.skillID || undefined, // don't send if not present (new entry)
+      skillMasterID: entry.skill,
+      yearOfExperience: Number(entry.years),
+      monthOfExperience: Number(entry.months),
+      description:
+        entry.description
+          ?.replace(/[^\w\s.,'"()\-:;]+/g, '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .substring(0, 250) || '',
       createdBy: userID,
       createdOn: new Date().toISOString(),
       updatedBy: userID,
       updatedOn: new Date().toISOString(),
       isActive: true,
-      skillMasterID: entry.skill,
-      skillID: entry.skill,
-      yearOfExperience: Number(entry.years),
-      monthOfExperience: Number(entry.months),
-      description:
-        entry.description
-          ?.replace(/[^\w\s.,'"()\-:;]+/g, '') // remove emojis and special chars
-          .replace(/\s+/g, ' ') // normalize spaces
-          .trim()
-          .substring(0, 250) || '', // limit to 250 chars
     }));
 
     const isSameAsLast =
@@ -1709,6 +1611,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
           setToastShown('success');
         }
         setLastSubmittedSkills(payload);
+        fetchDoctorSkills();
       } else {
         if (toastShown !== 'error') {
           toast.dismiss();
@@ -1914,96 +1817,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
     );
   };
 
-  // const handleExperienceSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   console.log('Final experiences data:', experiences);
-
-  //   const doctorID = sessionStorage.getItem('doctorID');
-  //   const userID = sessionStorage.getItem('userID');
-
-  //   if (!doctorID || !userID) {
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('Missing doctorID or userID.');
-  //       setToastShown('error');
-  //     }
-  //     return;
-  //   }
-
-  //   // Prevent submitting again if already done and unchanged
-  //   if (submittedOnce && toastShown === 'success') return;
-
-  //   // Validation
-  //   if (!validateExperience()) {
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('Please fill all fields correctly.');
-  //       setToastShown('error');
-  //     }
-  //     return;
-  //   }
-
-  //   // Prevent duplicates
-  //   const seen = new Set();
-  //   const hasDuplicate = experiences.some((exp) => {
-  //     const key = `${exp.type}-${exp.specialization}-${exp.hospitalName}-${exp.joinDate}-${exp.leaveDate}`;
-  //     if (seen.has(key)) return true;
-  //     seen.add(key);
-  //     return false;
-  //   });
-
-  //   if (hasDuplicate) {
-  //     if (toastShown !== 'duplicate') {
-  //       toast.dismiss();
-  //       toast.error('Duplicate experience entries found.');
-  //       setToastShown('duplicate');
-  //     }
-  //     return;
-  //   }
-
-  //   // Build payload
-  //   const payload = experiences.map((exp) => ({
-  //     doctorID,
-  //     employmentType: exp.type,
-  //     specializationID: exp.specialization,
-  //     hospitalName: exp.hospitalName,
-  //     joinDate: new Date(exp.joinDate).toISOString(),
-  //     leaveDate: new Date(exp.leaveDate).toISOString(),
-  //     exprienceID: exp.experience || '00000000-0000-0000-0000-000000000000',
-  //     createdBy: userID,
-  //     createdOn: new Date().toISOString(),
-  //     updatedBy: userID,
-  //     updatedOn: new Date().toISOString(),
-  //     isActive: true,
-  //   }));
-
-  //   try {
-  //     const response = await api.post('/Doctor/SaveDoctorExprience', payload);
-
-  //     if (response.status === 200 || response.status === 201) {
-  //       if (toastShown !== 'success') {
-  //         toast.dismiss();
-  //         toast.success('Experience details submitted successfully!');
-  //         setToastShown('success');
-  //       }
-  //       setSubmittedOnce(true); // ✅ Block re-submit
-  //     } else {
-  //       if (toastShown !== 'error') {
-  //         toast.dismiss();
-  //         toast.error('Unexpected server response.');
-  //         setToastShown('error');
-  //       }
-  //     }
-  //   } catch (error) {
-  //     console.error('Submission error:', error);
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('An error occurred during experience submission.');
-  //       setToastShown('error');
-  //     }
-  //   }
-  // };
-
+  
   const handleExperienceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Final experiences data:', experiences);
@@ -2080,20 +1894,21 @@ const [isPopupVisible, setPopupVisible] = useState(false);
     }
 
     // ✅ Build payload
-    const payload = experiences.map((exp) => ({
+  const payload = experiences.map((exp) => ({
       doctorID,
+      ...(exp.experienceID ? { exprienceID: exp.experienceID } : {}), // ❗ use wrong spelling here to match backend
       employmentType: exp.type,
       specializationID: exp.specialization,
       hospitalName: exp.hospitalName,
       joinDate: new Date(exp.joinDate).toISOString(),
       leaveDate: new Date(exp.leaveDate).toISOString(),
-      exprienceID: exp.experience || '00000000-0000-0000-0000-000000000000',
       createdBy: userID,
       createdOn: new Date().toISOString(),
       updatedBy: userID,
       updatedOn: new Date().toISOString(),
       isActive: true,
     }));
+
 
     try {
       const response = await api.post('/Doctor/SaveDoctorExprience', payload);
@@ -2105,6 +1920,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
           setToastShown('success');
         }
         setSubmittedOnce(true);
+        fetchDoctorExperience();
       } else {
         if (toastShown !== 'error') {
           toast.dismiss();
@@ -2321,6 +2137,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         }
 
         return {
+          languageID: entry.languageID || undefined, // <-- Add this
           id: doctorID,
           createdBy: userID,
           createdOn: new Date().toISOString(),
@@ -2335,12 +2152,6 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         };
       });
 
-      // Optional: Check if payload is same as lastSavedLanguages
-      // if (JSON.stringify(payload) === JSON.stringify(lastSavedLanguages)) {
-      //   toast.info('No changes to save.');
-      //   return;
-      // }
-
       const response = await api.post('/Doctor/SaveLanguage', payload);
 
       if (response.status >= 200 && response.status < 300) {
@@ -2349,6 +2160,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
           toast.success('Language details saved successfully!');
           setToastShown('success');
         }
+        fetchDoctorLanguages();
         // Optionally set last saved payload here
         // setLastSavedLanguages(payload);
       } else {
@@ -2367,111 +2179,6 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       }
     }
   };
-
-  // const handleLanguageSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-
-  //   const doctorID = sessionStorage.getItem('doctorID');
-  //   const userID = sessionStorage.getItem('userID');
-
-  //   if (!doctorID || !userID) {
-  //     toast.dismiss();
-  //     toast.error('Missing doctorID or userID in session.');
-  //     setToastShown('error');
-  //     return;
-  //   }
-
-  //   if (!validateLanguages()) {
-  //     if (toastShown !== 'error') {
-  //       toast.dismiss();
-  //       toast.error('Please fix language validation errors.');
-  //       setToastShown('error');
-  //     }
-  //     return;
-  //   }
-
-  //   const validLanguages = languages.filter(
-  //     (entry) => entry.language.trim() !== '',
-  //   );
-
-  //   if (validLanguages.length === 0) {
-  //     if (toastShown !== 'empty') {
-  //       toast.dismiss();
-  //       toast.warning('Please enter at least one language before submitting.');
-  //       setToastShown('empty');
-  //     }
-  //     return;
-  //   }
-
-  //   const seen = new Set();
-  //   const hasDuplicates = validLanguages.some((entry) => {
-  //     const key = entry.language.trim().toLowerCase();
-  //     if (seen.has(key)) return true;
-  //     seen.add(key);
-  //     return false;
-  //   });
-
-  //   if (hasDuplicates) {
-  //     if (toastShown !== 'duplicate') {
-  //       toast.dismiss();
-  //       toast.error('Duplicate languages found. Please remove duplicates.');
-  //       setToastShown('duplicate');
-  //     }
-  //     return;
-  //   }
-
-  //   try {
-  //     const payload = validLanguages.map((entry) => {
-  //       const langID =
-  //         languageOptions.find((lang) => lang.name === entry.language)
-  //           ?.appLOVID || '';
-
-  //       if (!langID) {
-  //         throw new Error(`Invalid language selected: ${entry.language}`);
-  //       }
-
-  //       return {
-  //         id: doctorID,
-  //         createdBy: userID,
-  //         createdOn: new Date().toISOString(),
-  //         updatedBy: userID,
-  //         updatedOn: new Date().toISOString(),
-  //         isActive: true,
-  //         languageMasterID: langID,
-  //         read: entry.read,
-  //         write: entry.write,
-  //         speak: entry.speak,
-  //         type: 'Doctor',
-  //       };
-  //     });
-
-  //     // NEW: Prevent same data submission
-  //     const currentPayloadString = JSON.stringify(payload);
-  //     if (lastSubmittedPayload.current === currentPayloadString) {
-  //       toast.dismiss();
-  //       toast.info('No changes to save.');
-  //       return;
-  //     }
-
-  //     const response = await api.post('/Doctor/SaveLanguage', payload);
-
-  //     if (response.status >= 200 && response.status < 300) {
-  //       toast.dismiss();
-  //       toast.success('Language details saved successfully!');
-  //       setToastShown('success');
-  //       lastSubmittedPayload.current = currentPayloadString; // Update last submitted
-  //     } else {
-  //       toast.dismiss();
-  //       toast.error(`${response.data?.message || 'Something went wrong'}`);
-  //       setToastShown('error');
-  //     }
-  //   } catch (error) {
-  //     console.error('Submission error:', error);
-  //     toast.dismiss();
-  //     toast.error('An error occurred during submission.');
-  //     setToastShown('error');
-  //   }
-  // };
 
   const emptyLanguageTemplate = {
     language: '',
@@ -2823,6 +2530,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
     // Prepare payload
     const payload = filteredEducationList.map((entry) => ({
+      ...(entry.educationID ? { educationID: entry.educationID } : {}),
       doctorID,
       graduateID: entry.UG,
       degreeName: entry.degree,
@@ -2852,6 +2560,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         ]);
         setToastShown('success');
         setSubmittedOnce(true);
+        fetchDoctorEducation();
       } else {
         if (toastShown !== 'error') {
           toast.dismiss();
@@ -2869,7 +2578,6 @@ const [isPopupVisible, setPopupVisible] = useState(false);
     }
   };
 
- 
   const emptyEducationTemplate = {
     UG: '',
     degree: '',
@@ -3052,10 +2760,8 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
   const isAddressFetched = useRef(false);
   const isEducationFetched = useRef(false);
+  const isExperienceFetched = useRef(false);
 
-  useEffect(() => {
-    fetchPatientAddress();
-  }, []); // run only once on component mount
 
   const handlePrimaryChange = (selectedIndex: number) => {
     const updatedAddresses = addresses.map((addr, idx) => ({
@@ -3073,40 +2779,33 @@ const [isPopupVisible, setPopupVisible] = useState(false);
     const allErrors: { [idx: number]: { [field: string]: string } } = {};
     const userID = sessionStorage.getItem('userID');
     const doctorID = sessionStorage.getItem('doctorID');
-
+  
     let hasError = false;
     let hasDuplicate = false;
     const validAddresses: any[] = [];
-
+  
     const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
     const noOnlySpaces = /\S/;
     const notRepeated = /^(?!([a-zA-Z0-9])\1{5,})/;
     const onlyAlphaNumSlash = /^[a-zA-Z0-9,\s/]+$/;
-
+  
+    const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
+  
     const validateField = (
       value: string,
       key: string,
       pattern: RegExp,
       min = 1,
       msg = 'Invalid format.',
-      errors: Record<string, string>,
+      errors: Record<string, string>
     ) => {
-      if (!value || !noOnlySpaces.test(value))
-        errors[key] = 'Address Type is required.';
+      if (!value || !noOnlySpaces.test(value)) errors[key] = 'Address Type is required.';
       else if (!noEmojis.test(value)) errors[key] = 'No emojis allowed.';
-      else if (!notRepeated.test(value))
-        errors[key] = 'No repetitive characters.';
+      else if (!notRepeated.test(value)) errors[key] = 'No repetitive characters.';
       else if (value.length < min || !pattern.test(value)) errors[key] = msg;
     };
-
-    const capitalize = (str: string) =>
-      str.charAt(0).toUpperCase() + str.slice(1);
-
-    const validateAddressLine = (
-      value: string,
-      key: string,
-      errors: Record<string, string>,
-    ) => {
+  
+    const validateAddressLine = (value: string, key: string, errors: Record<string, string>) => {
       if (!value || !noOnlySpaces.test(value)) {
         errors[key] = `${capitalize(key)} is required.`;
       } else if (!noEmojis.test(value)) {
@@ -3114,8 +2813,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       } else if (!notRepeated.test(value)) {
         errors[key] = 'No repetitive characters.';
       } else if (!onlyAlphaNumSlash.test(value)) {
-        errors[key] =
-          'Only letters, numbers, spaces, and / allowed. No special characters.';
+        errors[key] = 'Only letters, numbers, spaces, and / allowed. No special characters.';
       } else if (value.length < 3) {
         errors[key] = 'Minimum 3 characters required.';
       } else if (!/[A-Za-z]/.test(value)) {
@@ -3123,45 +2821,40 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       } else if (!/\d/.test(value)) {
         errors[key] = 'Must contain at least one number.';
       }
-
+  
       if (/^\d+$/.test(value)) {
-        errors[key] =
-          `${capitalize(key)} cannot be numbers only. Include area or street name.`;
+        errors[key] = `${capitalize(key)} cannot be numbers only. Include area or street name.`;
       }
     };
-
+  
     const validateCity = (value: string, errors: Record<string, string>) => {
       const onlyLettersAndSpace = /^[A-Za-z\s.]+$/;
       if (!value || !/\S/.test(value)) {
         errors.city = 'City is required.';
       } else if (!onlyLettersAndSpace.test(value)) {
-        errors.city = 'City name must contain only letters,spaces and dots';
+        errors.city = 'City name must contain only letters, spaces and dots';
       } else if (value.length < 5) {
         errors.city = 'City must be at least 5 characters long.';
       }
     };
-
+  
     const isDuplicateAddress = (addr: any, list: any[]) => {
       return list.some(
         (existing) =>
-          existing.address1.trim().toLowerCase() ===
-            addr.address1.trim().toLowerCase() &&
-          existing.address2.trim().toLowerCase() ===
-            addr.address2.trim().toLowerCase() &&
-          existing.city.trim().toLowerCase() ===
-            addr.city.trim().toLowerCase() &&
-          existing.state.trim().toLowerCase() ===
-            addr.state.trim().toLowerCase() &&
-          existing.zipCode.trim() === addr.zipCode.trim(),
+          existing.address1.trim().toLowerCase() === addr.address1.trim().toLowerCase() &&
+          existing.address2.trim().toLowerCase() === addr.address2.trim().toLowerCase() &&
+          existing.city.trim().toLowerCase() === addr.city.trim().toLowerCase() &&
+          existing.state.trim().toLowerCase() === addr.state.trim().toLowerCase() &&
+          existing.zipCode.trim() === addr.zipCode.trim()
       );
     };
-
+  
     let isAnyFieldFilled = false;
-
+  
     for (let i = 0; i < addresses.length; i++) {
       const addr = addresses[i];
       const errors: Record<string, string> = {};
-
+  
       if (
         addr.addressType ||
         addr.address1 ||
@@ -3173,62 +2866,49 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       ) {
         isAnyFieldFilled = true;
       }
-
-      validateField(
-        addr.addressType,
-        'addressType',
-        /^[a-zA-Z0-9\s]+$/u,
-        1,
-        'Only letters, numbers, and spaces are allowed.',
-        errors,
-      );
+  
+      validateField(addr.addressType, 'addressType', /^[a-zA-Z0-9\s]+$/u, 1, 'Only letters, numbers, and spaces are allowed.', errors);
       validateAddressLine(addr.address1, 'address1', errors);
       validateAddressLine(addr.address2, 'address2', errors);
       validateCity(addr.city, errors);
-
+  
       if (!addr.city) errors.city = 'City is required.';
       if (!addr.district) errors.district = 'District is required.';
       if (!addr.state) errors.state = 'State is required.';
       if (!addr.zipCode) errors.zipCode = 'ZipCode is required.';
-
+  
       if (Object.keys(errors).length === 0) {
         const duplicateInCurrentForm = addresses.some(
           (otherAddr, j) =>
             j !== i &&
-            otherAddr.address1?.trim().toLowerCase() ===
-              addr.address1?.trim().toLowerCase() &&
-            otherAddr.address2?.trim().toLowerCase() ===
-              addr.address2?.trim().toLowerCase() &&
-            otherAddr.city?.trim().toLowerCase() ===
-              addr.city?.trim().toLowerCase() &&
-            otherAddr.state?.trim().toLowerCase() ===
-              addr.state?.trim().toLowerCase() &&
-            otherAddr.zipCode?.trim() === addr.zipCode?.trim(),
+            otherAddr.address1?.trim().toLowerCase() === addr.address1?.trim().toLowerCase() &&
+            otherAddr.address2?.trim().toLowerCase() === addr.address2?.trim().toLowerCase() &&
+            otherAddr.city?.trim().toLowerCase() === addr.city?.trim().toLowerCase() &&
+            otherAddr.state?.trim().toLowerCase() === addr.state?.trim().toLowerCase() &&
+            otherAddr.zipCode?.trim() === addr.zipCode?.trim()
         );
-
-        if (
-          isDuplicateAddress(addr, validAddresses) ||
-          duplicateInCurrentForm
-        ) {
+  
+        if (isDuplicateAddress(addr, validAddresses) || duplicateInCurrentForm) {
           errors.duplicate = 'Duplicate address found.';
           hasDuplicate = true;
           hasError = true;
           allErrors[i] = errors;
-          continue; // ❌ Do not push duplicates
+          continue;
         }
       }
-
+  
       if (Object.keys(errors).length) {
         allErrors[i] = errors;
         hasError = true;
         continue;
       }
-
+  
       validAddresses.push({
         createdBy: userID,
         updatedBy: userID,
         isActive: true,
         id: doctorID,
+        addressID: addr.addressID?.trim() || undefined,
         Type: 'Doctor',
         addressType: addr.addressType || '',
         address1: addr.address1 || '',
@@ -3240,11 +2920,11 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         isPrimary: addr.isPrimary || false,
       });
     }
-
+  
     setFormErrors(allErrors);
-
+  
     if (!isAnyFieldFilled) return;
-
+  
     if (hasError || validAddresses.length === 0) {
       if (toastShown !== 'duplicate' && hasDuplicate) {
         toast.error('Duplicate addresses are not allowed.');
@@ -3255,35 +2935,48 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       }
       return;
     }
-
-    // Remove duplicate entries from form display
+  
     const filteredAddresses = addresses.filter((addr, index) => {
       return !allErrors[index]?.duplicate;
     });
     setAddresses(filteredAddresses);
-
+  
     if (validAddresses.length > 0) {
       const isSameAsLastSaved =
         JSON.stringify(validAddresses) === JSON.stringify(lastSavedAddresses);
       if (isSameAsLastSaved) return;
     }
-
+  
     try {
-      await api.post('/Address', validAddresses);
-      toast.dismiss();
-      toast.success('All addresses saved successfully!');
-      setIsAddressSaved(true); // ✅ Enable Next button
+      const postData = validAddresses.filter((addr) => !addr.addressID);
+      const putData = validAddresses.filter((addr) => addr.addressID);
+  
+      if (putData.length > 0) {
+        await api.put('/Address', putData);
+      }
+      if (postData.length > 0) {
+        await api.post('/Address', postData);
+      }
+  
+      if (putData.length && postData.length) {
+        toast.success('Addresses updated and new ones saved successfully!');
+      } else if (putData.length) {
+        toast.success('Address updated successfully!');
+      } else if (postData.length) {
+        toast.success('New address saved successfully!');
+      }
+  
+      setIsAddressSaved(true);
       setToastShown('success');
       setLastSavedAddresses(JSON.parse(JSON.stringify(validAddresses)));
     } catch (err) {
       console.error('API error:', err);
       if (toastShown !== 'error') {
-        toast.error('Something went wrong while saving addresses.');
+        toast.error('Something went wrong while saving/updating addresses.');
         setToastShown('error');
       }
     }
   };
-
   const emptyAddressTemplate = {
     addressLine1: '',
     addressLine2: '',
@@ -3575,7 +3268,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
   //2.Address
 
-  const fetchPatientAddress = async () => {
+ const fetchDoctorAddress = async () => {
     const doctorID = sessionStorage.getItem('doctorID');
     if (!doctorID) return;
 
@@ -3621,7 +3314,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
 
       // ✅ Format addresses for form
       const formatted = filteredUnique.map((addr: any) => ({
-        addressID: addr.addressID || '',
+        addressID: addr.addressID ? addr.addressID : undefined, 
         addressType: addr.addressType || '',
         address1: addr.address1 || '',
         address2: addr.address2 || '',
@@ -3662,77 +3355,59 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       console.error('Failed to fetch address:', error);
     }
   };
+  useEffect(() => {
+    fetchDoctorAddress();
+  }, []);
 
   //3.Eductaions
-  useEffect(() => {
+  const fetchDoctorEducation = async () => {
     const doctorID = sessionStorage.getItem('doctorID');
     if (!doctorID) return;
 
-    if (isEducationFetched.current) return;
+    try {
+      const res = await api.get(
+        `/Doctor/GetDoctorEducation?doctorId=${doctorID}`,
+      );
+      const educationData = res.data?.data || [];
 
-    api
-      .get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`)
-      .then((res) => {
-        const educationData = res.data?.data || [];
-        const seen = new Set();
+      const seen = new Set();
 
-        const formatDate = (dateStr) => {
-          if (!dateStr) return '';
-          const d = new Date(dateStr);
-          const yyyy = d.getFullYear();
-          const mm = String(d.getMonth() + 1).padStart(2, '0');
-          const dd = String(d.getDate()).padStart(2, '0');
-          return `${yyyy}-${mm}-${dd}`;
-        };
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
 
-        const normalizeKey = (entry) =>
-          `${entry.degreeName?.trim().toLowerCase() || ''}-${entry.graduateID || ''}-${entry.specializationID || ''}-${entry.location?.trim().toLowerCase() || ''}-${entry.universityName?.trim().toLowerCase() || ''}-${formatDate(entry.startDate)}-${formatDate(entry.endDate)}`;
+      const normalizeKey = (entry) =>
+        `${entry.degreeName?.trim().toLowerCase() || ''}-${entry.graduateID || ''}-${entry.specializationID || ''}-${entry.location?.trim().toLowerCase() || ''}-${entry.universityName?.trim().toLowerCase() || ''}-${formatDate(entry.startDate)}-${formatDate(entry.endDate)}`;
 
-        const uniqueData = educationData.filter((item) => {
-          const key = normalizeKey(item);
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+      const uniqueEducationData = educationData.filter((item) => {
+        const key = normalizeKey(item);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-        if (uniqueData.length === 0) {
-          setEducationList([
-            {
-              degree: '',
-              UG: '',
-              specialization: '',
-              location: '',
-              university: '',
-              startDate: '',
-              endDate: '',
-              highestEducation: false,
-              errors: {},
-            },
-          ]);
-          setEducationErrors([{}]);
-        } else {
-          const formattedData = uniqueData.map((item) => ({
-            educationID: item.educationID,
-            degree: item.degreeName || '',
-            UG: item.graduateID || '',
-            specialization: item.specializationID || '',
-            location: item.location || '',
-            university: item.universityName || '',
-            startDate: item.startDate ? new Date(item.startDate) : '',
-            endDate: item.endDate ? new Date(item.endDate) : '',
-            highestEducation: item.isHighestEducation || false,
-            errors: {},
-          }));
+      if (uniqueEducationData.length > 0) {
+        const formattedEducation = uniqueEducationData.map((item) => ({
+          educationID: item.educationID || '',
+          degree: item.degreeName || '',
+          UG: item.graduateID || '',
+          specialization: item.specializationID || '',
+          location: item.location || '',
+          university: item.universityName || '',
+          startDate: item.startDate ? new Date(item.startDate) : '',
+          endDate: item.endDate ? new Date(item.endDate) : '',
+          highestEducation: item.isHighestEducation || false,
+          doctorID: item.doctorID || doctorID,
+          isActive: item.isActive ?? true,
+          errors: {},
+        }));
 
-          // 👉 Update both display list and lastSavedEducation reference
-          setEducationList(formattedData);
-          setLastSavedEducation(formattedData); // ⬅ this line is key
-          setEducationErrors(Array(formattedData.length).fill({}));
-          isEducationFetched.current = true;
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch doctor education data', err);
+        setEducationList(formattedEducation);
+        setLastSavedEducation(formattedEducation);
+        setEducationErrors(Array(formattedEducation.length).fill({}));
+      } else {
         setEducationList([
           {
             degree: '',
@@ -3743,211 +3418,276 @@ const [isPopupVisible, setPopupVisible] = useState(false);
             startDate: '',
             endDate: '',
             highestEducation: false,
+            doctorID,
+            isActive: true,
             errors: {},
           },
         ]);
+        setLastSavedEducation([]);
         setEducationErrors([{}]);
-      });
+      }
+
+      isEducationFetched.current = true;
+    } catch (err) {
+      console.error('Failed to fetch doctor education data', err);
+      setEducationList([
+        {
+          degree: '',
+          UG: '',
+          specialization: '',
+          location: '',
+          university: '',
+          startDate: '',
+          endDate: '',
+          highestEducation: false,
+          doctorID,
+          isActive: true,
+          errors: {},
+        },
+      ]);
+      setLastSavedEducation([]);
+      setEducationErrors([{}]);
+    }
+  };
+
+  // 🚀 Auto-fetch on mount
+  useEffect(() => {
+    fetchDoctorEducation();
   }, []);
 
- 
-  useEffect(() => {
+  //4.Languages
+
+  const fetchDoctorLanguages = async () => {
     const doctorID = sessionStorage.getItem('doctorID');
+    if (!doctorID) return;
 
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetLanguage?doctorId=${doctorID}`)
-        .then((res) => {
-          const langData = res.data?.data || [];
+    try {
+      const res = await api.get(`/Doctor/GetLanguage?doctorId=${doctorID}`);
+      const langData = res.data?.data || [];
 
-          // Filter duplicates
-          const seen = new Set();
-          const uniqueLangData = langData.filter((item) => {
-            const key = `${item.languageMasterID}-${item.read}-${item.write}-${item.speak}`;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-          });
+      const seen = new Set();
+      const uniqueLangData = langData.filter((item) => {
+        const key = `${item.languageMasterID}-${item.read}-${item.write}-${item.speak}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-          if (uniqueLangData.length > 0) {
-            const formattedLanguages = uniqueLangData.map((item) => {
-              const lang = languageOptions.find(
-                (opt) => opt.appLOVID === item.languageMasterID,
-              );
+      if (uniqueLangData.length > 0) {
+        const formattedLanguages = uniqueLangData.map((item) => {
+          const lang = languageOptions.find(
+            (opt) => opt.appLOVID === item.languageMasterID,
+          );
 
-              return {
-                language: lang?.name || '', // ✅ Make sure this matches exactly
-                read: item.read ?? false,
-                write: item.write ?? false,
-                speak: item.speak ?? false,
-                doctorID: item.doctorID || doctorID,
-                isActive: item.isActive ?? true,
-                type: item.type || 'Doctor',
-                errors: {},
-              };
-            });
-
-            setLanguages(formattedLanguages); // ✅ Only set clean data
-          }
-        })
-        .catch((err) => {
-          console.error('Failed to fetch doctor languages:', err);
+          return {
+            languageID: item.languageID || '',
+            language: lang?.name || '',
+            read: item.read ?? false,
+            write: item.write ?? false,
+            speak: item.speak ?? false,
+            doctorID: item.doctorID || doctorID,
+            isActive: item.isActive ?? true,
+            type: item.type || 'Doctor',
+            errors: {},
+          };
         });
+
+        setLanguages(formattedLanguages);
+      }
+    } catch (err) {
+      console.error('Failed to fetch doctor languages:', err);
     }
-  }, [languageOptions]); // ✅ Add this dependency to wait until dropdown options are available
+  };
+
+  useEffect(() => {
+    if (languageOptions.length > 0) {
+      fetchDoctorLanguages();
+    }
+  }, [languageOptions]);
 
   //5.Doctor Experience
 
-  useEffect(() => {
+  const fetchDoctorExperience = async () => {
     const doctorID = sessionStorage.getItem('doctorID');
-
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`)
-        .then((res) => {
-          const experienceData = res.data?.data || [];
-
-          const uniqueData = experienceData.filter(
-            (value, index, self) =>
-              index ===
-              self.findIndex(
-                (t) =>
-                  t.experienceID === value.experienceID &&
-                  t.employmentType === value.employmentType &&
-                  t.specializationID === value.specializationID &&
-                  t.hospitalName === value.hospitalName &&
-                  t.startDate === value.startDate &&
-                  t.endDate === value.endDate,
-              ),
-          );
-
-          const formattedData = uniqueData.map((item) => ({
-            type: item.employmentType || '',
-            specialization: item.specializationID || '',
-            hospitalName: item.hospitalName || '',
-            joinDate: item.joinDate ? item.joinDate.split('T')[0] : '',
-            leaveDate: item.leaveDate ? item.leaveDate.split('T')[0] : '',
+    if (!doctorID) return;
+  
+    try {
+      const res = await api.get(`/Doctor/GetDoctorExprience?doctorId=${doctorID}`);
+      const experienceData = res.data?.data || [];
+  
+      const seen = new Set();
+  
+      const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+  
+      const normalizeKey = (entry) =>
+        `${entry.employmentType?.trim().toLowerCase() || ''}-${entry.specializationID || ''}-${entry.hospitalName?.trim().toLowerCase() || ''}-${formatDate(entry.joinDate)}-${formatDate(entry.leaveDate)}`;
+  
+      const uniqueExperienceData = experienceData.filter((item) => {
+        const key = normalizeKey(item);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+  
+      if (uniqueExperienceData.length > 0) {
+        const formattedExperiences = uniqueExperienceData.map((item) => ({
+          experienceID: item.exprienceID || '', // fetch using wrong key, map to correct one
+          type: item.employmentType || '',
+          specialization: item.specializationID || '',
+          hospitalName: item.hospitalName || '',
+          joinDate: item.joinDate ? item.joinDate.split('T')[0] : '',
+          leaveDate: item.leaveDate ? item.leaveDate.split('T')[0] : '',
+          doctorID: item.doctorID || doctorID,
+          isActive: item.isActive ?? true,
+          errors: {},
+        }));
+  
+        setExperiences(formattedExperiences);
+        setLastSavedExperiences(formattedExperiences);
+      } else {
+        setExperiences([
+          {
+            experienceID: '',
+            type: '',
+            specialization: '',
+            hospitalName: '',
+            joinDate: '',
+            leaveDate: '',
+            doctorID,
+            isActive: true,
             errors: {},
-          }));
-
-          setExperiences(
-            formattedData.length > 0
-              ? formattedData
-              : [
-                  {
-                    type: '',
-                    specialization: '',
-                    hospitalName: '',
-                    joinDate: '',
-                    leaveDate: '',
-                    errors: {},
-                  },
-                ],
-          );
-        })
-        .catch((err) => {
-          console.error('Failed to fetch doctor experience data', err);
-        });
+          },
+        ]);
+        setLastSavedExperiences([]);
+      }
+  
+      isExperienceFetched.current = true;
+    } catch (err) {
+      console.error('Failed to fetch doctor experience data', err);
+      setExperiences([
+        {
+          experienceID: '',
+          type: '',
+          specialization: '',
+          hospitalName: '',
+          joinDate: '',
+          leaveDate: '',
+          doctorID,
+          isActive: true,
+          errors: {},
+        },
+      ]);
+      setLastSavedExperiences([]);
     }
+  };
+  
+  // 🚀 Auto-fetch on mount
+  useEffect(() => {
+   fetchDoctorExperience();
   }, []);
+
+ 
 
   //6.Doctor Skill
 
-  useEffect(() => {
+  const fetchDoctorSkills = async () => {
     const doctorID = sessionStorage.getItem('doctorID');
+    if (!doctorID) return;
 
-    if (doctorID) {
-      api
-        .get(`/Doctor/GetDoctorSkill?doctorId=${doctorID}`)
-        .then((res) => {
-          const skillData = res.data?.data || [];
+    try {
+      const res = await api.get(`/Doctor/GetDoctorSkill?doctorId=${doctorID}`);
+      const skillData = res.data?.data || [];
 
-          const formattedSkills = skillData.map((item: any) => ({
-            skillMasterID: item.skillMasterID || '',
-            skill: item.skillMasterID || '', // Use ID or name based on your dropdown binding
-            years: item.yearOfExperience?.toString() || '',
-            months: item.monthOfExperience?.toString() || '',
-            description: item.description || '',
-            errors: {},
-          }));
+      const seen = new Set();
+      const uniqueSkillData = skillData.filter((item) => {
+        const key = `${item.skillMasterID}-${item.yearOfExperience}-${item.monthOfExperience}-${item.description?.trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
 
-          setSkills(
-            formattedSkills.length > 0
-              ? formattedSkills
-              : [
-                  {
-                    skillMasterID: '',
-                    skill: '',
-                    years: '',
-                    months: '',
-                    description: '',
-                    errors: {},
-                  },
-                ],
-          );
-        })
-        .catch((err) => {
-          console.error('Failed to fetch doctor skill data', err);
-        });
+      const formattedSkills = uniqueSkillData.map((item: any) => ({
+        skillID: item.skillID || '', // existing entry gets this
+        skillMasterID: item.skillMasterID || '',
+        skill: item.skillMasterID || '',
+        years: item.yearOfExperience?.toString() || '',
+        months: item.monthOfExperience?.toString() || '',
+        description: item.description || '',
+        errors: {},
+      }));
+
+      setSkills(
+        formattedSkills.length > 0
+          ? formattedSkills
+          : [
+              {
+                skillMasterID: '',
+                skill: '',
+                years: '',
+                months: '',
+                description: '',
+                errors: {},
+              },
+            ],
+      );
+    } catch (err) {
+      console.error('Failed to fetch doctor skill data', err);
     }
+  };
+  useEffect(() => {
+    fetchDoctorSkills();
   }, []);
 
   //7.Award
 
-  useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+ const fetchDoctorAwards = async () => {
+  const doctorID = sessionStorage.getItem('doctorID');
+  if (!doctorID) return;
 
-    if (!doctorID) return;
+  try {
+    const res = await api.get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`);
+    const awardData = res.data?.data || [];
 
-    api
-      .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
-      .then((res) => {
-        const awardData = res.data?.data || [];
+    const seen = new Set();
+    const uniqueAwards = [];
 
-        // Remove logical duplicates (case-insensitive awardName + year)
-        const seen = new Set();
-        const uniqueAwards = [];
+    for (const award of awardData) {
+      const key = `${award.awardName?.trim().toLowerCase() || ''}-${award.awardYear}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        uniqueAwards.push({
+          awardID: award.awardID || '',
+          name: award.awardName || '',
+          year: award.awardYear || '',
+          description: award.description || '',
+          errors: {},
+        });
+      }
+    }
 
-        for (const award of awardData) {
-          const key = `${award.awardName?.trim().toLowerCase() || ''}-${award.awardYear}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            uniqueAwards.push({
-              name: award.awardName || '',
-              year: award.awardYear || '',
-              description: award.description || '',
-              errors: {},
-            });
-          }
-        }
+    setAwards(
+      uniqueAwards.length > 0
+        ? uniqueAwards
+        : [{ name: '', year: '', description: '', errors: {} }],
+    );
+    setLastSubmittedAwards(uniqueAwards);
+  } catch (err) {
+    console.error('Failed to fetch doctor award data:', err);
+  }
+};
+useEffect(() => {
+  fetchDoctorAwards();
+}, []);
 
-        // Set awards state (at least one empty if no data)
-        setAwards(
-          uniqueAwards.length > 0
-            ? uniqueAwards
-            : [
-                {
-                  name: '',
-                  year: '',
-                  description: '',
-                  errors: {},
-                },
-              ],
-        );
-
-        // Store for submission comparison
-        setLastSubmittedAwards(uniqueAwards);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch doctor award data:', err);
-      });
-  }, []);
 
   const handleComplete = () => {
     console.log('Form completed!');
     setPopupVisible(true);
   };
-  
 
   <div className="step-navigation">
     {steps.map((step, index) => (
@@ -3973,7 +3713,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
       Back
     </button>
   );
- const handleClosePopup = () => {
+  const handleClosePopup = () => {
     setPopupVisible(false);
   };
 
@@ -3991,7 +3731,7 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         onComplete={handleComplete}
         backButtonTemplate={backTemplate}
         nextButtonTemplate={nextButtonTemplate}
-         finishButtonTemplate={finishButtonTemplate}
+        finishButtonTemplate={finishButtonTemplate}
       >
         <FormWizard.TabContent
           title="Basic Details"
@@ -5591,10 +5331,10 @@ const [isPopupVisible, setPopupVisible] = useState(false);
                 <table className="w-full border border-gray-300">
                   <thead>
                     <tr className="bg-gray-100">
-                        <th className="border px-4 py-2">Document Type</th>
+                      <th className="border px-4 py-2">Document Type</th>
 
                       <th className="border px-4 py-2">File Name</th>
-                    
+
                       <th className="border px-4 py-2">Date</th>
                       <th className="border px-4 py-2">Actions</th>
                     </tr>
@@ -5717,20 +5457,20 @@ const [isPopupVisible, setPopupVisible] = useState(false);
         </FormWizard.TabContent>
       </FormWizard>
       {isPopupVisible && (
-            <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-              <div className="bg-white p-6 rounded-lg shadow-lg w-[300px] text-center">
-                <h3 className="text-xl font-bold">
-                  Profile Completed Successfully
-                </h3>
-                <button
-                  onClick={handleClosePopup}
-                  className="mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          )}
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[300px] text-center">
+            <h3 className="text-xl font-bold">
+              Profile Completed Successfully
+            </h3>
+            <button
+              onClick={handleClosePopup}
+              className="mt-4 bg-blue-500 text-white py-2 px-4 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <ToastContainer position="top-right" autoClose={3000} />
 
       {/* Add Style */}

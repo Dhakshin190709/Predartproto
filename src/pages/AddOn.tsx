@@ -679,7 +679,8 @@ const AddOn: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+  <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           rowData={
             filteredAddOns.length > 0 ? applyGlobalSearch(filteredAddOns) : []
@@ -693,6 +694,7 @@ const AddOn: React.FC = () => {
           rowHeight={40}
           onGridReady={onGridReady}
         />
+      </div>
       </div>
 
       {showConfirmation && (

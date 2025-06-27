@@ -46,7 +46,7 @@ const Assignrole: React.FC = () => {
   const [showPopup, setShowPopup] = useState(false); // Popup visibility
   const [roles, setRoles] = useState<string[]>([]); // Fetched role names
   const [selectedUser, setSelectedUser] = useState<any>(null); // User details for whom roles are assigned
- const [selectedRoles, setSelectedRoles] = useState<number | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<number | null>(null);
 
   const [currentUserID, setCurrentUserID] = useState<string | null>(null);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
@@ -176,57 +176,64 @@ const Assignrole: React.FC = () => {
     console.log(`Selected Tenant: ${e.target.value}`);
   };
 
- const handleSaveRoles = async () => {
-  if (!selectedRoles) {
-    toast.warn('Please select one role.');
-    return;
-  }
-
-  const userID = selectedUser?.userID;
-  if (!userID) {
-    toast.error('User not selected.');
-    return;
-  }
-
-  const createdBy = sessionStorage.getItem('userID');
-  if (!createdBy) {
-    console.error('Logged-in user ID not found in session storage.');
-    toast.error('User not logged in. Please log in again.');
-    return;
-  }
-
-  const roleAssignments = [{
-    userID,
-    roleID: selectedRoles,
-    createdBy,
-  }];
-
-  try {
-    const response = await api.post(
-      '/UserRoles/AssignRoles',
-      roleAssignments,
-    );
-    const result = response.data;
-
-    if (response.status !== 200) {
-      console.error('Failed to assign roles:', result.errors || result.message);
-      toast.error(`Failed to assign roles: ${result.errors || result.message}`);
+  const handleSaveRoles = async () => {
+    if (!selectedRoles) {
+      toast.warn('Please select one role.');
       return;
     }
 
-    console.log('Roles assigned successfully:', result);
-    toast.success('Roles assigned successfully!');
+    const userID = selectedUser?.userID;
+    if (!userID) {
+      toast.error('User not selected.');
+      return;
+    }
 
-    const updatedRowData = rowData.map((row) =>
-      row.userID === userID ? { ...row, assignRoleStatus: 'success' } : row
-    );
-    setRowData([...updatedRowData]);
-    setShowPopup(false);
-  } catch (error) {
-    console.error('Error during role assignment:', error);
-    toast.error('Error occurred while assigning roles. Please try again.');
-  }
-};
+    const createdBy = sessionStorage.getItem('userID');
+    if (!createdBy) {
+      console.error('Logged-in user ID not found in session storage.');
+      toast.error('User not logged in. Please log in again.');
+      return;
+    }
+
+    const roleAssignments = [
+      {
+        userID,
+        roleID: selectedRoles,
+        createdBy,
+      },
+    ];
+
+    try {
+      const response = await api.post(
+        '/UserRoles/AssignRoles',
+        roleAssignments,
+      );
+      const result = response.data;
+
+      if (response.status !== 200) {
+        console.error(
+          'Failed to assign roles:',
+          result.errors || result.message,
+        );
+        toast.error(
+          `Failed to assign roles: ${result.errors || result.message}`,
+        );
+        return;
+      }
+
+      console.log('Roles assigned successfully:', result);
+      toast.success('Roles assigned successfully!');
+
+      const updatedRowData = rowData.map((row) =>
+        row.userID === userID ? { ...row, assignRoleStatus: 'success' } : row,
+      );
+      setRowData([...updatedRowData]);
+      setShowPopup(false);
+    } catch (error) {
+      console.error('Error during role assignment:', error);
+      toast.error('Error occurred while assigning roles. Please try again.');
+    }
+  };
 
   // fetch role from utils
   useEffect(() => {
@@ -249,7 +256,6 @@ const Assignrole: React.FC = () => {
       setSelectedRoles((prev) => prev.filter((r) => r !== role));
     }
   };
-
 
   const columnDefs: ColDef<RowData, any>[] = [
     {
@@ -288,7 +294,7 @@ const Assignrole: React.FC = () => {
       field: 'username',
       sortable: true,
       filter: true,
-      flex: 1.5,
+      width: 280,
       headerClass: 'left-header',
       cellClass: 'text-left',
       cellRenderer: (params) => params.value || 'No User Name', // Handle empty values
@@ -297,7 +303,7 @@ const Assignrole: React.FC = () => {
       headerName: 'Mobile No',
       field: 'mobile',
       sortable: true,
-      flex: 0.9,
+      width: 150,
       filter: true,
       headerClass: 'center-header',
       cellClass: 'text-center',
@@ -307,7 +313,7 @@ const Assignrole: React.FC = () => {
       field: 'email',
       sortable: true,
       filter: true,
-      flex: 1.5,
+ width: 250,
       headerClass: 'left-header',
       cellClass: 'text-left',
     },
@@ -315,7 +321,7 @@ const Assignrole: React.FC = () => {
     {
       headerName: 'Assign Role',
       field: 'assignRole',
-      flex: 1,
+       width: 200,
       headerClass: 'text-center',
       cellClass: 'text-left',
       cellRenderer: (params: any) => (
@@ -356,48 +362,47 @@ const Assignrole: React.FC = () => {
   };
 
   const handleChangeRole = async (user: any) => {
-  setSelectedUser(user);
-  setShowPopup(true);
+    setSelectedUser(user);
+    setShowPopup(true);
 
-  try {
-    const rolesResponse = await api.get('/Role');
-    if (rolesResponse.status !== 200) throw new Error('Failed to fetch roles');
+    try {
+      const rolesResponse = await api.get('/Role');
+      if (rolesResponse.status !== 200)
+        throw new Error('Failed to fetch roles');
 
-    const rolesResult = rolesResponse.data;
-    if (rolesResult.success && Array.isArray(rolesResult.data)) {
-      setAllRoles(rolesResult.data);
-    } else {
-      console.error('Roles response is not an array:', rolesResult);
-      return;
-    }
-
-    const userRolesResponse = await api.get(`/UserRoles/${user.userID}`);
-    if (userRolesResponse.status !== 200)
-      throw new Error('Failed to fetch user roles');
-
-    const userRolesResult = userRolesResponse.data;
-    console.log('Fetched user roles response:', userRolesResult);
-
-    if (userRolesResult.success && Array.isArray(userRolesResult.data)) {
-      if (userRolesResult.data.length > 0) {
-        const assignedRoleID = userRolesResult.data[0].roleID;
-        setSelectedRoles(assignedRoleID); // ✅ For radio button
+      const rolesResult = rolesResponse.data;
+      if (rolesResult.success && Array.isArray(rolesResult.data)) {
+        setAllRoles(rolesResult.data);
       } else {
-        setSelectedRoles(null); // No role assigned yet
+        console.error('Roles response is not an array:', rolesResult);
+        return;
       }
-    } else {
-      console.error('User roles response is not an array:', userRolesResult);
+
+      const userRolesResponse = await api.get(`/UserRoles/${user.userID}`);
+      if (userRolesResponse.status !== 200)
+        throw new Error('Failed to fetch user roles');
+
+      const userRolesResult = userRolesResponse.data;
+      console.log('Fetched user roles response:', userRolesResult);
+
+      if (userRolesResult.success && Array.isArray(userRolesResult.data)) {
+        if (userRolesResult.data.length > 0) {
+          const assignedRoleID = userRolesResult.data[0].roleID;
+          setSelectedRoles(assignedRoleID); // ✅ For radio button
+        } else {
+          setSelectedRoles(null); // No role assigned yet
+        }
+      } else {
+        console.error('User roles response is not an array:', userRolesResult);
+      }
+    } catch (error) {
+      console.error('Error fetching roles or user roles:', error);
     }
-  } catch (error) {
-    console.error('Error fetching roles or user roles:', error);
-  }
-};
+  };
 
-
- const handleRoleChange = (roleID: number) => {
-  setSelectedRoles(roleID); // only one role can be selected
-};
-
+  const handleRoleChange = (roleID: number) => {
+    setSelectedRoles(roleID); // only one role can be selected
+  };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -479,35 +484,45 @@ const Assignrole: React.FC = () => {
       </h2>
 
       {/* Dropdowns for Tenant, Hospitality, and Users */}
-      <div className="flex gap-4 mb-4 items-center">
-        <select
-          value={username}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          onChange={(e) => setUserName(e.target.value)}
-        >
-          <option value="">Select User</option>
-          {users.map((username, index) => (
-            <option key={index} value={username}>
-              {username}
-            </option>
-          ))}
-        </select>
+   <div className="flex flex-wrap items-center gap-2 mb-4">
+  {/* Dropdown */}
+  <div>
+    <select
+      value={username}
+      onChange={(e) => setUserName(e.target.value)}
+      className="w-fit rounded-lg border border-stroke bg-transparent py-2.5 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    >
+      <option value="">Select User</option>
+      {users.map((username, index) => (
+        <option key={index} value={username}>
+          {username}
+        </option>
+      ))}
+    </select>
+  </div>
 
-        <CustomButton onClick={handleSearch}>Search</CustomButton>
-        <CustomButton
-          className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
-          onClick={() => {
-            setUserName(''); // Use the correct setter name here
-            fetchUsers();
-          }}
-        >
-          Reset
-        </CustomButton>
-      </div>
+  {/* Search + Reset grouped */}
+  <div className="flex gap-2">
+    <CustomButton className="w-fit" onClick={handleSearch}>
+      Search
+    </CustomButton>
+    <CustomButton
+      className="w-fit opacity-60 hover:opacity-100 border border-gray-300 flex items-center justify-center"
+      onClick={() => {
+        setUserName('');
+        fetchUsers();
+      }}
+    >
+      Reset
+    </CustomButton>
+  </div>
+</div>
+
 
       {/* Grid Table */}
       <ToastContainer position="top-right" autoClose={3000} />
-      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+     <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           columnDefs={columnDefs}
           rowData={rowData} // Ensure the updated rowData is passed here
@@ -520,6 +535,7 @@ const Assignrole: React.FC = () => {
           headerHeight={40}
           rowHeight={40}
         />
+      </div>
       </div>
 
       {/* Role Change Form Modal */}
@@ -537,24 +553,23 @@ const Assignrole: React.FC = () => {
               </div>
 
               {/* Dynamically render roles in multiple rows with 3 checkboxes per row */}
-            {/* Dynamically render roles in multiple rows with 3 radio buttons per row */}
-<div className="grid grid-cols-3 gap-6 mb-4">
-  {allRoles.map((role) => (
-    <div key={role.roleID} className="role-radio">
-      <label className="flex items-center gap-2">
-        <input
-          type="radio"
-          name="userRole" // all radios should share the same name
-          value={role.roleID}
-          checked={selectedRoles === role.roleID}
-          onChange={() => handleRoleChange(role.roleID)}
-        />
-        {role.roleName}
-      </label>
-    </div>
-  ))}
-</div>
-
+              {/* Dynamically render roles in multiple rows with 3 radio buttons per row */}
+              <div className="grid grid-cols-3 gap-6 mb-4">
+                {allRoles.map((role) => (
+                  <div key={role.roleID} className="role-radio">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="userRole" // all radios should share the same name
+                        value={role.roleID}
+                        checked={selectedRoles === role.roleID}
+                        onChange={() => handleRoleChange(role.roleID)}
+                      />
+                      {role.roleName}
+                    </label>
+                  </div>
+                ))}
+              </div>
 
               {/* Buttons */}
               <div className="mt-4 flex gap-4 justify-end">
@@ -564,7 +579,6 @@ const Assignrole: React.FC = () => {
 
                 <CustomButton onClick={handleSaveRoles}>Save</CustomButton>
               </div>
-              
             </form>
           </div>
         </div>

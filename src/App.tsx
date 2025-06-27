@@ -27,7 +27,7 @@ import Rights from '../src/pages/UsersManagement/Rights';
 import Menus from './pages/UsersManagement/Menus';
 // import ManageAvailability from './pages/ManageAvailability';
 // import PaymentGateway from './pages/PaymentGateway';
-// import CheckInCheckOut from './pages/CheckInCheckOut';
+ import CheckInCheckOut from './pages/CheckInCheckOut';
 import MedicalPrescription from './pages/MedicalPrescription';
 import Settings from './pages/Settings';
 import Tables from './pages/Tables';
@@ -40,12 +40,14 @@ import Dermatologist from './pages/FindDoctor/Dermatologist';
 import Dentist from './pages/FindDoctor/Dentist';
 import Pediatrician from './pages/FindDoctor/Pediatrician';
 import Medicine from './pages/Medicines/Medicine';
-import LabTest from './pages/LabTest/LabTest';
+import LabTestCard from './pages/LabTestCard/LabTestCard';
+import LabTest from './pages/LabTest';
+
 
 import LandingPageLayout from './layout/LandingPageLayout';
 import LandingPage from './pages/LandingPage';
-import DiagnosticsCenter from './pages/Registration/DiagnosticsCenter';
-import DiagnosticRegister from './pages/Registration/DiagnosticRegister';
+import DiagnosticsRegistration from './pages/Registration/DiagnosticsRegistration';
+//import DiagnosticRegister from './pages/Registration/DiagnosticRegisterTable';
 import Dashboard from './pages/Dashboard/Dashboard';
 
 import Profile from './pages/Profile';
@@ -61,6 +63,7 @@ import ProfilePatient from './pages/ProfilePatient';
 import ProfileDoctor from './pages/ProfileDoctor';
 import PatientProfile from './pages/PatientProfile';
 import DoctorProfile from './pages/DoctorProfile';
+import PatientLabTest from './pages/PatientLabTest';
 import HospitalProfile from './pages/HospitalProfile';
 import ProfileHospital from './pages/ProfileHospital';
 import PharmacyCreation from './pages/PharmacyDetails/PharmacyCreation';
@@ -89,6 +92,8 @@ import PatientHistory from './pages/History/PatientHistory';
 import LabTestPackage from './pages/Masters/LabTestPackage';
 import LabTestMaster from './pages/Masters/LabTestMaster';
 import DoctorPrescription from './pages/DoctorPrescription';
+import SmsTemplateForm from './pages/SmsTemplateForm';
+import EmailTemplate from './pages/EmailTemplate';
 
 import EventCreation from './pages/CreationPage/EventCreation';
 import CampCreation from './pages/CreationPage/CampCreation';
@@ -299,6 +304,26 @@ function App() {
             }
           />
           <Route
+            path="/SmsTemplateForm"
+            element={
+              <>
+                <PageTitle title="SmsTemplateForm | PreCare" />
+
+                <SmsTemplateForm />
+              </>
+            }
+          />
+          <Route
+            path="/EmailTemplate"
+            element={
+              <>
+                <PageTitle title="EmailTemplate | PreCare" />
+
+                <EmailTemplate />
+              </>
+            }
+          />
+          <Route
             path="/reschedule"
             element={
               <>
@@ -319,16 +344,16 @@ function App() {
           />
 
           <Route
-            path="/Registration/DiagnosticsCenter"
+            path="/Registration/DiagnosticsRegistration"
             element={
               <>
-                <PageTitle title="DiagnosticsCenter | PreCare" />
-                <DiagnosticsCenter />
+                <PageTitle title="DiagnosticsRegistration | PreCare" />
+                <DiagnosticsRegistration />
               </>
             }
           />
 
-          <Route
+          {/* <Route
             path="/Registration/DiagnosticRegister"
             element={
               <>
@@ -336,7 +361,7 @@ function App() {
                 <DiagnosticRegister />
               </>
             }
-          />
+          /> */}
           <Route
             path="/homepage"
             element={
@@ -352,6 +377,15 @@ function App() {
               <>
                 <PageTitle title="DoctorPrescription | PreCare" />
                 <DoctorPrescription />
+              </>
+            }
+          />
+          <Route
+            path="/PatientLabTest"
+            element={
+              <>
+                <PageTitle title="PatientLabTest | PreCare" />
+                <PatientLabTest />
               </>
             }
           />
@@ -729,7 +763,7 @@ function App() {
             </>
           }
         /> */}
-          {/* <Route
+          <Route
           path="/check-in-check-out"
           element={
             <>
@@ -737,7 +771,16 @@ function App() {
                 <CheckInCheckOut />
             </>
           }
-        /> */}
+        />
+          <Route
+          path="/LabTest"
+          element={
+            <>
+              <PageTitle title="LabTest | PreCare" />
+                <LabTest />
+            </>
+          }
+        />
           <Route
             path="/labProfile"
             element={
@@ -1355,11 +1398,11 @@ function App() {
             }
           />
           <Route
-            path="/LabTest"
+            path="/LabTestCard"
             element={
               <>
-                <PageTitle title="LabTest | PreCare" />
-                <LabTest />
+                <PageTitle title="LabTestCard | PreCare" />
+                <LabTestCard />
               </>
             }
           />

@@ -281,8 +281,8 @@ const SearchAppointment: React.FC = () => {
 
     const isDoctor = roleName === 'doctor';
     const isPatient = roleName === 'patient';
-   const isReception = roleName === 'reception';
-const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
+    const isReception = roleName === 'reception';
+    const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
 
     const isTenantAdmin = roleName === 'tenantadmin';
 
@@ -298,20 +298,17 @@ const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
       return;
     }
 
- const isDoctorOrReceptionFiltersEmpty = !startDate && !endDate && !selectedPatientName;
-  if ((isDoctor || isReception) && isDoctorOrReceptionFiltersEmpty) {
-    toast.warning('Please select at least one filter before searching.');
-    return;
-  }
+    const isDoctorOrReceptionFiltersEmpty =
+      !startDate && !endDate && !selectedPatientName;
+    if ((isDoctor || isReception) && isDoctorOrReceptionFiltersEmpty) {
+      toast.warning('Please select at least one filter before searching.');
+      return;
+    }
 
-
-
-  if (isAdmin && !startDate && !endDate) {
-  toast.warning('Please select at least one filter before searching.');
-  return;
-}
-
-
+    if (isAdmin && !startDate && !endDate) {
+      toast.warning('Please select at least one filter before searching.');
+      return;
+    }
 
     if (isTenantAdmin && !startDate && !endDate) {
       toast.warning('Please select at least one date.');
@@ -332,12 +329,11 @@ const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
 
     const params = {};
 
-  if (isDoctor || isReception) {
-    if (unitID) params.HospitalID = unitID;
-    if (doctorID) params.DoctorID = doctorID;
-    if (selectedPatientName) params.PatientName = selectedPatientName;
-  }
-
+    if (isDoctor || isReception) {
+      if (unitID) params.HospitalID = unitID;
+      if (doctorID) params.DoctorID = doctorID;
+      if (selectedPatientName) params.PatientName = selectedPatientName;
+    }
 
     if (isPatient) {
       if (selectedHospitalID) params.HospitalID = selectedHospitalID;
@@ -669,19 +665,20 @@ const isAdmin = roleName === 'hospitaladmin'; // ✅ fix here
             Reset
           </CustomButton>
 
-         {roleName?.toLowerCase() !== 'doctor' && roleName?.toLowerCase() !== 'hospitaladmin' && roleName?.toLowerCase() !== 'reception'&& (
-  <button
-    type="button"
-    className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+          {roleName?.toLowerCase() !== 'doctor' &&
+            roleName?.toLowerCase() !== 'hospitaladmin' &&
+            roleName?.toLowerCase() !== 'reception' && (
+              <button
+                type="button"
+                className="h-10 px-6 flex items-center gap-2 bg-gradient-to-b from-[#004A99] to-[#007BFF] 
     hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 
     ease-out hover:ease-in rounded-lg"
-    onClick={() => navigate('/appointment/booking')}
-  >
-    <CalendarCheck className="w-5 h-5" />
-    <span>Book</span>
-  </button>
-)}
-
+                onClick={() => navigate('/appointment/booking')}
+              >
+                <CalendarCheck className="w-5 h-5" />
+                <span>Book</span>
+              </button>
+            )}
 
           <ToastContainer position="top-right" autoClose={3000} />
         </div>

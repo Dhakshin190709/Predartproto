@@ -477,10 +477,11 @@ const hasFetched = useRef(false);
   // Fetch Doctors
  const fetchDoctors = async () => {
   try {
+    const roleName = sessionStorage.getItem('roleName');
     const tenantID = sessionStorage.getItem('tenantID');
 
     let url = '/Doctor';
-    if (tenantID) {
+    if (roleName !== 'SuperAdmin' && tenantID) {
       url += `?tenantId=${tenantID}`;
     }
 
@@ -767,6 +768,14 @@ const hasFetched = useRef(false);
     fetchAppointments(doctorID);
   }
 }, []);
+useEffect(() => {
+  if (!selectedDoctor) return;
+
+  fetchDoctorTimeSlots(selectedDoctor); // sets interval & available time
+  fetchAppointments(selectedDoctor);    // sets appointments for selected doctor
+}, [selectedDoctor]);
+
+
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
@@ -792,52 +801,57 @@ const hasFetched = useRef(false);
     const dateRange = `${startOfWeek.format('DD/MM/YYYY')} to ${endOfWeek.format('DD/MM/YYYY')}`;
 
     return (
-      <div className="rbc-toolbar w-full flex justify-between items-center">
+     <div className="rbc-toolbar w-full flex flex-col sm:flex-row items-start sm:items-center px-4 gap-4">
+
         {/* Time Interval Dropdown (Left side) */}
-        <div className="flex items-center justify-between w-full px-4">
+        
           {/* Left Dropdown */}
-         <div className="flex items-center space-x-2">
-  <label className="text-black">Doctor:</label>
+        <div className="flex items-center space-x-2">
+  <label className="text-black font-bold text-xl">Doctor:</label>
 
   <select
   name="doctor"
   value={selectedDoctor || ''}
   onChange={(e) => {
     const selectedID = e.target.value;
-    const doctor = doctors.find((doc) => doc.doctorID === selectedID);
+    const doctor = doctors.find((doc) => String(doc.doctorID) === String(selectedID));
+    
     setSelectedDoctor(selectedID);
     setDoctorName(doctor?.doctorName || '');
-  }}
-  className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-  disabled={roleName !== 'TenantAdmin'}
->
-  <option value="">Select Doctor</option>
-  {doctors.map((doc) => (
-    <option key={doc.doctorID} value={doc.doctorID}>
-      {doc.doctorName}
-    </option>
-  ))}
-</select>
 
+    // ✅ Automatically fetch time slot (which sets the interval)
+    fetchDoctorTimeSlots(selectedID);
+  }}
+   className="w-40 rounded-lg border border-black bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  disabled={roleName !== 'TenantAdmin' && roleName !== 'SuperAdmin'}
+>
+
+    <option value="">Select Doctor</option>
+    {doctors.map((doc) => (
+      <option key={doc.doctorID} value={doc.doctorID}>
+        {doc.doctorName}
+      </option>
+    ))}
+  </select>
 </div>
 
 
           {/* center Dropdown */}
-          <div className="flex items-center">
-            <label className="mr-2 text-black"> Interval:</label>
-            <select
-              value={timeInterval}
-              className="w-fit rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-              disabled
-            >
-              <option value={10}>10 minutes</option>
-              <option value={15}>15 minutes</option>
-              <option value={20}>20 minutes</option>
-              <option value={30}>30 minutes</option>
-              <option value={45}>45 minutes</option>
-              <option value={60}>1 hour</option>
-            </select>
-          </div>
+        <div className="flex items-center">
+  <label className="mr-2 text-black font-bold text-xl">Interval:</label>
+  <select
+    value={timeInterval}
+    className="w-35 rounded-lg border border-black bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    disabled={roleName !== 'TenantAdmin' && roleName !== 'SuperAdmin'}
+  >
+    <option value={10}>10 minutes</option>
+    <option value={15}>15 minutes</option>
+    <option value={20}>20 minutes</option>
+    <option value={30}>30 minutes</option>
+    <option value={45}>45 minutes</option>
+    <option value={60}>1 hour</option>
+  </select>
+</div>
 
           {/* right Week Navigation Buttons */}
 
@@ -891,10 +905,33 @@ const hasFetched = useRef(false);
               <ChevronsRight className="w-6 h-6 hover:text-primary transition" />
             </span>
           </div>
+        
+      </div>
+    );
+  };
+
+  const CustomWeekHeader = ({ label, date }) => {
+    const isToday = new Date().toDateString() === new Date(date).toDateString();
+
+    return (
+      <div className="flex flex-col items-center justify-center h-16 w-full">
+        <div className="text-sm text-gray-600 font-medium">
+          {date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+        </div>
+        <div className="mt-1 flex items-center justify-center w-full">
+          <div
+            className={`w-6 h-6 flex items-center justify-center rounded-full 
+              ${isToday ? 'bg-blue-600 text-white' : 'text-black'}`}
+          >
+            <span className="text-sm font-medium">{date.getDate()}</span>
+          </div>
         </div>
       </div>
     );
   };
+  
+
+
   const { fromTime, toTime } = getAvailableTimeRange();
   // Handle Date Selection Change
   const handleDateChange = (date: Date | null) => {
@@ -930,8 +967,9 @@ const hasFetched = useRef(false);
   }, []);
 
   return (
-    <div className="h-screen flex justify-center items-center bg-gray-100">
-      <div className="w-full max-w-full lg:h-full">
+   <div className="min-h-screen flex justify-center items-start bg-gray-100 px-2 sm:px-4">
+  <div className="w-full max-w-7xl h-full">
+
         <BigCalendar
           localizer={localizer}
           events={events}
@@ -950,6 +988,9 @@ const hasFetched = useRef(false);
           }}
           components={{
             event: ({ event }) => <span>{event.title}</span>,
+            week: {
+              header: CustomWeekHeader,
+            },
             toolbar: CustomToolbar,
           }}
           selectable={true}
@@ -1135,6 +1176,235 @@ const hasFetched = useRef(false);
 
 .popup-modal {
   z-index: 9998; /* Ensure it's below the toast */
+}
+
+
+/* --------- 1. REMOVE ALLDAY CELL --------- */
+.rbc-allday-cell,
+.rbc-allday-events {
+  display: none !important;
+}
+
+/* --------- 2. HEADER STYLING (Compact) --------- */
+.rbc-time-header-content .rbc-header,
+.rbc-header {
+  height: 100px !important; /* Reduced from 140px */
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px !important; /* Reduced from 10px */
+  gap: 4px !important; /* Reduced from 20px */
+  background-color: transparent !important;
+}
+
+
+/* --------- 3. TODAY COLUMN BG COLOR --------- */
+.rbc-header.rbc-today {
+  background-color: #e0f2fe !important; /* Blue-100 */
+}
+
+/* --------- 4. DAY TEXT (e.g. MON) --------- */
+.rbc-header span:first-child {
+  font-size: 16px !important;  /* Reduced from 22px */
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  margin-bottom: 2px !important;
+}
+
+/* --------- 5. TODAY'S DATE CIRCLE --------- */
+.rbc-time-header-content .rbc-header.rbc-today span:last-child {
+  background-color: rgb(82, 153, 241) !important;
+  color: #1e3a8a !important;
+  font-size: 16px !important;  /* Reduced from 24px */
+  font-weight: 700 !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: normal !important;
+  margin: 0 auto !important;
+}
+
+/* --------- 6. NORMAL DATE STYLING (non-today) --------- */
+.rbc-time-header-content .rbc-header span:last-child {
+  background-color: transparent !important;
+  color: #1e293b !important;
+  font-size: 16px !important;  /* Reduced from 22px */
+  font-weight: 600 !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+  border-radius: 0 !important;
+  display: inline-block !important;
+  margin: 0 auto;
+}
+
+/* --------- 7. REMOVE BUTTON STYLE IF INSIDE HEADER --------- */
+.rbc-header.rbc-today .rbc-button-link {
+  background: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* --------- 8. TODAY'S TIME SLOT BG --------- */
+.rbc-day-slot.rbc-today .rbc-time-slot {
+  background-color: #e0f2fe !important;
+}
+
+/* --------- 9. GRID LINES --------- */
+.rbc-day-slot:not(:last-child),
+.rbc-time-header-content .rbc-header {
+  border-right: 1px solid #e0e0e0 !important;
+}
+
+/* -------- Y-AXIS SPACING (Visible gap between time slots) -------- */
+.rbc-time-content .rbc-time-slot {
+  min-height: 50px !important;       /* Taller rows */
+  // border-bottom: 6px solid #f9fafb;  /* Adds visible space between rows */
+}
+
+/* -------- X-AXIS SPACING (Visible gap between day columns) -------- */
+.rbc-day-slot {
+  border-right: 6px solid #f9fafb !important;  /* Space between columns */
+}
+
+/* Optional: Remove last right border to avoid extra edge */
+.rbc-time-content > *:last-child .rbc-day-slot {
+  border-right: none !important;
+}
+
+
+.rbc-time-header.rbc-overflowing {
+  background-color: #e0f2fe !important; /* Light Blue (Tailwind's blue-100) */
+}
+
+/* Align time gutter and header row */
+.rbc-time-gutter,
+.rbc-header {
+  box-sizing: border-box;
+  border-bottom: 1px solid #cbd5e1; /* matching blue border */
+}
+
+/* Optional - remove unwanted margin/padding */
+.rbc-time-gutter.rbc-time-column {
+  padding: 6px 10px;
+  background-color: #e0f2fe;
+  border-right: 1px solid #cbd5e1;
+}
+
+/* Make sure time slots and header are same height */
+.rbc-time-slot,
+.rbc-header {
+  height: 40px; /* adjust if needed */
+  line-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.rbc-toolbar span.cursor-pointer {
+  background: radial-gradient(circle at top left, #8ECBF5, #3366AA); /* lighter blue */
+  color: white;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 20px;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.6), 0 3px 8px rgba(0, 0, 0, 0.4);
+  border: 3px solid #ccc;
+  background-clip: padding-box;
+  cursor: pointer;
+}
+
+.rbc-toolbar span.cursor-pointer:hover {
+  background: radial-gradient(circle at bottom right, #66B2F4, #2C5E9E); /* slightly darker but still soft */
+  transform: scale(1.08);
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.8), 0 6px 10px rgba(0, 0, 0, 0.5);
+  border-color: #aaa;
+}
+
+.rbc-day-slot.rbc-time-column {
+  background-color: white;
+}
+
+.rbc-toolbar {
+  // background-color: #DFF0AD; /* Light blue (Tailwind blue-100) */
+    background-color: #9CDBF5; /* Light blue (Tailwind blue-100) */
+  padding: 12px 16px; /* Optional padding for spacing */
+  border-radius: 8px; /* Optional for rounded edges */
+}
+
+.rbc-header .rbc-button-link .rbc-header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* Full height of header */
+  padding: 4px 0;
+}
+
+.rbc-header .rbc-button-link .day {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0078D7; /* Or any blue you want */
+  margin-bottom: 4px;
+}
+
+.rbc-header .rbc-button-link .date {
+  font-size: 16px;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Style all headers */
+.rbc-header {
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* Style the container of day + date */
+.custom-date-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 500;
+  font-size: 14px;
+  color: #4a4a4a;
+}
+
+/* Day (e.g., SUN) */
+.custom-date-header .day {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* Date (e.g., 8) */
+.custom-date-header .date {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* Highlight Today */
+.rbc-header.rbc-today .custom-date-header .date {
+  background-color: #1976d2; /* Blue circle */
+  color: white;
 }
 
       `}</style>

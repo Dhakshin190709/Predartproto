@@ -1,140 +1,187 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-alpine.css';
+import React, { useEffect, useState } from 'react';
+import api from '../api/request';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import CustomButton from '../components/CustomButton';
 
-interface RowData {
-  Id: number;
+interface Doctor {
+  doctorID: string;
   doctorName: string;
-  specialization: string;
-  date: string;
-  time: string;
-  roomNo: string;
-  checkInOut: string;
 }
 
-const CheckInCheckOut: React.FC = () => {
-  const [hospitalName, setHospitalName] = useState('');
-  const [doctorName, setDoctorName] = useState('');
-  const [quickSearchText, setQuickSearchText] = useState('');
-  const [gridApi, setGridApi] = useState<any>(null);
-  const [gridColumnApi, setGridColumnApi] = useState<any>(null);
+const CheckInOut: React.FC = () => {
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [selectedDoctor, setSelectedDoctor] = useState('');
+  const [status, setStatus] = useState<'none' | 'checkin' | 'checkout'>('none');
 
-  // Define data array before using it in any other variable or function
-  const data: RowData[] = [
-    { Id: 1, doctorName: 'Dr. John Doe', specialization: 'Cardiology', date: '2024-12-16', time: '10:00 AM', roomNo: '101', checkInOut: 'Check-In' },
-    { Id: 2, doctorName: 'Dr. Jane Smith', specialization: 'Neurology', date: '2024-12-16', time: '11:30 AM', roomNo: '102', checkInOut: 'Check-Out' },
-    { Id: 3, doctorName: 'Dr. Alex Brown', specialization: 'Orthopedics', date: '2024-12-16', time: '01:00 PM', roomNo: '103', checkInOut: 'Check-In' },
-  ];
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const roleName = sessionStorage.getItem('roleName');
+        const unitID = sessionStorage.getItem('unitID');
+        const tenantID = sessionStorage.getItem('tenantID');
 
-  const [filteredData, setFilteredData] = useState<RowData[]>(data);
+        let endpoint = '/Doctor';
 
-  const columnDefs: ColDef<RowData, any>[] = [
-    { headerName: 'ID', field: 'Id', sortable: true, filter: true, width: 100, headerClass: 'text-left' },
-    { headerName: 'Doctor Name', field: 'doctorName', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Specialization', field: 'specialization', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Date', field: 'date', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Time', field: 'time', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    { headerName: 'Room No', field: 'roomNo', sortable: true, filter: true, flex: 1, headerClass: 'text-left' },
-    {
-      headerName: 'Check-In/Out',
-      field: 'checkInOut',
-      flex: 1,
-      headerClass: 'text-center',
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => toggleStatus(params)}
-          className={`cursor-pointer font-bold ${params.value === 'Check-In' ? 'text-green-500' : 'text-red-400'} hover:underline`}
-        >
-          {params.value}
-        </span>
-      ),
-    },
-  ];
+        if (roleName === 'Reception' && unitID && tenantID) {
+          endpoint = `/Doctor?hospitalId=${unitID}&tenantId=${tenantID}`;
+        }
 
-  const toggleStatus = (params: any) => {
-    console.log('Status toggled:', params.value);
-  };
+        const response = await api.get(endpoint);
 
-  const applyGlobalSearch = () => {
-    if (!quickSearchText) {
-      return filteredData; // Return filtered data as is if no quick search text
+        if (response.data?.success && Array.isArray(response.data.data)) {
+          setDoctors(response.data.data);
+        } else {
+          toast.error('Invalid doctor data received.');
+        }
+      } catch (error) {
+        console.error('Error fetching doctors:', error);
+        toast.error('Error fetching doctors.');
+      }
+    };
+
+    fetchDoctors();
+  }, []);
+
+  const handleSubmit = async () => {
+    const roleName = sessionStorage.getItem('roleName');
+    const userId = sessionStorage.getItem('userID');
+    const sessionDoctorID = sessionStorage.getItem('doctorID');
+
+    // Determine doctor ID based on role
+    const doctorGuid = roleName === 'Doctor' ? sessionDoctorID : selectedDoctor;
+
+    if (!doctorGuid || status === 'none') {
+      toast.warn('Please select a doctor and a status.');
+      return;
     }
 
-    return filteredData.filter((item) => {
-      return (
-        item.doctorName?.toLowerCase().includes(quickSearchText.toLowerCase()) ||
-        item.specialization?.toLowerCase().includes(quickSearchText.toLowerCase())
-      );
-    });
-  };
+    const payload = {
+      guidID: doctorGuid,
+      updatedBy: userId,
+      updatedOn: new Date().toISOString(),
+      isActive: status === 'checkin' ? true : false,
+    };
 
-  const handleFilterSearch = () => {
-    const filtered = data.filter((item) => {
-      const matchesHospitalName = hospitalName
-        ? item.doctorName.toLowerCase().includes(hospitalName.toLowerCase())
-        : true;
-
-      const matchesDoctorName = doctorName
-        ? item.doctorName.toLowerCase().includes(doctorName.toLowerCase())
-        : true;
-
-      return matchesHospitalName && matchesDoctorName;
-    });
-
-    setFilteredData(filtered);
-  };
-
-  const onGridReady = (params: any) => {
-    setGridApi(params.api);
-    setGridColumnApi(params.columnApi);
+    try {
+      const response = await api.post('/Doctor/DoctorCheckInOut', payload);
+      if (response.data?.success) {
+        toast.success(
+          `Doctor ${status === 'checkin' ? 'checked in' : 'checked out'} successfully.`,
+        );
+      } else {
+        toast.error('Failed to update doctor status.');
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      toast.error('Something went wrong while saving.');
+    }
   };
 
   return (
-    <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
-      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">Check-in/out</h2>
+    <>
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100 px-4">
+        <div className="bg-white p-6 md:p-8 rounded-xl shadow-lg w-full max-w-md space-y-6">
+          <h2 className="text-2xl font-semibold text-center text-gray-800">
+            Doctor Check-In / Out
+          </h2>
 
-      {/* Filter Section */}
-      <div className="flex flex-wrap gap-4 mb-4 items-center">
-        <input
-          type="text"
-          placeholder="Hospital Name"
-          value={hospitalName}
-          onChange={(e) => setHospitalName(e.target.value)}
-          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        />
-        <input
-          type="text"
-          placeholder="Doctor Name"
-          value={doctorName}
-          onChange={(e) => setDoctorName(e.target.value)}
-          className="w-48 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-        />
-        <button
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white transition duration-150 ease-out hover:ease-in py-2 px-5 rounded-lg"
-          onClick={handleFilterSearch}
-        >
-          Search
-        </button>
+          <div className="relative z-10 w-full">
+            <select
+              value={selectedDoctor}
+              onChange={async (e) => {
+                const selectedID = e.target.value;
+                setSelectedDoctor(selectedID);
+
+                const tenantID = sessionStorage.getItem('tenantID');
+                const unitID = sessionStorage.getItem('unitID');
+                const roleName = sessionStorage.getItem('roleName');
+
+                if (!selectedID) {
+                  setStatus('none');
+                  return;
+                }
+
+                try {
+                  let apiURL = '';
+
+                  if (roleName === 'SuperAdmin') {
+                    apiURL = `/Doctor/DoctorCheckInOut?doctorId=${selectedID}`;
+                  } else if (roleName === 'Reception' && tenantID && unitID) {
+                    apiURL = `/Doctor/DoctorCheckInOut?tenantId=${tenantID}&hospitalId=${unitID}&doctorId=${selectedID}`;
+                  } else {
+                    toast.error('Invalid role or missing session data.');
+                    setStatus('none');
+                    return;
+                  }
+
+                  const res = await api.get(apiURL);
+
+                  if (res.data?.success && Array.isArray(res.data.data)) {
+                    const doctor = res.data.data[0];
+                    if (doctor) {
+                      setStatus(doctor.checkInOut ? 'checkin' : 'checkout');
+                    } else {
+                      setStatus('none');
+                    }
+                  } else {
+                    toast.error('Doctor status fetch failed.');
+                    setStatus('none');
+                  }
+                } catch (error) {
+                  console.error('Error fetching doctor status:', error);
+                  toast.error('Error checking doctor status.');
+                  setStatus('none');
+                }
+              }}
+              className="w-full rounded-lg border border-stroke bg-transparent py-2 px-3 text-black outline-none focus:border-primary"
+            >
+              <option value="">-- Select Doctor --</option>
+              {doctors.map((doc) => (
+                <option key={doc.doctorID} value={doc.doctorID}>
+                  {doc.doctorName}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Segment-style Toggle */}
+          <div className="flex justify-center mt-4">
+            <div className="flex border border-blue-400 rounded-full overflow-hidden">
+              <button
+                onClick={() => selectedDoctor && setStatus('checkin')}
+                disabled={!selectedDoctor}
+                className={`px-6 py-2 text-sm font-semibold transition duration-200 ${
+                  status === 'checkin'
+                    ? 'bg-green-500 text-white'
+                    : 'bg-white text-black'
+                } ${!selectedDoctor && 'opacity-50 cursor-not-allowed'}`}
+              >
+                Check-In
+              </button>
+              <button
+                onClick={() => selectedDoctor && setStatus('checkout')}
+                disabled={!selectedDoctor}
+                className={`px-6 py-2 text-sm font-semibold transition duration-200 ${
+                  status === 'checkout'
+                    ? 'bg-red-500 text-white'
+                    : 'bg-white text-black'
+                } ${!selectedDoctor && 'opacity-50 cursor-not-allowed'}`}
+              >
+                Check-Out
+              </button>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <CustomButton onClick={handleSubmit}>Save</CustomButton>
+          </div>
+        </div>
       </div>
 
-      <hr className="border-t-2 border-stroke bg-transparent my-6" />
-
-      {/* AgGrid Table */}
-      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-        <AgGridReact
-          gridOptions={{}}
-          domLayout="autoHeight"
-          rowData={applyGlobalSearch()}
-          columnDefs={columnDefs}
-          onGridReady={onGridReady}
-          pagination={true}
-          paginationPageSize={10}
-        />
-      </div>
-    </div>
+      <ToastContainer position="top-right" autoClose={3000} />
+    </>
   );
 };
 
-export default CheckInCheckOut;
+export default CheckInOut;

@@ -484,9 +484,8 @@ const handleFilterSearch = () => {
 
 
       {/* AgGrid Table */}
-      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
-      
-
+     <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
 <AgGridReact
    rowData={filteredData}
   ref={gridApi}
@@ -501,6 +500,7 @@ const handleFilterSearch = () => {
   onGridReady={onGridReady}
 />
 
+      </div>
       </div>
      
       

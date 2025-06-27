@@ -322,7 +322,11 @@ const HospitalDropdown = () => {
         </CustomButton>
       </div>
        <ToastContainer />
-      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+      <div className="mt-6 w-full overflow-x-auto">
+        <div
+    className="ag-theme-alpine"
+    style={{ height: '400px', minWidth: '800px' }} // 👈 Force min width
+  >
         <AgGridReact
           rowData={appointments}
           columnDefs={columnDefs}
@@ -332,6 +336,7 @@ const HospitalDropdown = () => {
           suppressRowClickSelection={true}
           domLayout="autoHeight"
         />
+      </div>
       </div>
     </div>
   );

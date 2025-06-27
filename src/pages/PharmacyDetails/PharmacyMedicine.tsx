@@ -181,12 +181,12 @@ const Tenant: React.FC = () => {
     resetForm();
   };
 
-  const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
-  };
+  // const resetForm = () => {
+  //   setShowForm(false); // Show the fields again
+  //   setFormMode('');
+  //   setName(''); // Reset input fields if necessary
+  //   setIsActive(false);
+  // };
 
  const handleEditClick = (medicine) => {
   setFormData({
@@ -275,7 +275,7 @@ const Tenant: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 150,
+      width: 250,
       valueGetter: (params) => getPharmacyNameById(params.data.pharmacyID),
     },
 
@@ -286,7 +286,7 @@ const Tenant: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 150,
+      width: 250,
       valueGetter: (params) => getMedicineNameById(params.data.medicineID),
     },
 
@@ -429,6 +429,7 @@ const Tenant: React.FC = () => {
     {
       headerName: 'Delete',
       headerClass: 'center-header',
+      hide:true,
       cellClass: 'text-center',
       width: 80,
       cellRenderer: (params: any) => (
@@ -755,7 +756,7 @@ const Tenant: React.FC = () => {
         );
 
         setShowForm(false);
-
+  resetForm(); 
         // Refresh the table data after successful operation
         refreshTableData();
       } else {
@@ -773,6 +774,26 @@ const Tenant: React.FC = () => {
       });
     }
   };
+
+  const resetForm = () => {
+  setFormData({
+    pharmacyID: '',
+    medicineID: '',
+    batchNumber: '',
+    expiryDate: '',
+    quantity: '',
+    pricePerUnit: '',
+    gst: '',
+    isActive: true,
+    purchaseCost: '',
+    minOrderQty: '',
+    quantityReceived: '',
+    quantityInStock: '',
+    quantitySold: '',
+    pharmacyMedicineID: '',
+  });
+  setFormErrors({});
+};
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -1101,20 +1122,23 @@ const Tenant: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={filteredData} // ✅ Use filteredData instead of original rowData
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight"
-          headerHeight={40}
-          ref={gridRef}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
-      </div>
+    <div className="ag-theme-alpine mt-6 w-full overflow-x-auto">
+  <div style={{ minWidth: '600px', height: '400px' }}>
+    <AgGridReact
+      rowData={filteredData}
+      columnDefs={columnDefs}
+      pagination={true}
+      paginationPageSize={10}
+      paginationPageSizeSelector={[10, 20, 50, 100]}
+      domLayout="autoHeight"
+      headerHeight={40}
+      ref={gridRef}
+      rowHeight={40}
+      onGridReady={onGridReady}
+    />
+  </div>
+</div>
+
 
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">

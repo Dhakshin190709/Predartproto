@@ -1,5 +1,5 @@
 import axios from 'axios'; // Ensure Axios is installed via npm or yarn
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-grid.css';
@@ -33,19 +33,22 @@ const LabTestPackage: React.FC = () => {
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [laboratories, setLaboratories] = useState([]);
   const [selectedTenantID, setSelectedTenantID] = useState('');
+  const [laboratoryMap, setLaboratoryMap] = useState<Record<string, string>>(
+    {},
+  );
 
-// New state
-const [tenantMap, setTenantMap] = useState<Record<string, string>>({});
-const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
+  // New state
+  const [tenantMap, setTenantMap] = useState<Record<string, string>>({});
+  const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
 
   const [formData, setFormData] = useState({
     tenantName: '',
     hospitalName: '',
     laboratoryName: '',
-    packageName:'',
-    packageCode:'',
-    packagePrice:'',
-    packageDescription:'',
+    packageName: '',
+    packageCode: '',
+    packagePrice: '',
+    packageDescription: '',
     isActive: true,
   });
 
@@ -63,7 +66,6 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
       });
     }
   }, [formMode]);
-
 
   useEffect(() => {
     const fetchTenantList = async () => {
@@ -93,8 +95,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     fetchTenantList();
   }, []);
 
-
-   useEffect(() => {
+  useEffect(() => {
     const fetchHospitals = async () => {
       try {
         const res = await api.get('/Hospital/List');
@@ -120,7 +121,58 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     fetchHospitals();
   }, []);
 
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      if (!formData.tenantID) {
+        setHospitals([]); // clear hospitals if tenant is unselected
+        return;
+      }
 
+      try {
+        const response = await api.get(
+          `/Hospital?tenantId=${formData.tenantID}`,
+        );
+        const hospitalData = response.data;
+
+        if (Array.isArray(hospitalData)) {
+          const extractedHospitals = hospitalData.map(
+            (item: any) => item.hospital,
+          );
+          setHospitals(extractedHospitals);
+        } else {
+          setHospitals([]);
+        }
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+        setHospitals([]);
+      }
+    };
+
+    fetchHospitals();
+  }, [formData.tenantID]);
+
+  useEffect(() => {
+    const fetchLaboratories = async () => {
+      try {
+        const response = await api.get('/Laboratory');
+        if (response.data?.data) {
+          const labData = response.data.data;
+          setLaboratories(labData);
+
+          const map: Record<string, string> = {};
+          labData.forEach((lab: any) => {
+            map[lab.laboratoryID] = lab.labName;
+          });
+
+          setLaboratoryMap(map); // ✅ this sets labID => labName
+        }
+      } catch (error) {
+        console.error('Failed to fetch laboratories:', error);
+      }
+    };
+
+    fetchLaboratories();
+  }, []);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault(); // Prevent the form from submitting and refreshing the page
@@ -140,100 +192,96 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     setFormMode('');
     setIsActive(false);
     resetFormData(); // you already have this function
-  };  
+  };
 
-
- const handleEditClick = (row: RowData) => {
-  setFormData({
-    labTestPackageID: row.labTestPackageID || '',
-
-    tenantID: row.tenantID || '',
-    tenantName: tenantMap[row.tenantID] || '',
-    hospitalID: row.hospitalID || '',
-    hospitalName: hospitalMap[row.hospitalID] || '',
-    laboratoryName: row.laboratoryID || '',
-    packageName: row.packageName || '',
-    packageCode: row.packageCode || '',
-    packagePrice: row.packagePrice?.toString() || '',
-    packageDescription: row.packageDescription || '',
-    isActive: row.isActive ?? true,
-  });
-
-  setShowForm(true);
-  setFormMode('Edit');
-
-  setTimeout(() => {
-    editFormRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
+  const handleEditClick = (row: RowData) => {
+    setFormData({
+      labTestPackageID: row.labTestPackageID || '',
+      tenantID: row.tenantID || '',
+      tenantName: tenantMap[row.tenantID] || '',
+      hospitalID: row.hospitalID || '',
+      hospitalName: hospitalMap[row.hospitalID] || '',
+      laboratoryID: row.laboratoryID || '', // ✅ Correct field name
+      laboratoryName: laboratoryMap[row.laboratoryID] || '', // ✅ Optional for display
+      packageName: row.packageName || '',
+      packageCode: row.packageCode || '',
+      packagePrice: row.packagePrice?.toString() || '',
+      packageDescription: row.packageDescription || '',
+      isActive: row.isActive ?? true,
     });
-  }, 100);
-};
 
-  
+    setShowForm(true);
+    setFormMode('Edit');
+
+    setTimeout(() => {
+      editFormRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start',
+      });
+    }, 100);
+  };
 
   // Add or update tenant
 
- const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const isValid = validateForm();
-  if (!isValid) {
-    toast.error('Please fix the errors before submitting.');
-    return;
-  }
-
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    toast.error('Missing user ID. Please log in again.');
-    return;
-  }
-
-  const payload: any = {
-    createdBy: userID,
-    updatedBy: userID,
-    isActive: true,
-    tenantID: formData.tenantID || '',
-    hospitalID: formData.hospitalID || '',
-    laboratoryID: formData.laboratoryName || '00000000-0000-0000-0000-000000000000',
-    packageName: formData.packageName.trim(),
-    packageCode: formData.packageCode.trim(),
-    packagePrice: parseFloat(formData.packagePrice),
-    packageDescription: formData.packageDescription.trim(),
-  };
-
-  // Only for Edit: include ID
-  if (formMode === 'Edit') {
-    payload.labTestPackageID = formData.labTestPackageID;
-  }
-
-  try {
-    const response =
-      formMode === 'Edit'
-        ? await api.put('/LabTestPackage', payload)
-        : await api.post('/LabTestPackage', payload);
-
-   if (response.status === 200 || response.status === 201) {
-  toast.success(
-    formMode === 'Edit'
-      ? 'Lab test package updated successfully!'
-      : 'Lab test package saved successfully!'
-  );
-  await refreshTableData();
-  resetFormData();
-  setShowForm(false);
-  setFormErrors({});
-}
- else {
-      toast.error('Failed to save lab test package.');
+    const isValid = validateForm();
+    if (!isValid) {
+      toast.error('Please fix the errors before submitting.');
+      return;
     }
-  } catch (error: any) {
-    console.error('API Error:', error.response?.data || error.message);
-    toast.error('Failed to save lab test package. Please try again.');
-  }
-};
 
-  
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      toast.error('Missing user ID. Please log in again.');
+      return;
+    }
+
+    const payload: any = {
+      createdBy: userID,
+      updatedBy: userID,
+      isActive: true,
+      tenantID: formData.tenantID || '',
+      hospitalID: formData.hospitalID || '',
+      laboratoryID:
+        formData.laboratoryID || '00000000-0000-0000-0000-000000000000',
+
+      packageName: formData.packageName.trim(),
+      packageCode: formData.packageCode.trim(),
+      packagePrice: parseFloat(formData.packagePrice),
+      packageDescription: formData.packageDescription.trim(),
+    };
+
+    // Only for Edit: include ID
+    if (formMode === 'Edit') {
+      payload.labTestPackageID = formData.labTestPackageID;
+    }
+
+    try {
+      const response =
+        formMode === 'Edit'
+          ? await api.put('/LabTestPackage', payload)
+          : await api.post('/LabTestPackage', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success(
+          formMode === 'Edit'
+            ? 'Lab test package updated successfully!'
+            : 'Lab test package saved successfully!',
+        );
+        await refreshTableData();
+        resetFormData();
+        setShowForm(false);
+        setFormErrors({});
+      } else {
+        toast.error('Failed to save lab test package.');
+      }
+    } catch (error: any) {
+      console.error('API Error:', error.response?.data || error.message);
+      toast.error('Failed to save lab test package. Please try again.');
+    }
+  };
 
   const refreshTableData = async () => {
     try {
@@ -260,7 +308,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
   useEffect(() => {
     refreshTableData();
   }, []);
-  
+
   const resetFormData = () => {
     setFormData({
       tenantName: '',
@@ -274,139 +322,145 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     });
   };
 
-  const columnDefs: ColDef<RowData, any>[] = [
-    {
-      headerName: 'LabTestPackage ID',
-      field: 'labTestPackageID',
-      hide: true,
-    },
-    {
-      headerName: 'S.No',
-      valueGetter: 'node.rowIndex + 1',
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      width: 80,
-      sortable: false,
-      filter: false,
-    },
-    {
-      headerName: 'Tenant Name',
-      field: 'tenantID',
-      valueGetter: (params) => tenantMap[params.data.tenantID] || 'N/A',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 200,
-    },
-    {
-      headerName: 'Hospital Name',
-      field: 'hospitalID',
-      valueGetter: (params) => hospitalMap[params.data.hospitalID] || 'N/A',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 200,
-    },
-    {
-      headerName: 'Laboratory Name',
-      field: 'laboratoryID',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 200,
-    },
-    {
-      headerName: 'Package Name',
-      field: 'packageName',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 160,
-    },
-    {
-      headerName: 'Package Code',
-      field: 'packageCode',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 160,
-    },
-    {
-      headerName: 'Package Price',
-      field: 'packagePrice',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 160,
-    },
-    {
-      headerName: 'Description',
-      field: 'packageDescription',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
-      sortable: true,
-      filter: true,
-      width: 240,
-    },
-    {
-      headerName: 'Status',
-      field: 'isActive',
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      width: 120,
-      cellRenderer: (params: any) => {
-        const isActive = params.value === true;
-        return (
-          <span
-            onClick={() => toggleStatus(params)}
-            className={`cursor-pointer font-bold ${
-              isActive ? 'text-green-500' : 'text-red-400'
-            } hover:underline`}
-          >
-            {isActive ? 'Active' : 'Inactive'}
-          </span>
-        );
+  const columnDefs: ColDef<RowData, any>[] = useMemo(
+    () => [
+      {
+        headerName: 'LabTestPackage ID',
+        field: 'labTestPackageID',
+        hide: true,
       },
-    },
-    {
-      headerName: 'Edit',
-      headerClass: 'center-header',
-      cellClass: 'text-center',
-      width: 80,
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleEditClick(params.data)}
-          className="cursor-pointer flex justify-center items-center"
-        >
-          <Edit
-            size={18}
-            className="text-blue-500 hover:scale-110 mt-3 transition-transform"
-          />
-        </span>
-      ),
-    },
-    {
-      headerName: 'Delete',
-      headerClass: 'center-header',
-      hide: true,
-      cellClass: 'text-center',
-      width: 80,
-      cellRenderer: (params: any) => (
-        <span
-          onClick={() => handleDelete(params.data.featureID)}
-          className="cursor-pointer text-red-600 font-bold hover:text-red-800"
-        >
-          x
-        </span>
-      ),
-    },
-  ];
+      {
+        headerName: 'S.No',
+        valueGetter: 'node.rowIndex + 1',
+        headerClass: 'center-header',
+        cellClass: 'text-center',
+        width: 80,
+        sortable: false,
+        filter: false,
+      },
+      {
+        headerName: 'Tenant Name',
+        field: 'tenantID',
+        valueGetter: (params) => tenantMap[params.data.tenantID] || 'N/A',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 200,
+      },
+      {
+        headerName: 'Hospital Name',
+        field: 'hospitalID',
+        valueGetter: (params) => hospitalMap[params.data.hospitalID] || 'N/A',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 200,
+      },
+      {
+        headerName: 'Laboratory Name',
+        field: 'laboratoryID',
+        valueGetter: (params) =>
+          laboratoryMap[params.data.laboratoryID] || 'N/A',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 200,
+      },
+
+      {
+        headerName: 'Package Name',
+        field: 'packageName',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 160,
+      },
+      {
+        headerName: 'Package Code',
+        field: 'packageCode',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 160,
+      },
+      {
+        headerName: 'Package Price',
+        field: 'packagePrice',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 160,
+      },
+      {
+        headerName: 'Description',
+        field: 'packageDescription',
+        headerClass: 'left-header',
+        cellClass: 'text-left',
+        sortable: true,
+        filter: true,
+        width: 240,
+      },
+      {
+        headerName: 'Status',
+        field: 'isActive',
+        headerClass: 'center-header',
+        cellClass: 'text-center',
+        width: 120,
+        cellRenderer: (params: any) => {
+          const isActive = params.value === true;
+          return (
+            <span
+              onClick={() => toggleStatus(params)}
+              className={`cursor-pointer font-bold ${
+                isActive ? 'text-green-500' : 'text-red-400'
+              } hover:underline`}
+            >
+              {isActive ? 'Active' : 'Inactive'}
+            </span>
+          );
+        },
+      },
+      {
+        headerName: 'Edit',
+        headerClass: 'center-header',
+        cellClass: 'text-center',
+        width: 80,
+        cellRenderer: (params: any) => (
+          <span
+            onClick={() => handleEditClick(params.data)}
+            className="cursor-pointer flex justify-center items-center"
+          >
+            <Edit
+              size={18}
+              className="text-blue-500 hover:scale-110 mt-3 transition-transform"
+            />
+          </span>
+        ),
+      },
+      {
+        headerName: 'Delete',
+        headerClass: 'center-header',
+        hide: true,
+        cellClass: 'text-center',
+        width: 80,
+        cellRenderer: (params: any) => (
+          <span
+            onClick={() => handleDelete(params.data.featureID)}
+            className="cursor-pointer text-red-600 font-bold hover:text-red-800"
+          >
+            x
+          </span>
+        ),
+      },
+    ],
+    [tenantMap, hospitalMap, laboratoryMap],
+  ); // ✅ Dependency on updated maps
 
   // Define applyGlobalSearch function
   const applyGlobalSearch = (data: RowData[]) => {
@@ -429,7 +483,6 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
       );
     });
   };
-  
 
   const onGridReady = (params) => {
     setGridApi(params.api);
@@ -440,7 +493,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     const userID = sessionStorage.getItem('userID');
     const token = sessionStorage.getItem('token');
 
-    if (!userID ) {
+    if (!userID) {
       toast.error('User not logged in. Please log in again.');
       return;
     }
@@ -449,16 +502,13 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     const updatedStatus = !(params.data.isActive === true);
 
     try {
-      await api.patch(
-        '/LabTestPackage',
-        {
-          guidID: labTestPackageID,
-          id: 0, // required by API even if unused
-          updatedBy: userID,
-          updatedOn: new Date().toISOString(),
-          isActive: updatedStatus,
-        },
-      );
+      await api.patch('/LabTestPackage', {
+        guidID: labTestPackageID,
+        id: 0, // required by API even if unused
+        updatedBy: userID,
+        updatedOn: new Date().toISOString(),
+        isActive: updatedStatus,
+      });
 
       // Update state
       const updatedData = rowData.map((item) =>
@@ -479,7 +529,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
       toast.error('Failed to update status. Please try again.');
     }
   };
-  
+
   // Delete confirmation
   const handleDelete = (Id: number) => {
     setDeleteRowId(Id);
@@ -504,7 +554,6 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     if (!formData.tenantID) {
       errors.tenantID = 'Tenant is required';
     }
-      
 
     // Validate hospital
     if (!formData.hospitalID) {
@@ -536,7 +585,6 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     } else if (!priceRegex.test(formData.packagePrice)) {
       errors.packagePrice = 'Invalid price format';
     }
-    
 
     // Validate description
     const description = formData.packageDescription?.trim() || '';
@@ -552,7 +600,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
-  
+
   // Helper to check repeated words
   const hasRepeatedWords = (text: string) => {
     const words = text.toLowerCase().match(/\b\w+\b/g) || [];
@@ -582,93 +630,99 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
           <form onSubmit={handleFormSubmit} className="space-y-6">
             {/* First row: Feature Name and Feature Description side by side */}
             {/* ✅ Row 1 */}
-            <div className="flex flex-col md:flex-row gap-6 mb-4">
-              <div className="flex-1">
-                <select
-                  value={formData.tenantID}
-                  onChange={(e) =>
-                    setFormData({ ...formData, tenantID: e.target.value })
-                  }
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                >
-                  <option value="">Select Tenant</option>
-                  {tenants.map((tenant) => (
-                    <option key={tenant.tenantID} value={tenant.tenantID}>
-                      {tenant.tenantName}
-                    </option>
-                  ))}
-                </select>
-
-                {formErrors.tenantID && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.tenantID}
-                  </p>
-                )}
-              </div>
-
-              <div className="flex-1">
-                <select
-                  value={formData.hospitalID}
-                  onChange={(e) => {
-                    const selectedHospital = hospitals.find(
-                      (h) => h.hospitalID === e.target.value,
-                    );
-                    setFormData({
-                      ...formData,
-                      hospitalID: selectedHospital?.hospitalID || '',
-                      hospitalName: selectedHospital?.hospitalName || '', // Optional: useful for showing or saving
-                    });
-                  }}
-                  className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-                >
-                  <option value="">Select Hospital</option>
-                  {hospitals.length > 0 ? (
-                    hospitals.map((hospital) => (
-                      <option
-                        key={hospital.hospitalID}
-                        value={hospital.hospitalID}
-                      >
-                        {hospital.hospitalName}
+            {formMode !== 'Edit' && (
+              <div className="flex flex-col md:flex-row gap-6 mb-4">
+                {/* Tenant Dropdown */}
+                <div className="flex-1">
+                  <select
+                    value={formData.tenantID}
+                    onChange={(e) =>
+                      setFormData({ ...formData, tenantID: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+                  >
+                    <option value="">Select Tenant</option>
+                    {tenants.map((tenant) => (
+                      <option key={tenant.tenantID} value={tenant.tenantID}>
+                        {tenant.tenantName}
                       </option>
-                    ))
-                  ) : (
-                    <option disabled>No hospitals available</option>
+                    ))}
+                  </select>
+                  {formErrors.tenantID && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.tenantID}
+                    </p>
                   )}
-                </select>
+                </div>
 
-                {formErrors.hospitalID && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.hospitalID}
-                  </p>
-                )}
+                {/* Hospital Dropdown */}
+                <div className="flex-1">
+                  <select
+                    value={formData.hospitalID}
+                    onChange={(e) => {
+                      const selectedHospital = hospitals.find(
+                        (h) => h.hospitalID === e.target.value,
+                      );
+                      setFormData({
+                        ...formData,
+                        hospitalID: selectedHospital?.hospitalID || '',
+                        hospitalName: selectedHospital?.hospitalName || '',
+                      });
+                    }}
+                    className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                  >
+                    <option value="">Select Hospital</option>
+                    {formData.tenantID ? (
+                      hospitals.length > 0 ? (
+                        hospitals.map((hospital) => (
+                          <option
+                            key={hospital.hospitalID}
+                            value={hospital.hospitalID}
+                          >
+                            {hospital.hospitalName}
+                          </option>
+                        ))
+                      ) : (
+                        <option disabled>No hospitals available</option>
+                      )
+                    ) : (
+                      <option disabled>Please select a tenant first</option>
+                    )}
+                  </select>
+                  {formErrors.hospitalID && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.hospitalID}
+                    </p>
+                  )}
+                </div>
+
+                {/* Laboratory Dropdown */}
+                <div className="flex-1">
+                  <select
+                    value={formData.laboratoryID}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        laboratoryID: e.target.value || '',
+                      })
+                    }
+                    className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+                  >
+                    <option value="">Select Laboratory</option>
+                    {laboratories.map((lab) => (
+                      <option key={lab.laboratoryID} value={lab.laboratoryID}>
+                        {lab.labName}
+                      </option>
+                    ))}
+                  </select>
+                  {formErrors.laboratoryID && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {formErrors.laboratoryID}
+                    </p>
+                  )}
+                </div>
               </div>
-
-              <div className="flex-1">
-                <select
-                  value={formData.laboratoryID}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      laboratoryID: e.target.value || '',
-                    })
-                  }
-                  className="w-full rounded-lg border border-stroke bg-white py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
-                >
-                  <option value="">-- Select Laboratory (Optional) --</option>
-                  {laboratories.map((lab) => (
-                    <option key={lab.laboratoryID} value={lab.laboratoryID}>
-                      {lab.laboratoryName}
-                    </option>
-                  ))}
-                </select>
-
-                {formErrors.laboratoryID && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.laboratoryID}
-                  </p>
-                )}
-              </div>
-            </div>
+            )}
 
             {/* ✅ Row 2 */}
             <div className="flex flex-col md:flex-row gap-6 mb-4">
@@ -689,23 +743,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
                 )}
               </div>
 
-              {/* <div className="flex-1">
-                <input
-                  type="text"
-                  value={formData.packageCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, packageCode: e.target.value })
-                  }
-                  placeholder="Package Code"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                />
-                {formErrors.packageCode && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.packageCode}
-                  </p>
-                )}
-              </div> */}
-
+          
               <div className="flex-1">
                 <input
                   type="number"
@@ -714,7 +752,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
                     setFormData({ ...formData, packagePrice: e.target.value })
                   }
                   placeholder="Package Price"
-                  className="w-5% rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
                 />
                 {formErrors.packagePrice && (
                   <p className="text-red-500 text-sm mt-1">
@@ -862,7 +900,8 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+     <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           rowData={
             filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
@@ -876,6 +915,7 @@ const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
           rowHeight={40}
           onGridReady={onGridReady}
         />
+      </div>
       </div>
 
       <style jsx>{`

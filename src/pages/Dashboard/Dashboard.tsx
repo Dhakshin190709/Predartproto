@@ -1320,14 +1320,15 @@ const AppointmentCard: React.FC = () => {
     <div className="p-4">
       {/* Wrap both in a common column grid */}
       <div className="grid grid-cols-1 md:grid-cols-1 gap-4 ml-5">
-        <div className="flex items-start gap-x-4 mb-4">
+      <div className="flex flex-wrap items-start gap-4 mb-4">
+
           {/* Doctor Dropdown (only for Patient) */}
           {roleName === 'Patient' && (
             <select
               onChange={handleDoctorSelect}
               value={selectedDoctorID}
-              className="w-full rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-            >
+               className="w-full md:w-[200px] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
               <option value="">Select Doctor</option>
               {doctors.map((doctor) => (
                 <option key={doctor.doctorID} value={doctor.doctorID}>
@@ -1339,7 +1340,8 @@ const AppointmentCard: React.FC = () => {
 
           {/* Patient Dropdown (for non-Patient roles) */}
           {roleName !== 'Patient' && (
-            <div className="flex flex-col w-full min-w-0">
+          <div className="flex flex-col w-full md:w-[200px] min-w-0">
+
               <input
                 type="text"
                 placeholder="Enter Patient Name"
@@ -1355,8 +1357,8 @@ const AppointmentCard: React.FC = () => {
           <select
             value={selectedStatusID}
             onChange={(e) => setSelectedStatusID(e.target.value)}
-            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          >
+              className="w-full md:w-[180px] min-w-[150px] max-h-40 overflow-y-auto rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+>
             <option value="">-- Select Status --</option>
             {statusList.map((item) => (
               <option key={item.appLOVID} value={item.appLOVID}>
@@ -1375,8 +1377,8 @@ const AppointmentCard: React.FC = () => {
               if (!fromTime) e.target.type = 'text';
             }}
             onChange={(e) => setFromTime(e.target.value)}
-            className="rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
+            className="w-full md:w-[180px] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
 
           <input
             type="text"
@@ -1392,8 +1394,8 @@ const AppointmentCard: React.FC = () => {
               if (!toTime) e.target.type = 'text';
             }}
             onChange={(e) => setToTime(e.target.value)}
-            className="w-[50%] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-          />
+            className="w-full md:w-[180px] rounded-lg border border-stroke bg-transparent p-2 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+/>
 
           {/* Buttons */}
           <CustomButton onClick={handleSearch}>Search</CustomButton>
@@ -1449,7 +1451,8 @@ const AppointmentCard: React.FC = () => {
           No appointments found...
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 gap-4 p-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+
           {appointments.map((appointment, index) => (
             <div
               key={index}
@@ -1457,7 +1460,8 @@ const AppointmentCard: React.FC = () => {
         transition-transform transform hover:scale-105 hover:shadow-lg w-[100%]"
             >
               {/* First row - Patient Name (Age), Gender Icon, Edit Icon */}
-              <div className="flex justify-between items-center p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-2 rounded-lg bg-blue-100 hover:bg-blue-200 transition-colors">
+
                 <div className="flex items-center">
                   {/* Patient Image */}
                   <img
@@ -1520,7 +1524,8 @@ const AppointmentCard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="mt-2 grid grid-cols-3 gap-4 items-start">
+              <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 items-start">
+
                 {/* Column 1 - Doctor & Phone */}
                 <div className="flex flex-col">
                   {/* Phone */}

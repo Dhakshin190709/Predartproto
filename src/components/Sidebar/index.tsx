@@ -27,6 +27,7 @@ import {
   FaVials,
   FaPrescriptionBottleAlt,
   FaNotesMedical,
+  FaRegEnvelope,
 } from 'react-icons/fa';
 
 import {
@@ -74,7 +75,14 @@ import {
   FaPoll,
   FaCalendarAlt,
 } from 'react-icons/fa';
-import { MdDateRange, MdDashboard, MdLocalHospital } from 'react-icons/md';
+import {
+  MdDateRange,
+  MdDashboard,
+  MdLocalHospital,
+  MdSms,
+  MdMailOutline,
+  MdScience,
+} from 'react-icons/md';
 import api from '../../api/request';
 import { BiDetail } from 'react-icons/bi';
 
@@ -105,7 +113,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
     route: '/dashboard',
   },
   PatientRecord: { icon: <FaUsers />, route: '/patientRecord' },
-  'CheckIN/OUT': { icon: <FaUserCheck />, route: '/dashboard' },
+  'CheckIN/OUT': { icon: <FaUserCheck />, route: '/check-in-check-out' },
   Payment: { icon: <FaCashRegister />, route: '/dashboard' },
   Medical: { icon: <FaFileMedical />, route: '/medical' },
   Priscription: { icon: <FaPills />, route: '/prescription' },
@@ -143,9 +151,9 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   },
   Patient: { icon: <FaUserInjured />, route: '/search/patient' },
   Appointments: { icon: <FaHospital />, route: '/search/appointment' },
-  DiagnosticsCenter: {
+  DiagnosticsRegistration: {
     icon: <FaFlask />,
-    route: '/Registration/DiagnosticsCenter',
+    route: '/Registration/DiagnosticsRegistration',
   },
   DoctorRegister: { icon: <FaUserMd />, route: '/DoctorRegistration' },
   Hospital: { icon: <MdLocalHospital />, route: '/search/hospital' },
@@ -154,14 +162,16 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   Medicals: { icon: <FaFirstAid />, route: '/search/medicals' },
   Diagnostics: { icon: <FaGitlab />, route: '/Diagnostics' },
   LabTestPackage: { icon: <FaVials />, route: '/Masters/LabTestPackage' },
-  LabTestMaster: { icon: <FaMicroscope  />, route: '/Masters/LabTestMaster' },
+  LabTestMaster: { icon: <FaMicroscope />, route: '/Masters/LabTestMaster' },
   DoctorPrescription: { icon: <FaNotesMedical />, route: '/medical' },
   PharmacyRegister: {
     icon: <FaFirstAid />,
     route: '/PharmacyDetails/PharmacyCreation',
   },
   Pharmacy: { icon: <FaFirstAid />, route: '/Pharmacy' },
-  MedicalCamp: { icon: <FaFirstAid />, route: '/MedicalCamp' },
+  MedicalCamp: { icon: <MdLocalHospital />, route: '/MedicalCamp' },
+  SmsTemplate: { icon: <MdSms />, route: '/SmsTemplateForm' },
+  EmailTemplate: { icon: <MdMailOutline />, route: '/EmailTemplate' },
 
   PharmacyMedicine: {
     icon: <FaFirstAid />,
@@ -186,6 +196,8 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   RazorPay: { icon: <FaGooglePay />, route: '/RazorPay' },
   MedicineTransfer: { icon: <FaFileExport />, route: '/MedicineTransfer' },
   Registration: { icon: <FaFileSignature />, route: '#' },
+  PatientLabTest: { icon: <MdScience />, route: '/PatientLabTest' },
+  LabTest: { icon: <MdScience />, route: '/LabTest' },
   DiagnosticsRegister: {
     icon: <FaMicroscope />,
     route: '/Registration/DiagnosticRegister',
@@ -220,7 +232,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   AssignRole: { icon: <FaIdBadge />, route: '/usersmanagement/assignrole' },
   Transfer: { icon: <FaExchangeAlt />, route: '/usersmanagement/transfer' },
   Conference: { icon: <FaVideo />, route: '/events/conference' },
-  MedicalCamp: { icon: <FaHeartbeat />, route: '/events/medicalcamp' },
+  MedicalCampRegister: { icon: <FaHeartbeat />, route: '/events/medicalcamp' },
   Survey: { icon: <FaPoll />, route: '/events/survey' },
   //Profile: { icon: <FaUserCircle />, route: '/settings/profile' },
   Communication: { icon: <FaCommentAlt />, route: '/settings/communication' },
@@ -300,122 +312,138 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
   };
 
   return (
-    <aside
-      className={`absolute left-0 top-0 z-9999 flex h-screen flex-col overflow-y-auto
-  bg-gradient-to-b from-[#002B5B] to-[#004A99] text-white transition-all duration-300 ease-linear
-  ${isCollapsed ? 'w-20' : 'w-72.5'} 
-  lg:static lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-    >
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-3">
-          <img
-            src={Logo}
-            alt="CarePoint Pro Logo"
-            className={`h-10 transition-all ${isCollapsed ? 'w-10' : 'w-12'}`}
-          />
-          {!isCollapsed && (
-            <span className="text-white text-xl font-semibold">Precare</span>
-          )}
+    <>
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <aside
+        className={`fixed lg:static top-0 left-0 z-50 h-screen flex flex-col overflow-y-auto
+    bg-gradient-to-b from-[#002B5B] to-[#004A99] text-white transition-all duration-300 ease-in-out
+    ${isCollapsed ? 'w-20' : 'w-72'} 
+    ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+    lg:translate-x-0
+  `}
+      >
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-3">
+            <img
+              src={Logo}
+              alt="CarePoint Pro Logo"
+              className={`h-10 transition-all ${isCollapsed ? 'w-10' : 'w-12'}`}
+            />
+            {!isCollapsed && (
+              <span className="text-white text-xl font-semibold">Precare</span>
+            )}
+          </div>
+
+          <button
+            className="text-white text-2xl focus:outline-none"
+            onClick={() => {
+              if (window.innerWidth < 1024) {
+                setSidebarOpen(!sidebarOpen); // Mobile toggle
+              } else {
+                setIsCollapsed(!isCollapsed); // Desktop collapse
+              }
+            }}
+          >
+            ☰
+          </button>
         </div>
 
-        <button
-          className="text-white text-2xl focus:outline-none"
-          onClick={() => setIsCollapsed(!isCollapsed)}
-        >
-          ☰
-        </button>
-      </div>
-
-      <div className="sidebar-menu overflow-y-auto flex-1">
-        <nav>
-          {rootItems.map((parent) => (
-            <div key={parent.menuID} className="p-1">
-              <NavLink
-                to={iconMapping[parent.title]?.route || '#'}
-                className={`flex items-center text-white font-semibold text-base cursor-pointer rounded-lg px-3 py-2
+        <div className="sidebar-menu overflow-y-auto flex-1">
+          <nav>
+            {rootItems.map((parent) => (
+              <div key={parent.menuID} className="p-1">
+                <NavLink
+                  to={iconMapping[parent.title]?.route || '#'}
+                  className={`flex items-center text-white font-semibold text-base cursor-pointer rounded-lg px-3 py-2
   ${activeMenu === parent.menuID ? 'bg-white text-blue-700 shadow-md' : ''}
 `}
-                onClick={() => {
-                  setActiveMenu(parent.menuID); // set active menu
-                  if (menuTree[parent.menuID]) {
-                    toggleDropdown(parent.menuID);
-                  }
-                }}
-              >
-                <div
-                  className={`text-xl mr-5 ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
+                  onClick={() => {
+                    setActiveMenu(parent.menuID);
+                    if (menuTree[parent.menuID]) toggleDropdown(parent.menuID);
+                    if (window.innerWidth < 1024) setSidebarOpen(false); // Auto close on mobile
+                  }}
                 >
-                  {iconMapping[parent.title]?.icon || <FaFolder />}
-                </div>
-
-                <span
-                  className={`text-xl transition-all ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
-                >
-                  {parent.title}
-                </span>
-
-                {!isCollapsed && menuTree[parent.menuID] && (
-                  <span className="ml-auto text-x">
-                    {openMenus.includes(parent.menuID) ? (
-                      <FaChevronUp />
-                    ) : (
-                      <FaChevronDown />
-                    )}
-                  </span>
-                )}
-              </NavLink>
-
-              {!isCollapsed &&
-                openMenus.includes(parent.menuID) &&
-                menuTree[parent.menuID] && (
-                  <div className="ml-2 mt-2 space-y-2">
-                    {menuTree[parent.menuID].map((child) => (
-                      <NavLink
-                        key={child.menuID}
-                        to={iconMapping[child.title]?.route || '#'}
-                        onClick={() => setActiveMenu(child.menuID)}
-                        className={`flex items-center text-white text-md ml-5 rounded-lg px-3 py-2
-        ${activeMenu === child.menuID ? 'bg-white text-blue-700 shadow-md' : ''}`}
-                      >
-                        <div
-                          className={`text-xl mr-3 ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
-                        >
-                          {iconMapping[child.title]?.icon || <FaFolder />}
-                        </div>
-
-                        <span
-                          className={`text-x ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
-                        >
-                          {child.title}
-                        </span>
-                      </NavLink>
-                    ))}
+                  <div
+                    className={`text-xl mr-5 ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
+                  >
+                    {iconMapping[parent.title]?.icon || <FaFolder />}
                   </div>
-                )}
-            </div>
-          ))}
-        </nav>
-      </div>
-      <style jsx>{`
-        aside::-webkit-scrollbar {
-          width: 6px;
-        }
 
-        aside::-webkit-scrollbar-thumb {
-          background-color: rgba(
-            255,
-            255,
-            255,
-            0.3
-          ); /* Light-colored scrollbar */
-          border-radius: 10px;
-        }
+                  <span
+                    className={`text-xl transition-all ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === parent.menuID ? 'text-blue-700' : 'text-white'}`}
+                  >
+                    {parent.title}
+                  </span>
 
-        aside::-webkit-scrollbar-track {
-          background: transparent; /* Removes white background */
-        }
-      `}</style>
-    </aside>
+                  {!isCollapsed && menuTree[parent.menuID] && (
+                    <span className="ml-auto text-x">
+                      {openMenus.includes(parent.menuID) ? (
+                        <FaChevronUp />
+                      ) : (
+                        <FaChevronDown />
+                      )}
+                    </span>
+                  )}
+                </NavLink>
+
+                {!isCollapsed &&
+                  openMenus.includes(parent.menuID) &&
+                  menuTree[parent.menuID] && (
+                    <div className="ml-2 mt-2 space-y-2">
+                      {menuTree[parent.menuID].map((child) => (
+                        <NavLink
+                          key={child.menuID}
+                          to={iconMapping[child.title]?.route || '#'}
+                          onClick={() => setActiveMenu(child.menuID)}
+                          className={`flex items-center text-white text-md ml-5 rounded-lg px-3 py-2
+        ${activeMenu === child.menuID ? 'bg-white text-blue-700 shadow-md' : ''}`}
+                        >
+                          <div
+                            className={`text-xl mr-3 ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
+                          >
+                            {iconMapping[child.title]?.icon || <FaFolder />}
+                          </div>
+
+                          <span
+                            className={`text-x ${isCollapsed ? 'hidden' : 'inline'} ${activeMenu === child.menuID ? 'text-blue-700' : 'text-white'}`}
+                          >
+                            {child.title}
+                          </span>
+                        </NavLink>
+                      ))}
+                    </div>
+                  )}
+              </div>
+            ))}
+          </nav>
+        </div>
+        <style jsx>{`
+          aside::-webkit-scrollbar {
+            width: 6px;
+          }
+
+          aside::-webkit-scrollbar-thumb {
+            background-color: rgba(
+              255,
+              255,
+              255,
+              0.3
+            ); /* Light-colored scrollbar */
+            border-radius: 10px;
+          }
+
+          aside::-webkit-scrollbar-track {
+            background: transparent; /* Removes white background */
+          }
+        `}</style>
+      </aside>
+    </>
   );
 };
 

@@ -284,7 +284,7 @@ const Menus: React.FC = () => {
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      flex: 2,
+  
       width: 300,
     },
     {
@@ -306,7 +306,7 @@ const Menus: React.FC = () => {
       },
       sortable: true,
       filter: true,
-      flex: 2,
+    
       width: 250,
     },
     {
@@ -655,7 +655,8 @@ const Menus: React.FC = () => {
       </div>
 
       {/* AgGrid Table */}
-      <div className="ag-theme-alpine" style={{ height: 600, width: '100%' }}>
+    <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
        <AgGridReact
   rowData={rowData}
   columnDefs={columnDefs}
@@ -668,6 +669,7 @@ const Menus: React.FC = () => {
   onGridReady={onGridReady}
 />
 
+      </div>
       </div>
 
       {/* Deletion Confirmation Modal */}

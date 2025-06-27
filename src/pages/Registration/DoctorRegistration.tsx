@@ -375,35 +375,37 @@ const DoctorRegistration: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchHospitals = async () => {
-      const tenantID = sessionStorage.getItem('tenantID');
+  const fetchHospitals = async () => {
+    const selectedTenantId = formData.tenant || sessionStorage.getItem('tenantID');
 
-      if (!tenantID) {
-        console.error('Tenant ID not found in session storage.');
-        return;
+    if (!selectedTenantId) {
+      console.error('Tenant ID not available.');
+      setHospitals([]);
+      return;
+    }
+
+    try {
+      const response = await api.get(`/Hospital/List?tenantId=${selectedTenantId}`);
+      const data = response.data;
+
+      console.log('Filtered Hospitals:', data);
+
+      if (Array.isArray(data)) {
+        const activeHospitals = data.filter((hospital) => hospital.isActive);
+        setHospitals(activeHospitals);
+      } else {
+        console.warn('Unexpected response format:', data);
+        setHospitals([]);
       }
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+      setHospitals([]);
+    }
+  };
 
-      try {
-        const response = await api.get(`/Hospital/List?tenantId=${tenantID}`);
-        const data = response.data;
+  fetchHospitals();
+}, [formData.tenant]); // 👈 Re-fetch whenever tenant changes
 
-        console.log('API Response:', data);
-
-        if (Array.isArray(data)) {
-          const activeHospitals = data.filter(
-            (hospital: { isActive: boolean }) => hospital.isActive,
-          );
-          setHospitals(activeHospitals);
-        } else {
-          console.warn('Unexpected response format:', data);
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
 
   // Prefill the dropdown with hospital from session
   useEffect(() => {

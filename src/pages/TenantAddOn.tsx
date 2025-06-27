@@ -243,7 +243,7 @@ const TenantAddOn: React.FC = () => {
       field: 'tenantID',
       headerClass: 'left-header',
       cellClass: 'text-left',
-      flex: 1,
+       width: 280,
       valueGetter: (params) => tenantMap[params.data.tenantID] || 'N/A', // Requires map
     },
     {
@@ -251,7 +251,7 @@ const TenantAddOn: React.FC = () => {
       field: 'addOnID',
       headerClass: 'left-header',
       cellClass: 'text-left',
-      flex: 1,
+      width: 220,
       valueGetter: (params) => addOnMap[params.data.addOnID] || 'N/A', // Requires map
     },
     {
@@ -760,19 +760,22 @@ const TenantAddOn: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={filteredData}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10} // ✅ Default page size
-          paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
-      </div>
+   <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
+    <AgGridReact
+      rowData={filteredData}
+      columnDefs={columnDefs}
+      pagination={true}
+      paginationPageSize={10}
+      paginationPageSizeSelector={[10, 20, 50, 100]}
+      domLayout="autoHeight"
+      headerHeight={40}
+      rowHeight={40}
+      onGridReady={onGridReady}
+    />
+  </div>
+</div>
+
 
       <style jsx>{`
         .center-header .ag-header-cell-label {

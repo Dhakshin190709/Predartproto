@@ -72,7 +72,8 @@ const SignUp: React.FC = () => {
   };
 
   const validateField = async () => {
-    const namePattern = /^(?![0-9_])[A-Za-z0-9_]{3,50}(?<!_)$/;
+    const namePattern =
+      /^(?![_.])[A-Za-z0-9](?!.*[_.]{2})[A-Za-z0-9._]{1,48}[A-Za-z0-9]$/;
 
     const emailPattern =
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;

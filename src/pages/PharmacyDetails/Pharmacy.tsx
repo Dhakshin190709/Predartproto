@@ -1038,10 +1038,11 @@ const handleChange = (field: string, value: string) => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-            <div className="grid grid-cols-3 gap-4 w-full mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mb-4">
+
               {/* Tenant Dropdown */}
               {formMode !== 'Edit' && (
-                <div>
+               <div className="w-full flex flex-col">
                   <select
                     value={selectedTenant || ''}
                     onChange={(e) => setSelectedTenant(e.target.value)}
@@ -1066,7 +1067,7 @@ const handleChange = (field: string, value: string) => {
               )}
 
               {/* Pharmacy Type Dropdown */}
-              <div>
+             <div className="w-full flex flex-col">
                 <select
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -1094,7 +1095,7 @@ const handleChange = (field: string, value: string) => {
               </div>
 
               {/* Pharmacy Name */}
-              <div>
+              <div className="w-full flex flex-col">
                 <input
                   type="text"
                   value={formData.pharmacyName}
@@ -1578,10 +1579,8 @@ const handleChange = (field: string, value: string) => {
 )}
       </div>
 
-      <div
-        className="ag-theme-alpine mt-6 w-full overflow-x-auto"
-        style={{ minWidth: '1200px' }}
-      >
+      <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -1599,6 +1598,7 @@ const handleChange = (field: string, value: string) => {
           }}
           onPaginationChanged={onPaginationChanged}
         />
+      </div>
       </div>
 
       <style jsx>{`

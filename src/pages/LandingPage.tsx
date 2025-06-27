@@ -723,7 +723,7 @@ import Carousel from 'better-react-carousel';
 import { useForm } from 'react-hook-form';
 import FindDoctor from './FindDoctor/FindDoctor';
 import Medicine from './Medicines/Medicine';
-import LabTest from './LabTest/LabTest';
+import LabTest from './LabTestCard/LabTestCard';
 import Hospitals from './Navbar/Hospitals';
 import Contact from './Navbar/Contact';
 import PricingPlan from './Navbar/PricingPlan';

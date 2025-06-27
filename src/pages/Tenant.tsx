@@ -105,36 +105,35 @@ const Tenant: React.FC = () => {
   const [emailVerifyLoading, setEmailVerifyLoading] = useState(false);
   const [mobileOtpTimer, setMobileOtpTimer] = useState(0);
   const [mobileResendAvailable, setMobileResendAvailable] = useState(false);
-const [emailOtpTimer, setEmailOtpTimer] = useState(0);
-const [emailResendAvailable, setEmailResendAvailable] = useState(false);
+  const [emailOtpTimer, setEmailOtpTimer] = useState(0);
+  const [emailResendAvailable, setEmailResendAvailable] = useState(false);
 
   const handleSendEmailOtp = () => {
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) return;
 
-  setEmailOtpLoading(true);
-  setEmailSent(true);
-  setEmailResendAvailable(false);
-  setEmailOtpTimer(60); // Start countdown
+    setEmailOtpLoading(true);
+    setEmailSent(true);
+    setEmailResendAvailable(false);
+    setEmailOtpTimer(60); // Start countdown
 
-  setTimeout(() => {
-    setEmailOtpLoading(false);
-    toast.success('OTP sent to your email.');
-  }, 1000);
-};
-useEffect(() => {
-  let interval: any;
-
-  if (emailOtpTimer > 0) {
-    interval = setInterval(() => {
-      setEmailOtpTimer((prev) => prev - 1);
+    setTimeout(() => {
+      setEmailOtpLoading(false);
+      toast.success('OTP sent to your email.');
     }, 1000);
-  } else if (emailOtpTimer === 0 && emailSent) {
-    setEmailResendAvailable(true);
-  }
+  };
+  useEffect(() => {
+    let interval: any;
 
-  return () => clearInterval(interval);
-}, [emailOtpTimer, emailSent]);
+    if (emailOtpTimer > 0) {
+      interval = setInterval(() => {
+        setEmailOtpTimer((prev) => prev - 1);
+      }, 1000);
+    } else if (emailOtpTimer === 0 && emailSent) {
+      setEmailResendAvailable(true);
+    }
 
+    return () => clearInterval(interval);
+  }, [emailOtpTimer, emailSent]);
 
   const handleVerifyEmailOtp = () => {
     if (!emailOtp.trim()) {
@@ -732,39 +731,40 @@ useEffect(() => {
                 />
                 {!isEmailVerified ? (
                   <>
-                   {!emailSent ? (
-  <button
-    type="button"
-    onClick={handleSendEmailOtp}
-    disabled={
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) || emailOtpLoading
-    }
-    className={`absolute right-2 top-3 text-sm px-3 py-1 rounded ${
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) && !emailOtpLoading
-        ? 'bg-blue-500 text-white hover:bg-blue-600'
-        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-    }`}
-  >
-    {emailOtpLoading ? (
-      <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-    ) : (
-      'Send OTP'
-    )}
-  </button>
-) : emailResendAvailable ? (
-  <button
-    type="button"
-    onClick={handleSendEmailOtp}
-    className="absolute right-2 top-3 bg-yellow-500 text-white text-sm px-3 py-1 rounded hover:bg-yellow-600"
-  >
-    Resend OTP
-  </button>
-) : (
-  <div className="absolute right-3 top-4 text-sm text-gray-500">
-    Resend in {emailOtpTimer}s
-  </div>
-)}
-
+                    {!emailSent ? (
+                      <button
+                        type="button"
+                        onClick={handleSendEmailOtp}
+                        disabled={
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) ||
+                          emailOtpLoading
+                        }
+                        className={`absolute right-2 top-3 text-sm px-3 py-1 rounded ${
+                          /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email) &&
+                          !emailOtpLoading
+                            ? 'bg-blue-500 text-white hover:bg-blue-600'
+                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        }`}
+                      >
+                        {emailOtpLoading ? (
+                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                        ) : (
+                          'Send OTP'
+                        )}
+                      </button>
+                    ) : emailResendAvailable ? (
+                      <button
+                        type="button"
+                        onClick={handleSendEmailOtp}
+                        className="absolute right-2 top-3 bg-yellow-500 text-white text-sm px-3 py-1 rounded hover:bg-yellow-600"
+                      >
+                        Resend OTP
+                      </button>
+                    ) : (
+                      <div className="absolute right-3 top-4 text-sm text-gray-500">
+                        Resend in {emailOtpTimer}s
+                      </div>
+                    )}
 
                     {emailSent && (
                       <div className="mt-3 flex items-center gap-2">

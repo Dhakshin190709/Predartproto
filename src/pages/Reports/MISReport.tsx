@@ -423,10 +423,10 @@ const handleSearch = async () => {
           Reset
         </CustomButton>
       </div>
-
+  <div className="mt-6 w-full overflow-x-auto">
       <div
         className="ag-theme-alpine"
-        style={{ height: '500px', width: '100%' }}
+       style={{ height: '400px', minWidth: '800px' }}
       >
         <AgGridReact
           columnDefs={columnDefs}
@@ -439,6 +439,7 @@ const handleSearch = async () => {
           enableFilter={true}
           gridOptions={gridOptions}
         />
+      </div>
       </div>
     </div>
   );

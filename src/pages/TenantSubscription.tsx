@@ -732,23 +732,23 @@ const TenantSubscription: React.FC = () => {
               </div>
 
               <div>
-               <input
-  type={formData.expiresOn ? 'date' : 'text'}
-  placeholder="Expires On"
-  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-  value={formData.expiresOn || ''}
-  min={formData.subscribedOn || ''} // 👈 restrict past dates
-  onFocus={(e) => (e.target.type = 'date')}
-  onBlur={(e) => {
-    if (!e.target.value) e.target.type = 'text';
-  }}
-  onChange={(e) =>
-    setFormData((prev) => ({
-      ...prev,
-      expiresOn: e.target.value,
-    }))
-  }
-/>
+                <input
+                  type={formData.expiresOn ? 'date' : 'text'}
+                  placeholder="Expires On"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
+                  value={formData.expiresOn || ''}
+                  min={formData.subscribedOn || ''} // 👈 restrict past dates
+                  onFocus={(e) => (e.target.type = 'date')}
+                  onBlur={(e) => {
+                    if (!e.target.value) e.target.type = 'text';
+                  }}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      expiresOn: e.target.value,
+                    }))
+                  }
+                />
 
                 {formErrors.expiresOn && (
                   <p className="text-red-500 text-sm mt-1">
@@ -758,9 +758,10 @@ const TenantSubscription: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-4 gap-4 items-center">
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-start">
+
               {/* Column 1: Is Active */}
-              <div className="col-span-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.isActive}
@@ -772,7 +773,7 @@ const TenantSubscription: React.FC = () => {
               </div>
 
               {/* Column 2: Is Recurring */}
-              <div className="col-span-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.paymentStatus}
@@ -785,7 +786,7 @@ const TenantSubscription: React.FC = () => {
                 />
                 <label>Payment Status</label>
               </div>
-              <div className="col-span-1 flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   checked={formData.isEnabled}
@@ -799,6 +800,7 @@ const TenantSubscription: React.FC = () => {
                 <label>Is Enabled</label>
               </div>
             </div>
+
             <input
               type="hidden"
               id="createdBy"
@@ -887,22 +889,27 @@ const TenantSubscription: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={
-            filteredTenantData.length > 0
-              ? applyGlobalSearch(filteredTenantData)
-              : []
-          }
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
+      <div className="w-full overflow-x-auto">
+        <div
+          className="ag-theme-alpine min-w-[700px] mt-6"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={
+              filteredTenantData.length > 0
+                ? applyGlobalSearch(filteredTenantData)
+                : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
       </div>
 
       {showConfirmation && (

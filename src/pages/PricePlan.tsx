@@ -689,7 +689,8 @@ const PricePlan: React.FC = () => {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
+     <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
         <AgGridReact
           rowData={
             filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
@@ -703,6 +704,7 @@ const PricePlan: React.FC = () => {
           rowHeight={40}
           onGridReady={onGridReady}
         />
+      </div>
       </div>
 
       <style jsx>{`

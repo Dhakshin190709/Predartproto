@@ -38,12 +38,12 @@ const EPharmacyPage: React.FC = () => {
   const [formData, setFormData] = useState({
     tenant: '',
     hospital: '',
-    pharmacyName: '',
-    pharmacyEmail: '',
-    pharmacyPhoneNumber: '',
+    labName: '',
+    email: '',
+    mobile: '',
+    landline: '', // ✅ newly added
     workHours: '',
-    pharmacyCode: '',
-    pharmacyTypes: '',
+    labCode: '',
   });
 
   const [errors, setErrors] = useState<any>({});
@@ -64,67 +64,58 @@ const EPharmacyPage: React.FC = () => {
   const [touchedFields, setTouchedFields] = useState<{
     [key: string]: boolean;
   }>({});
+  const [labFacilities, setLabFacilities] = useState([]);
+  const [selectedFacility, setSelectedFacility] = useState('');
+  const [labTypes, setLabTypes] = useState([]);
+  const [selectedLabType, setSelectedLabType] = useState('');
+
   const navigate = useNavigate();
+
   const validate = () => {
     const newErrors: any = {};
 
     const namePattern = /^(?!.*([A-Za-z])\1{2,})[A-Za-z\s]{1,30}$/;
-
     const emailPattern =
       /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+\.(com|org|in|co|net|edu|gov)$/i;
     const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+   const landlineRegex = /^(\+91[\s-]?)?[0]?[1-9][0-9]{1,3}[\s-]?[0-9]{6,8}$/;
 
-    const workHourPattern = /^[0-9]+$/;
-    const pharmacyCodePattern = /^[A-Z0-9]{3,10}$/; // Example: 3–10 uppercase letters/digits
-
-    // Tenant
+    // ✅ Dropdown validations
     if (!formData.tenant) newErrors.tenant = 'Tenant is required';
-
-    // Hospital
     if (!formData.hospital) newErrors.hospital = 'Hospital is required';
-    if (!formData.pharmacyTypes)
-      newErrors.pharmacyTypes = 'Pharmacy Types is required';
+    if (!selectedLabType) newErrors.labType = 'Lab Type is required';
+    //if (!selectedFacility) newErrors.workHours = 'Lab Facility is required';
 
-    // Pharmacy Name
-    if (!formData.pharmacyName.trim()) {
-      newErrors.pharmacyName = 'Pharmacy Name is required';
-    } else if (!namePattern.test(formData.pharmacyName.trim())) {
-      newErrors.pharmacyName =
-        'Only alphabets and spaces allowed, no repeating characters, max 30 characters';
-    } else {
-      delete newErrors.pharmacyName;
+    // ✅ Lab Name
+    if (!formData.labName.trim()) {
+      newErrors.labName = 'Lab Name is required';
+    } else if (!namePattern.test(formData.labName.trim())) {
+      newErrors.labName =
+        'Only letters and spaces allowed, max 30 characters, no repeating characters';
     }
 
-    // Pharmacy Email
-    if (!formData.pharmacyEmail) {
-      newErrors.pharmacyEmail = 'Email is required';
-    } else if (!emailPattern.test(formData.pharmacyEmail)) {
-      newErrors.pharmacyEmail = 'Invalid email format';
+    // ✅ Email
+    if (!formData.email) {
+      newErrors.email = 'Email is required';
+    } else if (!emailPattern.test(formData.email)) {
+      newErrors.email = 'Invalid email format';
     }
 
-    // Pharmacy Phone Number
-    if (!formData.pharmacyPhoneNumber) {
-      newErrors.pharmacyPhoneNumber = 'Phone number is required';
-    } else if (!phoneRegex.test(formData.pharmacyPhoneNumber)) {
-      newErrors.pharmacyPhoneNumber =
-        'Must be 10 digits, start with 6–9, no repeated digits.';
-    } else {
-      delete newErrors.pharmacyPhoneNumber;
+    // ✅ Mobile
+    if (!formData.mobile) {
+      newErrors.mobile = 'Phone number is required';
+    } else if (!phoneRegex.test(formData.mobile)) {
+      newErrors.mobile =
+        'Must be 10 digits, start with 6–9, no repeated digits';
     }
 
-    // Work Hours
-    if (!formData.workHours.trim()) {
-      newErrors.workHours = 'Work hours are required';
-    } else if (!workHourPattern.test(formData.workHours)) {
-      newErrors.workHours = 'Only numbers allowed';
+    // ✅ Landline
+    if (!formData.landline) {
+      newErrors.landline = 'Landline is required';
+    } else if (!landlineRegex.test(formData.landline)) {
+      newErrors.landline =
+        'Enter a valid landline (e.g., 044-1234567 or +91 22 12345688)';
     }
-
-    // Pharmacy Code
-    // if (!formData.pharmacyCode.trim()) {
-    //   newErrors.pharmacyCode = 'Pharmacy Code is required';
-    // } else if (!pharmacyCodePattern.test(formData.pharmacyCode)) {
-    //   newErrors.pharmacyCode = 'Invalid code (3–10 uppercase letters/numbers)';
-    // }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -189,21 +180,35 @@ const EPharmacyPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchPharmacyTypes = async () => {
+    const fetchLabTypes = async () => {
       try {
-        const response = await api.get('/AppLOV?type=PharmacyType');
-        if (response.data.success) {
-          setPharmacyTypes(response.data.data);
-        } else {
-          console.warn('API returned success = false');
+        const res = await api.get('/AppLOV?type=LabType');
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const activeTypes = res.data.data.filter((item) => item.isActive);
+          setLabTypes(activeTypes);
         }
-      } catch (error) {
-        console.error('Error fetching pharmacy types:', error);
-        toast.error('Failed to load pharmacy types'); // Optional: user-facing feedback
+      } catch (err) {
+        console.error('Failed to fetch LabType:', err);
       }
     };
 
-    fetchPharmacyTypes();
+    fetchLabTypes();
+  }, []);
+
+  useEffect(() => {
+    const fetchLabFacilities = async () => {
+      try {
+        const res = await api.get('/AppLOV?type=LabFacilities');
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const activeFacilities = res.data.data.filter((f) => f.isActive);
+          setLabFacilities(activeFacilities);
+        }
+      } catch (error) {
+        console.error('Error fetching lab facilities:', error);
+      }
+    };
+
+    fetchLabFacilities();
   }, []);
 
   useEffect(() => {
@@ -230,76 +235,76 @@ const EPharmacyPage: React.FC = () => {
     fetchAddressTypes();
   }, []);
 
-useEffect(() => {
-  const fetchTenants = async () => {
-    try {
-      const response = await api.get('/Tenant');
+  useEffect(() => {
+    const fetchTenants = async () => {
+      try {
+        const response = await api.get('/Tenant');
 
-      if (response.data.success && Array.isArray(response.data.data)) {
-        const activeTenants = response.data.data.filter((t) => t.isActive);
-        setTenants(activeTenants);
+        if (response.data.success && Array.isArray(response.data.data)) {
+          const activeTenants = response.data.data.filter((t) => t.isActive);
+          setTenants(activeTenants);
 
-        const roleName = sessionStorage.getItem('roleName');
-        const tenantID = sessionStorage.getItem('tenantID');
+          const roleName = sessionStorage.getItem('roleName');
+          const tenantID = sessionStorage.getItem('tenantID');
 
-        // Prefill only if NOT SuperAdmin
-        if (roleName !== 'SuperAdmin' && tenantID) {
-          setFormData((prev) => ({
-            ...prev,
-            tenant: tenantID,
-          }));
-          setIsTenantPrefilled(true); // disable dropdown
+          // Prefill only if NOT SuperAdmin
+          if (roleName !== 'SuperAdmin' && tenantID) {
+            setFormData((prev) => ({
+              ...prev,
+              tenant: tenantID,
+            }));
+            setIsTenantPrefilled(true); // disable dropdown
+          } else {
+            setIsTenantPrefilled(false); // allow SuperAdmin to select
+          }
         } else {
-          setIsTenantPrefilled(false); // allow SuperAdmin to select
+          console.warn('Unexpected tenant response format');
         }
-      } else {
-        console.warn('Unexpected tenant response format');
+      } catch (error) {
+        console.error('Error fetching tenants:', error);
+        toast.error('Failed to load tenants');
       }
-    } catch (error) {
-      console.error('Error fetching tenants:', error);
-      toast.error('Failed to load tenants');
-    }
-  };
+    };
 
-  fetchTenants();
-}, []);
+    fetchTenants();
+  }, []);
 
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      if (!formData.tenant) {
+        setHospitals([]); // Clear hospitals if no tenant selected
+        return;
+      }
 
- useEffect(() => {
-  const fetchHospitals = async () => {
-    const selectedTenantId = formData.tenant || sessionStorage.getItem('tenantID');
+      try {
+        const response = await api.get(
+          `/Hospital/List?tenantId=${formData.tenant}`,
+        );
 
-    if (!selectedTenantId) {
-      setHospitals([]);
-      return;
-    }
+        if (Array.isArray(response.data)) {
+          const activeHospitals = response.data.filter((h) => h.isActive);
+          setHospitals(activeHospitals);
 
-    try {
-      const response = await api.get(`/Hospital/List?tenantId=${selectedTenantId}`);
-      if (Array.isArray(response.data)) {
-        const activeHospitals = response.data.filter((h) => h.isActive);
-        setHospitals(activeHospitals);
-
-        // Auto-select if only one hospital
-        if (activeHospitals.length === 1 && !isHospitalPrefilled) {
-          setFormData((prev) => ({
-            ...prev,
-            hospital: activeHospitals[0].hospitalID,
-          }));
+          // Auto-select if only one hospital and hospital not prefilled
+          if (activeHospitals.length === 1 && !isHospitalPrefilled) {
+            setFormData((prev) => ({
+              ...prev,
+              hospital: activeHospitals[0].hospitalID,
+            }));
+          }
+        } else {
+          console.warn('Unexpected response format for hospitals');
+          setHospitals([]);
         }
-      } else {
-        console.warn('Unexpected response format for hospitals');
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+        toast.error('Failed to load hospitals');
         setHospitals([]);
       }
-    } catch (error) {
-      console.error('Error fetching hospitals:', error);
-      toast.error('Failed to load hospitals');
-      setHospitals([]);
-    }
-  };
+    };
 
-  fetchHospitals();
-}, [formData.tenant]); // 🔁 Refetch hospitals whenever tenant changes
+    fetchHospitals();
+  }, [formData.tenant]); // 👈 Depend on selected tenant
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };
@@ -314,49 +319,47 @@ useEffect(() => {
     const errors: { [key: string]: string } = {};
 
     if (!address.addressType) errors.addressType = 'Address type is required'; // ✅ Match this to your form field
-const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
-const hasText = /[a-zA-Z]/;
-const noOnlySpaces = /\S/;
-const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
-const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-const maxTwoDigits = (value: string) => (value.match(/\d/g) || []).length <= 2;
+    const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
+    const hasText = /[a-zA-Z]/;
+    const noOnlySpaces = /\S/;
+    const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const maxTwoDigits = (value: string) =>
+      (value.match(/\d/g) || []).length <= 2;
 
-if (!address.address1 || !noOnlySpaces.test(address.address1)) {
-  errors.address1 = 'Address line 1 is required';
-} else if (!hasText.test(address.address1)) {
-  errors.address1 = 'Address must include some text';
-} else if (!notRepeatedChar.test(address.address1)) {
-  errors.address1 = 'Repeated characters are not allowed';
-} else if (!noEmojis.test(address.address1)) {
-  errors.address1 = 'Emojis are not allowed';
-} else if (!onlyAllowedChars.test(address.address1)) {
-  errors.address1 = 'Only letters, numbers, spaces, comma, and slash are allowed';
-} else if (!maxTwoDigits(address.address1)) {
-  errors.address1 = 'Only up to 2 digits are allowed';
-}else if (address.address1.length < 5) {
-  errors.address1 = 'Address is too short or not meaningful';
-}
+    if (!address.address1 || !noOnlySpaces.test(address.address1)) {
+      errors.address1 = 'Address line 1 is required';
+    } else if (!hasText.test(address.address1)) {
+      errors.address1 = 'Address must include some text';
+    } else if (!notRepeatedChar.test(address.address1)) {
+      errors.address1 = 'Repeated characters are not allowed';
+    } else if (!noEmojis.test(address.address1)) {
+      errors.address1 = 'Emojis are not allowed';
+    } else if (!onlyAllowedChars.test(address.address1)) {
+      errors.address1 =
+        'Only letters, numbers, spaces, comma, and slash are allowed';
+    } else if (!maxTwoDigits(address.address1)) {
+      errors.address1 = 'Only up to 2 digits are allowed';
+    } else if (address.address1.length < 5) {
+      errors.address1 = 'Address is too short or not meaningful';
+    }
 
-
-
-if (!address.address2 || !noOnlySpaces.test(address.address2)) {
-  errors.address2 = 'Address line 2 is required';
-} else if (!hasText.test(address.address2)) {
-  errors.address2 = 'Address must include some text';
-} else if (!notRepeatedChar.test(address.address2)) {
-  errors.address2 = 'Repeated characters are not allowed';
-} else if (!noEmojis.test(address.address2)) {
-  errors.address2 = 'Emojis are not allowed';
-} else if (!onlyAllowedChars.test(address.address2)) {
-  errors.address2 = 'Only letters, numbers, spaces, comma, and slash are allowed';
-} else if (!maxTwoDigits(address.address2)) {
-  errors.address2 = 'Only up to 2 digits are allowed';
-}else if (address.address2.length < 5) {
-  errors.address2 = 'Address is too short or not meaningful';
-}
-
-
-
+    if (!address.address2 || !noOnlySpaces.test(address.address2)) {
+      errors.address2 = 'Address line 2 is required';
+    } else if (!hasText.test(address.address2)) {
+      errors.address2 = 'Address must include some text';
+    } else if (!notRepeatedChar.test(address.address2)) {
+      errors.address2 = 'Repeated characters are not allowed';
+    } else if (!noEmojis.test(address.address2)) {
+      errors.address2 = 'Emojis are not allowed';
+    } else if (!onlyAllowedChars.test(address.address2)) {
+      errors.address2 =
+        'Only letters, numbers, spaces, comma, and slash are allowed';
+    } else if (!maxTwoDigits(address.address2)) {
+      errors.address2 = 'Only up to 2 digits are allowed';
+    } else if (address.address2.length < 5) {
+      errors.address2 = 'Address is too short or not meaningful';
+    }
 
     if (!address.city) errors.city = 'City is required';
     if (!address.district) errors.district = 'District is required';
@@ -496,100 +499,198 @@ if (!address.address2 || !noOnlySpaces.test(address.address2)) {
     );
   };
 
-  const handlePharmacySubmit = async (e: React.FormEvent) => {
+  const handleLabSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Submit button clicked');
     const userID = sessionStorage.getItem('userID');
     const currentDateTime = new Date().toISOString();
     const allErrors: { [field: string]: string } = {};
 
-    // Step 1: Validate formData fields
+    // 1. Validate base form
     const isFormValid = validate();
     if (!isFormValid) return;
 
-    // Step 2: Find the primary address (assuming 1 address is mandatory)
-    const address =
-      addresses.find((addr) => addr.isPrimary || !addr.isSaved) || addresses[0];
+    // 2. Construct payload as per new format
+  const payload = {
+  createdBy: userID,
+  updatedBy: userID,
+  isActive: true,
+  tenantID: formData.tenant,
+  hospitalID: formData.hospital,
+  labName: formData.labName?.trim() || '',
+  labCode: formData.labCode?.trim() || '',
+  labType: selectedLabType,
+  email: formData.email?.trim() || '',
+  mobile: formData.mobile?.trim() || '',
+  landline: formData.landline?.trim() || '',
+  labFacilities: selectedFacilities.join(','), // ✅ CORRECT format for API
+};
 
-    if (!address) {
-      toast.error('At least one address is required.');
-      return;
+
+    try {
+      const response = await api.post('/Laboratory', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success('Laboratory saved successfully!');
+        console.log('Lab created successfully:', response.data);
+
+        // Reset fields
+        setFormData({
+          tenant: '',
+          hospital: '',
+          labName: '',
+          email: '',
+          mobile: '',
+          landline: '',
+          workHours: '',
+          labCode: '',
+        });
+
+        setSelectedLabType('');
+        setSelectedFacility('');
+
+        setTimeout(() => {
+          navigate('/Diagnostics'); // Navigate to listing
+        }, 2000);
+      } else {
+        toast.error('Failed to save Laboratory. Try again.');
+      }
+    } catch (err: any) {
+      console.error('API error:', err);
+      toast.error(
+        err.response?.data?.message || 'Network error while saving Laboratory.',
+      );
     }
+  };
 
-    // Step 3: Validate address
-    const validateAddressLine = (field: string) => {
-  const onlyAllowedChars = /^[a-zA-Z0-9\s,\/]+$/;
-const hasText = /[a-zA-Z]/;
-const noOnlySpaces = /\S/;
-const notRepeatedChar = /^(?!.*(.)\1{4,}).*$/;
-const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
-const containsNumber = /\d/;
-const atLeastOneLetter = /[a-zA-Z]/;
-const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
+  const handleAddressSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const allErrors: { [index: number]: { [field: string]: string } } = {};
+    const userID = sessionStorage.getItem('userID');
 
-      return (
-  field &&
-  noOnlySpaces.test(field) &&
-  noEmojis.test(field) &&
-  onlyAllowedChars.test(field) &&
-  field.length >= 3 &&
-  atLeastOneLetter.test(field) &&
-  containsNumber.test(field) &&
-  noTripleRepeat.test(field)
-);
+    const hasPrimary = addresses.some((addr) => addr.isPrimary);
 
+    let hasError = false;
+    const addressPayloads: any[] = [];
+
+    // Regex patterns
+    const noEmojis = /^[^\p{Emoji_Presentation}\p{Extended_Pictographic}]+$/u;
+    const noOnlySpaces = /\S/;
+    const notRepeatedChar = /^(?!([a-zA-Z0-9])\1{5,})/;
+    const onlyAlphaNumericAndSpaces = /^[a-zA-Z0-9\s/]+$/;
+    const onlyAlphabets = /^[a-zA-Z\s]+$/;
+
+    const hasAddressChanged = (current: any, original: any) => {
+      const fields = [
+        'address1',
+        'address2',
+        'city',
+        'district',
+        'state',
+        'zipCode',
+        'addressType',
+      ];
+      return fields.some((field) => current[field] !== original[field]);
     };
 
-    if (!validateAddressLine(address.address1)) {
-      toast.error('Invalid Address Line 1');
-      return;
-    }
-    if (!validateAddressLine(address.address2)) {
-      toast.error('Invalid Address Line 2');
-      return;
-    }
+    for (let index = 0; index < addresses.length; index++) {
+      const address = addresses[index];
+      const errors: { [key: string]: string } = {};
 
-    // Validate city
-    if (showCityInput) {
-      if (!validateCity(address.city)) {
-        toast.error('Invalid city name.');
-        return;
+      // Skip if already saved and no changes
+      if (
+        address.isSaved &&
+        !hasAddressChanged(address, address.original || {})
+      ) {
+        console.log(
+          `Skipping address at index ${index} - already saved and unchanged.`,
+        );
+        continue;
       }
-    }
 
-    if (!address.city || address.city.length < 2) {
-      toast.error('City is required and should be at least 2 characters');
-      return;
-    }
+      const validateField = (
+        field: string,
+        fieldName: string,
+        pattern: RegExp,
+        minLength: number = 1,
+        message = 'Invalid format.',
+      ) => {
+        if (!field || !noOnlySpaces.test(field)) {
+          errors[fieldName] = 'This field is required.';
+        } else if (!noEmojis.test(field)) {
+          errors[fieldName] = 'No emojis allowed.';
+        } else if (!notRepeatedChar.test(field)) {
+          errors[fieldName] = 'No repetitive characters.';
+        } else if (!pattern.test(field) || field.length < minLength) {
+          errors[fieldName] = message;
+        }
+      };
 
-    if (!address.state || !address.district || !address.zipCode) {
-      toast.error('State, District, and Zip Code are required');
-      return;
-    }
+      const validateAddressLine = (field: string, fieldName: string) => {
+        const alphaNumericSlash = /^[a-zA-Z0-9\s/]+$/;
+        const noTripleRepeat = /^(?!.*([a-zA-Z])\1{2,}).+$/;
+        const atLeastOneLetter = /[a-zA-Z]/;
+        const containsNumber = /\d/;
 
-    // Step 4: Construct combined payload
-    const payload = {
-      createdBy: userID,
-      createdOn: currentDateTime,
-      updatedBy: userID,
-      updatedOn: currentDateTime,
-      isActive: true,
-      tenantID: formData.tenant,
-      hospitalID: formData.hospital,
-      pharmacyCode: formData.pharmacyCode?.trim() || '',
-      pharmacyName: formData.pharmacyName,
-      pharmacyEmail: formData.pharmacyEmail,
-      pharmacyPhoneNumber: formData.pharmacyPhoneNumber,
-      workHours: formData.workHours,
-      type: selectedType,
-      address: {
+        if (!field || !noOnlySpaces.test(field)) {
+          errors[fieldName] = 'This field is required.';
+        } else if (!noEmojis.test(field)) {
+          errors[fieldName] = 'No emojis allowed.';
+        } else if (!alphaNumericSlash.test(field)) {
+          errors[fieldName] =
+            'Only alphanumeric characters, spaces, and slashes allowed.';
+        } else if (field.length < 3) {
+          errors[fieldName] = 'Minimum 3 characters required.';
+        } else if (!atLeastOneLetter.test(field)) {
+          errors[fieldName] = 'Must contain at least one alphabet letter.';
+        } else if (!containsNumber.test(field)) {
+          errors[fieldName] = 'Must contain at least one number.';
+        } else if (!noTripleRepeat.test(field)) {
+          errors[fieldName] =
+            'No character should repeat more than twice consecutively.';
+        }
+      };
+
+      // Address 1 & 2
+      validateAddressLine(address.address1, 'address1');
+      validateAddressLine(address.address2, 'address2');
+
+      if (!address.city || address.city.trim() === '') {
+        errors.city = 'City is required.';
+      } else if (showCityInput) {
+        if (!noEmojis.test(address.city)) {
+          errors.city = 'No emojis allowed.';
+        } else if (!onlyAlphabets.test(address.city)) {
+          errors.city = 'Only alphabets and spaces allowed.';
+        } else if (address.city.trim().length < 2) {
+          errors.city = 'City must be at least 2 characters.';
+        }
+      }
+
+      if (!address.state) errors.state = 'Please select a state.';
+      if (!address.district) errors.district = 'Please select a district.';
+      if (!address.zipCode) errors.zipCode = 'Please select a pincode.';
+
+      validateField(
+        address.addressType,
+        'addressType',
+        onlyAlphaNumericAndSpaces,
+        1,
+        'Only alphanumeric characters and spaces allowed.',
+      );
+
+      if (Object.keys(errors).length > 0) {
+        allErrors[index] = errors;
+        hasError = true;
+        continue;
+      }
+
+      addressPayloads.push({
         createdBy: userID,
-        createdOn: currentDateTime,
         updatedBy: userID,
-        updatedOn: currentDateTime,
         isActive: true,
-        // id: null, // or pharmacyID
-        type: 'Pharmacy', // or 'Patient'
+
+        type: 'Diagnostics',
         addressType: address.addressType || '',
         address1: address.address1 || '',
         address2: address.address2 || '',
@@ -598,73 +699,88 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
         state: address.state || '',
         zipCode: address.zipCode || '',
         isPrimary: true,
-      },
-    };
+      });
+    }
 
-    // Step 5: Send API request
-    try {
-      const response = await api.post('/Pharmacy', payload);
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success('Pharmacy and address saved successfully!');
-        console.log('Pharmacy created successfully:', response.data);
-
-        // Reset the form after success
-        setFormData((prev) => ({
-          ...prev,
-          pharmacyCode: '',
-          pharmacyName: '',
-          pharmacyEmail: '',
-          pharmacyPhoneNumber: '',
-          workHours: '',
-          pharmacyTypes: '',
-        }));
-
-        setAddresses([
-          {
-            addressType: '',
-            address1: '',
-            address2: '',
-            city: '',
-            district: '',
-            state: '',
-            zipCode: '',
-            isPrimary: true,
-            isSaved: false,
-          },
-        ]);
-
-        setSelectedType('');
-        setTimeout(() => {
-          navigate('/Pharmacy');
-        }, 2000);
-      } else {
-        toast.error('Pharmacy creation failed. Please try again.');
+    // API call moved **outside the loop**, send entire array once:
+    if (addressPayloads.length > 0) {
+      try {
+        await api.post('/Address', addressPayloads);
+        setAddresses((prev) =>
+          prev.map((addr) => ({
+            ...addr,
+            isSaved: true,
+            original: { ...addr },
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to save address array:', error);
+        toast.error('Failed to save addresses. Please try again.');
+        setFormErrors(allErrors);
+        return {
+          isValid: false,
+          errors: allErrors,
+        };
       }
-    } catch (err: any) {
-      console.error('API error:', err);
-      toast.error(
-        err.response?.data?.message || 'Network error while saving pharmacy.',
-      );
+    }
+
+    setFormErrors(allErrors);
+
+    if (hasError) {
+      return {
+        isValid: false,
+        errors: allErrors,
+      };
+    }
+
+    toast.success('All addresses saved successfully!');
+    return {
+      isValid: true,
+      errors: {},
+    };
+  };
+
+  const [facilityInput, setFacilityInput] = useState('');
+  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFacilityInput(e.target.value);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && facilityInput.trim() !== '') {
+      e.preventDefault();
+
+      if (!selectedFacilities.includes(facilityInput.trim())) {
+        setSelectedFacilities([...selectedFacilities, facilityInput.trim()]);
+      }
+      setFacilityInput('');
     }
   };
 
+  const handleRemove = (index: number) => {
+    const updated = [...selectedFacilities];
+    updated.splice(index, 1);
+    setSelectedFacilities(updated);
+  };
+
+  // 🔁 Convert to comma-separated string before sending to API
+  const facilitiesString = selectedFacilities.join(',');
   return (
     <div>
       {/* Back Button */}
       <button
-       className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
-      
-        onClick={() => navigate('/Pharmacy')}
+        className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+        onClick={() => navigate('/Diagnostics')}
       >
-          &larr; Back
+        &larr; Back
       </button>
       <h1 className="text-3xl font-semibold text-black text-center mb-6">
-        Pharmacy Register
+        Diagnostics Register
       </h1>
       {/* Left Column: Basic Details */}
-      <form className="space-y-4" onSubmit={handlePharmacySubmit}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <form className="space-y-4" onSubmit={handleLabSubmit}>
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-left mb-4">Basic Details</h2>
 
@@ -720,15 +836,15 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
               <input
                 type="text"
                 maxLength={30}
-                placeholder="Pharmacy Name"
+                placeholder="Lab Name"
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={formData.pharmacyName}
-                onChange={(e) => handleChange('pharmacyName', e.target.value)}
+                value={formData.labName}
+                onChange={(e) => handleChange('labName', e.target.value)}
               />
-              {errors.pharmacyName && (
-                <p className="text-red-500 text-sm">{errors.pharmacyName}</p>
+              {errors.labName && (
+                <p className="text-red-500 text-sm">{errors.labName}</p>
               )}
             </div>
 
@@ -736,16 +852,16 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
             <div>
               <input
                 type="email"
-                placeholder="Pharmacy Email"
+                placeholder="Lab Email"
                 maxLength={50}
                 className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                value={formData.pharmacyEmail}
-                onChange={(e) => handleChange('pharmacyEmail', e.target.value)}
+                value={formData.email}
+                onChange={(e) => handleChange('email', e.target.value)}
               />
-              {errors.pharmacyEmail && (
-                <p className="text-red-500 text-sm">{errors.pharmacyEmail}</p>
+              {errors.email && (
+                <p className="text-red-500 text-sm">{errors.email}</p>
               )}
             </div>
 
@@ -759,38 +875,26 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
                       text-black outline-none focus:border-primary dark:border-form-strokedark 
                       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.pharmacyPhoneNumber}
-                  onChange={(e) =>
-                    handleChange('pharmacyPhoneNumber', e.target.value)
-                  }
+                  value={formData.mobile}
+                  onChange={(e) => handleChange('mobile', e.target.value)}
                 />
-                {errors.pharmacyPhoneNumber && (
-                  <p className="text-red-500 text-sm">
-                    {errors.pharmacyPhoneNumber}
-                  </p>
+                {errors.mobile && (
+                  <p className="text-red-500 text-sm">{errors.mobile}</p>
                 )}
               </div>
               <div className="w-1/2">
-                <select
+                <input
+                  type="text"
+                  value={selectedLabType}
+                  onChange={(e) => setSelectedLabType(e.target.value)}
+                  placeholder="Enter Lab Type"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
       dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={selectedType}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setSelectedType(value); // still set selectedType if needed
-                    handleChange('pharmacyTypes', value); // also call handleChange to clear error
-                  }}
-                >
-                  <option value="">Select Pharmacy Type</option>
-                  {pharmacyTypes.map((type: any) => (
-                    <option key={type.appLOVID} value={type.name}>
-                      {type.name}
-                    </option>
-                  ))}
-                </select>
-                {errors.pharmacyTypes && (
-                  <p className="text-red-500 text-sm">{errors.pharmacyTypes}</p>
+                />
+
+                {errors.labType && (
+                  <p className="text-red-500 text-sm">{errors.labType}</p>
                 )}
               </div>
             </div>
@@ -798,39 +902,69 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
             {/* Pharmacy Code & Work Hours */}
             <div className="flex gap-4">
               <div className="w-1/2">
-                <input
-                  type="text"
-                  maxLength={2}
-                  placeholder="Work Hours"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.workHours}
-                  onChange={(e) => handleChange('workHours', e.target.value)}
-                />
-                {errors.workHours && (
+                <div className="w-full flex flex-wrap gap-2 border border-stroke rounded-lg p-4">
+                  {selectedFacilities.map((facility, index) => (
+                    <div
+                      key={index}
+                      className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full py-4 pl-6 pr-10  flex items-center"
+                    >
+                      <span>{facility}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(index)}
+                        className="ml-2 text-red-600"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  <input
+                    type="text"
+                    value={facilityInput}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder=" lab facilties(Type and press Enter)"
+                    className="flex-grow border-none outline-none bg-transparent text-black dark:text-white"
+                  />
+                </div>
+
+                {errors?.workHours && (
                   <p className="text-red-500 text-sm">{errors.workHours}</p>
                 )}
+
+                {/* Hidden input to pass to API */}
+                <input
+                  type="hidden"
+                  name="facilitiesString"
+                  value={facilitiesString}
+                />
               </div>
               <div className="w-1/2">
                 <input
-                  type="hidden"
-                  placeholder="Pharmacy Code"
+                  type="text"
+                  maxLength={16}
+                  placeholder="Landline Number"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                text-black outline-none focus:border-primary dark:border-form-strokedark 
-                dark:bg-form-input dark:text-white dark:focus:border-primary"
-                  value={formData.pharmacyCode}
-                  onChange={(e) => handleChange('pharmacyCode', e.target.value)}
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  value={formData.landline}
+                  onChange={(e) => handleChange('landline', e.target.value)}
                 />
-                {errors.pharmacyCode && (
-                  <p className="text-red-500 text-sm">{errors.pharmacyCode}</p>
+                {errors.landline && (
+                  <p className="text-red-500 text-sm">{errors.landline}</p>
                 )}
               </div>
             </div>
 
             {/* Submit Button if needed */}
           </div>
+          <div className="flex justify-center items-center text-center space-x-4">
+            <CustomButton type="submit">Save Details</CustomButton>
+            <ToastContainer position="top-right" autoClose={3000} />
+          </div>
+        </form>
 
+        <form className="space-y-4" onSubmit={handleAddressSubmit}>
           {/* Right Column: Address Section */}
           <div className="space-y-4">
             {/*  address form  */}
@@ -1079,12 +1213,12 @@ const noTripleRepeat = /^(?!.*(.)\1{2,}).*$/;
                 </div>
               ))}
           </div>
-        </div>
-        <div className="flex justify-center items-center text-center space-x-4">
-          <CustomButton type="submit">Save Details</CustomButton>
-          <ToastContainer position="top-right" autoClose={3000} />
-        </div>
-      </form>
+          <div className="flex justify-center items-center text-center space-x-4">
+            <CustomButton type="submit">Save Address Details</CustomButton>
+            <ToastContainer position="top-right" autoClose={3000} />
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

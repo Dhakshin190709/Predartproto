@@ -171,7 +171,9 @@ const ProfileSection: React.FC = () => {
     if (lowerRole === 'patient') {
       apiUrl = `/Appointment/GetAppointment?PatientID=${patientID}`;
     } else if (
-      (lowerRole === 'doctor' || lowerRole === 'tenantadmin'|| lowerRole === 'superadmin') &&
+      (lowerRole === 'doctor' ||
+        lowerRole === 'tenantadmin' ||
+        lowerRole === 'superadmin') &&
       selectedPatientID
     ) {
       const idKey = lowerRole === 'doctor' ? 'DoctorID' : 'TenantID';
@@ -216,10 +218,7 @@ const ProfileSection: React.FC = () => {
       case 'appointment':
         return (
           <div>
-            <div
-              className="ag-theme-alpine"
-              style={{ height: '350px', width: '100%' }}
-            >
+            <div className="ag-theme-alpine w-full">
               <AgGridReact
                 rowData={appointmentData.map((row, index) => ({
                   ...row,
@@ -688,71 +687,74 @@ const ProfileSection: React.FC = () => {
       <h1 className="text-3xl font-semibold text-black mb-6">Patient Record</h1>
       <div className="h-screen flex flex-col">
         {/* Top Search Bar */}
-        {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) && !selectedPatientID && (
-          <div className="p-4 flex items-start gap-4 bg-gray-100 mb-2 flex-wrap">
-            {/* Patient Name Input with Error Placeholder */}
-            <div className="flex flex-col w-[40%]">
-              <input
-                type="text"
-                value={selectedPatient}
-                onChange={(e) => handlePatientChange(e.target.value)}
-                placeholder="Enter Patient Name"
-                maxLength={30}
-                className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+        {['Doctor', 'TenantAdmin', 'SuperAdmin'].includes(roleName) &&
+          !selectedPatientID && (
+            <div className="p-4 flex items-start gap-4 bg-gray-100 mb-2 flex-wrap">
+              {/* Patient Name Input with Error Placeholder */}
+              <div className="flex flex-col w-full sm:w-[48%] lg:w-[40%]">
+                <input
+                  type="text"
+                  value={selectedPatient}
+                  onChange={(e) => handlePatientChange(e.target.value)}
+                  placeholder="Enter Patient Name"
+                  maxLength={30}
+                  className="rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <div className="text-sm mt-2 min-h-[20px] text-red-500">
-                {errors.patient || '\u00A0'}
+                />
+                <div className="text-sm mt-2 min-h-[20px] text-red-500">
+                  {errors.patient || '\u00A0'}
+                </div>
               </div>
-            </div>
 
-            {/* Mobile Number Input with Error Placeholder */}
-            <div className="flex flex-col w-[30%]">
-              <input
-                type="text"
-                value={mobileNumber}
-                onChange={(e) => handleMobileChange(e.target.value)}
-                placeholder="Enter Mobile Number"
-                maxLength={10}
-                className="rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-4
+              {/* Mobile Number Input with Error Placeholder */}
+              <div className="flex flex-col w-full sm:w-[48%] lg:w-[30%]">
+                <input
+                  type="text"
+                  value={mobileNumber}
+                  onChange={(e) => handleMobileChange(e.target.value)}
+                  placeholder="Enter Mobile Number"
+                  maxLength={10}
+                  className="rounded-lg border border-stroke bg-transparent py-4 pl-2 pr-4
         text-black outline-none focus:border-primary dark:border-form-strokedark 
         dark:bg-form-input dark:text-white dark:focus:border-primary"
-              />
-              <div className="text-sm mt-2 min-h-[20px] text-red-500">
-                {errors.mobile || '\u00A0'}
+                />
+                <div className="text-sm mt-2 min-h-[20px] text-red-500">
+                  {errors.mobile || '\u00A0'}
+                </div>
+              </div>
+
+              {/* Search Button (Vertically Aligned with Input) */}
+              {/* Wrap both buttons in a flex row container */}
+              <div className="flex gap-2 w-full sm:w-auto lg:w-[16%] min-w-[200px]">
+                {/* Search */}
+                <div className="flex flex-col justify-end w-1/2">
+                  <CustomButton onClick={handleSearch} className="py-3 w-full">
+                    Search
+                  </CustomButton>
+                  <div className="mt-2 min-h-[20px]">&nbsp;</div>
+                </div>
+
+                {/* Reset */}
+                <div className="flex flex-col justify-end w-1/2">
+                  <CustomButton
+                    onClick={() => {
+                      setSelectedPatient('');
+                      setMobileNumber('');
+                      setPatientData([]);
+                      setIsSearchPerformed(false);
+                      setSelectedPatientID(null);
+                      setErrors({ patient: '', mobile: '' });
+                    }}
+                    className="opacity-60 hover:opacity-100 border py-3 w-full border-gray-300 flex justify-center items-center gap-2"
+                  >
+                    Reset
+                  </CustomButton>
+                  <div className="mt-2 min-h-[20px]">&nbsp;</div>
+                </div>
               </div>
             </div>
-
-            {/* Search Button (Vertically Aligned with Input) */}
-            <div className="flex flex-col justify-end w-[10%]">
-              <CustomButton onClick={handleSearch} className="py-3">
-                Search
-              </CustomButton>
-              {/* Empty space to match error area height */}
-              <div className="mt-2 min-h-[20px]">&nbsp;</div>
-            </div>
-
-            {/* Reset Button (Vertically Aligned with Input) */}
-            <div className="flex flex-col justify-end w-[10%]">
-              <CustomButton
-                onClick={() => {
-                  setSelectedPatient('');
-                  setMobileNumber('');
-                  setPatientData([]);
-                  setIsSearchPerformed(false);
-                  setSelectedPatientID(null);
-                  setErrors({ patient: '', mobile: '' });
-                }}
-                className="opacity-60 hover:opacity-100 border py-3 border-gray-300 flex justify-center items-center gap-2"
-              >
-                Reset
-              </CustomButton>
-              {/* Empty space to match error area height */}
-              <div className="mt-2 min-h-[20px]">&nbsp;</div>
-            </div>
-          </div>
-        )}
+          )}
 
         {roleName === 'Doctor' && !isSearchPerformed && (
           <div className="text-center">
@@ -760,12 +762,13 @@ const ProfileSection: React.FC = () => {
             <p>Please search for a patient to view their details.</p>
           </div>
         )}
+
         <ToastContainer />
         <div className="p-6">
           {roleName === 'Patient' && patientData && (
             <>
               {/* Top 25% Profile */}
-              <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
+              <div className="bg-gradient-to-r from-blue-100 to-blue-50 flex flex-col sm:flex-row items-center p-6 sm:p-8 rounded-lg shadow-md">
                 <div className="flex-shrink-0 pr-8 h-full flex items-center">
                   <img
                     src={Profile}
@@ -849,37 +852,37 @@ const ProfileSection: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="p-4">{renderTabContent()}</div>
+                <div className="p-4 mt-4 space-y-4">{renderTabContent()}</div>
               </div>
             </>
           )}
 
-         {/* Back to Patient List Link */}
-{['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
-  selectedPatientID &&
-  patientData && (
-    <a
-      onClick={() => {
-        setSelectedPatientID(null); // Reset the selected patient ID to return to the list
-        setActiveTab(null); // Reset the tab selection if necessary
-      }}
-      className="mb-4 inline-flex items-center text-blue-500 font-semibold hover:text-gray-600 cursor-pointer"
-    >
-      Back <span className="ml-2">{' >'}</span>
-    </a>
-)}
+          {/* Back to Patient List Link */}
 
+          {['Doctor', 'TenantAdmin', 'SuperAdmin'].includes(roleName) &&
+            selectedPatientID &&
+            patientData && (
+              <button
+                onClick={() => {
+                  setSelectedPatientID(null); // Reset the selected patient ID
+                  setActiveTab(null); // Reset the tab
+                }}
+                className="mb-4 px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg shadow-sm hover:bg-blue-100 transition duration-200"
+              >
+                &lt; Back
+              </button>
+            )}
 
           {/* Patient Cards Display */}
-          {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
+          {['Doctor', 'TenantAdmin', 'SuperAdmin'].includes(roleName) &&
             isSearchPerformed &&
             patientArray.length > 0 &&
             !selectedPatientID && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4 px-2 sm:px-4">
                 {patientArray.map((patient) => (
                   <div
                     key={patient.patientID}
-                    className="card p-4 border-2 border-blue-100 rounded-lg shadow-md transform transition duration-300 ease-in-out hover:scale-105 hover:shadow-lg hover:bg-gray-100 dark:hover:bg-gray-700"
+                    className="card p-3 sm:p-4 border border-blue-100 rounded-lg shadow hover:shadow-md transition transform hover:scale-[1.02] hover:bg-gray-100 dark:hover:bg-gray-700"
                   >
                     {/* Image */}
                     <img
@@ -924,97 +927,103 @@ const ProfileSection: React.FC = () => {
             )}
 
           {/* Patient Profile Details */}
-        {['Doctor', 'TenantAdmin','SuperAdmin'].includes(roleName) &&
-  selectedPatientID &&
-  patientData && (
-            <>
-              {/* Patient Profile Section */}
-              <div className="h-1/4 bg-gradient-to-r from-blue-100 to-blue-50 flex items-center p-25 shadow-md">
-                <div className="flex-shrink-0 pr-8 h-full flex items-center">
-                  <img
-                    src={Profile}
-                    alt="Profile"
-                    className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
-                  />
-                </div>
-                <div className="pl-8 grid grid-cols-2 gap-x-12 gap-y-4 w-full text-gray-900 text-lg">
-                  <div className="flex space-x-2 items-center max-w-full">
-                    <span className="font-semibold text-gray-600">Name:</span>
-                    <span
-                      className="font-bold truncate max-w-[20rem] inline-flex items-center"
-                      title={`${patientData.patientName} (${patientData.patientGender})`}
-                    >
-                      {patientData.patientName} (
-                      {['F', 'Female'].includes(patientData.patientGender) && (
-                        <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
-                      )}
-                      {['M', 'Male'].includes(patientData.patientGender) && (
-                        <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
-                      )}
-                      {['O', 'Other', 'Others'].includes(
-                        patientData.patientGender,
-                      ) && (
-                        <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
-                      )}
-                      )
-                    </span>
+          {['Doctor', 'TenantAdmin', 'SuperAdmin'].includes(roleName) &&
+            selectedPatientID &&
+            patientData && (
+              <>
+                {/* Patient Profile Section */}
+                <div className="relative bg-gradient-to-r from-blue-100 to-blue-50 flex flex-col md:flex-row items-center md:items-start p-6 gap-6 shadow-md pb-20">
+                  <div className="flex-shrink-0 flex justify-center md:justify-start">
+                    <img
+                      src={Profile}
+                      alt="Profile"
+                      className="w-36 h-36 rounded-full object-cover border-4 border-white shadow-xl"
+                    />
                   </div>
-                  <div className="flex space-x-2">
-                    <span className="font-semibold text-gray-600">
-                      Date of Birth:
-                    </span>
-                    <span className="font-bold">
-                      {patientData.patientDateOfBirth?.slice(0, 10)}
-                    </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 w-full text-gray-900 text-base md:text-lg">
+                    <div className="flex space-x-2 items-center max-w-full">
+                      <span className="font-semibold text-gray-600">Name:</span>
+                      <span
+                        className="font-bold truncate max-w-[20rem] inline-flex items-center"
+                        title={`${patientData.patientName} (${patientData.patientGender})`}
+                      >
+                        {patientData.patientName} (
+                        {['F', 'Female'].includes(
+                          patientData.patientGender,
+                        ) && (
+                          <FaFemale className="text-pink-500 mr-1" /> // Darkest Female Pink
+                        )}
+                        {['M', 'Male'].includes(patientData.patientGender) && (
+                          <FaMale className="text-blue-500 mr-1" /> // Darkest Male Blue
+                        )}
+                        {['O', 'Other', 'Others'].includes(
+                          patientData.patientGender,
+                        ) && (
+                          <FaGenderless className="text-gray-500 mr-1" /> // Darkest Others Gray
+                        )}
+                        )
+                      </span>
+                    </div>
+                    <div className="flex space-x-2">
+                      <span className="font-semibold text-gray-600">
+                        Date of Birth:
+                      </span>
+                      <span className="font-bold">
+                        {patientData.patientDateOfBirth?.slice(0, 10)}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2">
+                      <span className="font-semibold text-gray-600">
+                        Phone:
+                      </span>
+                      <span className="font-bold">
+                        {patientData.patientPhoneNumber}
+                      </span>
+                    </div>
+                    <div className="flex space-x-2 items-center max-w-full">
+                      <span className="font-semibold text-gray-600">
+                        Email:
+                      </span>
+                      <span
+                        className="font-bold truncate max-w-[20rem]"
+                        title={patientData.patientEmail}
+                      >
+                        {patientData.patientEmail}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <span className="font-semibold text-gray-600">Phone:</span>
-                    <span className="font-bold">
-                      {patientData.patientPhoneNumber}
-                    </span>
-                  </div>
-                  <div className="flex space-x-2 items-center max-w-full">
-                    <span className="font-semibold text-gray-600">Email:</span>
-                    <span
-                      className="font-bold truncate max-w-[20rem]"
-                      title={patientData.patientEmail}
-                    >
-                      {patientData.patientEmail}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom 75% Tabs */}
-              <div className="h-3/4 p-6 overflow-y-auto">
-                <div className="flex space-x-4 mb-4 border-b pb-2">
-                  {[
-                    'appointment',
-                    'chronic disease',
-                    'medical',
-                    'medical documents',
-                    'payment',
-                  ].map((tab) => (
-                    <button
-                      key={tab}
-                      className={`px-4 py-2 rounded-t capitalize font-medium transition ${
-                        activeTab === tab
-                          ? 'bg-blue-400 text-white'
-                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                      }`}
-                      onClick={() => setActiveTab(tab)}
-                    >
-                      {tab}
-                    </button>
-                  ))}
                 </div>
 
-                <div className="p-4">{renderTabContent()}</div>
-              </div>
-            </>
-          )}
+                {/* Bottom 75% Tabs */}
+                <div className="h-3/4 p-6 overflow-y-auto">
+                  <div className="flex space-x-4 mb-4 border-b pb-2">
+                    {[
+                      'appointment',
+                      'chronic disease',
+                      'medical',
+                      'medical documents',
+                      'payment',
+                    ].map((tab) => (
+                      <button
+                        key={tab}
+                        className={`px-4 py-2 rounded-t capitalize font-medium transition ${
+                          activeTab === tab
+                            ? 'bg-blue-400 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
+                        onClick={() => setActiveTab(tab)}
+                      >
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
 
+                  <div className="p-4">{renderTabContent()}</div>
+                </div>
+              </>
+            )}
         </div>
+
         {isModalOpen && (
           <div className="modal-overlay">
             <div className="modal">

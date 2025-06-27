@@ -765,23 +765,26 @@ if (roleName !== 'TenantAdmin' && !formData.tenantID) {
         </button>
       </div>
 
-      <div className="ag-theme-alpine mt-6 w-full" style={{ height: '400px' }}>
-        <AgGridReact
-          rowData={
-            filteredTenantData.length > 0
-              ? applyGlobalSearch(filteredTenantData)
-              : []
-          }
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
-      </div>
+    <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px] mt-6" style={{ height: 'auto' }}>
+    <AgGridReact
+      rowData={
+        filteredTenantData.length > 0
+          ? applyGlobalSearch(filteredTenantData)
+          : []
+      }
+      columnDefs={columnDefs}
+      pagination={true}
+      paginationPageSize={10}
+      paginationPageSizeSelector={[10, 20, 50, 100]}
+      domLayout="autoHeight"
+      headerHeight={40}
+      rowHeight={40}
+      onGridReady={onGridReady}
+    />
+  </div>
+</div>
+
 
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">

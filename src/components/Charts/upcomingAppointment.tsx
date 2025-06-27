@@ -25,51 +25,58 @@ const UpcomingAppointments: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    const fetchAppointments = async () => {
-      setLoading(true);
-      try {
-        const unitID = sessionStorage.getItem("unitID");
-        const today = new Date().toISOString().split("T")[0];
+  const fetchAppointments = async () => {
+    setLoading(true);
+    try {
+      const roleName = sessionStorage.getItem("roleName");
+      const unitID = sessionStorage.getItem("unitID");
+      const today = new Date().toISOString().split("T")[0];
 
-        const response = await api.get(
-          `/Appointment/GetAppointment?HospitalID=${unitID}&StartDate=${today}&EndDate=${today}`
-        );
+      // Construct base URL
+      let url = `/Appointment/GetAppointment?StartDate=${today}&EndDate=${today}`;
 
-        console.log("Fetched appointments:", response.data);
-
-        const fetchedAppointments = response.data || [];
-        const currentDateTime = new Date();
-
-        const upcomingAppointments = fetchedAppointments
-          .filter((appointment) => {
-            const appointmentDate = new Date(appointment.appointmentDate);
-            const [hours, minutes] = appointment.appointmentTime.split(":");
-            appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-            return appointmentDate >= currentDateTime;
-          })
-          .sort((a, b) => {
-            const dateA = new Date(a.appointmentDate);
-            const [hoursA, minutesA] = a.appointmentTime.split(":");
-            dateA.setHours(parseInt(hoursA), parseInt(minutesA), 0, 0);
-
-            const dateB = new Date(b.appointmentDate);
-            const [hoursB, minutesB] = b.appointmentTime.split(":");
-            dateB.setHours(parseInt(hoursB), parseInt(minutesB), 0, 0);
-
-            return dateA - dateB;
-          });
-
-        setAppointments(upcomingAppointments);
-      } catch (error) {
-        console.error("Error:", error);
-        setError("Failed to fetch appointments.");
-      } finally {
-        setLoading(false);
+      // Only add HospitalID if not SuperAdmin
+      if (roleName !== "SuperAdmin") {
+        url += `&HospitalID=${unitID}`;
       }
-    };
 
-    fetchAppointments();
-  }, []);
+      const response = await api.get(url);
+      console.log("Fetched appointments:", response.data);
+
+      const fetchedAppointments = response.data || [];
+      const currentDateTime = new Date();
+
+      const upcomingAppointments = fetchedAppointments
+        .filter((appointment) => {
+          const appointmentDate = new Date(appointment.appointmentDate);
+          const [hours, minutes] = appointment.appointmentTime.split(":");
+          appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+          return appointmentDate >= currentDateTime;
+        })
+        .sort((a, b) => {
+          const dateA = new Date(a.appointmentDate);
+          const [hoursA, minutesA] = a.appointmentTime.split(":");
+          dateA.setHours(parseInt(hoursA), parseInt(minutesA), 0, 0);
+
+          const dateB = new Date(b.appointmentDate);
+          const [hoursB, minutesB] = b.appointmentTime.split(":");
+          dateB.setHours(parseInt(hoursB), parseInt(minutesB), 0, 0);
+
+          return dateA - dateB;
+        });
+
+      setAppointments(upcomingAppointments);
+    } catch (error) {
+      console.error("Error:", error);
+      setError("Failed to fetch appointments.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchAppointments();
+}, []);
+
   
 
   // Pagination Logic: Show 2 cards at a time

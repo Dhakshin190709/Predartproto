@@ -112,11 +112,10 @@ const AppointmentReport: React.FC = () => {
         !!hospitalID;
     }
 
-   if (!hasAnyFilter && role !== 'doctor'&& role !== 'reception') {
-  toast.warning('Please select at least one filter before searching.');
-  return;
-}
-
+    if (!hasAnyFilter && role !== 'doctor' && role !== 'reception') {
+      toast.warning('Please select at least one filter before searching.');
+      return;
+    }
 
     try {
       // Using axios with params object automatically encodes query parameters
@@ -273,41 +272,39 @@ const AppointmentReport: React.FC = () => {
 
   const [roleName, setRoleName] = useState<string | null>(null);
 
- useEffect(() => {
-  const fetchHospitals = async () => {
-    try {
-      const roleName = sessionStorage.getItem('roleName');
-      const tenantID = sessionStorage.getItem('tenantID');
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
 
-      let response;
+        let response;
 
-      if (roleName === 'SuperAdmin') {
-        // No params needed
-        response = await api.get('/Hospital/List');
-      } else {
-        // Pass tenantID as query param
-        response = await api.get('/Hospital/List', {
-          params: { tenantId: tenantID },
-        });
+        if (roleName === 'SuperAdmin') {
+          // No params needed
+          response = await api.get('/Hospital/List');
+        } else {
+          // Pass tenantID as query param
+          response = await api.get('/Hospital/List', {
+            params: { tenantId: tenantID },
+          });
+        }
+
+        const data = response.data;
+
+        // Filter only active hospitals
+        const activeHospitals = data.filter(
+          (hospital) => hospital.isActive === true,
+        );
+
+        setHospitals(activeHospitals);
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
       }
+    };
 
-      const data = response.data;
-
-      // Filter only active hospitals
-      const activeHospitals = data.filter(
-        (hospital) => hospital.isActive === true
-      );
-
-      setHospitals(activeHospitals);
-    } catch (error) {
-      console.error('Error fetching hospitals:', error);
-    }
-  };
-
-  fetchHospitals();
-}, []);
-
-
+    fetchHospitals();
+  }, []);
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -444,7 +441,7 @@ const AppointmentReport: React.FC = () => {
     const role = sessionStorage.getItem('roleName');
     const doctorID = sessionStorage.getItem('doctorID');
     const unitID = sessionStorage.getItem('unitID');
-  const tenantID = sessionStorage.getItem('tenantID');
+    const tenantID = sessionStorage.getItem('tenantID');
     const params: Record<string, string> = {};
 
     if (role === 'Doctor' && doctorID && unitID) {
@@ -452,9 +449,9 @@ const AppointmentReport: React.FC = () => {
       params['HospitalID'] = unitID;
     } else if ((role === 'Reception' || role === 'HospitalAdmin') && unitID) {
       params['HospitalID'] = unitID;
-    }else if (role === 'TenantAdmin' && tenantID) {
-    params['tenantID'] = tenantID;
-  }
+    } else if (role === 'TenantAdmin' && tenantID) {
+      params['tenantID'] = tenantID;
+    }
 
     try {
       const response = await api.get('/Appointment/AppointmentReport', {
@@ -467,7 +464,6 @@ const AppointmentReport: React.FC = () => {
     }
   };
 
-  
   useEffect(() => {
     fetchAppointmentReport();
   }, []);
@@ -524,7 +520,8 @@ const AppointmentReport: React.FC = () => {
         Appointment Report
       </h1>
       {/* Filters Section */}
-      <div className="grid grid-cols-2 gap-6 mb-4">
+     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-4">
+
         {/* Row 1 - Hospital and Doctor Name */}
         <div className="w-full">
           <select
@@ -559,7 +556,7 @@ const AppointmentReport: React.FC = () => {
         </div>
 
         {/* Row 2 - From and To Date in first column */}
-        <div className="flex gap-4 col-span-1">
+      <div className="flex flex-col sm:flex-row gap-4 col-span-1">
           <input
             type="text"
             value={filterFromDate}
@@ -567,7 +564,7 @@ const AppointmentReport: React.FC = () => {
             onFocus={(e) => (e.target.type = 'date')}
             onBlur={(e) => (e.target.type = filterFromDate ? 'date' : 'text')}
             onChange={(e) => setFilterFromDate(e.target.value)}
-            className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+            className="w-full sm:w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
           />
 
           <input
@@ -578,7 +575,7 @@ const AppointmentReport: React.FC = () => {
             onFocus={(e) => (e.target.type = 'date')}
             onBlur={(e) => (e.target.type = filterToDate ? 'date' : 'text')}
             onChange={(e) => setFilterToDate(e.target.value)}
-            className="w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
+            className="w-full sm:w-1/2 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary"
           />
         </div>
 
@@ -679,22 +676,26 @@ const AppointmentReport: React.FC = () => {
       </div>
 
       {/* AG Grid Table */}
-      <div
-        className="ag-theme-alpine mt-6 w-full"
-        style={{ height: '400px', width: '100%' }}
-      >
-        <AgGridReact
-          rowData={applyGlobalSearch(rowData)}
-          columnDefs={columns}
-          paginationPageSizeSelector={[5, 10, 20, 50, 100]}
-          domLayout="autoHeight"
-          pagination={true}
-          paginationPageSize={10}
-          enableFilter={true}
-          enableSorting={true}
-          suppressMovableColumns={true}
-        />
-      </div>
+     <div className="mt-6 w-full overflow-x-auto">
+  <div
+    className="ag-theme-alpine"
+    style={{ height: '400px', minWidth: '800px' }} // 👈 Force min width
+  >
+    <AgGridReact
+      rowData={applyGlobalSearch(rowData)}
+      columnDefs={columns}
+      paginationPageSizeSelector={[5, 10, 20, 50, 100]}
+      domLayout="autoHeight"
+      pagination={true}
+      paginationPageSize={10}
+      enableFilter={true}
+      enableSorting={true}
+      suppressMovableColumns={true}
+    />
+  </div>
+</div>
+
+
 
       {/* Modal for Download Format */}
       <Modal
