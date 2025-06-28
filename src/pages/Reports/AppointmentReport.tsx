@@ -282,10 +282,10 @@ const AppointmentReport: React.FC = () => {
 
         if (roleName === 'SuperAdmin') {
           // No params needed
-          response = await api.get('/Hospital/List');
+          response = await api.get('/Hospital/HospitalsList');
         } else {
           // Pass tenantID as query param
-          response = await api.get('/Hospital/List', {
+          response = await api.get('/Hospital/HospitalsList', {
             params: { tenantId: tenantID },
           });
         }

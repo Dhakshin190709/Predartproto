@@ -417,7 +417,7 @@ const hasFetched = useRef(false);
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await api.get('/Hospital/List');
+        const response = await api.get('/Hospital/HospitalsList');
         const result = response.data;
 
         let hospitals = [];

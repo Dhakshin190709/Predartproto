@@ -120,7 +120,7 @@ const MedicalCamp: React.FC = () => {
 
     const fetchHospitals = async () => {
       try {
-        const response = await api.get(`/Hospital/List`, {
+        const response = await api.get(`/Hospital/HospitalsList`, {
           params: { tenantId: formData.tenantID },
         });
 

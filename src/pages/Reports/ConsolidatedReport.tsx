@@ -38,7 +38,7 @@ const HospitalDropdown = () => {
       params['tenantID'] = tenantID;
     }
 
-    const response = await api.get('/Hospital/List', { params });
+    const response = await api.get('/Hospital/HospitalsList', { params });
     const data: any[] = response.data || [];
 
     const activeHospitals = data.filter(

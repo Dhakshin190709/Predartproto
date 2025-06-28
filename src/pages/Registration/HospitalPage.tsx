@@ -117,7 +117,6 @@ const [initialData, setInitialData] = useState<any[]>([]);
   const navigate = useNavigate();
 
   
-
 useEffect(() => {
   const fetchHospitals = async () => {
     try {
@@ -128,18 +127,24 @@ useEffect(() => {
         return;
       }
 
-      const response = await api.get('/Hospital/List', {
-        params: {
-          tenantId: tenantID,
-        },
+      const response = await api.get('/Hospital', {
+        params: { tenantId: tenantID },
       });
 
-      const hospitalList = response.data?.data || response.data;
+      const apiData = response.data?.data || response.data;
 
-      console.log('API Data:', hospitalList);
+      console.log('API Raw Data:', apiData);
 
-      setRowData(hospitalList);        // for displaying data (can be filtered)
-      setInitialData(hospitalList);    // for preserving full data (used in filter/search)
+      // ✅ Flatten each item: { ...hospital, ...address }
+      const hospitalList = apiData.map((item: any) => ({
+        ...item.hospital,
+        ...item.address,
+      }));
+
+      console.log('Flattened Data:', hospitalList);
+
+      setRowData(hospitalList);
+      setInitialData(hospitalList);
     } catch (error: any) {
       console.error('Error fetching data:', error);
     }
@@ -840,31 +845,33 @@ useEffect(() => {
     }
   };
 
-  const refreshTableData = async () => {
-    try {
-      const tenantID = sessionStorage.getItem('tenantID');
+ const refreshTableData = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      if (!tenantID) {
-        console.error('Missing tenantID in session storage.');
-        return;
-      }
-
-      const response = await api.get('/Hospital/List', {
-        params: { tenantId: tenantID },
-      });
-
-      const hospitalData = response.data?.data ?? response.data;
-
-      if (Array.isArray(hospitalData)) {
-        setRowData([...hospitalData]);
-        setFilteredData([...hospitalData]);
-      } else {
-        console.error('Unexpected API response format:', response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching table data:', error);
+    if (!tenantID) {
+      console.error('Missing tenantID in session storage.');
+      return;
     }
-  };
+
+    const response = await api.get('/Hospital', {
+      params: { tenantId: tenantID },
+    });
+
+    const apiData = response.data?.data || response.data;
+
+    const hospitalList = apiData.map((item: any) => ({
+      ...item.hospital,
+      ...item.address,
+    }));
+
+    setRowData(hospitalList);
+    setFilteredData(hospitalList);
+  } catch (error) {
+    console.error('Error refreshing table data:', error);
+  }
+};
+
 
   const resetFormData = () => {
     setFormData({
@@ -1551,10 +1558,8 @@ useEffect(() => {
         </button>
       </div>
 
-      <div
-        className="ag-theme-alpine mt-6 w-full overflow-x-auto"
-        style={{ minWidth: '1200px' }}
-      >
+      <div className="w-full overflow-x-auto">
+  <div className="ag-theme-alpine min-w-[600px] mt-6" style={{ height: 'auto' }}>
         <AgGridReact
           ref={gridRef}
           rowData={rowData}
@@ -1572,6 +1577,7 @@ useEffect(() => {
           }}
           onPaginationChanged={onPaginationChanged}
         />
+      </div>
       </div>
 
       {showConfirmation && (

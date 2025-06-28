@@ -278,7 +278,7 @@ const EPharmacyPage: React.FC = () => {
 
       try {
         const response = await api.get(
-          `/Hospital/List?tenantId=${formData.tenant}`,
+          `/Hospital/HospitalsList?tenantId=${formData.tenant}`,
         );
 
         if (Array.isArray(response.data)) {

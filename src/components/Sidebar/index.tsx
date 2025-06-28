@@ -82,6 +82,7 @@ import {
   MdSms,
   MdMailOutline,
   MdScience,
+  MdAssignmentTurnedIn,
 } from 'react-icons/md';
 import api from '../../api/request';
 import { BiDetail } from 'react-icons/bi';
@@ -172,6 +173,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   MedicalCamp: { icon: <MdLocalHospital />, route: '/MedicalCamp' },
   SmsTemplate: { icon: <MdSms />, route: '/SmsTemplateForm' },
   EmailTemplate: { icon: <MdMailOutline />, route: '/EmailTemplate' },
+  ConsentForm: { icon: <MdAssignmentTurnedIn />, route: '/ConsentForm' },
 
   PharmacyMedicine: {
     icon: <FaFirstAid />,

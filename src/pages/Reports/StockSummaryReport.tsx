@@ -151,7 +151,7 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     if (role === 'SuperAdmin') {
       // Fetch all hospitals for SuperAdmin
       api
-        .get('/Hospital/List')
+        .get('/Hospital/HospitalsList')
         .then((res) => {
           const activeHospitals = res.data.filter((h: any) => h.isActive);
           setHospitals(activeHospitals);
@@ -164,7 +164,7 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     } else if (role === 'TenantAdmin' && tenant) {
       // Fetch hospitals by tenant
       api
-        .get(`/Hospital/List?tenantId=${tenant}`)
+        .get(`/Hospital/HospitalsList?tenantId=${tenant}`)
         .then((res) => {
           const activeHospitals = res.data.filter((h: any) => h.isActive);
           setHospitals(activeHospitals);

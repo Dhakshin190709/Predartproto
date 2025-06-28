@@ -5,7 +5,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from 'axios';
 import { CheckCircle, Edit } from 'lucide-react';
-import { fetchHospitalAPI, fetchTenants } from '../../Utils';
+// import { fetchHospitalAPI, fetchTenants } from '../../Utils';
 import CustomButton from '../../components/CustomButton';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -209,9 +209,9 @@ const roleName = sessionStorage.getItem('roleName');
 
     return errors; // ✅ Return the errors
   };
-  useEffect(() => {
-    fetchTenants().then(setTenants);
-  }, []);
+  // useEffect(() => {
+  //   fetchTenants().then(setTenants);
+  // }, []);
 
   // Handle tenant selection
   const handleTenantChange = (e) => {
@@ -221,14 +221,14 @@ const roleName = sessionStorage.getItem('roleName');
 
   // hospital type from appLOV
 
-  useEffect(() => {
-    const getHospitalTypes = async () => {
-      const types = await fetchHospitalAPI();
-      setHospitalTypes(types);
-    };
+  // useEffect(() => {
+  //   const getHospitalTypes = async () => {
+  //     const types = await fetchHospitalAPI();
+  //     setHospitalTypes(types);
+  //   };
 
-    getHospitalTypes();
-  }, []);
+  //   getHospitalTypes();
+  // }, []);
 
   const columnDefs = [
     { headerName: 'S.No', valueGetter: 'node.rowIndex + 1', width: 80 },

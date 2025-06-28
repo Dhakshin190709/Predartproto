@@ -103,22 +103,37 @@ const SearchAppointment: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [statusList, setStatusList] = useState<Status[]>([]);
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      try {
-        const response = await api.get('/Patient'); // 🔄 Use base URL from request.ts
-        if (Array.isArray(response.data.data)) {
-          setPatients(response.data.data);
-        } else {
-          console.error('Unexpected response format:', response.data);
-        }
-      } catch (error) {
-        console.error('Error fetching patients:', error);
-      }
-    };
+ 
 
+useEffect(() => {
+  const storedRole = sessionStorage.getItem('roleName');
+  if (storedRole) {
+    setRoleName(storedRole);
+  }
+}, []);
+
+useEffect(() => {
+  if (!roleName) return;
+
+  const fetchPatients = async () => {
+    try {
+      const response = await api.get('/Patient');
+      if (Array.isArray(response.data.data)) {
+        setPatients(response.data.data);
+      } else {
+        console.error('Unexpected response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    }
+  };
+
+  if (roleName !== 'SuperAdmin') {
     fetchPatients();
-  }, []);
+  }
+}, []);
+// 👈 Add roleName as a dependency
+
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -137,84 +152,96 @@ const SearchAppointment: React.FC = () => {
     fetchDoctors();
   }, [selectedHospitalID]);
 
-  useEffect(() => {
-    const role = sessionStorage.getItem('roleName') || '';
-    const unitID = sessionStorage.getItem('unitID') || '';
+ useEffect(() => {
+  const role = sessionStorage.getItem('roleName') || '';
+  const unitID = sessionStorage.getItem('unitID') || '';
 
-    setRoleName(role.toLowerCase());
+  const lowerRole = role.toLowerCase();
+  setRoleName(lowerRole);
 
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital/List');
-        // Assuming response.data is the array of hospitals
-        const activeHospitals = response.data.filter(
-          (hospital: any) => hospital.isActive,
-        );
-        setHospitals(activeHospitals);
+   if (
+    lowerRole === 'superadmin' ||
+    lowerRole === 'doctor' ||
+    lowerRole === 'reception'||
+    lowerRole ==='tenantadmin'
+  ) {
+    // ✅ Skip fetching if SuperAdmin, Doctor, or Reception
+    return;
+  }
 
-        if (role.toLowerCase() === 'hospitalAdmin' && unitID) {
-          setSelectedHospitalID(unitID);
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
-
-  const fetchAppointmentsForUser = async () => {
-    const roleNameRaw = sessionStorage.getItem('roleName');
-    const roleName = roleNameRaw?.toLowerCase();
-    const patientID = sessionStorage.getItem('patientID');
-    const doctorID = sessionStorage.getItem('doctorID');
-    const unitID = sessionStorage.getItem('unitID');
-    const tenantID = sessionStorage.getItem('tenantID') || '';
-
-    let params = {};
-
-    if (roleName === 'patient' && patientID) {
-      params = { PatientID: patientID };
-    } else if (roleName === 'doctor' && doctorID && unitID) {
-      params = { DoctorID: doctorID, UnitID: unitID };
-    } else if (roleName === 'reception' && unitID) {
-      params = { UnitID: unitID };
-    } else if (roleName === 'hospitalAdmin' && unitID) {
-      params = { HospitalID: unitID };
-    }
-
+  const fetchHospitals = async () => {
     try {
-      // Conditionally build API URL
-      const url =
-        roleName !== 'patient'
-          ? `/Appointment/GetAppointment?tenantID=${tenantID}`
-          : '/Appointment/GetAppointment';
+      const response = await api.get('/Hospital/HospitalsList');
+      const activeHospitals = response.data.filter(
+        (hospital: any) => hospital.isActive,
+      );
+      setHospitals(activeHospitals);
 
-      const response = await api.get(url, { params });
-      const fetchedAppointments = response.data;
-
-      if (roleName === 'patient' && patientID) {
-        setAppointments(
-          fetchedAppointments.filter((a) => a.patientID === patientID),
-        );
-      } else if (roleName === 'doctor' && doctorID) {
-        setAppointments(
-          fetchedAppointments.filter((a) => a.doctorID === doctorID),
-        );
-      } else if (
-        (roleName === 'reception' || roleName === 'hospitalAdmin') &&
-        unitID
-      ) {
-        setAppointments(
-          fetchedAppointments.filter((a) => a.hospitalID === unitID),
-        );
-      } else {
-        setAppointments(fetchedAppointments);
+      if (lowerRole === 'hospitaladmin' && unitID) {
+        setSelectedHospitalID(unitID);
       }
     } catch (error) {
-      console.error('Error fetching appointments:', error);
+      console.error('Error fetching hospitals:', error);
     }
   };
+
+  fetchHospitals();
+}, []);
+
+
+ const fetchAppointmentsForUser = async () => {
+  const roleNameRaw = sessionStorage.getItem('roleName');
+  const roleName = roleNameRaw?.toLowerCase();
+  const patientID = sessionStorage.getItem('patientID');
+  const doctorID = sessionStorage.getItem('doctorID');
+  const unitID = sessionStorage.getItem('unitID');
+  const tenantID = sessionStorage.getItem('tenantID') || '';
+
+  let params = {};
+
+  if (roleName === 'patient' && patientID) {
+    params = { PatientID: patientID };
+  } else if (roleName === 'doctor' && doctorID && unitID) {
+    params = { DoctorID: doctorID, UnitID: unitID };
+  } else if (roleName === 'reception' && unitID) {
+    params = { UnitID: unitID };
+  } else if (roleName === 'hospitaladmin' && unitID) {
+    params = { HospitalID: unitID };
+  }
+
+  try {
+    // ✅ ONLY this line changed: no tenantID if SuperAdmin
+    const url =
+   roleName === 'superadmin' || roleName === 'patient'
+        ? '/Appointment/GetAppointment'
+        : `/Appointment/GetAppointment?tenantID=${tenantID}`;
+
+    const response = await api.get(url, { params });
+    const fetchedAppointments = response.data;
+
+    if (roleName === 'patient' && patientID) {
+      setAppointments(
+        fetchedAppointments.filter((a) => a.patientID === patientID),
+      );
+    } else if (roleName === 'doctor' && doctorID) {
+      setAppointments(
+        fetchedAppointments.filter((a) => a.doctorID === doctorID),
+      );
+    } else if (
+      (roleName === 'reception' || roleName === 'hospitaladmin') &&
+      unitID
+    ) {
+      setAppointments(
+        fetchedAppointments.filter((a) => a.hospitalID === unitID),
+      );
+    } else {
+      setAppointments(fetchedAppointments);
+    }
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+  }
+};
+
 
   const fetchStatusList = async () => {
     try {
@@ -229,10 +256,22 @@ const SearchAppointment: React.FC = () => {
     }
   };
 
-  useEffect(() => {
-    fetchAppointmentsForUser();
+useEffect(() => {
+  const role = sessionStorage.getItem('roleName')?.toLowerCase() || '';
+
+  fetchAppointmentsForUser();
+
+  if (
+    role !== 'superadmin' &&
+    role !== 'doctor' &&
+    role !== 'patient' &&
+    role !== 'reception'&&
+     role !== 'tenantadmin'
+  ) {
     fetchStatusList();
-  }, []);
+  }
+}, []);
+
 
   const handleDoctorChange = (event) => {
     setSelectedDoctorID(event.target.value);
@@ -355,10 +394,10 @@ const SearchAppointment: React.FC = () => {
       setAppointments([]);
 
       // Construct the API URL based on role
-      const url =
-        roleName !== 'patient'
-          ? `/Appointment/GetAppointment?tenantID=${tenantID}`
-          : '/Appointment/GetAppointment';
+    const url =
+  roleName === 'superadmin' || roleName === 'patient'
+    ? '/Appointment/GetAppointment'
+    : `/Appointment/GetAppointment?tenantID=${tenantID}`;
 
       const res = await api.get(url, { params });
 
@@ -389,7 +428,7 @@ const SearchAppointment: React.FC = () => {
         setSelectedDoctorID('');
         setSelectedHospitalID('');
         break;
-      case 'hospitalAdmin':
+      case 'hospitaladmin':
         setSelectedDoctorID('');
         setSelectedPatientID('');
         setSelectedPatientName('');
@@ -462,29 +501,30 @@ const SearchAppointment: React.FC = () => {
     }
   };
 
-  const handleChange = (e) => {
-    const input = e.target.value;
+ const handleChange = (e) => {
+  const input = e.target.value;
 
-    // Allow only alphabets and numbers (with spaces)
-    const validPattern = /^[a-zA-Z0-9\s]*$/; // letters, digits, spaces allowed
-    const hasEmojiOrSpecialChar = /[^\p{L}\p{N}\s]/u.test(input); // emoji/special chars
-    const numbers = input.match(/\d/g) || [];
-    const hasDuplicateNumbers = new Set(numbers).size !== numbers.length;
+  // ✅ Allow letters, digits, spaces, underscores
+  const validPattern = /^[a-zA-Z0-9_\s]*$/;
 
-    // Validate input
-    if (
-      validPattern.test(input) &&
-      !hasEmojiOrSpecialChar &&
-      !hasDuplicateNumbers
-    ) {
-      setSelectedPatientName(input);
-      setValid(true);
-    } else {
-      // Still update input but mark invalid
-      setSelectedPatientName(input);
-      setValid(false);
-    }
-  };
+  // ✅ Updated to allow underscore in allowed characters
+  const hasEmojiOrSpecialChar = /[^\p{L}\p{N}_\s]/u.test(input);
+
+  const numbers = input.match(/\d/g) || [];
+  const hasDuplicateNumbers = new Set(numbers).size !== numbers.length;
+
+  if (
+    validPattern.test(input) &&
+    !hasEmojiOrSpecialChar &&
+    !hasDuplicateNumbers
+  ) {
+    setSelectedPatientName(input);
+    setValid(true);
+  } else {
+    setSelectedPatientName(input);
+    setValid(false);
+  }
+};
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
@@ -545,13 +585,13 @@ const SearchAppointment: React.FC = () => {
               style={{ minHeight: '1.25rem' }}
               aria-live="assertive"
             >
-              Only letters and non-repeating digits are allowed.
+              Only letters, digits (non-repeating), and underscores are allowed.
             </p>
           </div>
         )}
 
         {/* Hospital Admin */}
-        {roleName === 'hospitalAdmin' && (
+        {roleName === 'hospitaladmin' && (
           <>
             <div className="w-full flex flex-col mb-0">
               <select
@@ -665,7 +705,7 @@ const SearchAppointment: React.FC = () => {
             Reset
           </CustomButton>
 
-          {roleName?.toLowerCase() !== 'doctor' &&
+          {/* {roleName?.toLowerCase() !== 'doctor' &&
             roleName?.toLowerCase() !== 'hospitaladmin' &&
             roleName?.toLowerCase() !== 'reception' && (
               <button
@@ -678,7 +718,7 @@ const SearchAppointment: React.FC = () => {
                 <CalendarCheck className="w-5 h-5" />
                 <span>Book</span>
               </button>
-            )}
+            )} */}
 
           <ToastContainer position="top-right" autoClose={3000} />
         </div>

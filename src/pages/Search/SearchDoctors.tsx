@@ -176,92 +176,88 @@ const SearchDoctors: React.FC = () => {
   };
 
   // 🔄 Fetch hospitals and handle role logic
- useEffect(() => {
-  const fetchHospitals = async () => {
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+
+        // Build the URL with tenantId param only for TenantAdmin
+        let url = '/Hospital/HospitalsList';
+        if (roleName === 'TenantAdmin' && tenantID) {
+          url += `?tenantId=${tenantID}`;
+        }
+
+        const response = await api.get(url);
+        const data = response.data;
+
+        if (Array.isArray(data)) {
+          const activeHospitals = data.filter((h) => h.isActive);
+
+          const hospitalMap = activeHospitals.reduce(
+            (acc, h) => {
+              acc[String(h.hospitalID)] = h.hospitalName;
+              return acc;
+            },
+            {} as { [key: string]: string },
+          );
+
+          setHospitals(hospitalMap);
+
+          const unitID = sessionStorage.getItem('unitID');
+
+          if (roleName === 'HospitalAdmin' && unitID && hospitalMap[unitID]) {
+            setSelectedHospital(unitID);
+            setIsHospitalDisabled(true);
+          } else {
+            setSelectedHospital('');
+            setIsHospitalDisabled(false);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+        toast.error('Failed to load hospitals');
+      }
+    };
+
+    fetchHospitals();
+  }, []);
+
+  // ✅ 2. Fetch Doctor Data — filter by hospital if HospitalAdmin
+  const fetchAllDoctors = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
+      const unitID = sessionStorage.getItem('unitID');
       const tenantID = sessionStorage.getItem('tenantID');
 
-      // Build the URL with tenantId param only for TenantAdmin
-      let url = '/Hospital/List';
-      if (roleName === 'TenantAdmin' && tenantID) {
+      let url = '/Doctor';
+
+      // ✅ Only include tenantID if role is NOT Patient
+      if (roleName !== 'Patient' && roleName !== 'SuperAdmin' && tenantID) {
         url += `?tenantId=${tenantID}`;
       }
 
+      // ✅ For HospitalAdmin, add hospitalId appropriately
+      if (roleName === 'HospitalAdmin' && unitID) {
+        url += `${url.includes('?') ? '&' : '?'}hospitalId=${unitID}`;
+      }
+
       const response = await api.get(url);
-      const data = response.data;
+      const result = response.data;
 
-      if (Array.isArray(data)) {
-        const activeHospitals = data.filter((h) => h.isActive);
-
-        const hospitalMap = activeHospitals.reduce(
-          (acc, h) => {
-            acc[String(h.hospitalID)] = h.hospitalName;
-            return acc;
-          },
-          {} as { [key: string]: string },
-        );
-
-        setHospitals(hospitalMap);
-
-        const unitID = sessionStorage.getItem('unitID');
-
-        if (roleName === 'HospitalAdmin' && unitID && hospitalMap[unitID]) {
-          setSelectedHospital(unitID);
-          setIsHospitalDisabled(true);
-        } else {
-          setSelectedHospital('');
-          setIsHospitalDisabled(false);
-        }
+      if (result?.data) {
+        setDoctorData(result.data);
+        setFilteredDoctors(result.data);
+      } else {
+        setDoctorData([]);
+        setFilteredDoctors([]);
       }
     } catch (error) {
-      console.error('Error fetching hospitals:', error);
-      toast.error('Failed to load hospitals');
+      console.error('Error fetching doctor data:', error);
+    } finally {
+      setLoading(false);
     }
   };
-
-  fetchHospitals();
-}, []);
-
-
-
-  // ✅ 2. Fetch Doctor Data — filter by hospital if HospitalAdmin
- const fetchAllDoctors = async () => {
-  try {
-    const roleName = sessionStorage.getItem('roleName');
-    const unitID = sessionStorage.getItem('unitID');
-    const tenantID = sessionStorage.getItem('tenantID');
-
-    let url = '/Doctor';
-
-    // ✅ Only include tenantID if role is NOT Patient
-    if (roleName !== 'Patient' && tenantID) {
-      url += `?tenantId=${tenantID}`;
-    }
-
-    // ✅ For HospitalAdmin, add hospitalId appropriately
-    if (roleName === 'HospitalAdmin' && unitID) {
-      url += `${url.includes('?') ? '&' : '?'}hospitalId=${unitID}`;
-    }
-
-    const response = await api.get(url);
-    const result = response.data;
-
-    if (result?.data) {
-      setDoctorData(result.data);
-      setFilteredDoctors(result.data);
-    } else {
-      setDoctorData([]);
-      setFilteredDoctors([]);
-    }
-  } catch (error) {
-    console.error('Error fetching doctor data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
-
-
 
   useEffect(() => {
     fetchAllDoctors();
@@ -288,6 +284,19 @@ const SearchDoctors: React.FC = () => {
 
   // Fetch on component mount
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName'); // or get it from props
+
+    if (
+      roleName === 'SuperAdmin' ||
+      roleName === 'HospitalAdmin' ||
+      roleName === 'TenantAdmin'
+    ) {
+      console.log(
+        'Skipping relationship API call for SuperAdmin or HospitalAdmin',
+      );
+      return; // skip API call
+    }
+
     fetchRelationships();
   }, []);
 
@@ -363,6 +372,17 @@ const SearchDoctors: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName'); // Or your source for role
+
+    if (
+      roleName === 'SuperAdmin' ||
+      roleName === 'HospitalAdmin' ||
+      roleName === 'TenantAdmin'
+    ) {
+      console.log('Skipping API call for SuperAdmin or HospitalAdmin');
+      return; // Skip the API call
+    }
+
     const fetchOptions = async () => {
       try {
         const response = await api.get('/AppLOV', {
@@ -685,36 +705,6 @@ const SearchDoctors: React.FC = () => {
     setErrors({ ...errors, [name]: validateField(name, value) });
   };
 
-//  const fetchDoctors = async (hospitalId: string) => {
-//   try {
-//     const roleName = sessionStorage.getItem('roleName');
-//     const tenantID = sessionStorage.getItem('tenantID');
-
-//     // Build params object based on role
-//     const params: any = {
-//       HospitalID: hospitalId,
-//     };
-
-//     // If TenantAdmin, also add tenantID param
-//     if (roleName === 'TenantAdmin' && tenantID) {
-//       params.tenantID = tenantID;
-//     }
-
-//     const response = await api.get('/Doctor', { params });
-//     const result = response.data;
-
-//     if (result.success && Array.isArray(result.data)) {
-//       setDoctors(result.data);
-//     } else {
-//       console.error('Invalid doctor data format:', result.data);
-//       setDoctors([]);
-//     }
-//   } catch (error) {
-//     console.error('Error fetching doctors:', error);
-//   }
-// };
-
-
   useEffect(() => {
     const fetchPatientData = async () => {
       const userID = sessionStorage.getItem('userID');
@@ -725,7 +715,8 @@ const SearchDoctors: React.FC = () => {
         userID &&
         roleName !== 'Reception' &&
         roleName !== 'HospitalAdmin' &&
-        roleName !== 'TenantAdmin'
+        roleName !== 'TenantAdmin' &&
+        roleName !== 'SuperAdmin'
       ) {
         try {
           const response = await api.get('/Patient/GetPatientByUserID', {
@@ -1075,18 +1066,20 @@ const SearchDoctors: React.FC = () => {
     const roleName = sessionStorage.getItem('roleName');
     const unitID = sessionStorage.getItem('unitID');
     const tenantID = sessionStorage.getItem('tenantID');
-    // At least one filter should be provided
-    const hasAnyFilter =
-      DoctorName || mobile || selectedSpecializationID || selectedHospital;
 
-    if (!hasAnyFilter) {
+    const hasAnyFilter =
+      DoctorName.trim() ||
+      mobile.trim() ||
+      selectedSpecializationID ||
+      selectedHospital;
+
+    if (!hasAnyFilter && roleName !== 'SuperAdmin') {
       toast.warning('Please enter at least one filter.');
       return;
     }
 
     const queryParams: Record<string, string> = {};
 
-    // Role-based filtering
     if (roleName === 'Patient' && selectedHospital) {
       queryParams.hospitalId = selectedHospital;
     } else if (roleName === 'HospitalAdmin' && unitID) {
@@ -1096,8 +1089,14 @@ const SearchDoctors: React.FC = () => {
       if (selectedHospital) {
         queryParams.hospitalId = selectedHospital;
       }
+    } else if (roleName === 'SuperAdmin') {
+      // For SuperAdmin: only add hospitalId if selected
+      if (selectedHospital) {
+        queryParams.hospitalId = selectedHospital;
+      }
     }
 
+    // These filters are common for all roles
     if (selectedSpecializationID) {
       queryParams.SpecializationId = selectedSpecializationID;
     }
@@ -1111,7 +1110,10 @@ const SearchDoctors: React.FC = () => {
     }
 
     try {
-      const response = await api.get('/Doctor', { params: queryParams });
+      const response = await api.get('/Doctor', {
+        params: Object.keys(queryParams).length ? queryParams : undefined,
+      });
+
       const result = response.data;
 
       if (result?.data && Array.isArray(result.data)) {
@@ -1125,26 +1127,26 @@ const SearchDoctors: React.FC = () => {
     }
   };
 
-const handleReset = async (event) => {
-  event.preventDefault();
+  const handleReset = async (event) => {
+    event.preventDefault();
 
-  const roleName = sessionStorage.getItem('roleName');
-  const unitID = sessionStorage.getItem('unitID');
+    const roleName = sessionStorage.getItem('roleName');
+    const unitID = sessionStorage.getItem('unitID');
 
-  setDoctorName('');
-  setMobile('');
-  setSelectedSpecializationID('');
+    setDoctorName('');
+    setMobile('');
+    setSelectedSpecializationID('');
 
-  // Reset hospital based on role
-  if (roleName === 'HospitalAdmin') {
-    setSelectedHospital(unitID || '');
-  } else {
-    // For Patient, TenantAdmin, and others
-    setSelectedHospital('');
-  }
+    // Reset hospital based on role
+    if (roleName === 'HospitalAdmin') {
+      setSelectedHospital(unitID || '');
+    } else {
+      // For Patient, TenantAdmin, and others
+      setSelectedHospital('');
+    }
 
-  await fetchAllDoctors();
-};
+    await fetchAllDoctors();
+  };
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">
@@ -1258,7 +1260,7 @@ const handleReset = async (event) => {
         hospitals={hospitals}
         specializations={specializations}
         onBookNow={handleBookNow}
-         roleName={roleName}
+        roleName={roleName}
       />
 
       {showPopup && selectedDoctor && (
@@ -1576,23 +1578,24 @@ const DoctorCard = ({
               <div className="p-4 space-y-3">
                 {/* Book Button */}
 
-                 {roleName !== 'HospitalAdmin' && (
-  <div className="flex justify-end">
-    <button
-      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-      onClick={() =>
-        onBookNow({
-          ...doctor,
-          hospitalName: hospitals[doctor.hospitalID] || 'Unknown',
-        })
-      }
-    >
-      <span>Book Now</span>
-    </button>
-  </div>
-)}
-
-              
+                {!['HospitalAdmin', 'SuperAdmin', 'TenantAdmin'].includes(
+                  roleName,
+                ) && (
+                  <div className="flex justify-end">
+                    <button
+                      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                      onClick={() =>
+                        onBookNow({
+                          ...doctor,
+                          hospitalName:
+                            hospitals[doctor.hospitalID] || 'Unknown',
+                        })
+                      }
+                    >
+                      <span>Book Now</span>
+                    </button>
+                  </div>
+                )}
 
                 {/* Name & Specialization */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 mt-6 gap-y-2 gap-x-6 mt-2 mb-2">
@@ -1624,18 +1627,22 @@ const DoctorCard = ({
 
                 {/* Hospital */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 mt-2 mb-2">
-                <div className="flex items-center gap-2 max-w-full">
-  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-  <span className="text-black whitespace-nowrap">
-    <span className="text-black">Hospital:</span>{' '}
-    <span
-      className="inline-block max-w-[200px] truncate align-middle"
-      title={hospitalName}
-    >
-      {hospitalName}
-    </span>
-  </span>
-</div>
+                  <div className="flex items-center gap-2 max-w-full">
+                    <img
+                      src={HospitalIcon}
+                      alt="hospital"
+                      className="w-5 h-5"
+                    />
+                    <span className="text-black whitespace-nowrap">
+                      <span className="text-black">Hospital:</span>{' '}
+                      <span
+                        className="inline-block max-w-[200px] truncate align-middle"
+                        title={hospitalName}
+                      >
+                        {hospitalName}
+                      </span>
+                    </span>
+                  </div>
 
                   <div className="flex items-center gap-2 max-w-full">
                     <img src={HospitalIcon} alt="mobile" className="w-5 h-5" />

@@ -265,7 +265,7 @@ const PricePlan: React.FC = () => {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const res = await api.get('/Hospital/List');
+        const res = await api.get('/Hospital/HospitalsList');
         const data = res.data || [];
         const activeHospitals = data
           .filter((h: any) => h.isActive)

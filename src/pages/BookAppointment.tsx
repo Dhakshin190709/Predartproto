@@ -135,7 +135,7 @@ const BookAppointment = () => {
         const roleName = sessionStorage.getItem('roleName');
 
         // Construct the URL with tenantId only if roleName is TenantAdmin
-        let url = '/Hospital/List';
+        let url = '/Hospital/HospitalsList';
         if (roleName === 'TenantAdmin' && tenantID) {
           url += `?tenantId=${tenantID}`;
         }

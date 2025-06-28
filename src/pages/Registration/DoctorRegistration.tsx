@@ -385,7 +385,7 @@ const DoctorRegistration: React.FC = () => {
     }
 
     try {
-      const response = await api.get(`/Hospital/List?tenantId=${selectedTenantId}`);
+      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantId}`);
       const data = response.data;
 
       console.log('Filtered Hospitals:', data);

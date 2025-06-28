@@ -185,10 +185,26 @@ const HospitalCards = () => {
 
   // Fetch on component mount
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName'); // Or your source for role
+
+    if (roleName === 'SuperAdmin' || roleName === 'TenantAdmin') {
+      console.log(
+        'Skipping relationship API call for SuperAdmin and TenantAdmin',
+      );
+      return; // Skip API call
+    }
+
     fetchRelationships();
   }, []);
 
   useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName'); // Or however you get the role
+
+    if (roleName === 'SuperAdmin' || roleName === 'TenantAdmin') {
+      console.log('Skipping API call for SuperAdmin or TenantAdmin');
+      return; // Skip the API call
+    }
+
     const fetchOptions = async () => {
       try {
         const response = await api.get('/AppLOV', {
@@ -266,29 +282,31 @@ const HospitalCards = () => {
       const tenantID = sessionStorage.getItem('tenantID');
       const roleName = sessionStorage.getItem('roleName');
 
-      let url = '/Hospital/List';
+      let url = '/Hospital';
 
-      // Only append tenantId if roleName is not 'Patient'
-      if (tenantID && roleName !== 'Patient') {
+      if (tenantID && roleName !== 'Patient' && roleName !== 'SuperAdmin') {
         url += `?tenantId=${tenantID}`;
       }
 
       const response = await api.get(url);
-      console.log('API Response:', response.data); // Verify response format
+      console.log('API Response:', response.data);
 
       if (Array.isArray(response.data)) {
-        const hospitalData = response.data.map((hospital) => ({
-          hospitalID: hospital.hospitalID || '',
-          tenantID: hospital.tenantID || '',
-          hospitalName: hospital.hospitalName || 'Unknown Hospital',
-          hospitalCode: hospital.hospitalCode || '',
-          hospitalType: hospital.hospitalType || 'Unknown Type',
-          email: hospital.email || '',
-          mobile: hospital.mobile || '',
-          landline: hospital.landline || '',
-          gst: hospital.gst || '',
-          isActive: hospital.isActive ?? false,
-        }));
+        const hospitalData = response.data.map((item) => {
+          const hospital = item.hospital || {}; // drill into `hospital` key
+          return {
+            hospitalID: hospital.hospitalID || '',
+            tenantID: hospital.tenantID || '',
+            hospitalName: hospital.hospitalName || 'Unknown Hospital',
+            hospitalCode: hospital.hospitalCode || '',
+            hospitalType: hospital.hospitalType || 'Unknown Type',
+            email: hospital.email || '',
+            mobile: hospital.mobile || '',
+            landline: hospital.landline || '',
+            gst: hospital.gst || '',
+            isActive: hospital.isActive ?? false,
+          };
+        });
 
         setHospitals(hospitalData);
       } else {
@@ -544,22 +562,42 @@ const HospitalCards = () => {
     const tenantID = sessionStorage.getItem('tenantID');
     const roleName = sessionStorage.getItem('roleName');
 
-    // Construct query parameters conditionally
     const queryParams: any = {
       hospitalName: hospitalName || undefined,
       hospitalType: hospitalType || undefined,
     };
 
-    // Only include tenantId if roleName is not 'Patient'
-    if (roleName !== 'Patient') {
+    if (roleName !== 'Patient' && roleName !== 'SuperAdmin') {
       queryParams.tenantId = tenantID || undefined;
     }
 
     try {
-      const res = await api.get('/Hospital/List', { params: queryParams });
+      const res = await api.get('/Hospital', { params: queryParams });
       const data = res.data;
       console.log('Search Results:', data);
-      setHospitals(data); // Update hospitals list with search results
+
+      if (Array.isArray(data)) {
+        const hospitalData = data.map((item) => {
+          const hospital = item.hospital || {};
+          return {
+            hospitalID: hospital.hospitalID || '',
+            tenantID: hospital.tenantID || '',
+            hospitalName: hospital.hospitalName || 'Unknown Hospital',
+            hospitalCode: hospital.hospitalCode || '',
+            hospitalType: hospital.hospitalType || 'Unknown Type',
+            email: hospital.email || '',
+            mobile: hospital.mobile || '',
+            landline: hospital.landline || '',
+            gst: hospital.gst || '',
+            isActive: hospital.isActive ?? false,
+          };
+        });
+
+        setHospitals(hospitalData);
+      } else {
+        console.error('Invalid search data format:', data);
+        setHospitals([]);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Something went wrong while searching.');
@@ -849,9 +887,14 @@ const HospitalCards = () => {
   useEffect(() => {
     const fetchPatientData = async () => {
       const userID = sessionStorage.getItem('userID');
-      const roleName = sessionStorage.getItem('roleName');
+      const roleName = sessionStorage.getItem('roleName')?.toLowerCase();
 
-      if (userID && roleName !== 'Reception') {
+      if (
+        userID &&
+        roleName !== 'reception' &&
+        roleName !== 'superadmin' &&
+        roleName !== 'tenantadmin'
+      ) {
         try {
           const response = await api.get('/Patient/GetPatientByUserID', {
             params: { userId: userID },
@@ -964,33 +1007,33 @@ const HospitalCards = () => {
 
               {/* Top Row: Book Button */}
 
-              {roleName !== 'HospitalAdmin' && (
-                <div className="flex justify-end mb-4">
-                  <button
-                    className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
-                    onClick={() => handleBookNow(hospital.hospitalID)}
-                  >
-                    Book Now
-                  </button>
-                </div>
-              )}
+              {roleName !== 'HospitalAdmin' &&
+                roleName !== 'SuperAdmin' &&
+                roleName !== 'TenantAdmin' && (
+                  <div className="flex justify-end mb-4">
+                    <button
+                      className="bg-blue-300 text-white px-4 py-1 rounded-md hover:bg-blue-400 transition"
+                      onClick={() => handleBookNow(hospital.hospitalID)}
+                    >
+                      Book Now
+                    </button>
+                  </div>
+                )}
 
               {/* Info Grid: Hospital Name & Type */}
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-6 text-sm text-gray-800">
-              <div className="flex items-center gap-2 max-w-full">
-  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
-  <span className="text-black font-medium whitespace-nowrap">
-    Name:{' '}
-    <span
-      className="font-normal inline-block max-w-[200px] truncate align-middle"
-      title={hospital.hospitalName}
-    >
-      {hospital.hospitalName}
-    </span>
-  </span>
-</div>
-
-
+                <div className="flex items-center gap-2 max-w-full">
+                  <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />
+                  <span className="text-black font-medium whitespace-nowrap">
+                    Name:{' '}
+                    <span
+                      className="font-normal inline-block max-w-[200px] truncate align-middle"
+                      title={hospital.hospitalName}
+                    >
+                      {hospital.hospitalName}
+                    </span>
+                  </span>
+                </div>
 
                 <div className="flex items-center gap-2">
                   <img src={HospitalIcon} alt="hospital" className="w-5 h-5" />

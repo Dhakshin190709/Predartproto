@@ -116,7 +116,7 @@ const Hospital: React.FC = () => {
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
-        const response = await api.get('/Hospital/List');
+        const response = await api.get('/Hospital/HospitalsList');
         console.log('API Data:', response.data); // Debug log
 
         setRowData(response.data?.data || response.data); // Adjust based on actual API structure

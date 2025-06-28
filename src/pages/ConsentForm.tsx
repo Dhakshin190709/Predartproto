@@ -16,14 +16,14 @@ import CustomButton from '../components/CustomButton';
 
 interface RowData {
   isActive: boolean;
-  emailTemplatesID: string;
+  consentFormTemplateID: string;
   tenantID: string;
-  hospitalID: string;
-  name: string;
-  subject: string;
-  body: string;
-  isHtml: boolean;
-   tenantName?: string;   // ✅ Add this
+ 
+ 
+  title: string;
+  htmlContent: string;
+ 
+  tenantName?: string; // ✅ Add this
   hospitalName?: string; // ✅ Add this
 }
 
@@ -32,8 +32,7 @@ const EmailTemplate: React.FC = () => {
   const [hospitalList, setHospitalList] = useState([]);
   const [hospitalMap, setHospitalMap] = useState({});
   const [tenantList, setTenantList] = useState([]);
-const [initialData, setInitialData] = useState<RowData[]>([]);
-
+  const [initialData, setInitialData] = useState<RowData[]>([]);
 
   const [tenantMap, setTenantMap] = useState({});
   const [isActive, setIsActive] = useState(true); // Active filter for UI
@@ -48,13 +47,12 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
   const [selectedType, setSelectedType] = useState('');
   const [formData, setFormData] = useState<RowData>({
     isActive: true,
-    emailTemplatesID: '',
+    consentFormTemplateID: '',
     tenantID: '',
-    hospitalID: '',
-    name: '',
-    subject: '',
-    body: '',
-    isHtml: true,
+   
+    title: '',
+    htmlContent: '',
+  
   });
 
   const roleName = sessionStorage.getItem('roleName');
@@ -87,7 +85,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
   const navigate = useNavigate();
 
  useEffect(() => {
-  const fetchEmailTemplates = async () => {
+  const fetchConsentFormTemplates = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
       const tenantID = sessionStorage.getItem('tenantID');
@@ -96,13 +94,13 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
       let response;
 
       if (roleName === 'SuperAdmin') {
-        response = await api.get('/EmailTemplate');
+        response = await api.get('/ConsentFormTemplate'); // 👈 updated path
       } else if (roleName === 'TenantAdmin') {
         if (!tenantID) {
           console.error('Missing tenantID for TenantAdmin.');
           return;
         }
-        response = await api.get('/EmailTemplate', {
+        response = await api.get('/ConsentFormTemplate', {
           params: { tenantId: tenantID },
         });
       } else {
@@ -110,16 +108,15 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
           console.error('Missing tenantID or unitID for role:', roleName);
           return;
         }
-        response = await api.get('/EmailTemplate', {
+        response = await api.get('/ConsentFormTemplate', {
           params: { tenantId: tenantID, hospitalId: unitID },
         });
       }
 
-      console.log('EmailTemplate API Data:', response.data);
+      console.log('ConsentFormTemplate API Data:', response.data);
       const templateData = response.data?.data ?? response.data;
 
       if (Array.isArray(templateData)) {
-        // ✅ Combine raw data + mappings:
         const enriched = templateData.map((item) => ({
           ...item,
           tenantName: tenantMap[item.tenantID] || 'N/A',
@@ -132,15 +129,14 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
         console.error('Unexpected API response format:', response.data);
       }
     } catch (error: any) {
-      console.error('Error fetching email template data:', error);
+      console.error('Error fetching consent form template data:', error);
     }
   };
 
-  // ✅ Re-fetch if mappings change too
-  fetchEmailTemplates();
+  // Re-fetch if mappings change too
+  fetchConsentFormTemplates();
 }, [tenantMap, hospitalMap]);
 
- 
 
   // Handle tenant selection
   const handleTenantChange = (e) => {
@@ -152,7 +148,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
     { headerName: 'S.No', valueGetter: 'node.rowIndex + 1', width: 80 },
     {
       headerName: 'Template ID',
-      field: 'emailTemplatesID',
+      field: 'consentFormTemplateID',
       hide: true,
       sortable: true,
       filter: true,
@@ -165,43 +161,19 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 180,
+      width: 280,
       valueGetter: (params) => tenantMap[params.data.tenantID] || 'N/A',
     },
 
+   
     {
-      headerName: 'Hospital Name',
-      field: 'hospitalID',
-      headerClass: 'left-header',
-      cellClass: 'text-left',
+      headerName: 'title',
+      field: 'title',
       sortable: true,
       filter: true,
-      width: 200,
-      valueGetter: (params) => hospitalMap[params.data.hospitalID] || 'N/A',
-    },
-    {
-      headerName: 'Name',
-      field: 'name',
-      sortable: true,
-      filter: true,
-      width: 200,
-    },
-    {
-      headerName: 'Subject',
-      field: 'subject',
-      sortable: true,
-      filter: true,
-      width: 360,
+      width: 460,
     },
 
-    {
-      headerName: 'Is HTML',
-      field: 'isHtml',
-      width: 120,
-      cellRenderer: (params: any) => {
-        return params.value === true ? 'true' : 'Plain Text';
-      },
-    },
 
     {
       headerName: 'Status',
@@ -249,7 +221,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
       cellRenderer: (params: any) => (
         <span
           className="cursor-pointer text-red-600 font-bold"
-          // onClick={() => handleDelete(params.data.emailTemplatesID)}
+          // onClick={() => handleDelete(params.data.consentFormTemplateID)}
         >
           x
         </span>
@@ -258,7 +230,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
   ];
 
   const toggleStatus = async (params: any) => {
-    const { emailTemplatesID, isActive } = params.data;
+    const { consentFormTemplateID, isActive } = params.data;
     const userID = sessionStorage.getItem('userID');
 
     if (!userID) {
@@ -270,18 +242,18 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
     const updatedStatus = !isActive; // ✅ Toggle current status
 
     const payload = {
-      guidID: emailTemplatesID, // ✅ GUID for email template
+      guidID: consentFormTemplateID, // ✅ GUID for Consent form
       updatedBy: userID,
       isActive: updatedStatus,
     };
 
     try {
-      const response = await api.patch('/EmailTemplate', payload);
+      const response = await api.patch('/ConsentFormTemplate', payload);
 
       if (response.status === 200) {
         // ✅ Update local state after success
         const updatedData = rowData.map((item: any) =>
-          item.emailTemplatesID === emailTemplatesID
+          item.consentFormTemplateID === consentFormTemplateID
             ? { ...item, isActive: updatedStatus }
             : item,
         );
@@ -290,26 +262,23 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
         setFilteredData(updatedData);
 
         console.log('Updated isActive:', updatedStatus);
-        toast.success('Email template status updated successfully!');
+        toast.success('Consent form status updated successfully!');
       } else {
-        toast.error('Failed to update email template status.');
+        toast.error('Failed to update Consent form status.');
       }
     } catch (error: any) {
       console.error('Error updating status:', error);
       const errorMsg =
         error.response?.data?.message ||
-        'Failed to update email template status.';
+        'Failed to update Consent form status.';
       toast.error(errorMsg);
     }
   };
-
- 
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submitted!', formData, formMode);
 
-   
     console.log('validateForm result:', isValid);
     if (!isValid) return;
 
@@ -374,10 +343,10 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
       let response;
 
       if (roleName === 'SuperAdmin') {
-        // ✅ SuperAdmin: get all email templates, no params
+        // ✅ SuperAdmin: get all Consent forms, no params
         response = await api.get('/EmailTemplate');
       } else if (roleName === 'TenantAdmin') {
-        // ✅ TenantAdmin: get email templates by tenantID
+        // ✅ TenantAdmin: get Consent forms by tenantID
         if (!tenantID) {
           console.error('Missing tenantID for TenantAdmin.');
           return;
@@ -386,7 +355,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
           params: { tenantId: tenantID },
         });
       } else {
-        // ✅ Other roles: get email templates by tenantID and hospitalID
+        // ✅ Other roles: get Consent forms by tenantID and hospitalID
         if (!tenantID || !unitID) {
           console.error('Missing tenantID or unitID for user role:', roleName);
           return;
@@ -408,7 +377,7 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
         console.error('Unexpected response format:', response.data);
       }
     } catch (error) {
-      console.error('Error fetching email template data:', error);
+      console.error('Error fetching Consent form data:', error);
     }
   };
 
@@ -435,10 +404,10 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
   };
 
   const handleEdit = (data: RowData) => {
-  const templateID = data.emailTemplatesID;
+    const templateID = data.consentFormTemplateID;
 
-  navigate(`/EmailTemplateRegister?id=${templateID}`);
-};
+    navigate(`/ConsentFormRegister?id=${templateID}`);
+  };
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -446,20 +415,20 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
     // Clear error for this specific field
     setErrors((prev: any) => ({ ...prev, [field]: '' }));
   };
-const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const value = e.target.value.toLowerCase();
-  setQuickSearchText(value);
+  const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toLowerCase();
+    setQuickSearchText(value);
 
-  const filtered = initialData.filter((row) =>
-    row.name?.toLowerCase().includes(value) ||
-    row.subject?.toLowerCase().includes(value) ||
-    row.tenantName?.toLowerCase().includes(value) ||
-    row.hospitalName?.toLowerCase().includes(value)
-  );
+    const filtered = initialData.filter(
+      (row) =>
+        row.name?.toLowerCase().includes(value) ||
+        row.title?.toLowerCase().includes(value) ||
+        row.tenantName?.toLowerCase().includes(value) ||
+        row.hospitalName?.toLowerCase().includes(value),
+    );
 
-  setRowData(filtered);
-};
-
+    setRowData(filtered);
+  };
 
   const applyGlobalSearch = (data: RowData[]) => {
     return data.filter((row) =>
@@ -494,38 +463,11 @@ const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     fetchTenants();
   }, []);
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital');
-        if (Array.isArray(response.data)) {
-          setHospitalList(response.data);
-
-          // Create mapping: hospitalID -> hospitalName
-          const mapping = {};
-          response.data.forEach((item) => {
-            const hospital = item.hospital;
-            if (hospital?.hospitalID && hospital?.hospitalName) {
-              mapping[hospital.hospitalID] = hospital.hospitalName;
-            }
-          });
-
-          setHospitalMap(mapping);
-        } else {
-          console.error('Invalid hospital response format');
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
-
+  
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
       <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">
-        Email Template
+        Consent Form
       </h2>
 
       <ToastContainer position="top-right" autoClose={5000} />
@@ -567,7 +509,7 @@ const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
 
         {roleName !== 'TenantAdmin' && (
           <button
-            onClick={() => navigate('/EmailTemplateRegister')}
+            onClick={() => navigate('/ConsentFormRegister')}
             className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 

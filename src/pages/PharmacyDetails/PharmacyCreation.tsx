@@ -275,7 +275,7 @@ useEffect(() => {
     }
 
     try {
-      const response = await api.get(`/Hospital/List?tenantId=${selectedTenantId}`);
+      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantId}`);
       if (Array.isArray(response.data)) {
         const activeHospitals = response.data.filter((h) => h.isActive);
         setHospitals(activeHospitals);

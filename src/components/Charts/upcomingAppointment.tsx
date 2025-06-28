@@ -35,10 +35,11 @@ const UpcomingAppointments: React.FC = () => {
       // Construct base URL
       let url = `/Appointment/GetAppointment?StartDate=${today}&EndDate=${today}`;
 
-      // Only add HospitalID if not SuperAdmin
-      if (roleName !== "SuperAdmin") {
-        url += `&HospitalID=${unitID}`;
-      }
+     // Only add HospitalID if NOT SuperAdmin and NOT TenantAdmin
+if (roleName !== "SuperAdmin" && roleName !== "TenantAdmin") {
+  url += `&HospitalID=${unitID}`;
+}
+
 
       const response = await api.get(url);
       console.log("Fetched appointments:", response.data);

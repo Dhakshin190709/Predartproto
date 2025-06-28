@@ -42,6 +42,8 @@ import Pediatrician from './pages/FindDoctor/Pediatrician';
 import Medicine from './pages/Medicines/Medicine';
 import LabTestCard from './pages/LabTestCard/LabTestCard';
 import LabTest from './pages/LabTest';
+import EmailTemplateRegister from './pages/EmailTemplateRegister';
+import ConsentFormRegister from './pages/ConsentFormRegister';
 
 
 import LandingPageLayout from './layout/LandingPageLayout';
@@ -94,6 +96,7 @@ import LabTestMaster from './pages/Masters/LabTestMaster';
 import DoctorPrescription from './pages/DoctorPrescription';
 import SmsTemplateForm from './pages/SmsTemplateForm';
 import EmailTemplate from './pages/EmailTemplate';
+import ConsentForm from './pages/ConsentForm';
 
 import EventCreation from './pages/CreationPage/EventCreation';
 import CampCreation from './pages/CreationPage/CampCreation';
@@ -704,6 +707,33 @@ function App() {
               <>
                 <PageTitle title="Hospital| PreCare" />
                 <Hospital />
+              </>
+            }
+          />
+          <Route
+            path="/EmailTemplateRegister"
+            element={
+              <>
+                <PageTitle title="EmailTemplateRegister| PreCare" />
+                <EmailTemplateRegister />
+              </>
+            }
+          />
+          <Route
+            path="/ConsentForm"
+            element={
+              <>
+                <PageTitle title="ConsentForm| PreCare" />
+                <ConsentForm />
+              </>
+            }
+          />
+          <Route
+            path="/ConsentFormRegister"
+            element={
+              <>
+                <PageTitle title="ConsentFormRegister| PreCare" />
+                <ConsentFormRegister />
               </>
             }
           />

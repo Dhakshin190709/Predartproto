@@ -34,7 +34,7 @@ const HospitalDropdown = () => {
         const params =
           roleName === 'TenantAdmin' && tenantID ? { tenantID } : {};
 
-        const response = await api.get('/Hospital/List', { params });
+        const response = await api.get('/Hospital/HospitalsList', { params });
         const hospitals = response.data; // assuming this is an array
 
         const activeHospitals = hospitals.filter(

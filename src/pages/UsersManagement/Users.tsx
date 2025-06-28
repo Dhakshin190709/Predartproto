@@ -115,8 +115,8 @@ const Users: React.FC = () => {
     // Conditionally build URL
     const url =
       roleName === 'SuperAdmin'
-        ? '/Hospital/List'
-        : `/Hospital/List?tenantID=${tenantID}`;
+        ? '/Hospital/HospitalsList'
+        : `/Hospital/HospitalsList?tenantID=${tenantID}`;
 
     const response = await api.get(url);
     const data = response.data;
@@ -227,7 +227,7 @@ const Users: React.FC = () => {
     // 🔄 Determine API URL
     let apiUrl = '';
     if (normalizedType === 'hospital') {
-      apiUrl = `/Hospital/List/${unitID}`;
+      apiUrl = `/Hospital/HospitalsList/${unitID}`;
     } else if (normalizedType === 'lab') {
       apiUrl = `/Laboratory/${unitID}`;
     } else {

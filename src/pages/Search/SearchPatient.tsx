@@ -184,56 +184,71 @@ const SearchPatient: React.FC = () => {
   }, [isModalOpen, selectedPatient]); // Runs every time modal opens with a new patient
 
   const fetchPatients = async () => {
-    setLoading(true);
-    try {
-      const tenantID = sessionStorage.getItem('tenantID');
+  setLoading(true);
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
 
+    let url = '/Patient';
+
+    // Only add tenantID if NOT SuperAdmin
+    if (roleName !== 'SuperAdmin') {
       if (!tenantID) {
         console.error('tenantID not found in session storage');
         setPatientData([]);
         return;
       }
+      url += `?tenantID=${tenantID}`;
+    }
 
-      const response = await api.get(`/Patient?tenantID=${tenantID}`);
+    const response = await api.get(url);
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setPatientData(result.data);
+    } else {
+      console.error('Invalid data format:', result);
+      setPatientData([]);
+    }
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+    setPatientData([]);
+  } finally {
+    setLoading(false);
+  }
+};
+
+useEffect(() => {
+  fetchPatients();
+}, []);
+
+
+ useEffect(() => {
+  const fetchHospitals = async () => {
+    try {
+      const response = await api.get('/Hospital/HospitalsList');
       const result = response.data;
 
-      if (result.success && Array.isArray(result.data)) {
-        setPatientData(result.data);
-      } else {
-        console.error('Invalid data format:', result);
-        setPatientData([]);
-      }
+      // Filter only active hospitals
+      const activeHospitals = Array.isArray(result)
+        ? result.filter((hospital) => hospital.isActive)
+        : [];
+
+      setHospitals(activeHospitals);
     } catch (error) {
-      console.error('Error fetching patients:', error);
-      setPatientData([]);
-    } finally {
-      setLoading(false);
+      console.error('Error fetching hospitals:', error);
     }
   };
 
-  useEffect(() => {
-    fetchPatients();
-  }, []);
+  const roleName = sessionStorage.getItem('roleName');
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital/List');
-        const result = response.data;
+  if (['Doctor', 'SuperAdmin','Reception','HospitalAdmin','TenantAdmin'].includes(roleName)) {
+    console.log(`Skipping hospital fetch for ${roleName}`);
+    return; // Skip API call
+  }
 
-        // Filter only active hospitals
-        const activeHospitals = Array.isArray(result)
-          ? result.filter((hospital) => hospital.isActive)
-          : [];
-
-        setHospitals(activeHospitals);
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
+  fetchHospitals();
+}, []);
 
   const handlePatientNameChange = (value: string) => {
     const nameRegex = /^[A-Za-z][A-Za-z0-9]{0,19}$/;
@@ -805,47 +820,56 @@ const SearchPatient: React.FC = () => {
     setErrors((prev) => ({ ...prev, time: timeError }));
   };
 
-  const handleSearch = async () => {
-    if (!uhid && !patientName && !mobileNo) {
-      toast.warning('Please enter any one field.');
-      return;
+ const handleSearch = async () => {
+  if (!uhid && !patientName && !mobileNo) {
+    toast.warning('Please enter any one field.');
+    return;
+  }
+
+  const tenantID = sessionStorage.getItem('tenantID');
+  const roleName = sessionStorage.getItem('roleName');
+
+  // For non-SuperAdmin, tenantID must exist
+  if (roleName !== 'SuperAdmin' && !tenantID) {
+    toast.error('Tenant ID not found. Please log in again.');
+    return;
+  }
+
+  try {
+    const params: Record<string, string> = {};
+
+    // For non-SuperAdmin, add tenantID
+    if (roleName !== 'SuperAdmin') {
+      params.tenantID = tenantID!;
     }
 
-    const tenantID = sessionStorage.getItem('tenantID');
-    if (!tenantID) {
-      toast.error('Tenant ID not found. Please log in again.');
-      return;
-    }
+    // Add filters if provided
+    if (uhid) params.UHID = uhid;
+    if (patientName) params.PatientName = patientName;
+    if (mobileNo) params.MobileNo = mobileNo;
 
-    try {
-      const response = await api.get('/Patient', {
-        params: {
-          tenantID, // ✅ Inject tenantID into request
-          UHID: uhid,
-          PatientName: patientName,
-          MobileNo: mobileNo,
-        },
-      });
+    const response = await api.get('/Patient', { params });
 
-      console.log('Search Results:', response.data);
+    console.log('Search Results:', response.data);
 
-      if (response.data?.data?.length > 0) {
-        setPatientData(response.data.data);
-      } else {
-        setPatientData([]);
-      }
-    } catch (error) {
-      console.error('Error fetching patient data:', error);
-      toast.error('Error fetching patient data.');
+    if (response.data?.data?.length > 0) {
+      setPatientData(response.data.data);
+    } else {
       setPatientData([]);
     }
-  };
+  } catch (error) {
+    console.error('Error fetching patient data:', error);
+    toast.error('Error fetching patient data.');
+    setPatientData([]);
+  }
+};
 
-  const handleReset = () => {
-    setPatientName('');
-    setMobileNo('');
-    fetchPatients();
-  };
+ const handleReset = () => {
+  setPatientName('');
+  setMobileNo('');
+  setUhid(''); // ✅ Clear UHID too
+  fetchPatients();
+};
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -954,7 +978,7 @@ const SearchPatient: React.FC = () => {
                     </div>
 
                     {/* Top Right: Book Now Button */}
-                    {!['Doctor', 'HospitalAdmin'].includes(
+                    {!['Doctor', 'HospitalAdmin','SuperAdmin','Reception','TenantAdmin'].includes(
                       sessionStorage.getItem('roleName') || '',
                     ) && (
                       <div className="flex justify-end mt-2 mr-2">
