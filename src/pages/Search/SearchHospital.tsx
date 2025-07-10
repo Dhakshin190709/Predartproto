@@ -81,6 +81,8 @@ const HospitalCards = () => {
   const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
   const [selectedTimeSlotID, setSelectedTimeSlotID] = useState<string>('');
   const location = useLocation();
+  const [toastInProgress, setToastInProgress] = useState(false);
+
   const today = new Date();
   // State declaration
   const [hospitals, setHospitals] = useState([]);
@@ -554,10 +556,15 @@ const HospitalCards = () => {
     const hospitalName = formData.hospitalName.trim();
     const hospitalType = formData.hospitalType.trim();
 
-    if (!hospitalName && !hospitalType) {
-      toast.warning('Please select or enter at least one field to search.');
-      return;
+   if (!hospitalName && !hospitalType) {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select or enter at least one field to search.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    return;
+  }
 
     const tenantID = sessionStorage.getItem('tenantID');
     const roleName = sessionStorage.getItem('roleName');
@@ -600,7 +607,12 @@ const HospitalCards = () => {
       }
     } catch (err) {
       console.error(err);
-      toast.error('Something went wrong while searching.');
+        if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Something went wrong while searching.', {
+        onClose: () => setToastInProgress(false),
+      });
+        }
     }
   };
 

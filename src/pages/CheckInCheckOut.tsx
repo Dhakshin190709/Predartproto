@@ -13,7 +13,8 @@ const CheckInOut: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [selectedDoctor, setSelectedDoctor] = useState('');
   const [status, setStatus] = useState<'none' | 'checkin' | 'checkout'>('none');
-
+  const [isSaving, setIsSaving] = useState(false);
+const [toastInProgress, setToastInProgress] = useState(false);
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
@@ -44,37 +45,70 @@ const CheckInOut: React.FC = () => {
   }, []);
 
   const handleSubmit = async () => {
+    if (isSaving) return;
+    setIsSaving(true); // LOCK immediately
+
     const roleName = sessionStorage.getItem('roleName');
     const userId = sessionStorage.getItem('userID');
     const sessionDoctorID = sessionStorage.getItem('doctorID');
 
-    // Determine doctor ID based on role
     const doctorGuid = roleName === 'Doctor' ? sessionDoctorID : selectedDoctor;
 
-    if (!doctorGuid || status === 'none') {
-      toast.warn('Please select a doctor and a status.');
-      return;
+    
+  if (!doctorGuid || status === 'none') {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warn('Please select a doctor and a status.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    setIsSaving(false); // UNLOCK
+    return;
+  }
 
     const payload = {
       guidID: doctorGuid,
       updatedBy: userId,
       updatedOn: new Date().toISOString(),
-      isActive: status === 'checkin' ? true : false,
+      isActive: status === 'checkin',
     };
 
     try {
       const response = await api.post('/Doctor/DoctorCheckInOut', payload);
       if (response.data?.success) {
+      if (!toastInProgress) {
+        setToastInProgress(true);
         toast.success(
           `Doctor ${status === 'checkin' ? 'checked in' : 'checked out'} successfully.`,
+          {
+            onClose: () => setToastInProgress(false),
+          }
         );
+      }
+
+        // ✅ RESET fields on success
+        if (roleName !== 'Doctor') {
+          setSelectedDoctor(''); // Clear dropdown if not logged in as Doctor
+        }
+        setStatus('none'); // Reset status too
       } else {
-        toast.error('Failed to update doctor status.');
+         if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Failed to update doctor status.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       }
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Something went wrong while saving.');
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Something went wrong while saving.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
+    } finally {
+      setIsSaving(false); // Always unlock
     }
   };
 
@@ -173,9 +207,9 @@ const CheckInOut: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex justify-center">
-            <CustomButton onClick={handleSubmit}>Save</CustomButton>
-          </div>
+          <CustomButton onClick={handleSubmit} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save'}
+          </CustomButton>
         </div>
       </div>
 

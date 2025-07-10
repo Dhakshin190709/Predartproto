@@ -171,7 +171,7 @@ const EmailTemplate: React.FC = () => {
       field: 'title',
       sortable: true,
       filter: true,
-      width: 460,
+      width: 560,
     },
 
 
@@ -197,7 +197,7 @@ const EmailTemplate: React.FC = () => {
     },
     {
       headerName: 'Edit',
-      width: 120,
+      width: 150,
       headerClass: 'center-header',
       cellClass: 'text-center',
       cellRenderer: (params: any) => (

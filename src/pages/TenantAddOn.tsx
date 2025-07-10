@@ -97,12 +97,13 @@ const TenantAddOn: React.FC = () => {
     setShowForm(true);
     setFormMode('Edit');
 
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+    // ✅ Scroll to top if needed
+  setTimeout(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }, 100);
   };
 
   useEffect(() => {
@@ -532,9 +533,10 @@ const TenantAddOn: React.FC = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, tenantID: e.target.value })
                   }
-                  disabled={
-                    sessionStorage.getItem('roleName') === 'TenantAdmin'
-                  }
+                 disabled={
+  sessionStorage.getItem('roleName') === 'TenantAdmin' || formMode === 'Edit'
+}
+
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600"
                 >
                   <option value="">Select Tenant</option>

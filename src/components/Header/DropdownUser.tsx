@@ -3,7 +3,6 @@ import { Link, useNavigate } from 'react-router-dom';
 import ClickOutside from '../ClickOutside';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import axios from 'axios';
 import React from 'react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/actions/authActions';
@@ -81,11 +80,17 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
           : '/HospitalFormWizard';
 
   const handleLogout = () => {
-    dispatch(logout());
-    localStorage.removeItem('authToken');
-    sessionStorage.removeItem('username');
-    navigate('/LoginPage');
-  };
+  dispatch(logout());
+
+  // Clear all session storage
+  sessionStorage.clear();
+
+  // Clear all local storage, or just specific keys if needed
+  localStorage.removeItem('authToken');
+
+  navigate('/LoginPage');
+};
+
 
   useEffect(() => {
     const fetchPhoto = async () => {

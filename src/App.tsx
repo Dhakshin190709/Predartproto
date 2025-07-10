@@ -157,6 +157,7 @@ import MedicalDocumentUpload from './pages/MedicalDocumentUpload';
 import FeedBackForm from './pages/FeedBack/FeedBackForm';
 import MyContacts from './pages/MyContacts';
 import PatientCardNavigation from './pages/PatientCardNavigation';
+import ProtectedRoute from './components/ProtectedRoute';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -181,6 +182,8 @@ function App() {
   return (
     <>
       <Routes>
+         {/* 👇 Protected group */}
+ 
         {/* Landing Page Layout */}
         <Route element={<LandingPageLayout children={undefined} />}>
           <Route
@@ -283,7 +286,7 @@ function App() {
             }
           />
         </Route>
-
+ <Route element={<ProtectedRoute />}>
         {/* Default Layout */}
         <Route element={<DefaultLayout />}>
           <Route
@@ -1445,6 +1448,7 @@ function App() {
               </>
             }
           />
+        </Route>
         </Route>
       </Routes>
     </>

@@ -27,7 +27,7 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [formData, setFormData] = useState<RowData>({
     tenantName: '',
     hospitalName: '',
-    
+
     pharmacyName: '',
     days: '', // ✅ Change from 0 to ''
     startDate: '',
@@ -41,12 +41,12 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [hospitalName, setHospitalName] = useState('');
   const [hospitalID, setHospitalID] = useState('');
 
-const [tenantOptions, setTenantOptions] = useState<any[]>([]);
+  const [tenantOptions, setTenantOptions] = useState<any[]>([]);
 
   const [fromTime, setFromTime] = useState('');
   const [toTime, setToTime] = useState('');
   const [roleName, setRoleName] = useState('');
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [unitID, setUnitID] = useState('');
   const [hospitals, setHospitals] = useState([]);
 
@@ -81,126 +81,127 @@ const [tenantOptions, setTenantOptions] = useState<any[]>([]);
     { headerName: 'days', field: 'days', sortable: true, filter: true },
   ];
 
- useEffect(() => {
-  const roleName = sessionStorage.getItem('roleName') || '';
-  const tenantID = sessionStorage.getItem('tenantID') || '';
+  useEffect(() => {
+    const roleName = sessionStorage.getItem('roleName') || '';
+    const tenantID = sessionStorage.getItem('tenantID') || '';
 
-  const fetchPharmacies = async () => {
-    try {
-      let response;
-      if (roleName === 'PharmacyAdmin' || roleName === 'TenantAdmin') {
-        response = await api.get(`/Pharmacy/List?tenantId=${tenantID}`);
-        const filtered = response.data.map((p: any) => ({
-          pharmacyName: p.pharmacyName,
-          pharmacyID: p.pharmacyID,
-        }));
-        setPharmacies(filtered);
-      } else {
-        response = await api.get('/Pharmacy');
-        const filtered = response.data.map((p: any) => ({
-          pharmacyName: p.p?.pharmacyName,
-          pharmacyID: p.p?.pharmacyID,
-        }));
-        setPharmacies(filtered);
-      }
-    } catch (error) {
-      console.error('Error fetching pharmacies:', error);
-    }
-  };
-
-  fetchPharmacies();
-}, []);
-
-
- useEffect(() => {
-  const role = sessionStorage.getItem('roleName');
-  setRoleName(role || '');
-
-  if (role === 'SuperAdmin') {
-    api
-      .get('/Tenant')
-      .then((res) => {
-        if (res.data.success && Array.isArray(res.data.data)) {
-          const activeTenants = res.data.data.filter((tenant: any) => tenant.isActive);
-          setTenantOptions(activeTenants);
+    const fetchPharmacies = async () => {
+      try {
+        let response;
+        if (roleName === 'PharmacyAdmin' || roleName === 'TenantAdmin') {
+          response = await api.get(`/Pharmacy/List?tenantId=${tenantID}`);
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.pharmacyName,
+            pharmacyID: p.pharmacyID,
+          }));
+          setPharmacies(filtered);
+        } else {
+          response = await api.get('/Pharmacy');
+          const filtered = response.data.map((p: any) => ({
+            pharmacyName: p.p?.pharmacyName,
+            pharmacyID: p.p?.pharmacyID,
+          }));
+          setPharmacies(filtered);
         }
-      })
-      .catch((err) => console.error('Error fetching tenants:', err));
-  } else {
-    const storedTenantID = sessionStorage.getItem('tenantID');
-   if (storedTenantID) {
-  setTenantID(storedTenantID);
-  api
-    .get(`/Tenant/${storedTenantID}`)
-    .then((res) => {
-      if (res.data.success && res.data.data) {
-        const tenantData = res.data.data;
-        setTenantName(tenantData.tenantName);
-        setFormData((prev) => ({
-          ...prev,
-          tenantName: tenantData.tenantID, // Set ID, not Name
-        }));
+      } catch (error) {
+        console.error('Error fetching pharmacies:', error);
       }
-    })
-    .catch((err) => console.error('Error:', err));
-}
+    };
 
-  }
-}, []);
+    fetchPharmacies();
+  }, []);
 
+  useEffect(() => {
+    const role = sessionStorage.getItem('roleName');
+    setRoleName(role || '');
 
- useEffect(() => {
-  const role = sessionStorage.getItem('roleName') || '';
-  const tenant = sessionStorage.getItem('tenantID') || '';
-  const unit = sessionStorage.getItem('unitID') || '';
-
-  setRoleName(role);
-  setTenantID(tenant);
-  setUnitID(unit);
-
-  if (role === 'SuperAdmin') {
-    // Fetch all hospitals for SuperAdmin
-    api
-      .get('/Hospital/HospitalsList')
-      .then((res) => {
-        const activeHospitals = res.data.filter((h: any) => h.isActive);
-        setHospitals(activeHospitals);
-        setIsDropdownDisabled(false);
-        setHospitalID('');
-      })
-      .catch((err) => console.error('Error fetching hospitals for SuperAdmin:', err));
-  } else if (role === 'TenantAdmin' && tenant) {
-    // Fetch hospitals by tenant
-    api
-      .get(`/Hospital/HospitalsList?tenantId=${tenant}`)
-      .then((res) => {
-        const activeHospitals = res.data.filter((h: any) => h.isActive);
-        setHospitals(activeHospitals);
-        setIsDropdownDisabled(false);
-        setHospitalID('');
-      })
-      .catch((err) => console.error('Error fetching tenant hospitals:', err));
-  }else if (unit) {
-  api
-    .get(`/Hospital/${unit}`)
-    .then((res) => {
-      if (res.data.success && res.data.data) {
-        setHospitalName(res.data.data.hospitalName);         // for label (optional)
-        setHospitalID(res.data.data.hospitalID);             // internal use
-        setFormData((prev) => ({
-          ...prev,
-          hospitalName: res.data.data.hospitalID,           // ✅ important
-        }));
-        setIsDropdownDisabled(true);                         // disable dropdown
-      } else {
-        console.error('Failed to fetch hospital data');
+    if (role === 'SuperAdmin') {
+      api
+        .get('/Tenant')
+        .then((res) => {
+          if (res.data.success && Array.isArray(res.data.data)) {
+            const activeTenants = res.data.data.filter(
+              (tenant: any) => tenant.isActive,
+            );
+            setTenantOptions(activeTenants);
+          }
+        })
+        .catch((err) => console.error('Error fetching tenants:', err));
+    } else {
+      const storedTenantID = sessionStorage.getItem('tenantID');
+      if (storedTenantID) {
+        setTenantID(storedTenantID);
+        api
+          .get(`/Tenant/${storedTenantID}`)
+          .then((res) => {
+            if (res.data.success && res.data.data) {
+              const tenantData = res.data.data;
+              setTenantName(tenantData.tenantName);
+              setFormData((prev) => ({
+                ...prev,
+                tenantName: tenantData.tenantID, // Set ID, not Name
+              }));
+            }
+          })
+          .catch((err) => console.error('Error:', err));
       }
-    })
-    .catch((err) => console.error('Error fetching hospital:', err));
-} else {
-    console.error('No tenantID or unitID found');
-  }
-}, []);
+    }
+  }, []);
+
+  useEffect(() => {
+    const role = sessionStorage.getItem('roleName') || '';
+    const tenant = sessionStorage.getItem('tenantID') || '';
+    const unit = sessionStorage.getItem('unitID') || '';
+
+    setRoleName(role);
+    setTenantID(tenant);
+    setUnitID(unit);
+
+    if (role === 'SuperAdmin') {
+      // Fetch all hospitals for SuperAdmin
+      api
+        .get('/Hospital/HospitalsList')
+        .then((res) => {
+          const activeHospitals = res.data.filter((h: any) => h.isActive);
+          setHospitals(activeHospitals);
+          setIsDropdownDisabled(false);
+          setHospitalID('');
+        })
+        .catch((err) =>
+          console.error('Error fetching hospitals for SuperAdmin:', err),
+        );
+    } else if (role === 'TenantAdmin' && tenant) {
+      // Fetch hospitals by tenant
+      api
+        .get(`/Hospital/HospitalsList?tenantId=${tenant}`)
+        .then((res) => {
+          const activeHospitals = res.data.filter((h: any) => h.isActive);
+          setHospitals(activeHospitals);
+          setIsDropdownDisabled(false);
+          setHospitalID('');
+        })
+        .catch((err) => console.error('Error fetching tenant hospitals:', err));
+    } else if (unit) {
+      api
+        .get(`/Hospital/${unit}`)
+        .then((res) => {
+          if (res.data.success && res.data.data) {
+            setHospitalName(res.data.data.hospitalName); // for label (optional)
+            setHospitalID(res.data.data.hospitalID); // internal use
+            setFormData((prev) => ({
+              ...prev,
+              hospitalName: res.data.data.hospitalID, // ✅ important
+            }));
+            setIsDropdownDisabled(true); // disable dropdown
+          } else {
+            console.error('Failed to fetch hospital data');
+          }
+        })
+        .catch((err) => console.error('Error fetching hospital:', err));
+    } else {
+      console.error('No tenantID or unitID found');
+    }
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
@@ -225,32 +226,117 @@ const [tenantOptions, setTenantOptions] = useState<any[]>([]);
     });
   };
 
- const handleSearch = async () => {
-  const roleName = sessionStorage.getItem('roleName') || '';
-  const sessionUnitID = sessionStorage.getItem('unitID') || '';
-  
-  // ✅ Use correct formData keys
-  const {
-    tenantName,       // dropdown value for tenant
-    hospitalName,     // dropdown value for hospital
-    pharmacyName,
-    days,
-    startDate,
-    endDate,
-  } = formData;
+  const handleSearch = async () => {
+    const roleName = sessionStorage.getItem('roleName') || '';
+    const sessionUnitID = sessionStorage.getItem('unitID') || '';
 
-  const selectedHospitalID =
-    roleName === 'TenantAdmin' ? hospitalName : sessionUnitID;
+    // ✅ Use correct formData keys
+    const {
+      tenantName, // dropdown value for tenant
+      hospitalName, // dropdown value for hospital
+      pharmacyName,
+      days,
+      startDate,
+      endDate,
+    } = formData;
 
-  // ✅ SUPERADMIN LOGIC
-  if (roleName === 'SuperAdmin') {
+    const selectedHospitalID =
+      roleName === 'TenantAdmin' ? hospitalName : sessionUnitID;
+
+    // ✅ SUPERADMIN LOGIC
+    if (roleName === 'SuperAdmin') {
+      const params: Record<string, string> = {};
+
+      if (tenantName) params.TenantID = tenantName;
+      if (hospitalName) params.HospitalID = hospitalName;
+
+      const selectedPharmacy = pharmacies.find(
+        (p) => p.pharmacyName === pharmacyName,
+      );
+      if (selectedPharmacy) {
+        params.PharmacyID = selectedPharmacy.pharmacyID;
+      }
+
+      if (startDate) params.StartDate = startDate;
+      if (endDate) params.EndDate = endDate;
+      if (days) params.days = days.toString();
+
+      const isAnyParamSelected = Object.keys(params).length > 0;
+
+     if (!isAnyParamSelected) {
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.warn('Please select at least one filter', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
+      return;
+    }
+      try {
+        const response = await api.get('/PharmacyReport/ExpiringStockReport', {
+          params,
+        });
+
+        console.log('API response:', response.data);
+
+        if (Array.isArray(response.data)) {
+          setRowData(response.data);
+        } else if (Array.isArray(response.data.data)) {
+          setRowData(response.data.data);
+        } else {
+          setRowData([]);
+          if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.error('No data found or unexpected response format', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
+        }
+      } catch (error) {
+         if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Error during search', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
+        toast.error('Error during search');
+      }
+
+      return; // ❌ Skip the rest for SuperAdmin
+    }
+
+    // ✅ For TenantAdmin, HospitalAdmin, PharmacyAdmin
+    if (
+      !tenantName &&
+      !selectedHospitalID &&
+      !pharmacyName &&
+      !startDate &&
+      !endDate &&
+      !days
+    ) { if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warn('Please select at least one filter', {
+        onClose: () => setToastInProgress(false),
+      });
+    } return;
+    }
+
     const params: Record<string, string> = {};
 
-    if (tenantName) params.TenantID = tenantName;
-    if (hospitalName) params.HospitalID = hospitalName;
+    if (tenantName) {
+      params.TenantID = tenantName;
+    }
+
+    if (
+      (['PharmacyAdmin', 'HospitalAdmin'].includes(roleName) &&
+        sessionUnitID) ||
+      (roleName === 'TenantAdmin' && hospitalName)
+    ) {
+      params.HospitalID = selectedHospitalID;
+    }
 
     const selectedPharmacy = pharmacies.find(
-      (p) => p.pharmacyName === pharmacyName
+      (p) => p.pharmacyName === pharmacyName,
     );
     if (selectedPharmacy) {
       params.PharmacyID = selectedPharmacy.pharmacyID;
@@ -259,13 +345,6 @@ const [tenantOptions, setTenantOptions] = useState<any[]>([]);
     if (startDate) params.StartDate = startDate;
     if (endDate) params.EndDate = endDate;
     if (days) params.days = days.toString();
-
-    const isAnyParamSelected = Object.keys(params).length > 0;
-
-    if (!isAnyParamSelected) {
-      toast.warn('Please select at least one filter');
-      return;
-    }
 
     try {
       const response = await api.get('/PharmacyReport/ExpiringStockReport', {
@@ -280,125 +359,75 @@ const [tenantOptions, setTenantOptions] = useState<any[]>([]);
         setRowData(response.data.data);
       } else {
         setRowData([]);
-        toast.error('No data found or unexpected response format');
+          if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('No data found or unexpected response format', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       }
     } catch (error) {
       console.error('Search error:', error);
-      toast.error('Error during search');
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Error during search', {
+        onClose: () => setToastInProgress(false),
+      });
     }
-
-    return; // ❌ Skip the rest for SuperAdmin
-  }
-
-  // ✅ For TenantAdmin, HospitalAdmin, PharmacyAdmin
-  if (
-    !tenantName &&
-    !selectedHospitalID &&
-    !pharmacyName &&
-    !startDate &&
-    !endDate &&
-    !days
-  ) {
-    toast.warn('Please select at least one filter');
-    return;
-  }
-
-  const params: Record<string, string> = {};
-
-  if (tenantName) {
-    params.TenantID = tenantName;
-  }
-
-  if (
-    (['PharmacyAdmin', 'HospitalAdmin'].includes(roleName) && sessionUnitID) ||
-    (roleName === 'TenantAdmin' && hospitalName)
-  ) {
-    params.HospitalID = selectedHospitalID;
-  }
-
-  const selectedPharmacy = pharmacies.find(
-    (p) => p.pharmacyName === pharmacyName
-  );
-  if (selectedPharmacy) {
-    params.PharmacyID = selectedPharmacy.pharmacyID;
-  }
-
-  if (startDate) params.StartDate = startDate;
-  if (endDate) params.EndDate = endDate;
-  if (days) params.days = days.toString();
-
-  try {
-    const response = await api.get('/PharmacyReport/ExpiringStockReport', {
-      params,
-    });
-
-    console.log('API response:', response.data);
-
-    if (Array.isArray(response.data)) {
-      setRowData(response.data);
-    } else if (Array.isArray(response.data.data)) {
-      setRowData(response.data.data);
-    } else {
-      setRowData([]);
-      toast.error('No data found or unexpected response format');
     }
-  } catch (error) {
-    console.error('Search error:', error);
-    toast.error('Error during search');
-  }
-};
-
-
-
-const handleReset = () => {
-  const role = sessionStorage.getItem('roleName') || '';
-  const storedTenantID = sessionStorage.getItem('tenantID') || '';
-  const storedHospitalID = sessionStorage.getItem('unitID') || '';
-
-  // Base reset values
-  const newFormData = {
-    tenantName: '',
-    hospitalName: '',
-    pharmacyName: '',
-    days: '',
-    startDate: '',
-    endDate: '',
   };
 
-  // Preserve tenant and hospital for specific roles
-  if (role === 'TenantAdmin' && storedTenantID) {
-    newFormData.tenantName = storedTenantID;
-  }
+  const handleReset = () => {
+    const role = sessionStorage.getItem('roleName') || '';
+    const storedTenantID = sessionStorage.getItem('tenantID') || '';
+    const storedHospitalID = sessionStorage.getItem('unitID') || '';
 
-  if ((role === 'HospitalAdmin' || role === 'PharmacyAdmin') && storedTenantID && storedHospitalID) {
-    newFormData.tenantName = storedTenantID;
-    newFormData.hospitalName = storedHospitalID;
-  }
+    // Base reset values
+    const newFormData = {
+      tenantName: '',
+      hospitalName: '',
+      pharmacyName: '',
+      days: '',
+      startDate: '',
+      endDate: '',
+    };
 
-  setFormData(newFormData);
+    // Preserve tenant and hospital for specific roles
+    if (role === 'TenantAdmin' && storedTenantID) {
+      newFormData.tenantName = storedTenantID;
+    }
 
-  // Reset time fields
-  setFromTime('');
-  setToTime('');
+    if (
+      (role === 'HospitalAdmin' || role === 'PharmacyAdmin') &&
+      storedTenantID &&
+      storedHospitalID
+    ) {
+      newFormData.tenantName = storedTenantID;
+      newFormData.hospitalName = storedHospitalID;
+    }
 
-  // Role-based resets
-  if (role === 'SuperAdmin') {
-    setTenantID('');
-    setHospitalID('');
-  } else if (role === 'TenantAdmin') {
-    setHospitalID('');
-    setTenantID(storedTenantID);
-  } else if (role === 'HospitalAdmin' || role === 'PharmacyAdmin') {
-    // Do not clear hospital or tenant
-    setTenantID(storedTenantID);
-    setHospitalID(storedHospitalID);
-  }
+    setFormData(newFormData);
 
-  // Clear table/grid data
-  setRowData([]);
-};
+    // Reset time fields
+    setFromTime('');
+    setToTime('');
 
+    // Role-based resets
+    if (role === 'SuperAdmin') {
+      setTenantID('');
+      setHospitalID('');
+    } else if (role === 'TenantAdmin') {
+      setHospitalID('');
+      setTenantID(storedTenantID);
+    } else if (role === 'HospitalAdmin' || role === 'PharmacyAdmin') {
+      // Do not clear hospital or tenant
+      setTenantID(storedTenantID);
+      setHospitalID(storedHospitalID);
+    }
 
+    // Clear table/grid data
+    setRowData([]);
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -412,82 +441,90 @@ const handleReset = () => {
         >
           {/* Row 1 */}
           <div>
-         {roleName === 'SuperAdmin' ? (
-  <select
-    value={formData.tenantName}
-    onChange={(e) =>
-      setFormData((prev) => ({ ...prev, tenantName: e.target.value }))
-    }
-    className="w-full rounded border p-2 bg-white"
-  >
-    <option value="">Select a tenant</option>
-    {tenantOptions.map((tenant) => (
-      <option key={tenant.tenantID} value={tenant.tenantID}>
-        {tenant.tenantName}
-      </option>
-    ))}
-  </select>
-) : (
-  <select
-    value={formData.tenantName}
-    className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
-    disabled
-  >
-    {formData.tenantName && (
-      <option value={formData.tenantName}>{tenantName}</option>
-    )}
-  </select>
-)}
-
-
+            {roleName === 'SuperAdmin' ? (
+              <select
+                value={formData.tenantName}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    tenantName: e.target.value,
+                  }))
+                }
+                className="w-full rounded border p-2 bg-white"
+              >
+                <option value="">Select a tenant</option>
+                {tenantOptions.map((tenant) => (
+                  <option key={tenant.tenantID} value={tenant.tenantID}>
+                    {tenant.tenantName}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={formData.tenantName}
+                className="w-full rounded border p-2 bg-gray-100 cursor-not-allowed"
+                disabled
+              >
+                {formData.tenantName && (
+                  <option value={formData.tenantName}>{tenantName}</option>
+                )}
+              </select>
+            )}
           </div>
 
           <div>
-           <select
-  value={formData.hospitalName}
-  onChange={(e) =>
-    setFormData((prev) => ({ ...prev, hospitalName: e.target.value }))
-  }
-  className={`w-full rounded border p-2 ${
-    isDropdownDisabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'
-  }`}
-  disabled={isDropdownDisabled}
->
-  {(roleName === 'TenantAdmin' || roleName === 'SuperAdmin') && (
-    <>
-      <option value="">Select Hospital</option>
-      {hospitals.map((hospital: any) => (
-        <option key={hospital.hospitalID} value={hospital.hospitalID}>
-          {hospital.hospitalName}
-        </option>
-      ))}
-    </>
-  )}
+            <select
+              value={formData.hospitalName}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  hospitalName: e.target.value,
+                }))
+              }
+              className={`w-full rounded border p-2 ${
+                isDropdownDisabled
+                  ? 'bg-gray-100 cursor-not-allowed'
+                  : 'bg-white'
+              }`}
+              disabled={isDropdownDisabled}
+            >
+              {(roleName === 'TenantAdmin' || roleName === 'SuperAdmin') && (
+                <>
+                  <option value="">Select Hospital</option>
+                  {hospitals.map((hospital: any) => (
+                    <option
+                      key={hospital.hospitalID}
+                      value={hospital.hospitalID}
+                    >
+                      {hospital.hospitalName}
+                    </option>
+                  ))}
+                </>
+              )}
 
-  {roleName !== 'TenantAdmin' && roleName !== 'SuperAdmin' && formData.hospitalName && (
-    <option value={formData.hospitalName}>{hospitalName}</option>
-  )}
-</select>
-
-
+              {roleName !== 'TenantAdmin' &&
+                roleName !== 'SuperAdmin' &&
+                formData.hospitalName && (
+                  <option value={formData.hospitalName}>{hospitalName}</option>
+                )}
+            </select>
           </div>
 
-         <div>
-  <select
-    name="pharmacyName"
-    value={formData.pharmacyName}
-    onChange={handleChange}
-    className="w-full rounded border p-2 bg-gray-100"
-  >
-    <option value="">Select Pharmacy</option>
-    {pharmacies.map((item, index) => (
-      <option key={index} value={item.pharmacyName}>
-        {item.pharmacyName}
-      </option>
-    ))}
-  </select>
-</div>
-
+          <div>
+            <select
+              name="pharmacyName"
+              value={formData.pharmacyName}
+              onChange={handleChange}
+              className="w-full rounded border p-2 bg-gray-100"
+            >
+              <option value="">Select Pharmacy</option>
+              {pharmacies.map((item, index) => (
+                <option key={index} value={item.pharmacyName}>
+                  {item.pharmacyName}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Row 2: Start Date & End Date (Col 1) */}
           <div className="flex gap-2">

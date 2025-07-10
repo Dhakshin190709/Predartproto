@@ -43,34 +43,69 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [fromTime, setFromTime] = useState('');
   const [toTime, setToTime] = useState('');
   const [tenantOptions, setTenantOptions] = useState<any[]>([]);
-  const columnDefs = [
-    {
-      headerName: 'Tenant Name',
-      field: 'tenantName',
-      sortable: true,
-      filter: true,
-    },
-    {
-      headerName: 'Hospital Name',
-      field: 'hospitalName',
-      sortable: true,
-      filter: true,
-    },
-    {
-      headerName: 'Pharmacy Name',
-      field: 'pharmacyName',
-      sortable: true,
-      filter: true,
-    },
-
-    {
-      headerName: 'Start Date',
-      field: 'startDate',
-      sortable: true,
-      filter: true,
-    },
-    { headerName: 'End Date', field: 'endDate', sortable: true, filter: true },
-  ];
+  const [toastInProgress, setToastInProgress] = useState(false);
+ const columnDefs = [
+  {
+    headerName: 'Tenant Name',
+    field: 'tenantName',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Hospital Name',
+    field: 'hospitalName',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Pharmacy Name',
+    field: 'pharmacyName',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Medicine Name',
+    field: 'medicineName',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Quantity',
+    field: 'quantity',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Price Per Unit',
+    field: 'pricePerUnit',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Total Count',
+    field: 'totalCount',
+    sortable: true,
+    filter: true,
+  },
+  {
+    headerName: 'Manufacturer Name',
+    field: 'manufacturerName',
+    sortable: true,
+    filter: true,
+  },
+  // {
+  //   headerName: 'Start Date',
+  //   field: 'startDate',
+  //   sortable: true,
+  //   filter: true,
+  // },
+  // {
+  //   headerName: 'End Date',
+  //   field: 'endDate',
+  //   sortable: true,
+  //   filter: true,
+  // },
+];
 
   useEffect(() => {
     const roleName = sessionStorage.getItem('roleName') || '';
@@ -242,7 +277,12 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     !fromTime &&
     !toTime
   ) {
-    toast.warn('Please select at least one filter');
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warn('Please select at least one filter', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     return;
   }
 
@@ -272,11 +312,21 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
       setRowData(response.data.data);
     } else {
       setRowData([]);
-      toast.error('No data found or unexpected response format');
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('No data found or unexpected response format', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
     }
   } catch (error) {
     console.error('Search error:', error);
-    toast.error('Error during search');
+  if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Error during search', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
   }
 };
 

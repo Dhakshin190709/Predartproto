@@ -367,6 +367,8 @@ const Login: React.FC = () => {
         // Store token in localStorage and set default Authorization header
         if (token) {
           localStorage.setItem('authToken', token); // 🔐 Token saved
+          console.log('Token:', token);
+
           api.defaults.headers['Authorization'] = `Bearer ${token}`; // 🔒 Set token for future API calls
           console.log('Token stored and Authorization header set.');
         }
@@ -403,13 +405,19 @@ const Login: React.FC = () => {
         }
 
         // toast.success(responseBody.message || 'Login successful!');
-        setTimeout(() => {
-          if (roleName === 'HospitalAdmin') {
-            navigate('/homePage');
-          } else {
-            navigate('/dashboard');
-          }
-        }, 1000);
+        // setTimeout(() => {
+        //   if (roleName === 'HospitalAdmin') {
+        //     navigate('/homePage');
+        //   } else {
+        //     navigate('/dashboard');
+        //   }
+        // }, 1000);
+        if (roleName === 'HospitalAdmin') {
+  navigate('/homePage');
+} else {
+  navigate('/dashboard');
+}
+
       } else {
         toast.error(responseBody.message || 'Login failed. Please try again.');
       }

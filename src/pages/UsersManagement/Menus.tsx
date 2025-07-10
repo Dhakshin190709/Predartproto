@@ -285,7 +285,7 @@ const Menus: React.FC = () => {
       sortable: true,
       filter: true,
   
-      width: 300,
+      width: 350,
     },
     {
       headerName: 'Code',
@@ -307,7 +307,7 @@ const Menus: React.FC = () => {
       sortable: true,
       filter: true,
     
-      width: 250,
+      width: 300,
     },
     {
       headerName: 'Display Order',
@@ -426,14 +426,13 @@ const Menus: React.FC = () => {
       setShowForm(true);
       setFormMode('Edit');
 
-      setTimeout(() => {
-        if (formRef.current) {
-          formRef.current.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start',
-          });
-        }
-      }, 100);
+     setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }, 100);
+
     }
   };
 

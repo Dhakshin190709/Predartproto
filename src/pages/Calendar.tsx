@@ -210,11 +210,19 @@ const hasFetched = useRef(false);
         date.setSeconds(0);
 
         return {
-          start: new Date(date),
-          end: new Date(date.getTime() + timeInterval * 60000), // add slot duration
-          title: appt.patientName,
-          status: 'booked',
-        };
+  start: new Date(date),
+  end: new Date(date.getTime() + timeInterval * 60000),
+  title: appt.patientName,
+  status: 'booked',
+
+  // Add more fields:
+  patientName: appt.patientName,
+  patientGender: appt.patientGender,
+  patientDateOfBirth: appt.patientDateOfBirth,
+  notes: appt.notes,
+  patientPhoneNumber: appt.patientPhoneNumber,
+};
+
       });
 
       setBookedAppointments(parsedAppointments);
@@ -389,7 +397,7 @@ const hasFetched = useRef(false);
     }
 
     // Set the selected doctor (assuming the event contains a doctor)
-    setSelectedDoctor(event.doctor);
+   // setSelectedDoctor(event.doctor);
 
     // Show the edit modal
     setShowEditModal(true);
@@ -999,6 +1007,34 @@ useEffect(() => {
           max={getAvailableTimeRange().toTime} // ✅ Ensures max is 11:50 PM
         />
       </div>
+  {/* ✅ Patient Details Modal */}
+   {showEditModal && selectedEvent && (
+  <div className="modal-overlay">
+    <div className="modal-card">
+      <h2 className="text-xl font-bold mb-4">Patient Details</h2>
+      <ul className="list-disc list-inside space-y-2 text-gray-800">
+        <li><strong>Name:</strong> {selectedEvent.patientName}</li>
+        <li><strong>Mobile:</strong> {selectedEvent.patientPhoneNumber}</li>
+        <li><strong>Gender:</strong> {selectedEvent.patientGender}</li>
+        <li>
+          <strong>Date of Birth:</strong>{' '}
+          {new Date(selectedEvent.patientDateOfBirth).toLocaleDateString()}
+        </li>
+        <li><strong>Notes:</strong> {selectedEvent.notes}</li>
+      </ul>
+
+    <div className="flex justify-end">
+  <button
+    onClick={() => setShowEditModal(false)}
+    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+  >
+    Close
+  </button>
+</div>
+
+    </div>
+  </div>
+)}
 
       {/* Add Appointment Modal */}
       {/* {showAddModal && (
@@ -1151,6 +1187,27 @@ useEffect(() => {
       {/* Inline styles */}
       <style>{`
         @import url("https://cdn.jsdelivr.net/gh/lykmapipo/themify-icons@0.1.2/css/themify-icons.css");
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
 
         .rbc-event {
   height: 4% !important;

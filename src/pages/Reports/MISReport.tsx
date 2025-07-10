@@ -23,7 +23,7 @@ const HospitalDropdown = () => {
   const [selectedStatus, setSelectedStatus] = useState('');
   const [statusOptions, setStatusOptions] = useState([]);
   const [statusMapping, setStatusMapping] = useState({});
-
+const [toastInProgress, setToastInProgress] = useState(false);
   useEffect(() => {
     const fetchHospitals = async () => {
       try {
@@ -159,9 +159,7 @@ const HospitalDropdown = () => {
     setSelectedHospitalId(hospitalId);
   };
 
- 
-
-const handleSearch = async () => {
+ const handleSearch = async () => {
   setLoading(true);
   try {
     const roleName = sessionStorage.getItem('roleName');
@@ -176,7 +174,12 @@ const handleSearch = async () => {
       !toTime &&
       !selectedStatus
     ) {
-      toast.warning('Please select at least one filter before searching.');
+     if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.warning('Please select at least one filter before searching.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       setLoading(false);
       return;
     }
@@ -240,7 +243,12 @@ const handleSearch = async () => {
     }
   } catch (error) {
     console.error('Error fetching appointments:', error);
-    toast.error('Failed to fetch appointments.');
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Failed to fetch appointments.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     setAppointments([]);
   } finally {
     setLoading(false);

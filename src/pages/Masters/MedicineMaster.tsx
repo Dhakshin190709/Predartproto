@@ -9,6 +9,8 @@ import { toast } from 'react-toastify'; // Import toast
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+
+
 import type { AgGridReact as AgGridReactType } from 'ag-grid-react';
 import api from '../../api/request';
 const Tenant: React.FC = () => {
@@ -27,6 +29,7 @@ const Tenant: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
   const userID = sessionStorage.getItem('userID');
+const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   const [formData, setFormData] = useState({
     medicineID: '', // Required for PUT request
@@ -111,40 +114,71 @@ const Tenant: React.FC = () => {
     resetForm();
   };
 
-  const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
-  };
+ const resetForm = () => {
+  setFormData({
+    medicineID: '',
+    medicineName: '',
+    medicineCode: '',
+    brand: '',
+    unit: 0,
+    manufacturerName: '',
+    manufacturerCode: '',
+    isActive: '',
+    medicineType: '',
+    description: '',
+    dosage: '',
+  });
+
+  setErrors({}); // ✅ clear error messages too
+};
+
+const handleDescriptionChange = (
+  e: React.ChangeEvent<HTMLTextAreaElement>
+) => {
+  setFormData({ ...formData, description: e.target.value });
+
+  if (descriptionRef.current) {
+    descriptionRef.current.style.height = 'auto'; // Reset height
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`; // Set new height
+  }
+};
 
   const handleEditClick = (medicine: RowData) => {
-    setFormData({
-      medicineID: medicine.medicineID || '',
-      medicineName: medicine.medicineName || '',
-      medicineCode: medicine.medicineCode || '',
-      brand: medicine.brand || '',
-      unit: medicine.unit || 0,
-      manufacturerName: medicine.manufacturerName || '',
-      manufacturerCode: medicine.manufacturerCode || '',
-      isActive: medicine.isActive ?? '',
+   setFormData({
+  medicineID: medicine.medicineID || '',
+  medicineName: medicine.medicineName || '',
+  medicineCode: medicine.medicineCode || '',
+  brand: medicine.brand || '',
+  unit: medicine.unit || 0,
+  manufacturerName: medicine.manufacturerName || '',
+  manufacturerCode: medicine.manufacturerCode || '',
+  isActive: medicine.isActive === true ? 'Active' : 'Inactive',
 
-      // ✅ Newly added fields
-      dosage: medicine.dosage || '',
-      description: medicine.description || '',
-      medicineType: medicine.medicineType || '',
-    });
+  dosage: medicine.dosage || '',
+  description: medicine.description || '',
+  medicineType: medicine.medicineType || '',
+});
+
 
     setShowForm(true);
     setFormMode('Edit');
 
     // Optional: Scroll to form
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+    // ✅ Scroll to top if needed
+  setTimeout(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }, 100);
+
+  setTimeout(() => {
+  if (descriptionRef.current) {
+    descriptionRef.current.style.height = 'auto';
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
+  }
+}, 150);
+
   };
 
   const resetFormData = () => {
@@ -728,19 +762,20 @@ const Tenant: React.FC = () => {
               )}
               {/* Description (textarea, span 2 columns) */}
               <div className="flex flex-col col-span-2">
-                <textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Description"
-                  maxLength={160}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
-          text-black outline-none focus:border-primary dark:border-form-strokedark
-          dark:bg-form-input dark:text-white dark:focus:border-primary resize-none"
-                  rows={2}
-                />
+               <textarea
+  ref={descriptionRef}
+  id="description"
+  value={formData.description}
+  onChange={handleDescriptionChange}
+  placeholder="Description"
+  maxLength={160}
+  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4
+    text-black outline-none focus:border-primary dark:border-form-strokedark
+    dark:bg-form-input dark:text-white dark:focus:border-primary resize-none
+    overflow-hidden"
+  rows={2}
+/>
+
               </div>
             </div>
 
@@ -755,16 +790,20 @@ const Tenant: React.FC = () => {
               >
                 {formMode === 'Add' ? 'Save' : 'Update'}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
-        hover:from-[#007BFF] hover:to-[#004A99]
-        text-white transition duration-150 
-        ease-out hover:ease-in py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+             <button
+  type="button"
+  onClick={() => {
+    resetForm();
+    setShowForm(false);
+  }}
+  className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+    hover:from-[#007BFF] hover:to-[#004A99]
+    text-white transition duration-150 
+    ease-out hover:ease-in py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
             </div>
           </form>
         </div>

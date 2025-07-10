@@ -60,7 +60,7 @@ const DoctorRegistration: React.FC = () => {
   const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
 
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [genders, setGenders] = useState([]);
   const [hospitalTypes, setHospitalTypes] = useState([]);
 
@@ -212,7 +212,12 @@ const DoctorRegistration: React.FC = () => {
   const handleRegister = async () => {
     const userID = sessionStorage.getItem('userID');
     if (!userID) {
-      toast.error('User not logged in. Please log in again.');
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('User not logged in. Please log in again.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       return { isValid: false, errors: { userID: 'User not logged in.' } };
     }
 
@@ -221,7 +226,12 @@ const DoctorRegistration: React.FC = () => {
     const isValid = await validateFields();
     if (!isValid) {
       console.log('Validation failed!');
-      toast.error('Validation failed. Please correct the errors.');
+       if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Validation failed. Please correct the errors.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       return;
     }
 
@@ -253,7 +263,12 @@ const DoctorRegistration: React.FC = () => {
         sessionStorage.setItem('doctorID', doctorID);
         console.log('Stored doctorID:', doctorID);
 
-        toast.success('Doctor registered successfully!');
+         if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.success('Doctor registered successfully!', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
         setFormData((prev) => ({
           ...prev,
           name: '',
@@ -274,11 +289,21 @@ const DoctorRegistration: React.FC = () => {
         setAadhaarExists(null);
         setPanExists(null);
       } else {
-        toast.error('Something went wrong. Please try again.');
+        if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Something went wrong. Please try again.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      toast.error('Error occurred while registering the doctor.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Error occurred while registering the doctor.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     }
   };
 

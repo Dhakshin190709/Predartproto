@@ -85,6 +85,7 @@ const SearchPatient: React.FC = () => {
   const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
     [],
   );
+  const [toastInProgress, setToastInProgress] = useState(false);
   const [bookedSlots, setBookedSlots] = useState<
     { appointmentDate: string; appointmentTime: string }[]
   >([]);
@@ -822,7 +823,12 @@ useEffect(() => {
 
  const handleSearch = async () => {
   if (!uhid && !patientName && !mobileNo) {
-    toast.warning('Please enter any one field.');
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please enter any one field.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     return;
   }
 
@@ -831,10 +837,14 @@ useEffect(() => {
 
   // For non-SuperAdmin, tenantID must exist
   if (roleName !== 'SuperAdmin' && !tenantID) {
-    toast.error('Tenant ID not found. Please log in again.');
+   if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Tenant ID not found. Please log in again.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     return;
   }
-
   try {
     const params: Record<string, string> = {};
 
@@ -859,7 +869,12 @@ useEffect(() => {
     }
   } catch (error) {
     console.error('Error fetching patient data:', error);
-    toast.error('Error fetching patient data.');
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Error fetching patient data.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     setPatientData([]);
   }
 };

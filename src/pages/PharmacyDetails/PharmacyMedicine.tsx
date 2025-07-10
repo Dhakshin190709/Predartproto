@@ -695,85 +695,84 @@ const Tenant: React.FC = () => {
  
   
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
+ const handleFormSubmit = async (e) => {
+  e.preventDefault();
 
-    // Validate form
-    const errors = validateForm();
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors); // Set form errors
-      return;
-    }
+  // ✅ Validate form
+  const errors = validateForm();
+  if (Object.keys(errors).length > 0) {
+    setFormErrors(errors);
+    return;
+  }
 
-    const userID =
-      sessionStorage.getItem('userID') ||
-      '00000000-0000-0000-0000-000000000000';
-    const isEdit = formMode === 'Edit';
-    const url = '/PharmacyMedicine'; // Use relative path for axios
+  const userID =
+    sessionStorage.getItem('userID') || '00000000-0000-0000-0000-000000000000';
+  const isEdit = formMode === 'Edit';
+  const url = '/PharmacyMedicine';
 
-    // Constructing payload
-    const payload = {
-      pharmacyID: formData.pharmacyID,
+  const payload = {
+    pharmacyID: formData.pharmacyID,
+    createdBy: userID,
+    medicineID: formData.medicineID,
+    batchNumber: formData.batchNumber,
+    expiryDate: formData.expiryDate,
+    quantity: parseFloat(formData.quantity) || 0,
+    pricePerUnit: parseFloat(formData.pricePerUnit) || 0,
+    gst: parseFloat(formData.gst) || 0,
+    isActive: formData.isActive === 'false' ? false : true,
+
+    purchaseCost: parseFloat(formData.purchaseCost) || 0,
+    minOrderQty: parseFloat(formData.minOrderQty) || 0,
+    quantityReceived: parseFloat(formData.quantityReceived) || 0,
+    quantityInStock: parseFloat(formData.quantityInStock) || 0,
+    quantitySold: parseFloat(formData.quantitySold) || 0,
+
+    ...(isEdit && {
+      pharmacyMedicineID: formData.pharmacyMedicineID,
+      updatedBy: userID,
+      updatedOn: new Date().toISOString(),
+    }),
+    ...(!isEdit && {
       createdBy: userID,
-      medicineID: formData.medicineID,
-      batchNumber: formData.batchNumber,
-      expiryDate: formData.expiryDate,
-      quantity: parseFloat(formData.quantity) || 0,
-      pricePerUnit: parseFloat(formData.pricePerUnit) || 0,
-      gst: parseFloat(formData.gst) || 0,
-      isActive: formData.isActive === 'false' ? false : true,
+      createdOn: new Date().toISOString(),
+    }),
+  };
 
-      // ✅ Newly added fields
-      purchaseCost: parseFloat(formData.purchaseCost) || 0,
-      minOrderQty: parseFloat(formData.minOrderQty) || 0,
-      quantityReceived: parseFloat(formData.quantityReceived) || 0,
-      quantityInStock: parseFloat(formData.quantityInStock) || 0,
-      quantitySold: parseFloat(formData.quantitySold) || 0,
+  try {
+    const response = isEdit
+      ? await api.put(url, payload)
+      : await api.post(url, payload);
 
-      ...(isEdit && {
-        pharmacyMedicineID: formData.pharmacyMedicineID,
-        updatedBy: userID,
-        updatedOn: new Date().toISOString(),
-      }),
-      ...(!isEdit && {
-        createdBy: userID,
-        createdOn: new Date().toISOString(),
-      }),
-    };
+    const apiSuccess = response.data?.success;
+    const apiMessage = response.data?.message || 'No message returned.';
 
-    try {
-      const response = isEdit
-        ? await api.put(url, payload) // PUT for update
-        : await api.post(url, payload); // POST for new record
+    if (apiSuccess) {
+      toast.success(apiMessage, {
+        position: 'top-right',
+        autoClose: 3000,
+      });
 
-      if (response.status === 200) {
-        toast.success(
-          `Pharmacy medicine successfully ${isEdit ? 'updated' : 'added'}!`,
-          {
-            position: 'top-right',
-            autoClose: 3000,
-          },
-        );
-
-        setShowForm(false);
-  resetForm(); 
-        // Refresh the table data after successful operation
-        refreshTableData();
-      } else {
-        // Handle failed response
-        toast.error(`Failed: ${response.data}`, {
-          position: 'top-right',
-          autoClose: 5000,
-        });
-      }
-    } catch (error) {
-      console.error('Submission error:', error);
-      toast.error('Error occurred while submitting the form.', {
+      setShowForm(false);
+      resetForm();
+      refreshTableData();
+    } else {
+      toast.error(apiMessage, {
         position: 'top-right',
         autoClose: 5000,
       });
     }
-  };
+  } catch (error) {
+    console.error('Submission error:', error);
+    const apiMessage =
+      error.response?.data?.message || error.message || 'Unexpected error.';
+    toast.error(apiMessage, {
+      position: 'top-right',
+      autoClose: 5000,
+    });
+  }
+};
+
+
 
   const resetForm = () => {
   setFormData({

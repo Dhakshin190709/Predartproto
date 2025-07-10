@@ -18,7 +18,7 @@ const HospitalDropdown = () => {
   const [fromTime, setFromTime] = useState('');
   const [toTime, setToTime] = useState('');
   const [roleName, setRoleName] = useState<string>('');
-
+const [toastInProgress, setToastInProgress] = useState(false);
   // Find the doctor's name based on selectedDoctor ID
   const selectedDoctorName = doctors.find(
     (doctor) => doctor.doctorID === selectedDoctor,
@@ -126,7 +126,12 @@ const HospitalDropdown = () => {
   !fromTime &&
   !toTime
 ) {
-  toast.warning('Please select at least one filter field before searching.');
+ if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.warning('Please select at least one filter field before searching.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
   setLoading(false);
   return;
 }
@@ -164,6 +169,12 @@ const HospitalDropdown = () => {
     }
   } catch (error) {
     console.error('Error fetching appointments:', error);
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Error fetching appointments.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     setAppointments([]);
   } finally {
     setLoading(false);

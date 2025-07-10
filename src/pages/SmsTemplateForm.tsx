@@ -44,6 +44,16 @@ const SmsTemplateForm: React.FC = () => {
 
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [tenantList, setTenantList] = useState([]);
+  const contentRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setFormData({ ...formData, content: e.target.value });
+
+    if (contentRef.current) {
+      contentRef.current.style.height = 'auto';
+      contentRef.current.style.height = `${contentRef.current.scrollHeight}px`;
+    }
+  };
 
   const [tenantMap, setTenantMap] = useState({});
   const [formData, setFormData] = useState({
@@ -82,95 +92,109 @@ const SmsTemplateForm: React.FC = () => {
   };
 
   const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
+    setFormData({
+      smsTemplateID: '',
+      language: '',
+      code: '',
+      name: '',
+      content: '',
+      description: '',
+      isActive: true, // or false, up to you
+    });
+    setFormErrors({}); // ✅ clear all errors too
   };
 
   const handleEditClick = (template: RowData) => {
-  setFormData({
-    smsTemplateID: template.smsTemplateID || '', // ✅ include this line
-    language: template.language || '',
-    code: template.code || '',
-    name: template.name || '',
-    content: template.content || '',
-    description: template.description || '',
-    isActive: template.isActive ?? true,
-  });
-
-  setShowForm(true);
-  setFormMode('Edit');
-
-  setTimeout(() => {
-    editFormRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
+    setFormData({
+      smsTemplateID: template.smsTemplateID || '',
+      language: template.language || '',
+      code: template.code || '',
+      name: template.name || '',
+      content: template.content || '',
+      description: template.description || '',
+      isActive: template.isActive ?? true,
     });
-  }, 100);
-};
 
+    setShowForm(true);
+    setFormMode('Edit');
+
+    // ✅ Scroll to top if needed
+    setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }, 100);
+
+    // ✅ Also auto-resize the textarea for existing content
+    setTimeout(() => {
+      if (contentRef.current) {
+        contentRef.current.style.height = 'auto';
+        contentRef.current.style.height = `${contentRef.current.scrollHeight}px`;
+      }
+    }, 150);
+  };
 
   // Add or update tenant
 
- const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const isValid = validateForm();
-  if (!isValid) {
-    toast.error('Please fix the errors before submitting.');
-    return;
-  }
-
-  try {
-    const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      toast.error('User not logged in. Please log in again.');
+    const isValid = validateForm();
+    if (!isValid) {
+      toast.error('Please fix the errors before submitting.');
       return;
     }
 
-    const now = new Date().toISOString();
+    try {
+      const userID = sessionStorage.getItem('userID');
+      if (!userID) {
+        toast.error('User not logged in. Please log in again.');
+        return;
+      }
 
-    const payload: any = {
-      createdBy: userID,
-      createdOn: now,
-      updatedBy: userID,
-      updatedOn: now,
-      isActive: formData.isActive ?? true,
-      language: formData.language.trim(),
-      code: formData.code.trim(),
-      name: formData.name.trim(),
-      content: formData.content.trim(),
-      description: formData.description?.trim() || '',
-    };
+      const now = new Date().toISOString();
 
-    let response;
-    let message;
+      const payload: any = {
+        createdBy: userID,
+        createdOn: now,
+        updatedBy: userID,
+        updatedOn: now,
+        isActive: formData.isActive ?? true,
+        language: formData.language.trim(),
+        code: formData.code.trim(),
+        name: formData.name.trim(),
+        content: formData.content.trim(),
+        description: formData.description?.trim() || '',
+      };
 
-    if (formData.smsTemplateID) {
-      // ✅ Update flow - PUT with smsTemplateID
-      payload.smsTemplateID = formData.smsTemplateID;
-      response = await api.put('/SMSTemplate', payload);
-      message = 'SMS Template updated successfully!';
-    } else {
-      // ✅ Create flow - POST
-      response = await api.post('/SMSTemplate', payload);
-      message = 'SMS Template saved successfully!';
+      let response;
+      let message;
+
+      if (formData.smsTemplateID) {
+        // ✅ Update flow - PUT with smsTemplateID
+        payload.smsTemplateID = formData.smsTemplateID;
+        response = await api.put('/SMSTemplate', payload);
+        message = 'SMS Template updated successfully!';
+      } else {
+        // ✅ Create flow - POST
+        response = await api.post('/SMSTemplate', payload);
+        message = 'SMS Template saved successfully!';
+      }
+
+      toast.success(message);
+      await refreshTableData();
+      resetFormData();
+      setShowForm(false);
+      setFormErrors({});
+    } catch (error: any) {
+      console.error(
+        'Error saving/updating template:',
+        error.response?.data || error.message,
+      );
+      toast.error('Failed to save/update template. Please try again.');
     }
-
-    toast.success(message);
-    await refreshTableData();
-    resetFormData();
-    setShowForm(false);
-    setFormErrors({});
-  } catch (error: any) {
-    console.error(
-      'Error saving/updating template:',
-      error.response?.data || error.message,
-    );
-    toast.error('Failed to save/update template. Please try again.');
-  }
-};
+  };
 
   const refreshTableData = async () => {
     try {
@@ -553,12 +577,12 @@ const SmsTemplateForm: React.FC = () => {
               <div>
                 <textarea
                   rows={1}
+                  maxLength={255}
+                  ref={contentRef}
                   value={formData.content}
-                  onChange={(e) =>
-                    setFormData({ ...formData, content: e.target.value })
-                  }
+                  onChange={handleContentChange}
                   placeholder="Template Content"
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none"
+                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none overflow-hidden"
                 />
                 {formErrors.content && (
                   <p className="text-red-500 text-sm mt-1">
@@ -596,7 +620,10 @@ const SmsTemplateForm: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  resetForm();
+                  setShowForm(false);
+                }}
                 className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
               >
                 Cancel
@@ -664,22 +691,25 @@ const SmsTemplateForm: React.FC = () => {
         </button>
       </div>
 
-     <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-        <AgGridReact
-          rowData={
-            filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
-          }
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10} // ✅ Default page size
-          paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
-      </div>
+      <div className="w-full overflow-x-auto">
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={
+              filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10} // ✅ Default page size
+            paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
       </div>
 
       <style jsx>{`

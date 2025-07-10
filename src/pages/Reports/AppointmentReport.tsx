@@ -47,7 +47,7 @@ const AppointmentReport: React.FC = () => {
   const [selectedFields, setSelectedFields] = useState([]);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [statusID, setStatusID] = useState('');
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [rowData, setRowData] = useState<any[]>([]); // Sample appointment data
   const doctorID = sessionStorage.getItem('doctorID');
 
@@ -112,10 +112,15 @@ const AppointmentReport: React.FC = () => {
         !!hospitalID;
     }
 
-    if (!hasAnyFilter && role !== 'doctor' && role !== 'reception') {
-      toast.warning('Please select at least one filter before searching.');
-      return;
+  if (!hasAnyFilter && role !== 'doctor' && role !== 'reception') {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select at least one filter before searching.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    return;
+  }
 
     try {
       // Using axios with params object automatically encodes query parameters
@@ -126,9 +131,15 @@ const AppointmentReport: React.FC = () => {
       setRowData(response.data);
     } catch (error) {
       console.error('Error fetching appointment report:', error);
+       if (!toastInProgress) {
+      setToastInProgress(true);
       toast.error(
         'Failed to fetch appointment report. Please try again later.',
+        {
+          onClose: () => setToastInProgress(false),
+        },
       );
+    }
     }
   };
 

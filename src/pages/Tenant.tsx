@@ -96,7 +96,7 @@ const Tenant: React.FC = () => {
   const [emailOtp, setEmailOtp] = useState('');
   const [isEmailVerified, setIsEmailVerified] = useState(false);
   const [emailSent, setEmailSent] = useState(false); // Show OTP input after send
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [mobileOtpLoading, setMobileOtpLoading] = useState(false);
   const [mobileOtp, setMobileOtp] = useState('');
   const [isMobileVerified, setIsMobileVerified] = useState(false);
@@ -256,9 +256,14 @@ const Tenant: React.FC = () => {
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isEmailVerified || !isMobileVerified) {
-      toast.error('Please verify both email and mobile before saving.');
-      return;
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Please verify both email and mobile before saving.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    return;
+  }
     const errors: any = {};
 
     const tenantNameRegex =
@@ -319,7 +324,12 @@ const Tenant: React.FC = () => {
     // 🚫 Stop submission if errors exist
     if (Object.keys(errors).length > 0) {
       console.error('Validation failed:', errors);
-      toast.error('Please fix the errors before submitting.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Please fix the errors before submitting.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       setFormErrors(errors);
       return;
     }
@@ -328,7 +338,12 @@ const Tenant: React.FC = () => {
     const userID = sessionStorage.getItem('userID');
     if (!userID) {
       console.error('User ID not found in session storage.');
-      toast.error('User not logged in. Please log in again.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('User not logged in. Please log in again.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       return;
     }
 
@@ -361,7 +376,12 @@ const Tenant: React.FC = () => {
         toastMessage = 'Tenant updated successfully!';
       }
 
-      toast.success(toastMessage);
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.success(toastMessage, {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       await refreshTableData();
       resetFormData();
       setShowForm(false);
@@ -371,7 +391,12 @@ const Tenant: React.FC = () => {
         'Error saving tenant:',
         error.response?.data || error.message,
       );
-      toast.error('Failed to save/update tenant data. Please try again.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Failed to save/update tenant data. Please try again.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     }
   };
 

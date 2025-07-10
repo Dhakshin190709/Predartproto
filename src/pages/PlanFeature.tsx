@@ -60,11 +60,15 @@ const PricePlan: React.FC = () => {
   };
 
   const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
-  };
+  setFormData({
+    featureName: '',
+    featureCode: '',
+    featureDescription: '',
+    isActive: true,
+  });
+  setFormErrors({});
+};
+
 const handleEditClick = (feature: RowData) => {
   setFormData({
     featureName: feature.featureName || '',
@@ -77,11 +81,11 @@ const handleEditClick = (feature: RowData) => {
   setFormMode('Edit');
 
   setTimeout(() => {
-    editFormRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'start',
-    });
-  }, 100);
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }, 100);
 };
 
 
@@ -470,13 +474,17 @@ const hasRepeatedWords = (text: string) => {
       >
         {formMode === 'Add' ? 'Save' : 'Update'}
       </button>
-      <button
-        type="button"
-        onClick={() => setShowForm(false)}
-        className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
-      >
-        Cancel
-      </button>
+     <button
+  type="button"
+  onClick={() => {
+    resetForm();
+    setShowForm(false);
+  }}
+  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
     </div>
   </div>
 </form>

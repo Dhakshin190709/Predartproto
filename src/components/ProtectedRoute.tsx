@@ -1,23 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import React from 'react';
+import { Navigate, Outlet } from 'react-router-dom';
 
-const ProtectedRoute = ({ element }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+const ProtectedRoute: React.FC = () => {
+  const token = localStorage.getItem('authToken');
+  const userID = sessionStorage.getItem('userID');
 
-  useEffect(() => {
-    // Check if user session exists (i.e., user is logged in)
-    const userID = sessionStorage.getItem('userID');
-    if (userID) {
-      setIsAuthenticated(true);
-    }
-  }, []);
-
-  // If the user is not authenticated, redirect to login page
-  if (!isAuthenticated) {
-    return <Navigate to="/LoginPage" />;
+  if (!token || !userID) {
+    return <Navigate to="/LoginPage" replace />;
   }
 
-  // If authenticated, render the element (protected page)
-  return element;
+  return <Outlet />;
 };
-export default ProtectedRoute; 
+
+export default ProtectedRoute;

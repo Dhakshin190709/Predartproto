@@ -95,7 +95,7 @@ const SearchAppointment: React.FC = () => {
   const [selectedHospitalID, setSelectedHospitalID] = useState('');
   const [trackingData, setTrackingData] = useState<AppointmentHistory[]>([]);
   const [selectedPatientName, setSelectedPatientName] = useState('');
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [valid, setValid] = useState(true);
   const [startDate, setStartDate] = useState('');
   const [trackingAppointment, setTrackingAppointment] =
@@ -103,37 +103,34 @@ const SearchAppointment: React.FC = () => {
   const [endDate, setEndDate] = useState('');
   const [statusList, setStatusList] = useState<Status[]>([]);
 
- 
-
-useEffect(() => {
-  const storedRole = sessionStorage.getItem('roleName');
-  if (storedRole) {
-    setRoleName(storedRole);
-  }
-}, []);
-
-useEffect(() => {
-  if (!roleName) return;
-
-  const fetchPatients = async () => {
-    try {
-      const response = await api.get('/Patient');
-      if (Array.isArray(response.data.data)) {
-        setPatients(response.data.data);
-      } else {
-        console.error('Unexpected response format:', response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching patients:', error);
+  useEffect(() => {
+    const storedRole = sessionStorage.getItem('roleName');
+    if (storedRole) {
+      setRoleName(storedRole);
     }
-  };
+  }, []);
 
-  if (roleName !== 'SuperAdmin') {
-    fetchPatients();
-  }
-}, []);
-// 👈 Add roleName as a dependency
+  useEffect(() => {
+    if (!roleName) return;
 
+    const fetchPatients = async () => {
+      try {
+        const response = await api.get('/Patient');
+        if (Array.isArray(response.data.data)) {
+          setPatients(response.data.data);
+        } else {
+          console.error('Unexpected response format:', response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching patients:', error);
+      }
+    };
+
+    if (roleName !== 'SuperAdmin') {
+      fetchPatients();
+    }
+  }, []);
+  // 👈 Add roleName as a dependency
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -152,96 +149,94 @@ useEffect(() => {
     fetchDoctors();
   }, [selectedHospitalID]);
 
- useEffect(() => {
-  const role = sessionStorage.getItem('roleName') || '';
-  const unitID = sessionStorage.getItem('unitID') || '';
+  useEffect(() => {
+    const role = sessionStorage.getItem('roleName') || '';
+    const unitID = sessionStorage.getItem('unitID') || '';
 
-  const lowerRole = role.toLowerCase();
-  setRoleName(lowerRole);
+    const lowerRole = role.toLowerCase();
+    setRoleName(lowerRole);
 
-   if (
-    lowerRole === 'superadmin' ||
-    lowerRole === 'doctor' ||
-    lowerRole === 'reception'||
-    lowerRole ==='tenantadmin'
-  ) {
-    // ✅ Skip fetching if SuperAdmin, Doctor, or Reception
-    return;
-  }
-
-  const fetchHospitals = async () => {
-    try {
-      const response = await api.get('/Hospital/HospitalsList');
-      const activeHospitals = response.data.filter(
-        (hospital: any) => hospital.isActive,
-      );
-      setHospitals(activeHospitals);
-
-      if (lowerRole === 'hospitaladmin' && unitID) {
-        setSelectedHospitalID(unitID);
-      }
-    } catch (error) {
-      console.error('Error fetching hospitals:', error);
+    if (
+      lowerRole === 'superadmin' ||
+      lowerRole === 'doctor' ||
+      lowerRole === 'reception' ||
+      lowerRole === 'tenantadmin'
+    ) {
+      // ✅ Skip fetching if SuperAdmin, Doctor, or Reception
+      return;
     }
-  };
 
-  fetchHospitals();
-}, []);
+    const fetchHospitals = async () => {
+      try {
+        const response = await api.get('/Hospital/HospitalsList');
+        const activeHospitals = response.data.filter(
+          (hospital: any) => hospital.isActive,
+        );
+        setHospitals(activeHospitals);
 
+        if (lowerRole === 'hospitaladmin' && unitID) {
+          setSelectedHospitalID(unitID);
+        }
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+      }
+    };
 
- const fetchAppointmentsForUser = async () => {
-  const roleNameRaw = sessionStorage.getItem('roleName');
-  const roleName = roleNameRaw?.toLowerCase();
-  const patientID = sessionStorage.getItem('patientID');
-  const doctorID = sessionStorage.getItem('doctorID');
-  const unitID = sessionStorage.getItem('unitID');
-  const tenantID = sessionStorage.getItem('tenantID') || '';
+    fetchHospitals();
+  }, []);
 
-  let params = {};
+  const fetchAppointmentsForUser = async () => {
+    const roleNameRaw = sessionStorage.getItem('roleName');
+    const roleName = roleNameRaw?.toLowerCase();
+    const patientID = sessionStorage.getItem('patientID');
+    const doctorID = sessionStorage.getItem('doctorID');
+    const unitID = sessionStorage.getItem('unitID');
+    const tenantID = sessionStorage.getItem('tenantID') || '';
 
-  if (roleName === 'patient' && patientID) {
-    params = { PatientID: patientID };
-  } else if (roleName === 'doctor' && doctorID && unitID) {
-    params = { DoctorID: doctorID, UnitID: unitID };
-  } else if (roleName === 'reception' && unitID) {
-    params = { UnitID: unitID };
-  } else if (roleName === 'hospitaladmin' && unitID) {
-    params = { HospitalID: unitID };
-  }
-
-  try {
-    // ✅ ONLY this line changed: no tenantID if SuperAdmin
-    const url =
-   roleName === 'superadmin' || roleName === 'patient'
-        ? '/Appointment/GetAppointment'
-        : `/Appointment/GetAppointment?tenantID=${tenantID}`;
-
-    const response = await api.get(url, { params });
-    const fetchedAppointments = response.data;
+    let params = {};
 
     if (roleName === 'patient' && patientID) {
-      setAppointments(
-        fetchedAppointments.filter((a) => a.patientID === patientID),
-      );
-    } else if (roleName === 'doctor' && doctorID) {
-      setAppointments(
-        fetchedAppointments.filter((a) => a.doctorID === doctorID),
-      );
-    } else if (
-      (roleName === 'reception' || roleName === 'hospitaladmin') &&
-      unitID
-    ) {
-      setAppointments(
-        fetchedAppointments.filter((a) => a.hospitalID === unitID),
-      );
-    } else {
-      setAppointments(fetchedAppointments);
+      params = { PatientID: patientID };
+    } else if (roleName === 'doctor' && doctorID && unitID) {
+      params = { DoctorID: doctorID, UnitID: unitID };
+    } else if (roleName === 'reception' && unitID) {
+      params = { UnitID: unitID };
+    } else if (roleName === 'hospitaladmin' && unitID) {
+      params = { HospitalID: unitID };
     }
-  } catch (error) {
-    console.error('Error fetching appointments:', error);
-  }
-};
 
+    try {
+      // ✅ ONLY this line changed: no tenantID if SuperAdmin
+      const url =
+        roleName === 'superadmin' || roleName === 'patient'
+          ? '/Appointment/GetAppointment'
+          : `/Appointment/GetAppointment?tenantID=${tenantID}`;
+
+      const response = await api.get(url, { params });
+      const fetchedAppointments = response.data;
+
+      if (roleName === 'patient' && patientID) {
+        setAppointments(
+          fetchedAppointments.filter((a) => a.patientID === patientID),
+        );
+      } else if (roleName === 'doctor' && doctorID) {
+        setAppointments(
+          fetchedAppointments.filter((a) => a.doctorID === doctorID),
+        );
+      } else if (
+        (roleName === 'reception' || roleName === 'hospitaladmin') &&
+        unitID
+      ) {
+        setAppointments(
+          fetchedAppointments.filter((a) => a.hospitalID === unitID),
+        );
+      } else {
+        setAppointments(fetchedAppointments);
+      }
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    }
+  };
 
   const fetchStatusList = async () => {
     try {
@@ -256,22 +251,21 @@ useEffect(() => {
     }
   };
 
-useEffect(() => {
-  const role = sessionStorage.getItem('roleName')?.toLowerCase() || '';
+  useEffect(() => {
+    const role = sessionStorage.getItem('roleName')?.toLowerCase() || '';
 
-  fetchAppointmentsForUser();
+    fetchAppointmentsForUser();
 
-  if (
-    role !== 'superadmin' &&
-    role !== 'doctor' &&
-    role !== 'patient' &&
-    role !== 'reception'&&
-     role !== 'tenantadmin'
-  ) {
-    fetchStatusList();
-  }
-}, []);
-
+    if (
+      role !== 'superadmin' &&
+      role !== 'doctor' &&
+      role !== 'patient' &&
+      role !== 'reception' &&
+      role !== 'tenantadmin'
+    ) {
+      fetchStatusList();
+    }
+  }, []);
 
   const handleDoctorChange = (event) => {
     setSelectedDoctorID(event.target.value);
@@ -333,27 +327,45 @@ useEffect(() => {
       !endDate;
 
     if (isPatientFiltersEmpty) {
-      toast.warning('Please select at least one filter before searching.');
-      return;
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select at least one filter before searching.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
-
+    return;
+  }
     const isDoctorOrReceptionFiltersEmpty =
       !startDate && !endDate && !selectedPatientName;
     if ((isDoctor || isReception) && isDoctorOrReceptionFiltersEmpty) {
-      toast.warning('Please select at least one filter before searching.');
+       if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select at least one filter before searching.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       return;
     }
 
     if (isAdmin && !startDate && !endDate) {
-      toast.warning('Please select at least one filter before searching.');
+   if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select at least one filter before searching.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
       return;
     }
 
-    if (isTenantAdmin && !startDate && !endDate) {
-      toast.warning('Please select at least one date.');
-      return;
+     if (isTenantAdmin && !startDate && !endDate) {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warning('Please select at least one date.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
-
+    return;
+  }
     const formatDateToLocalISOString = (dateString, isStart) => {
       const date = new Date(dateString);
       date.setHours(
@@ -394,10 +406,10 @@ useEffect(() => {
       setAppointments([]);
 
       // Construct the API URL based on role
-    const url =
-  roleName === 'superadmin' || roleName === 'patient'
-    ? '/Appointment/GetAppointment'
-    : `/Appointment/GetAppointment?tenantID=${tenantID}`;
+      const url =
+        roleName === 'superadmin' || roleName === 'patient'
+          ? '/Appointment/GetAppointment'
+          : `/Appointment/GetAppointment?tenantID=${tenantID}`;
 
       const res = await api.get(url, { params });
 
@@ -406,7 +418,12 @@ useEffect(() => {
       setAppointments(res.data);
     } catch (error) {
       console.error('Failed to fetch filtered appointments', error);
-      toast.error('Failed to fetch appointments. Please try again.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Failed to fetch appointments. Please try again.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     }
   };
 
@@ -501,30 +518,30 @@ useEffect(() => {
     }
   };
 
- const handleChange = (e) => {
-  const input = e.target.value;
+  const handleChange = (e) => {
+    const input = e.target.value;
 
-  // ✅ Allow letters, digits, spaces, underscores
-  const validPattern = /^[a-zA-Z0-9_\s]*$/;
+    // ✅ Allow letters, digits, spaces, underscores
+    const validPattern = /^[a-zA-Z0-9_\s]*$/;
 
-  // ✅ Updated to allow underscore in allowed characters
-  const hasEmojiOrSpecialChar = /[^\p{L}\p{N}_\s]/u.test(input);
+    // ✅ Updated to allow underscore in allowed characters
+    const hasEmojiOrSpecialChar = /[^\p{L}\p{N}_\s]/u.test(input);
 
-  const numbers = input.match(/\d/g) || [];
-  const hasDuplicateNumbers = new Set(numbers).size !== numbers.length;
+    const numbers = input.match(/\d/g) || [];
+    const hasDuplicateNumbers = new Set(numbers).size !== numbers.length;
 
-  if (
-    validPattern.test(input) &&
-    !hasEmojiOrSpecialChar &&
-    !hasDuplicateNumbers
-  ) {
-    setSelectedPatientName(input);
-    setValid(true);
-  } else {
-    setSelectedPatientName(input);
-    setValid(false);
-  }
-};
+    if (
+      validPattern.test(input) &&
+      !hasEmojiOrSpecialChar &&
+      !hasDuplicateNumbers
+    ) {
+      setSelectedPatientName(input);
+      setValid(true);
+    } else {
+      setSelectedPatientName(input);
+      setValid(false);
+    }
+  };
 
   return (
     <div className="p-6 bg-white rounded-md shadow-md">

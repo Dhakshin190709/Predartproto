@@ -47,7 +47,7 @@ const ProfileSection: React.FC = () => {
   const [selectedPatientID, setSelectedPatientID] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [errors, setErrors] = useState({ patient: '', mobile: '' });
   const [patientID, setPatientID] = useState<string | null>(null);
   const doctorID = sessionStorage.getItem('doctorID');
@@ -609,11 +609,15 @@ const ProfileSection: React.FC = () => {
     const newErrors: { patient?: string; mobile?: string } = {};
 
     // At least one field must be filled
-    if (!patient && !mobile) {
-      toast.warn('Please enter at least one field');
-      return;
+  if (!patient && !mobile) {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warn('Please enter at least one field', {
+        onClose: () => setToastInProgress(false),
+      });
     }
-
+    return;
+  }
     // Re-run validations even if they were run earlier
     if (patient) {
       if (patient.length > 20) {
@@ -641,10 +645,15 @@ const ProfileSection: React.FC = () => {
       return; // Block the search
     }
 
-    if (!tenantID) {
-      toast.error('Tenant ID is missing from session');
-      return;
+     if (!tenantID) {
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Tenant ID is missing from session', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    return;
+  }
 
     setLoading(true);
     try {
@@ -665,11 +674,21 @@ const ProfileSection: React.FC = () => {
       } else {
         setPatientData([]);
         setIsSearchPerformed(true);
-        toast.error('No patient found with given details.');
+       if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('No patient found with given details.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       }
     } catch (error) {
       console.error('Error during search:', error);
-      toast.error('Something went wrong while searching.');
+      if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Something went wrong while searching.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     } finally {
       setLoading(false);
     }

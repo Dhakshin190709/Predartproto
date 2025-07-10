@@ -1,17 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
-import EmailEditor from 'react-email-editor';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import api from '../api/request';
+import CustomButton from '../components/CustomButton';
 
 const ConsentFormEditor = () => {
-  const emailEditorRef = useRef<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const [isEditorReady, setIsEditorReady] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState({
     title: '',
     tenantID: '',
@@ -20,7 +17,9 @@ const ConsentFormEditor = () => {
   const [tenantOptions, setTenantOptions] = useState([]);
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -42,31 +41,6 @@ const ConsentFormEditor = () => {
           tenantID: template.tenantID,
           htmlContent: template.htmlContent || '',
         });
-
-        if (template.design) {
-          emailEditorRef.current?.editor.loadDesign(template.design);
-        } else if (template.htmlContent) {
-          // fallback design to show htmlContent as a block
-          const fallbackDesign = {
-            body: {
-              rows: [
-                {
-                  columns: [
-                    {
-                      contents: [
-                        {
-                          type: 'html',
-                          values: { html: template.htmlContent },
-                        },
-                      ],
-                    },
-                  ],
-                },
-              ],
-            },
-          };
-          emailEditorRef.current?.editor.loadDesign(fallbackDesign);
-        }
       } catch (error) {
         console.error('Error fetching template:', error);
         toast.error('Failed to load template');
@@ -77,7 +51,6 @@ const ConsentFormEditor = () => {
   }, [location.search]);
 
   useEffect(() => {
-    // Load tenant list
     api
       .get('/Tenant')
       .then((res) => {
@@ -90,44 +63,92 @@ const ConsentFormEditor = () => {
       });
   }, []);
 
-  const exportHtml = () => {
-    const editor = emailEditorRef.current?.editor;
-    if (!isEditorReady || !editor) {
-      alert('Editor not ready');
-      return;
+  const exportHtml = async () => {
+    if (!validateForm()) return;
+
+    const userID = sessionStorage.getItem('userID');
+    const timestamp = new Date().toISOString();
+
+    // Get templateID from URL
+    const query = new URLSearchParams(location.search);
+    const templateID = query.get('id');
+
+    const payload = {
+      consentFormTemplateID: templateID || undefined, // Required for PUT
+      createdBy: userID,
+      createdOn: timestamp,
+      updatedBy: userID,
+      updatedOn: timestamp,
+      isActive: true,
+      tenantID: formData.tenantID,
+      title: formData.title,
+      htmlContent: formData.htmlContent,
+    };
+
+    try {
+      let res;
+
+      if (templateID) {
+        // ✅ Use PUT — baseURL covers domain
+        res = await api.put(`/ConsentFormTemplate`, payload);
+      } else {
+        // ✅ Use POST — baseURL covers domain
+        res = await api.post(`/ConsentFormTemplate`, payload);
+      }
+
+      if (res.status === 200 || res.status === 201) {
+        toast.success(
+          `Consent Form Template ${templateID ? 'updated' : 'saved'}!`,
+          { autoClose: 1000 },
+        );
+        setTimeout(() => navigate('/ConsentForm'), 1000);
+      } else {
+        toast.error('Save failed.');
+      }
+    } catch (err) {
+      console.error('Save error:', err);
+      toast.error('Error saving template.');
+    }
+  };
+
+  const validateForm = () => {
+    let isValid = true;
+    const errors: Record<string, string> = {};
+
+    const allowedRegex = /^[A-Za-z0-9\s#{}\-\$&]+$/;
+    const emojiRegex = /[\u{1F600}-\u{1F6FF}]/u;
+    const repeatedCharRegex = /(.)\1{2,}/;
+
+    if (!formData.tenantID) {
+      errors.tenantID = 'Tenant is required.';
+      isValid = false;
     }
 
-    editor.exportHtml(async (data: any) => {
-      const htmlContent = data.html;
-      const design = data.design;
-      const userID = sessionStorage.getItem('userID');
-      const timestamp = new Date().toISOString();
+    const title = formData.title?.trim() || '';
+    if (!title) {
+      errors.title = 'Title is required.';
+      isValid = false;
+    } else if (!allowedRegex.test(title)) {
+      errors.title =
+        'Title can only contain letters, numbers, spaces, and # {} - $ &';
+      isValid = false;
+    } else if (emojiRegex.test(title)) {
+      errors.title = 'Title cannot contain emojis.';
+      isValid = false;
+    } else if (repeatedCharRegex.test(title)) {
+      errors.title = 'Title cannot have repeated characters.';
+      isValid = false;
+    }
 
-      const payload = {
-        createdBy: userID,
-        createdOn: timestamp,
-        updatedBy: userID,
-        updatedOn: timestamp,
-        isActive: true,
-        tenantID: formData.tenantID,
-        title: formData.title,
-        htmlContent,
-        design,
-      };
+    // ✅ Require HTML content
+    if (!formData.htmlContent.trim()) {
+      errors.htmlContent = 'HTML content is required.';
+      isValid = false;
+    }
 
-      try {
-        const res = await api.post('/ConsentFormTemplate', payload);
-        if (res.status === 200 || res.status === 201) {
-          toast.success('Consentform Template saved!', { autoClose: 1000 });
-          setTimeout(() => navigate('/ConsentForm'), 1000);
-        } else {
-          toast.error('Save failed.');
-        }
-      } catch (err) {
-        console.error('Save error:', err);
-        toast.error('Error saving template.');
-      }
-    });
+    setFormErrors(errors);
+
+    return isValid;
   };
 
   return (
@@ -139,48 +160,74 @@ const ConsentFormEditor = () => {
         &larr; Back
       </button>
 
-      <h2 className="mb-6 text-2xl font-bold">Consent Form Register</h2>
+      <h2 className="mb-9 text-2xl font-bold text-black sm:text-3xl">
+        Consent Form Register
+      </h2>
 
       <div className="grid grid-cols-2 gap-4 mb-4">
-        <select
-          name="tenantID"
-          value={formData.tenantID}
-          onChange={handleChange}
-          className="border rounded px-3 py-2 w-full"
-        >
-          <option value="">Select Tenant</option>
-          {tenantOptions.map((tenant: any) => (
-            <option key={tenant.tenantID} value={tenant.tenantID}>
-              {tenant.tenantName}
-            </option>
-          ))}
-        </select>
-
-        <input
-          type="text"
-          name="title"
-          placeholder="Enter Title"
-          value={formData.title}
-          onChange={handleChange}
-          className="border rounded px-3 py-2 w-full"
-        />
+        <div>
+          <select
+            name="tenantID"
+            value={formData.tenantID}
+            onChange={handleChange}
+            className="border rounded px-3 py-2 w-full"
+          >
+            <option value="">Select Tenant</option>
+            {tenantOptions.map((tenant: any) => (
+              <option key={tenant.tenantID} value={tenant.tenantID}>
+                {tenant.tenantName}
+              </option>
+            ))}
+          </select>
+          {formErrors.tenantID && (
+            <p className="text-red-500 text-sm mt-1">{formErrors.tenantID}</p>
+          )}
+        </div>
+        <div>
+          <input
+            type="text"
+            name="title"
+            placeholder="Enter Title"
+            value={formData.title}
+            onChange={handleChange}
+            className="border rounded px-3 py-2 w-full"
+          />
+          {formErrors.title && (
+            <p className="text-red-500 text-sm mt-1">{formErrors.title}</p>
+          )}
+        </div>
       </div>
 
-      <EmailEditor
-        ref={emailEditorRef}
-        onReady={() => {
-          setIsEditorReady(true);
-          console.log('Editor Ready');
-        }}
-      />
+      <div className="flex h-[70vh] border">
+        {/* Left: Preview */}
+        <div className="w-1/2 p-4 overflow-auto border-r">
+          <h3 className="font-semibold mb-2 text-black">Live Preview</h3>
+          <div
+            className="border p-4 bg-white"
+            dangerouslySetInnerHTML={{ __html: formData.htmlContent }}
+          ></div>
+        </div>
+
+        {/* Right: HTML Editor */}
+        <div className="w-1/2 p-4">
+          <h3 className="font-semibold mb-2 text-black">HTML Editor</h3>
+          <textarea
+            name="htmlContent"
+            value={formData.htmlContent}
+            onChange={handleChange}
+            className="w-full h-[55vh] border p-2 font-mono"
+          />
+          {formErrors.htmlContent && (
+            <p className="text-red-500 text-sm mt-1">
+              {formErrors.htmlContent}
+            </p>
+          )}
+        </div>
+      </div>
 
       <div className="mt-4">
-        <button
-          onClick={exportHtml}
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-        >
-          Save Template
-        </button>
+        <CustomButton onClick={exportHtml}>Save Template</CustomButton>
+        
       </div>
 
       <ToastContainer />

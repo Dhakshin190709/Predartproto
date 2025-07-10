@@ -40,7 +40,7 @@ const LabTestPackage: React.FC = () => {
   // New state
   const [tenantMap, setTenantMap] = useState<Record<string, string>>({});
   const [hospitalMap, setHospitalMap] = useState<Record<string, string>>({});
-
+const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [formData, setFormData] = useState({
     tenantName: '',
     hospitalName: '',
@@ -187,12 +187,20 @@ const LabTestPackage: React.FC = () => {
     resetForm();
   };
 
-  const resetForm = () => {
-    setShowForm(false);
-    setFormMode('');
-    setIsActive(false);
-    resetFormData(); // you already have this function
-  };
+ const resetForm = () => {
+  setFormData({
+    tenantName: '',
+    hospitalName: '',
+    laboratoryName: '',
+    packageName: '',
+    packageCode: '',
+    packagePrice: '',
+    packageDescription: '',
+    isActive: true,
+  });
+
+  setFormErrors({}); // ✅ clear errors too
+};
 
   const handleEditClick = (row: RowData) => {
     setFormData({
@@ -213,10 +221,10 @@ const LabTestPackage: React.FC = () => {
     setShowForm(true);
     setFormMode('Edit');
 
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
+     setTimeout(() => {
+      window.scrollTo({
+        top: 0,
         behavior: 'smooth',
-        block: 'start',
       });
     }, 100);
   };
@@ -612,6 +620,12 @@ const LabTestPackage: React.FC = () => {
     }
     return false;
   };
+useEffect(() => {
+  if (descriptionRef.current) {
+    descriptionRef.current.style.height = 'auto'; // reset height
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`; // expand to fit
+  }
+}, [formData.packageDescription]);
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -767,17 +781,19 @@ const LabTestPackage: React.FC = () => {
               {/* Description spanning 2/3 width */}
               <div className="md:w-2/3 w-full">
                 <textarea
-                  value={formData.packageDescription}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      packageDescription: e.target.value,
-                    })
-                  }
-                  placeholder="Package Description"
-                  rows={2}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                />
+  ref={descriptionRef}  // ✅ Add the ref
+  value={formData.packageDescription}
+  onChange={(e) =>
+    setFormData({
+      ...formData,
+      packageDescription: e.target.value,
+    })
+  }
+  placeholder="Package Description"
+  rows={2}
+  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+/>
+
                 {formErrors.packageDescription && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.packageDescription}
@@ -829,13 +845,17 @@ const LabTestPackage: React.FC = () => {
                 >
                   {formMode === 'Add' ? 'Save' : 'Update'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
-                >
-                  Cancel
-                </button>
+             <button
+  type="button"
+  onClick={() => {
+    resetForm();
+    setShowForm(false);
+  }}
+  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
               </div>
             </div>
           </form>

@@ -6,6 +6,7 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
 import api from '../../api/request';
+import { Edit } from 'lucide-react';
 
 interface RowData {
   appLOVID: number;
@@ -216,17 +217,20 @@ const LovMasters: React.FC = () => {
     {
       headerName: 'Edit',
       field: 'edit',
-      flex: 0.8,
+     
       width: 80,
-      headerClass: 'center-header',
-      cellClass: 'text-center',
+    
+        cellClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
         <span
           onClick={() => handleEdit(params)}
           className="cursor-pointer text-blue-500 font-bold"
         >
-          Edit
+         <Edit
+            size={18}
+            className="text-blue-500 hover:scale-110 mt-3 transition-transform"
+          />
         </span>
       ),
     },

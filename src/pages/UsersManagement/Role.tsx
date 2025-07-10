@@ -82,11 +82,13 @@ const Role: React.FC = () => {
       setFormMode("Edit");
   
       // Wait a bit before scrolling to ensure the form is visible
-      setTimeout(() => {
-        if (formRef.current) {
-          formRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
+     setTimeout(() => {
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }, 100);
+
     } else {
       console.error("Row not found for roleID:", roleID);
     }

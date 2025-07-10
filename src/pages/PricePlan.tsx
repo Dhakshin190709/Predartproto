@@ -26,7 +26,7 @@ const PricePlan: React.FC = () => {
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
   const [filteredRowData, setFilteredRowData] =
     useState<RowData[]>(filteredData);
-
+const descriptionRef = useRef<HTMLTextAreaElement | null>(null);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
 
   const [formData, setFormData] = useState({
@@ -72,36 +72,65 @@ const PricePlan: React.FC = () => {
   };
 
   const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
-  };
+  setFormData({
+    planName: '',
+    planCode: '',
+    planDescription: '',
+    setupPrice: '',
+    monthlyPrice: '',
+    quarterlyPrice: '',
+    halfyearlyPrice: '',
+    yearlyPrice: '',
+    isActive: true,
+    pricePlanID: '',
+  });
 
-  const handleEditClick = (plan: RowData) => {
-    setFormData({
-      pricePlanID: plan.pricePlanID || '', // 🔁 Add this line
-      planName: plan.planName || '',
-      planCode: plan.planCode || '',
-      planDescription: plan.planDescription || '',
-      setupPrice: plan.setupPrice || '',
-      monthlyPrice: plan.monthlyPrice || '',
-      quarterlyPrice: plan.quarterlyPrice || '',
-      halfyearlyPrice: plan.halfyearlyPrice || '',
-      yearlyPrice: plan.yearlyPrice || '',
-      isActive: plan.isActive ?? true,
-    });
+  setFormErrors({}); // ✅ clear all error messages too
+};
+const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const textarea = e.target;
+  setFormData({
+    ...formData,
+    planDescription: textarea.value,
+  });
 
-    setShowForm(true);
-    setFormMode('Edit');
+  // Auto resize:
+  if (descriptionRef.current) {
+    descriptionRef.current.style.height = 'auto'; // reset first
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
+  }
+};
 
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
-  };
+
+ const handleEditClick = (plan: RowData) => {
+  setFormData({
+    pricePlanID: plan.pricePlanID || '',
+    planName: plan.planName || '',
+    planCode: plan.planCode || '',
+    planDescription: plan.planDescription || '',
+    setupPrice: plan.setupPrice ?? '',
+    monthlyPrice: plan.monthlyPrice ?? '',
+    quarterlyPrice: plan.quarterlyPrice ?? '',
+    halfyearlyPrice: plan.halfyearlyPrice ?? '',
+    yearlyPrice: plan.yearlyPrice ?? '',
+    isActive: plan.isActive ?? true,
+  });
+
+  setShowForm(true);
+  setFormMode('Edit');
+
+  setTimeout(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 100);
+
+   setTimeout(() => {
+    if (descriptionRef.current) {
+      descriptionRef.current.style.height = 'auto'; // reset first
+      descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`;
+    }
+  }, 150);
+};
+
 
   // Add or update tenant
 
@@ -570,26 +599,23 @@ const PricePlan: React.FC = () => {
                   )}
                 </div>
               ))}
-              <div className="md:col-span-1">
-                <textarea
-                  value={formData.planDescription}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      planDescription: e.target.value,
-                    })
-                  }
-                  placeholder="Plan Description"
-                  rows={1}
-                  maxLength={200}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                />
-                {formErrors.planDescription && (
-                  <p className="text-red-500 text-sm mt-1">
-                    {formErrors.planDescription}
-                  </p>
-                )}
-              </div>
+             <div className="md:col-span-2">
+  <textarea
+    ref={descriptionRef}
+    value={formData.planDescription}
+    onChange={handleDescriptionChange}
+    placeholder="Plan Description"
+    rows={1}
+    maxLength={200}
+    className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+  />
+  {formErrors.planDescription && (
+    <p className="text-red-500 text-sm mt-1">
+      {formErrors.planDescription}
+    </p>
+  )}
+</div>
+
               {formMode === 'Edit' && (
                 <div className="flex items-center gap-2 mt-2">
                   <label
@@ -619,13 +645,17 @@ const PricePlan: React.FC = () => {
               >
                 {formMode === 'Add' ? 'Save' : 'Update'}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+             <button
+  type="button"
+  onClick={() => {
+    resetForm();      // ✅ reset fields + errors
+    setShowForm(false); // ✅ close the form
+  }}
+  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
             </div>
           </form>
         </div>

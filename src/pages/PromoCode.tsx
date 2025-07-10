@@ -18,14 +18,15 @@ const PromoCode: React.FC = () => {
   const [promoRowData, setPromoRowData] = useState<RowData[]>([]);
   const [filteredPromoData, setFilteredPromoData] = useState<RowData[]>([]);
   const [quickSearchText, setQuickSearchText] = useState('');
-   const [rowData, setRowData] = useState<RowData[]>([]);
-    const [filteredData, setFilteredData] = useState<RowData[]>([]);
+  const [rowData, setRowData] = useState<RowData[]>([]);
+  const [filteredData, setFilteredData] = useState<RowData[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [gridApi, setGridApi] = useState(null);
   const [gridColumnApi, setGridColumnApi] = useState(null);
   const [formMode, setFormMode] = useState('');
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
+const [errors, setErrors] = useState<Record<string, string>>({});
 
   const [promoCodes, setPromoCodes] = useState<any[]>([]);
   const [formErrors, setFormErrors] = useState({});
@@ -94,12 +95,24 @@ const PromoCode: React.FC = () => {
     resetForm();
   };
 
-  const resetForm = () => {
-    setShowForm(false); // Show the fields again
-    setFormMode('');
-    setName(''); // Reset input fields if necessary
-    setIsActive(false);
-  };
+ const resetForm = () => {
+  setFormData({
+    code: '',
+    description: '',
+    discountValue: '',
+    promoName: '',
+    validFrom: '',
+    validTo: '',
+    isPercentage: false,
+    appliesToPlans: true,
+    appliesToAddOns: true,
+    oneTimeUse: false,
+  });
+
+  setErrors({});      // ✅ clear generic errors if you have them
+  setFormErrors({});  // ✅ clear the actual validation errors too
+};
+
 
   const handleEditClick = (promoCode: RowData) => {
     setFormData({
@@ -124,12 +137,12 @@ const PromoCode: React.FC = () => {
     setShowForm(true);
     setFormMode('Edit');
 
-    setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'start',
-      });
-    }, 100);
+   setTimeout(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    });
+  }, 100);
   };
 
   const validatePromoCodeForm = () => {
@@ -385,28 +398,26 @@ const PromoCode: React.FC = () => {
       filter: true,
       width: 380,
     },
-  {
-  headerName: 'Status',
-  field: 'isActive',
-  width: 150,
-  headerClass: 'left-header',
+    {
+      headerName: 'Status',
+      field: 'isActive',
+      width: 150,
+      headerClass: 'left-header',
       cellClass: 'left-center',
-  cellRenderer: (params: any) => {
-    const isActive = params.value === true;
-    return (
-      <span
-        onClick={() => toggleStatus(params)}
-        className={`cursor-pointer font-bold ${
-          isActive ? 'text-green-500' : 'text-red-400'
-        } hover:underline`}
-      >
-        {isActive ? 'Active' : 'Inactive'}
-      </span>
-    );
-  },
-},
-
-
+      cellRenderer: (params: any) => {
+        const isActive = params.value === true;
+        return (
+          <span
+            onClick={() => toggleStatus(params)}
+            className={`cursor-pointer font-bold ${
+              isActive ? 'text-green-500' : 'text-red-400'
+            } hover:underline`}
+          >
+            {isActive ? 'Active' : 'Inactive'}
+          </span>
+        );
+      },
+    },
 
     {
       headerName: 'Edit',
@@ -448,24 +459,22 @@ const PromoCode: React.FC = () => {
   ];
 
   // Define applyGlobalSearch function
- const applyGlobalSearch = (data: RowData[]) => {
-  console.log('Data passed to applyGlobalSearch:', data);
-  if (!Array.isArray(data)) return [];
+  const applyGlobalSearch = (data: RowData[]) => {
+    console.log('Data passed to applyGlobalSearch:', data);
+    if (!Array.isArray(data)) return [];
 
-  const searchText = quickSearchText.toLowerCase();
-  if (!searchText) return data;
+    const searchText = quickSearchText.toLowerCase();
+    if (!searchText) return data;
 
-  return data.filter((row) => {
-    const discountString = row.discountValue?.toString().toLowerCase() || '';
-    return (
-      row.code?.toLowerCase().includes(searchText) ||
-      row.description?.toLowerCase().includes(searchText) ||
-      discountString.includes(searchText)
-    );
-  });
-};
-
-
+    return data.filter((row) => {
+      const discountString = row.discountValue?.toString().toLowerCase() || '';
+      return (
+        row.code?.toLowerCase().includes(searchText) ||
+        row.description?.toLowerCase().includes(searchText) ||
+        discountString.includes(searchText)
+      );
+    });
+  };
 
   // Filter search function (handles name and isActive filters)
   const handleFilterSearch = () => {
@@ -490,43 +499,42 @@ const PromoCode: React.FC = () => {
   };
 
   const toggleStatus = async (params: any) => {
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    alert('User not logged in. Please log in again.');
-    return;
-  }
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      alert('User not logged in. Please log in again.');
+      return;
+    }
 
-  const promoCodeID = params.data.promoCodeID;
-  const updatedStatus = !(params.data.isActive === true);
+    const promoCodeID = params.data.promoCodeID;
+    const updatedStatus = !(params.data.isActive === true);
 
-  try {
-    await api.put('/PromoCode/UpdateStatus', {
-      guidID: promoCodeID,
-      updatedBy: userID,
-      isActive: updatedStatus,
-    });
+    try {
+      await api.put('/PromoCode/UpdateStatus', {
+        guidID: promoCodeID,
+        updatedBy: userID,
+        isActive: updatedStatus,
+      });
 
-    // ✅ Only update that particular record in filteredPromoData
-    const updatedFiltered = filteredPromoData.map((item) =>
-      item.promoCodeID === promoCodeID
-        ? { ...item, isActive: updatedStatus }
-        : item
-    );
+      // ✅ Only update that particular record in filteredPromoData
+      const updatedFiltered = filteredPromoData.map((item) =>
+        item.promoCodeID === promoCodeID
+          ? { ...item, isActive: updatedStatus }
+          : item,
+      );
 
-    setFilteredPromoData(updatedFiltered);
+      setFilteredPromoData(updatedFiltered);
 
-    toast.success(`Promo code status updated to ${updatedStatus ? 'Active' : 'Inactive'}!`);
-  } catch (error) {
-    console.error('Error updating promo code status:', error.response?.data || error.message);
-    toast.error('Failed to update promo code status. Please try again.');
-  }
-};
-
-
-
-
-
-
+      toast.success(
+        `Promo code status updated to ${updatedStatus ? 'Active' : 'Inactive'}!`,
+      );
+    } catch (error) {
+      console.error(
+        'Error updating promo code status:',
+        error.response?.data || error.message,
+      );
+      toast.error('Failed to update promo code status. Please try again.');
+    }
+  };
 
   // Delete confirmation
   const handleDelete = (Id: number) => {
@@ -782,13 +790,17 @@ const PromoCode: React.FC = () => {
               >
                 {formMode === 'Add' ? 'Save' : 'Update'}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            <button
+  type="button"
+  onClick={() => {
+    resetForm();
+    setShowForm(false);
+  }}
+  className="bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99] text-white py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
             </div>
           </form>
         </div>
@@ -851,26 +863,28 @@ const PromoCode: React.FC = () => {
         </button>
       </div>
 
-    <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-  <AgGridReact
-    rowData={
-      filteredPromoData.length > 0
-        ? applyGlobalSearch(filteredPromoData)
-        : []
-    }
-    columnDefs={columnDefs}
-    pagination={true}
-    paginationPageSize={10}
-    paginationPageSizeSelector={[10, 20, 50, 100]}
-    domLayout="autoHeight"
-    headerHeight={40}
-    rowHeight={40}
-    onGridReady={onGridReady}
-  />
-</div>
-</div>
-
+      <div className="w-full overflow-x-auto">
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={
+              filteredPromoData.length > 0
+                ? applyGlobalSearch(filteredPromoData)
+                : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
+      </div>
 
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">

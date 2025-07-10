@@ -24,7 +24,7 @@ const MedicalPrescription: React.FC = () => {
   const [selectedLab, setSelectedLab] = useState('');
   const [labStatus, setLabStatus] = useState('');
   const [labs, setLabs] = useState([]);
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const [hospitalInfo, setHospitalInfo] = useState<any>(null);
   const appointment = location.state?.appointment; // Extract from state
 
@@ -133,16 +133,32 @@ const MedicalPrescription: React.FC = () => {
       console.log('✅ Response Data:', response.data);
 
       if (response.status === 200 && typeof response.data === 'string') {
-        toast.success('Prescription saved successfully.');
+     if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.success('Prescription saved successfully.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
         //navigate('/prescription', { state: { entries: rows } });
       } else {
+       if (!toastInProgress) {
+        setToastInProgress(true);
         toast.error(
           'Failed to save: ' + (response.data?.message || 'Unknown error'),
+          {
+            onClose: () => setToastInProgress(false),
+          }
         );
+      }
       }
     } catch (error) {
       console.error('Error saving prescription:', error);
-      toast.error('Something went wrong.');
+       if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Something went wrong.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     }
   };
 
@@ -242,9 +258,14 @@ const MedicalPrescription: React.FC = () => {
     const now = new Date().toISOString();
 
     if (!selectedLab || !labStatus) {
-      toast.error('Please select both Lab and Status.');
-      return;
+    if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.warn('Please select both Lab and Status.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
+    return;
+  }
 
     const payload = {
       createdBy: userId,
@@ -264,7 +285,12 @@ const MedicalPrescription: React.FC = () => {
       const res = await api.post('/PatientLabOrder', payload);
 
       if (res.status === 200 || res.status === 201) {
-        toast.success('Lab Test submitted successfully.');
+       if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.success('Lab Test submitted successfully.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
         setShowLabForm(false);
         setSelectedLab('');
         setLabStatus('');
@@ -273,11 +299,21 @@ const MedicalPrescription: React.FC = () => {
           navigate('/PatientLabTest');
         }, 1000);
       } else {
-        toast.error('Failed to submit Lab Test.');
+       if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Failed to submit Lab Test.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       }
     } catch (error) {
       console.error('Lab Test error:', error);
-      toast.error('Lab Test submission failed.');
+     if (!toastInProgress) {
+      setToastInProgress(true);
+      toast.error('Lab Test submission failed.', {
+        onClose: () => setToastInProgress(false),
+      });
+    }
     }
   };
 

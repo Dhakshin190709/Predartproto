@@ -6,7 +6,8 @@ import api from '../../api/request';
 import CustomButton from '../../components/CustomButton';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { ToastContainer } from 'react-toastify';
+import {ToastContainer} from 'react-toastify';
+
 interface RowData {
   tenantName: string;
   hospitalName: string;
@@ -45,7 +46,10 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
   const [unitID, setUnitID] = useState('');
   const [isDropdownDisabled, setIsDropdownDisabled] = useState(true);
   const [tenantOptions, setTenantOptions] = useState<any[]>([]);
+  const [toastInProgress, setToastInProgress] = useState(false);
+
   const [toTime, setToTime] = useState('');
+
   const columnDefs = [
     {
       headerName: 'Tenant Name',
@@ -65,15 +69,44 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
       sortable: true,
       filter: true,
     },
-
     {
-      headerName: 'Start Date',
-      field: 'startDate',
+      headerName: 'Medicine Name',
+      field: 'medicineName',
       sortable: true,
       filter: true,
     },
-    { headerName: 'End Date', field: 'endDate', sortable: true, filter: true },
-    { headerName: 'Quantity', field: 'quantity', sortable: true, filter: true },
+    {
+      headerName: 'Quantity',
+      field: 'quantity',
+      sortable: true,
+      filter: true,
+    },
+    {
+      headerName: 'Price Per Unit',
+      field: 'pricePerUnit',
+      sortable: true,
+      filter: true,
+    },
+    {
+      headerName: 'Total Count',
+      field: 'totalCount',
+      sortable: true,
+      filter: true,
+    },
+    {
+      headerName: 'Manufacturer Name',
+      field: 'manufacturerName',
+      sortable: true,
+      filter: true,
+    },
+    // {
+    //   headerName: 'Start Date',
+    //   field: 'startDate',
+    //   sortable: true,
+    //   filter: true,
+    // },
+    // { headerName: 'End Date', field: 'endDate', sortable: true, filter: true },
+    // { headerName: 'Quantity', field: 'quantity', sortable: true, filter: true },
   ];
 
   useEffect(() => {
@@ -221,99 +254,121 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     });
   };
 
-const handleSearch = async () => {
-  const roleName = sessionStorage.getItem('roleName') || '';
-  const sessionTenantID = sessionStorage.getItem('tenantID') || '';
-  const sessionUnitID = sessionStorage.getItem('unitID') || '';
-  const { pharmacyName, quantity } = formData;
+  const handleSearch = async () => {
+    const roleName = sessionStorage.getItem('roleName') || '';
+    const sessionTenantID = sessionStorage.getItem('tenantID') || '';
+    const sessionUnitID = sessionStorage.getItem('unitID') || '';
+    const { pharmacyName, quantity } = formData;
 
-  // SuperAdmin should use manually selected tenant
-  const tenantID =
-    roleName === 'SuperAdmin' ? formData.tenantName : sessionTenantID;
+    // SuperAdmin should use manually selected tenant
+    const tenantID =
+      roleName === 'SuperAdmin' ? formData.tenantName : sessionTenantID;
 
-  // For TenantAdmin, hospitalID comes from selection; others use sessionUnitID
- const selectedHospitalID =
-  roleName === 'SuperAdmin' ? formData.hospitalName :
-  roleName === 'TenantAdmin' ? hospitalID :
-  sessionUnitID;
+    // For TenantAdmin, hospitalID comes from selection; others use sessionUnitID
+    const selectedHospitalID =
+      roleName === 'SuperAdmin'
+        ? formData.hospitalName
+        : roleName === 'TenantAdmin'
+          ? hospitalID
+          : sessionUnitID;
 
- // ✅ Unified warning logic: All roles must select at least one filter
-if (!tenantID && !selectedHospitalID && !pharmacyName && !fromTime && !toTime && !quantity) {
-  toast.warn('Please select at least one filter');
-  return;
-}
-
-
-  const params: Record<string, string> = {};
-
-  // ✅ Add only selected values into URL
-  if (tenantID) params.TenantID = tenantID;
-  if (selectedHospitalID) params.HospitalID = selectedHospitalID;
-
-  const selectedPharmacy = pharmacies.find(
-    (p) => p.pharmacyName === pharmacyName,
-  );
-  if (selectedPharmacy) {
-    params.PharmacyID = selectedPharmacy.pharmacyID;
-  }
-
-  if (fromTime) params.StartDate = fromTime;
-  if (toTime) params.EndDate = toTime;
-  if (quantity) params.Quantity = quantity.toString();
-
-  console.log('params:', params); // ✅ Check constructed URL
-
-  try {
-    const response = await api.get('/PharmacyReport/LowStockReport', {
-      params, // ✅ This will only include selected filters
-    });
-
-    if (Array.isArray(response.data)) {
-      setRowData(response.data);
-    } else if (Array.isArray(response.data.data)) {
-      setRowData(response.data.data);
-    } else {
-      setRowData([]);
-      toast.error('No data found or unexpected response format');
+    // ✅ Unified warning logic: All roles must select at least one filter
+    if (
+      !tenantID &&
+      !selectedHospitalID &&
+      !pharmacyName &&
+      !fromTime &&
+      !toTime &&
+      !quantity
+    ) {
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.warn('Please select at least one filter', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
+      return;
     }
-  } catch (error) {
-    console.error('Search error:', error);
-    toast.error('Error during search');
-  }
-};
 
+    const params: Record<string, string> = {};
 
-const handleReset = () => {
-  const role = sessionStorage.getItem('roleName') || '';
+    // ✅ Add only selected values into URL
+    if (tenantID) params.TenantID = tenantID;
+    if (selectedHospitalID) params.HospitalID = selectedHospitalID;
 
-  setFormData((prev) => ({
-    tenantName: role === 'SuperAdmin' ? '' : prev.tenantName,
-    hospitalName:
-      role === 'SuperAdmin' ? '' :
-      role === 'TenantAdmin' ? '' :
-      prev.hospitalName, // HospitalAdmin keeps hospital
-    pharmacyName: '',
-    quantity: '',
-  }));
+    const selectedPharmacy = pharmacies.find(
+      (p) => p.pharmacyName === pharmacyName,
+    );
+    if (selectedPharmacy) {
+      params.PharmacyID = selectedPharmacy.pharmacyID;
+    }
 
-  // Clear date/time
-  setFromTime('');
-  setToTime('');
+    if (fromTime) params.StartDate = fromTime;
+    if (toTime) params.EndDate = toTime;
+    if (quantity) params.Quantity = quantity.toString();
 
-  // Clear tenant/hospital ID if stored separately
-  if (role === 'SuperAdmin') {
-    setTenantID('');
-    setHospitalID('');
-  } else if (role === 'TenantAdmin') {
-    setHospitalID('');
-  }
-  // HospitalAdmin and PharmacyAdmin keep IDs
+    console.log('params:', params); // ✅ Check constructed URL
 
-  // Clear table/grid data
-  setRowData([]);
-};
+    try {
+      const response = await api.get('/PharmacyReport/LowStockReport', {
+        params, // ✅ This will only include selected filters
+      });
 
+      if (Array.isArray(response.data)) {
+        setRowData(response.data);
+      } else if (Array.isArray(response.data.data)) {
+        setRowData(response.data.data);
+      } else {
+        setRowData([]);
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.error('No data found or unexpected response format', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Error during search', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
+    }
+  };
 
+  const handleReset = () => {
+    const role = sessionStorage.getItem('roleName') || '';
+
+    setFormData((prev) => ({
+      tenantName: role === 'SuperAdmin' ? '' : prev.tenantName,
+      hospitalName:
+        role === 'SuperAdmin'
+          ? ''
+          : role === 'TenantAdmin'
+            ? ''
+            : prev.hospitalName, // HospitalAdmin keeps hospital
+      pharmacyName: '',
+      quantity: '',
+    }));
+
+    // Clear date/time
+    setFromTime('');
+    setToTime('');
+
+    // Clear tenant/hospital ID if stored separately
+    if (role === 'SuperAdmin') {
+      setTenantID('');
+      setHospitalID('');
+    } else if (role === 'TenantAdmin') {
+      setHospitalID('');
+    }
+    // HospitalAdmin and PharmacyAdmin keep IDs
+
+    // Clear table/grid data
+    setRowData([]);
+  };
 
   return (
     <div className="p-4 space-y-4">
@@ -412,6 +467,7 @@ const handleReset = () => {
               </select>
             </div>
           </div>
+
           {/* Row 2 */}
           <div className="flex gap-2">
             {/* Start Date and End Date */}

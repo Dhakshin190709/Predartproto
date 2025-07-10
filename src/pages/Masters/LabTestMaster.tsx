@@ -26,9 +26,9 @@ const LabTestMaster: React.FC = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [deleteRowId, setDeleteRowId] = useState<number | null>(null);
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-
+const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const [formData, setFormData] = useState({
-    labTestMasterID:'',
+    labTestMasterID: '',
     testName: '',
     testCode: '',
     testType: '',
@@ -63,10 +63,15 @@ const LabTestMaster: React.FC = () => {
   };
 
   const resetForm = () => {
-    setShowForm(false);
-    setFormMode('');
-    setIsActive(false);
-    resetFormData(); // you already have this function
+    setFormData({
+      labTestMasterID: '',
+      testName: '',
+      testCode: '',
+      testType: '',
+      description: '',
+      isActive: true,
+    });
+    setFormErrors({});
   };
 
   const handleEditClick = (row: RowData) => {
@@ -83,13 +88,12 @@ const LabTestMaster: React.FC = () => {
     setFormMode('Edit');
 
     setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
+      window.scrollTo({
+        top: 0,
         behavior: 'smooth',
-        block: 'start',
       });
     }, 100);
   };
-  
 
   // Add or update tenant
 
@@ -145,7 +149,7 @@ const LabTestMaster: React.FC = () => {
       toast.error('Failed to save lab test master. Please try again.');
     }
   };
-  
+
   const refreshTableData = async () => {
     try {
       const response = await api.get('/LabTestMaster');
@@ -416,6 +420,12 @@ const LabTestMaster: React.FC = () => {
     }
     return false;
   };
+useEffect(() => {
+  if (descriptionRef.current) {
+    descriptionRef.current.style.height = 'auto'; // reset
+    descriptionRef.current.style.height = `${descriptionRef.current.scrollHeight}px`; // fit content
+  }
+}, [formData.description]);
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -474,15 +484,18 @@ const LabTestMaster: React.FC = () => {
             {/* ✅ Row 2: Description */}
             <div className="flex flex-col md:flex-row gap-6 mb-4">
               <div className="md:w-2/3 w-full">
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Description"
-                  rows={2}
-                  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
-                />
+               <textarea
+  ref={descriptionRef}   // ✅ Here
+  value={formData.description}
+  onChange={(e) => {
+    setFormData({ ...formData, description: e.target.value });
+  }}
+  placeholder="Description"
+  rows={1}
+  maxLength={250}
+  className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
+/>
+
                 {formErrors.description && (
                   <p className="text-red-500 text-sm mt-1">
                     {formErrors.description}
@@ -522,7 +535,10 @@ const LabTestMaster: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowForm(false)}
+                  onClick={() => {
+                    resetForm();
+                    setShowForm(false);
+                  }}
                   className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
                 >
                   Cancel
@@ -591,22 +607,25 @@ const LabTestMaster: React.FC = () => {
         </button>
       </div>
 
-     <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-        <AgGridReact
-          rowData={
-            filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
-          }
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10} // ✅ Default page size
-          paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
-          domLayout="autoHeight"
-          headerHeight={40}
-          rowHeight={40}
-          onGridReady={onGridReady}
-        />
-      </div>
+      <div className="w-full overflow-x-auto">
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={
+              filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10} // ✅ Default page size
+            paginationPageSizeSelector={[10, 20, 50, 100]} // ✅ Enable dropdown for page size
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
       </div>
 
       <style jsx>{`

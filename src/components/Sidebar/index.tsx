@@ -335,10 +335,10 @@ const Sidebar = ({ sidebarOpen, setSidebarOpen }: SidebarProps) => {
             <img
               src={Logo}
               alt="CarePoint Pro Logo"
-              className={`h-10 transition-all ${isCollapsed ? 'w-10' : 'w-12'}`}
+              className={`h-15 transition-all ${isCollapsed ? 'w-20' : 'w-12'}`}
             />
             {!isCollapsed && (
-              <span className="text-white text-xl font-semibold">Precare</span>
+              <span className="text-white text-3xl font-semibold">Precare</span>
             )}
           </div>
 
