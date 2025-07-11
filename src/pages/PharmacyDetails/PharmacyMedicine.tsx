@@ -726,7 +726,7 @@ const Tenant: React.FC = () => {
     quantityReceived: parseFloat(formData.quantityReceived) || 0,
     quantityInStock: parseFloat(formData.quantityInStock) || 0,
     quantitySold: parseFloat(formData.quantitySold) || 0,
-
+poLineItemID:"null",
     ...(isEdit && {
       pharmacyMedicineID: formData.pharmacyMedicineID,
       updatedBy: userID,

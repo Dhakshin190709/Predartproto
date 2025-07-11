@@ -227,17 +227,16 @@ const AppointmentCard: React.FC = () => {
     }
   };
 
- useEffect(() => {
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    navigate('/LoginPage');
-    return;
-  }
+  useEffect(() => {
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      navigate('/LoginPage');
+      return;
+    }
 
-  setUserID(userID);
-  initializeUserRoleAndAppointments(userID);
-}, [navigate]);
-
+    setUserID(userID);
+    initializeUserRoleAndAppointments(userID);
+  }, [navigate]);
 
   const initializeUserRoleAndAppointments = () => {
     try {
@@ -1527,17 +1526,18 @@ const AppointmentCard: React.FC = () => {
                       {appointment.patientPhoneNumber}
                     </div>
                   </div>
-                  {/* Doctor */}
+                   {/* Hospital */}
                   <div className="flex items-center mb-1">
                     <img
-                      src={DoctorIcon}
-                      alt="doctor"
-                      className="w-4 h-5 mr-2"
+                      src={HospitalIcon}
+                      alt="hospital"
+                      className="w-5 h-5 mr-2"
                     />
-                    <div className="whitespace-normal break-words w-full">
-                      {appointment.doctorName}
+                    <div className="whitespace-normal break-words w-full max-w-[200px]">
+                      {appointment.hospitalName}
                     </div>
                   </div>
+
                 </div>
 
                 {/* Column 2 - Hospital & Date */}
@@ -1551,17 +1551,27 @@ const AppointmentCard: React.FC = () => {
                     />
                     <div>{formatDate(appointment.appointmentDate)}</div>
                   </div>
-                  {/* Hospital */}
-                  <div className="flex items-center mb-1">
-                    <img
-                      src={HospitalIcon}
-                      alt="hospital"
-                      className="w-5 h-5 mr-2"
-                    />
-                    <div className="whitespace-normal break-words w-full max-w-[200px]">
-                      {appointment.hospitalName}
-                    </div>
-                  </div>
+                
+
+              <div className="flex flex-col mb-1">
+  <div className="flex items-center mb-1">
+    <img
+      src={DoctorIcon}
+      alt="doctor"
+      className="w-4 h-5 mr-2"
+    />
+    <div className="whitespace-normal break-words">
+      {appointment.doctorName}
+    </div>
+  </div>
+  {/* <span
+    className={`inline-block w-3 h-3 rounded-full ${
+      appointment.checkInOut ? 'bg-green-500' : 'bg-red-500'
+    }`}
+    title={appointment.checkInOut ? 'Available' : 'Not Available'}
+  ></span> */}
+</div>
+
                 </div>
 
                 {/* Column 3 - Empty & Time */}

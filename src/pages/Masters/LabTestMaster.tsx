@@ -236,7 +236,7 @@ const descriptionRef = useRef<HTMLTextAreaElement>(null);
       cellClass: 'text-left',
       sortable: true,
       filter: true,
-      width: 300,
+      width: 700,
     },
     {
       headerName: 'Status',
@@ -366,48 +366,50 @@ const descriptionRef = useRef<HTMLTextAreaElement>(null);
     setDeleteRowId(null);
   };
 
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
+ const validateForm = () => {
+  const errors: Record<string, string> = {};
 
-    const nameRegex = /^[a-zA-Z0-9\s_-]{3,100}$/; // For package name
-    const codeRegex = /^[A-Z0-9_-]{3,20}$/; // For package code
-    const priceRegex = /^[0-9]+(\.[0-9]{1,2})?$/; // For price
-    const descRegex = /^[a-zA-Z0-9\s.,:;'"()\-!?]*$/; // For description
-    const alphaNumOnly = /^[a-zA-Z0-9\s-]+$/;
+  // ✅ Updated regex for Test Name:
+  const testNameRegex = /^[a-zA-Z0-9\s()&-]{3,100}$/;
 
-    // ✅ Test Name
-    if (!formData.testName.trim()) {
-      errors.testName = 'Test Name is required';
-    } else if (!alphaNumOnly.test(formData.testName.trim())) {
-      errors.testName = 'Test Name should contain only letters and numbers';
-    }
+  // ✅ Updated regex for Description:
+  const descRegex = /^[a-zA-Z0-9\s.,:;'"()\-!?\&]*$/;
 
-    // ✅ Test Type
-    if (!formData.testType.trim()) {
-      errors.testType = 'Test Type is required';
-    } else if (!alphaNumOnly.test(formData.testType.trim())) {
-      errors.testType = 'Test Type should contain only letters and numbers';
-    }
+  // ✅ Test Name
+  if (!formData.testName.trim()) {
+    errors.testName = 'Test Name is required';
+  } else if (!testNameRegex.test(formData.testName.trim())) {
+    errors.testName =
+      'Test Name should contain only letters, numbers, spaces, (), -, &';
+  }
 
-    // ✅ Description
-    const description = formData.description?.trim() || '';
-    if (!description) {
-      errors.description = 'Description is required';
-    } else if (description.length > 250) {
-      errors.description = 'Description must be max 250 characters';
-    } else if (!descRegex.test(description)) {
-      errors.description =
-        'Description contains invalid characters (no emojis or special characters)';
-    }
+  // ✅ Test Type
+  const alphaNumOnly = /^[a-zA-Z0-9\s-]+$/; // same as before
+  if (!formData.testType.trim()) {
+    errors.testType = 'Test Type is required';
+  } else if (!alphaNumOnly.test(formData.testType.trim())) {
+    errors.testType = 'Test Type should contain only letters and numbers';
+  }
 
-    // ✅ Status (isActive)
-    if (formData.isActive !== true && formData.isActive !== false) {
-      errors.isActive = 'Status is required';
-    }
+  // ✅ Description
+  const description = formData.description?.trim() || '';
+  if (!description) {
+    errors.description = 'Description is required';
+  } else if (description.length > 250) {
+    errors.description = 'Description must be max 250 characters';
+  } else if (!descRegex.test(description)) {
+    errors.description =
+      'Description contains invalid characters (allowed: letters, numbers, spaces, & . , : ; " \' ( ) - ! ?)';
+  }
 
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
+  // ✅ Status (isActive)
+  if (formData.isActive !== true && formData.isActive !== false) {
+    errors.isActive = 'Status is required';
+  }
+
+  setFormErrors(errors);
+  return Object.keys(errors).length === 0;
+};
 
   // Helper to check repeated words
   const hasRepeatedWords = (text: string) => {

@@ -220,14 +220,19 @@ const TenantAddOn: React.FC = () => {
     refreshTableData();
   }, []);
 
-  const resetFormData = () => {
-    setFormData({
-      featureName: '',
-      featureCode: '',
-      featureDescription: '',
-      isActive: true,
-    });
-  };
+ const resetFormData = () => {
+  setFormData({
+    tenantID: '',
+    addOnID: '',
+    quantity: '',
+    purchasedOn: '',
+    paymentStatus: '',
+    isActive: true,
+    tenantAddOnID: '',
+    // add any other fields here
+  });
+};
+
 
   const columnDefs: ColDef[] = [
     {
@@ -692,13 +697,18 @@ const TenantAddOn: React.FC = () => {
               >
                 {formMode === 'Add' ? 'Save' : 'Update'}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
-              >
-                Cancel
-              </button>
+            <button
+  type="button"
+  onClick={() => {
+    resetFormData();   // ✅ Clear fields
+    setFormErrors({}); // ✅ Also clear validation errors, optional
+    setShowForm(false); // ✅ Close form
+  }}
+  className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
+>
+  Cancel
+</button>
+
             </div>
           </form>
         </div>

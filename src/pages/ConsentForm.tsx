@@ -84,7 +84,7 @@ const EmailTemplate: React.FC = () => {
   // Fetch data from the API
   const navigate = useNavigate();
 
- useEffect(() => {
+useEffect(() => {
   const fetchConsentFormTemplates = async () => {
     try {
       const roleName = sessionStorage.getItem('roleName');
@@ -94,7 +94,7 @@ const EmailTemplate: React.FC = () => {
       let response;
 
       if (roleName === 'SuperAdmin') {
-        response = await api.get('/ConsentFormTemplate'); // 👈 updated path
+        response = await api.get('/ConsentFormTemplate');
       } else if (roleName === 'TenantAdmin') {
         if (!tenantID) {
           console.error('Missing tenantID for TenantAdmin.');
@@ -123,8 +123,11 @@ const EmailTemplate: React.FC = () => {
           hospitalName: hospitalMap[item.hospitalID] || 'N/A',
         }));
 
-        setInitialData(enriched);
-        setRowData(enriched);
+        // ✅ Filter only active items
+        const activeOnly = enriched.filter(item => item.isActive === true);
+
+        setInitialData(activeOnly);
+        setRowData(activeOnly);
       } else {
         console.error('Unexpected API response format:', response.data);
       }
@@ -133,10 +136,8 @@ const EmailTemplate: React.FC = () => {
     }
   };
 
-  // Re-fetch if mappings change too
   fetchConsentFormTemplates();
 }, [tenantMap, hospitalMap]);
-
 
   // Handle tenant selection
   const handleTenantChange = (e) => {
@@ -167,7 +168,7 @@ const EmailTemplate: React.FC = () => {
 
    
     {
-      headerName: 'title',
+      headerName: 'Title',
       field: 'title',
       sortable: true,
       filter: true,

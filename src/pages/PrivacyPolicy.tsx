@@ -98,7 +98,7 @@ const PrivacyPolicy = () => {
               href="mailto:info@predart.in"
               className="text-blue-600 underline hover:text-blue-800"
             >
-              info@predart.in
+              info@precare.in
             </a>{" "}
             or through the contact form on our website.
           </p>

@@ -74,6 +74,10 @@ const LovMasters: React.FC = () => {
       console.error('Error occurred while fetching data:', error);
     }
   };
+  const handleReset = () => {
+    setType(''); // Clear the dropdown
+    fetchData(); // Re-fetch all records
+  };
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,17 +221,17 @@ const LovMasters: React.FC = () => {
     {
       headerName: 'Edit',
       field: 'edit',
-     
+
       width: 80,
-    
-        cellClass: 'text-center',
+
+      cellClass: 'text-center',
       cellStyle: { textAlign: 'center' },
       cellRenderer: (params: any) => (
         <span
           onClick={() => handleEdit(params)}
           className="cursor-pointer text-blue-500 font-bold"
         >
-         <Edit
+          <Edit
             size={18}
             className="text-blue-500 hover:scale-110 mt-3 transition-transform"
           />
@@ -237,7 +241,7 @@ const LovMasters: React.FC = () => {
     {
       headerName: 'Delete',
       field: 'delete',
-      hide:true,
+      hide: true,
       flex: 0.8,
       width: 80, // Reduced width
       headerClass: 'center-header',
@@ -335,6 +339,23 @@ const LovMasters: React.FC = () => {
     setShowForm(true); // Show the form for editing
   };
 
+  const handleSearch = async () => {
+    try {
+      const response = await api.get('/AppLOV', {
+        params: { type },
+      });
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        setRowData(response.data.data);
+      } else {
+        setRowData([]); // No data fallback
+      }
+    } catch (error) {
+      console.error('Search error:', error);
+      setRowData([]); // Clear grid if error
+    }
+  };
+
   // Filters the rows based on Type, Code, and Active isActive
   const handleFilterSearch = () => {
     if (isActive) {
@@ -380,14 +401,14 @@ const LovMasters: React.FC = () => {
           className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
         >
           <option value="">Select Type</option>
-          <option value="Blood Group">Bloodgroup</option>
+          <option value="Bloodgroup">Bloodgroup</option>
           <option value="AppointmentStatus">AppointmentStatus</option>
           <option value="Gender">Gender</option>
-          <option value="Address Type">Address</option>
+          <option value="Address">Address</option>
 
-          <option value="Specializations">Specifications</option>
+          <option value="Specializations">Specializations</option>
           <option value="Qualification">Qualification</option>
-          <option value="Hospital Type">Hospital</option>
+          <option value="Hospital">Hospital</option>
           <option value="Worktype">Worktype</option>
           <option value="Relationship">Relationship</option>
           <option value="DocumentType">DocumentType</option>
@@ -404,38 +425,16 @@ const LovMasters: React.FC = () => {
           <option value="LabFacilities">LabFacilities</option>
         </select>
 
-        {/* Name Filter */}
-        <input
-          type="text"
-          placeholder="Name"
-          value={Name}
-          onChange={(e) => setName(e.target.value)}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        />
-
-        {/* Code Filter */}
-        <input
-          type="hidden"
-          placeholder="Code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          className="w-fit rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-        />
-
-        {/* Active Status Checkbox */}
-        <label className="text-black dark:text-black flex items-center w-fit cursor-pointer">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="appearance-none w-4 h-4 border-2 border-gray-400 rounded-md relative mr-2 focus:outline-none focus:ring-2 focus:ring-blue-500 checked:bg-gradient-to-b checked:from-[#004A99] checked:to-[#007BFF] checked:border-[#007BFF] checked:after:content-['✔️'] checked:after:absolute checked:after:left-1/2 checked:after:top-1/2 checked:after:-translate-x-1/2 checked:after:-translate-y-1/2 checked:after:text-white"
-          />
-          <span>Active</span>
-        </label>
-
         {/* Search Button */}
 
-        <CustomButton onClick={handleFilterSearch}>Search</CustomButton>
+        <CustomButton onClick={handleSearch}>Search</CustomButton>
+        <CustomButton
+          onClick={handleReset}
+          className="flex items-center border border-gray-300 
+      opacity-80 hover:opacity-100 px-4 py-2 rounded-lg gap-2"
+        >
+          Reset
+        </CustomButton>
       </div>
       <ToastContainer position="top-right" />
 
@@ -453,7 +452,6 @@ const LovMasters: React.FC = () => {
             className="flex flex-wrap gap-4 items-center justify-between"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full">
-
               {/* Type Dropdown */}
               <select
                 value={formData.type}
@@ -463,14 +461,14 @@ const LovMasters: React.FC = () => {
                 className="w-68 rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               >
                 <option value="">Select Type</option>
-                <option value="Blood Group">Bloodgroup</option>
+                <option value="Bloodgroup">Bloodgroup</option>
                 <option value="AppointmentStatus">AppointmentStatus</option>
                 <option value="Gender">Gender</option>
-                <option value="Address Type">Address</option>
+                <option value="Address">Address</option>
 
-                <option value="Specializations">Specifications</option>
+                <option value="Specializations">Specializations</option>
                 <option value="Qualification">Qualification</option>
-                <option value="Hospital Type">Hospital</option>
+                <option value="Hospital">Hospital</option>
                 <option value="Worktype">Worktype</option>
                 <option value="Relationship">Relationship</option>
                 <option value="DocumentType">DocumentType</option>
@@ -482,9 +480,11 @@ const LovMasters: React.FC = () => {
                 <option value="Weekday">Weekday</option>
 
                 <option value="MedicineTransfer">MedicineTransfer</option>
-                 <option value="MedicalRecordDocument">MedicalRecordDocument</option>
-                 <option value="LabType">LabType</option>
-                    <option value="LabFacilities">LabFacilities</option>
+                <option value="MedicalRecordDocument">
+                  MedicalRecordDocument
+                </option>
+                <option value="LabType">LabType</option>
+                <option value="LabFacilities">LabFacilities</option>
               </select>
 
               {/* Name Input */}
@@ -540,7 +540,7 @@ const LovMasters: React.FC = () => {
       {/* Global Search and Add Button in the Same Row */}
       <div className="mb-4 mt-4 flex flex-wrap gap-4 justify-between items-center">
         <div className="relative">
-          <input
+          {/* <input
             type="text"
             placeholder="Search..."
             value={quickSearchText}
@@ -571,7 +571,7 @@ const LovMasters: React.FC = () => {
                 ></path>
               </g>
             </svg>
-          </span>
+          </span> */}
         </div>
         <div className="mb-4">
           {' '}
@@ -583,19 +583,22 @@ const LovMasters: React.FC = () => {
 
       {/* Table Component */}
       <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-        <AgGridReact
-          rowData={rowData}
-          columnDefs={columnDefs}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          pagination={true}
-          paginationPageSize={10}
-          domLayout="autoHeight"
-          headerHeight={40} // Adjust header height
-          rowHeight={40} // Adjust row height
-          onGridReady={onGridReady}
-        />
-      </div>
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={rowData}
+            columnDefs={columnDefs}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            pagination={true}
+            paginationPageSize={10}
+            domLayout="autoHeight"
+            headerHeight={40} // Adjust header height
+            rowHeight={40} // Adjust row height
+            onGridReady={onGridReady}
+          />
+        </div>
       </div>
 
       {/* Conditional Confirmation Message Box */}

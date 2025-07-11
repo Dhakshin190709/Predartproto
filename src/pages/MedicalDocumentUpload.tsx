@@ -183,65 +183,60 @@ const handleViewDocument = async (documentID: string, fileName: string) => {
     return;
   }
 
-  const reader = new FileReader();
-  reader.readAsDataURL(selectedFile);
+  const userID = sessionStorage.getItem('userID');
+  if (!userID) {
+    toast.error('User not logged in.');
+    return;
+  }
 
-  reader.onload = async () => {
-    const base64String = reader.result?.toString().split(',')[1];
-    if (!base64String) {
-      toast.error('Failed to convert file to Base64.');
-      return;
+  const nowISO = new Date().toISOString();
+  const filePath = `uploads/${selectedFile.name}`;
+
+  // Create FormData
+  const formData = new FormData();
+  formData.append('File', selectedFile); // Actual file blob
+
+  formData.append('MrdDocument.ID', appointmentDetails?.patientID || '');
+  formData.append('MrdDocument.Type', 'patient');
+  formData.append('MrdDocument.DocumentType', selectedType);
+  formData.append('MrdDocument.FileName', selectedFile.name);
+  formData.append('MrdDocument.FileLocation', filePath);
+  formData.append('MrdDocument.TenantID', appointmentDetails?.tenantID || '');
+  formData.append('MrdDocument.AppointmentID', appointmentDetails?.appointmentID || '');
+formData.append('MrdDocument.TenantCode', 'null');
+  formData.append('MrdDocument.PatientMobile', appointmentDetails?.patientPhoneNumber || '');
+  formData.append('MrdDocument.CreatedBy', userID);
+  formData.append('MrdDocument.CreatedOn', nowISO);
+  formData.append('MrdDocument.UpdatedBy', userID);
+  formData.append('MrdDocument.UpdatedOn', nowISO);
+  formData.append('MrdDocument.IsActive', 'true');
+  formData.append('CreatedBy', userID);
+  formData.append('CreatedOn', nowISO);
+  formData.append('UpdatedBy', userID);
+  formData.append('UpdatedOn', nowISO);
+  formData.append('IsActive', 'true');
+
+  try {
+    const response = await api.post('/Document/MedicalRecordPDF', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (response.status === 200 || response.status === 201) {
+      toast.success('Document uploaded successfully!');
+      setSelectedFile(null);
+      setSelectedType('');
+      setPreviewSrc(null);
+      //fetchUploadedDocuments(appointmentDetails.patientID);
+    } else {
+      toast.error('Upload failed. Try again.');
     }
-
-    const userID = sessionStorage.getItem('userID');
-    if (!userID) {
-      toast.error('User not logged in.');
-      return;
-    }
-
-    const nowISO = new Date().toISOString();
-    const filePath = `uploads/${selectedFile.name}`;
-
-    const payload = {
-    
-    "MrdDocument.ID": appointmentDetails?.patientID || "",
-      "MrdDocument.Type": "patient",
-      "MrdDocument.DocumentType": selectedType,
-      "MrdDocument.FileName": selectedFile.name,
-      "MrdDocument.FileLocation": filePath,
-      "MrdDocument.TenantID": appointmentDetails?.tenantID || "",
-      "MrdDocument.AppointmentID": appointmentDetails?.appointmentID || "",
-      "MrdDocument.TenantCode": "",
-      "MrdDocument.PatientMobile": appointmentDetails?.patientPhoneNumber || "",
-      "MrdDocument.CreatedBy": userID,
-      "MrdDocument.CreatedOn": nowISO,
-      "MrdDocument.UpdatedBy": userID,
-      "MrdDocument.UpdatedOn": nowISO,
-      "MrdDocument.IsActive": true,
-      "File": base64String,
-      "CreatedBy": userID,
-      "CreatedOn": nowISO,
-      "UpdatedBy": userID,
-      "UpdatedOn": nowISO,
-      "IsActive": true
-    };
-
-    try {
-      const response = await api.post('/Document/MedicalRecordPDF', payload);
-      if (response.status === 200 || response.status === 201) {
-        toast.success('Document uploaded successfully!');
-        setSelectedFile(null);
-        setSelectedType('');
-        setPreviewSrc(null);
-        //fetchUploadedDocuments(appointmentDetails.patientID);
-      } else {
-        toast.error('Upload failed. Try again.');
-      }
-    } catch (error: any) {
-      toast.error('Upload failed: ' + (error.response?.data?.message || error.message));
-    }
-  };
+  } catch (error: any) {
+    toast.error('Upload failed: ' + (error.response?.data?.message || error.message));
+  }
 };
+
 
 
   return (

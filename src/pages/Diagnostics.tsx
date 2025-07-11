@@ -6,7 +6,6 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from 'axios';
 import { CheckCircle, Edit } from 'lucide-react';
 
-
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { toast } from 'react-toastify';
@@ -20,8 +19,6 @@ import {
 import CustomButton from '../components/CustomButton';
 import { useMemo } from 'react';
 
-
-
 interface RowData {
   pharmacyID: string;
   pharmacyName: string;
@@ -29,7 +26,6 @@ interface RowData {
   pharmacyType: string;
   pharmacyEmail: string;
   pharmacyPhoneNumber: string;
-
 }
 
 const Diagnostics: React.FC = () => {
@@ -46,10 +42,12 @@ const Diagnostics: React.FC = () => {
   const [selectedType, setSelectedType] = useState('');
   const [isTenantPrefilled, setIsTenantPrefilled] = useState(false);
   const [isHospitalPrefilled, setIsHospitalPrefilled] = useState(false);
-   const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
-const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFacilities]);
+  const [selectedFacilities, setSelectedFacilities] = useState<string[]>([]);
+  const facilitiesString = useMemo(
+    () => selectedFacilities.join(','),
+    [selectedFacilities],
+  );
 
-  
   const [formData, setFormData] = useState({
     laboratoryID: '',
     labName: '',
@@ -57,7 +55,7 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
     email: '',
     mobile: '',
     landline: '',
-   
+
     isActive: true,
     tenantID: '',
     hospitalID: '',
@@ -65,7 +63,7 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
 
   const [selectedLabType, setSelectedLabType] = useState('');
   const [facilityInput, setFacilityInput] = useState('');
- 
+
   const [hospitals, setHospitals] = useState([]);
   const roleName = sessionStorage.getItem('roleName');
   const phoneRegex = /^[6-9]\d{9}$/;
@@ -235,8 +233,6 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
     }
   };
 
-
-
   const updateAddress = (
     index: number,
     field: keyof Address,
@@ -268,8 +264,6 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
     return errors; // ✅ Return the errors
   };
 
- 
-
   // Handle tenant selection
   const handleTenantChange = (e) => {
     setSelectedTenant(e.target.value);
@@ -277,8 +271,6 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
   };
 
   // hospital type from appLOV
-
- 
 
   const columnDefs = [
     { headerName: 'S.No', valueGetter: 'node.rowIndex + 1', width: 80 },
@@ -614,7 +606,7 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
   };
 
   const toggleStatus = async (params: any) => {
-    const { pharmacyID, isActive } = params.data;
+    const { laboratoryID, isActive } = params.data;
     const userID = sessionStorage.getItem('userID');
 
     if (!userID) {
@@ -623,20 +615,20 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
       return;
     }
 
-    const updatedStatus = !isActive; // Toggle status
+    const updatedStatus = !isActive;
 
     const payload = {
-      guidID: pharmacyID, // API expects this field name
+      guidID: laboratoryID, // ✅ For Laboratory, use laboratoryID as guidID
       updatedBy: userID,
       isActive: updatedStatus,
     };
 
     try {
-      const response = await api.patch('/Pharmacy', payload); // ✅ Use base URL from api instance
+      const response = await api.patch('/Laboratory', payload);
 
       if (response.status === 200) {
         const updatedData = rowData.map((item: any) =>
-          item.pharmacyID === pharmacyID
+          item.laboratoryID === laboratoryID
             ? { ...item, isActive: updatedStatus }
             : item,
         );
@@ -645,16 +637,15 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
         setFilteredData(updatedData);
 
         console.log('Updated isActive:', updatedStatus);
-        toast.success('Hospital status updated successfully!'); // Show success message here
+        toast.success('Laboratory status updated successfully!');
       } else {
-        // If status is not 200, show an error message
-        toast.error('Failed to update hospital status.');
+        toast.error('Failed to update Laboratory status.');
       }
     } catch (error: any) {
-      console.error('Error updating status:', error);
+      console.error('Error updating Laboratory status:', error);
       const errorMsg =
-        error.response?.data?.message || 'Failed to update hospital status.';
-      toast.error(errorMsg); // Optional: show toast if available
+        error.response?.data?.message || 'Failed to update Laboratory status.';
+      toast.error(errorMsg);
     }
   };
 
@@ -711,170 +702,170 @@ const facilitiesString = useMemo(() => selectedFacilities.join(','), [selectedFa
     }
   };
 
- const validateForm = () => {
-  const errors: Record<string, string> = {};
-  const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
-  const phoneRegex = /^[6-9]\d{9}$/;
-  const landlineRegex = /^[0-9-]{6,15}$/;
-  const labNameRegex = /^[A-Za-z\s._-]{2,50}$/;
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    const emailRegex =
+      /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const landlineRegex = /^[0-9-]{6,15}$/;
+    const labNameRegex = /^[A-Za-z\s._-]{2,50}$/;
 
-  // Tenant
-if (!formData.tenantID?.trim()) {
-  console.error('❌ Tenant is required');
-  errors.tenantID = 'Tenant is required.';
-} else {
-  console.log('✅ Tenant is valid');
-}
-
-// Hospital
-if (!formData.hospitalID?.trim()) {
-  console.error('❌ Hospital is required');
-  errors.hospitalID = 'Hospital is required.';
-} else {
-  console.log('✅ Hospital is valid');
-}
-
-
-  // Lab Name
-  if (!formData.labName?.trim()) {
-    console.error('❌ Lab Name is required');
-    errors.labName = 'Lab Name is required.';
-  } else if (!labNameRegex.test(formData.labName.trim())) {
-    console.error('❌ Invalid Lab Name format');
-    errors.labName =
-      'Lab Name can include letters, spaces, dot, underscore, hyphen (2–50 chars).';
-  } else {
-    console.log('✅ Lab Name is valid');
-  }
-
-  // Email
-  if (formData.email?.trim()) {
-    if (!emailRegex.test(formData.email.trim())) {
-      console.error('❌ Invalid Email format');
-      errors.email = 'Enter a valid email address.';
+    // Tenant
+    if (!formData.tenantID?.trim()) {
+      console.error('❌ Tenant is required');
+      errors.tenantID = 'Tenant is required.';
     } else {
-      console.log('✅ Email is valid');
+      console.log('✅ Tenant is valid');
     }
-  } else {
-    console.log('✅ Email is empty or optional');
-  }
 
-  // Mobile
-  if (!formData.mobile?.trim()) {
-    console.error('❌ Mobile number is required');
-    errors.mobile = 'Mobile number is required.';
-  } else if (!phoneRegex.test(formData.mobile.trim())) {
-    console.error('❌ Invalid Mobile number format');
-    errors.mobile = 'Enter a valid 10-digit mobile number starting with 6-9.';
-  } else {
-    console.log('✅ Mobile number is valid');
-  }
+    // Hospital
+    if (!formData.hospitalID?.trim()) {
+      console.error('❌ Hospital is required');
+      errors.hospitalID = 'Hospital is required.';
+    } else {
+      console.log('✅ Hospital is valid');
+    }
 
-  // Lab Type
-  if (!selectedLabType?.trim()) {
-    console.error('❌ Lab Type is required');
-    errors.labType = 'Lab Type is required.';
-  } else {
-    console.log('✅ Lab Type is valid');
-  }
+    // Lab Name
+    if (!formData.labName?.trim()) {
+      console.error('❌ Lab Name is required');
+      errors.labName = 'Lab Name is required.';
+    } else if (!labNameRegex.test(formData.labName.trim())) {
+      console.error('❌ Invalid Lab Name format');
+      errors.labName =
+        'Lab Name can include letters, spaces, dot, underscore, hyphen (2–50 chars).';
+    } else {
+      console.log('✅ Lab Name is valid');
+    }
 
-  // Facilities
-  if (!facilitiesString?.trim()) {
-    console.error('❌ At least one facility is required');
-    errors.facilities = 'At least one facility is required.';
-  } else {
-    console.log('✅ Facilities are valid');
-  }
+    // Email
+    if (formData.email?.trim()) {
+      if (!emailRegex.test(formData.email.trim())) {
+        console.error('❌ Invalid Email format');
+        errors.email = 'Enter a valid email address.';
+      } else {
+        console.log('✅ Email is valid');
+      }
+    } else {
+      console.log('✅ Email is empty or optional');
+    }
 
-  // Landline
-  if (!formData.landline?.trim()) {
-    console.error('❌ Landline is required');
-    errors.landline = 'Landline number is required.';
-  } else if (!landlineRegex.test(formData.landline.trim())) {
-    console.error('❌ Invalid Landline format');
-    errors.landline = 'Enter a valid landline number.';
-  } else {
-    console.log('✅ Landline number is valid');
-  }
+    // Mobile
+    if (!formData.mobile?.trim()) {
+      console.error('❌ Mobile number is required');
+      errors.mobile = 'Mobile number is required.';
+    } else if (!phoneRegex.test(formData.mobile.trim())) {
+      console.error('❌ Invalid Mobile number format');
+      errors.mobile = 'Enter a valid 10-digit mobile number starting with 6-9.';
+    } else {
+      console.log('✅ Mobile number is valid');
+    }
 
-  setErrors(errors);
-  const isValid = Object.keys(errors).length === 0;
-  console.log('✅ Final validation result:', isValid);
-  return isValid;
-};
+    // Lab Type
+    if (!selectedLabType?.trim()) {
+      console.error('❌ Lab Type is required');
+      errors.labType = 'Lab Type is required.';
+    } else {
+      console.log('✅ Lab Type is valid');
+    }
 
+    // Facilities
+    if (!facilitiesString?.trim()) {
+      console.error('❌ At least one facility is required');
+      errors.facilities = 'At least one facility is required.';
+    } else {
+      console.log('✅ Facilities are valid');
+    }
 
+    // Landline
+    if (!formData.landline?.trim()) {
+      console.error('❌ Landline is required');
+      errors.landline = 'Landline number is required.';
+    } else if (!landlineRegex.test(formData.landline.trim())) {
+      console.error('❌ Invalid Landline format');
+      errors.landline = 'Enter a valid landline number.';
+    } else {
+      console.log('✅ Landline number is valid');
+    }
 
-
-const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  console.log('Form submitted!', formData, formMode);
-
-  const isValid = validateForm();
-  if (!isValid) return;
-
-  const userID = sessionStorage.getItem('userID');
-  if (!userID) {
-    console.error('User ID not found in session storage.');
-    alert('User not logged in. Please log in again.');
-    return;
-  }
-
-  const isEditMode = formMode === 'Edit';
-  const isAddMode = formMode === 'Add';
-
-  if (isEditMode && !formData.laboratoryID) {
-    toast.error('Laboratory ID is missing. Cannot update.');
-    return;
-  }
-
-  const payload = {
-    laboratoryID: formData.laboratoryID || 0,
-    tenantID: formData.tenant || selectedTenant,
-    hospitalID: formData.hospitalID || selectedHospital,
-    labName: formData.labName?.trim(),
-    labCode: formData.labCode?.trim() || '',
-    labType: selectedLabType?.trim() || '',
-    email: formData.email?.trim(),
-    mobile: formData.mobile?.trim(),
-    landline: formData.landline?.trim(),
-    labFacilities: facilitiesString, // ✅ Include facilities in the main payload
-    createdBy: userID,
-    updatedBy: userID,
-    isActive: true,
+    setErrors(errors);
+    const isValid = Object.keys(errors).length === 0;
+    console.log('✅ Final validation result:', isValid);
+    return isValid;
   };
 
-  try {
-    let response;
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Form submitted!', formData, formMode);
 
-    if (isAddMode) {
-      // POST for Add mode
-      console.log('Sending POST /Laboratory:', payload);
-      response = await api.post('/Laboratory', payload);
-    } else {
-      // PUT for Edit mode - Step 1
-      console.log('Sending PUT /Laboratory:', payload);
-      response = await api.put('/Laboratory', payload);
+    const isValid = validateForm();
+    if (!isValid) return;
 
-      // PUT for Facilities - Step 2
-      console.log('Sending PUT /Laboratory/Facilities:', payload);
-      await api.put('/Laboratory/Facilities', payload);
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      alert('User not logged in. Please log in again.');
+      return;
     }
 
-    if (response.status === 200 || response.status === 201) {
-      toast.success(`Laboratory ${isAddMode ? 'created' : 'updated'} successfully!`);
-      await refreshTableData();
-      resetForm();
-    } else {
-      toast.error('Unexpected response from server.');
+    const isEditMode = formMode === 'Edit';
+    const isAddMode = formMode === 'Add';
+
+    if (isEditMode && !formData.laboratoryID) {
+      toast.error('Laboratory ID is missing. Cannot update.');
+      return;
     }
-  } catch (error: any) {
-    console.error('Error saving laboratory:', error.response?.data || error.message);
-    toast.error('Failed to save laboratory. Please try again.');
-  }
-};
 
+    const payload = {
+      laboratoryID: formData.laboratoryID || 0,
+      tenantID: formData.tenant || selectedTenant,
+      hospitalID: formData.hospitalID || selectedHospital,
+      labName: formData.labName?.trim(),
+      labCode: formData.labCode?.trim() || '',
+      labType: selectedLabType?.trim() || '',
+      email: formData.email?.trim(),
+      mobile: formData.mobile?.trim(),
+      landline: formData.landline?.trim(),
+      labFacilities: facilitiesString, // ✅ Include facilities in the main payload
+      createdBy: userID,
+      updatedBy: userID,
+      isActive: true,
+    };
 
+    try {
+      let response;
+
+      if (isAddMode) {
+        // POST for Add mode
+        console.log('Sending POST /Laboratory:', payload);
+        response = await api.post('/Laboratory', payload);
+      } else {
+        // PUT for Edit mode - Step 1
+        console.log('Sending PUT /Laboratory:', payload);
+        response = await api.put('/Laboratory', payload);
+
+        // PUT for Facilities - Step 2
+        console.log('Sending PUT /Laboratory/Facilities:', payload);
+        await api.put('/Laboratory/Facilities', payload);
+      }
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success(
+          `Laboratory ${isAddMode ? 'created' : 'updated'} successfully!`,
+        );
+        await refreshTableData();
+        resetForm();
+      } else {
+        toast.error('Unexpected response from server.');
+      }
+    } catch (error: any) {
+      console.error(
+        'Error saving laboratory:',
+        error.response?.data || error.message,
+      );
+      toast.error('Failed to save laboratory. Please try again.');
+    }
+  };
 
   const refreshTableData = async () => {
     try {
@@ -954,7 +945,7 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       email: data.email || '',
       mobile: data.mobile || '',
       landline: data.landline || '',
-   
+
       isActive: !!(
         data.isActive === 'true' ||
         data.isActive === true ||
@@ -968,11 +959,11 @@ const handleFormSubmit = async (e: React.FormEvent) => {
     setSelectedTenant(data.tenantID || '');
 
     // Split and set facilities as array
-  if (data.labFacilities) {
-  setSelectedFacilities(data.labFacilities.split(',').map(item => item.trim()));
-}
-
-
+    if (data.labFacilities) {
+      setSelectedFacilities(
+        data.labFacilities.split(',').map((item) => item.trim()),
+      );
+    }
 
     setShowForm(true);
     setFormMode('Edit');
@@ -1544,25 +1535,28 @@ const handleFormSubmit = async (e: React.FormEvent) => {
       </div>
 
       <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={pageSize}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight" // <-- This auto adjusts height to fit rows
-          headerHeight={headerHeight}
-          rowHeight={rowHeight}
-          onGridReady={() => {
-            if (gridRef.current) {
-              setPageSize(gridRef.current.api.paginationGetPageSize());
-            }
-          }}
-          onPaginationChanged={onPaginationChanged}
-        />
-      </div>
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            ref={gridRef}
+            rowData={rowData}
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={pageSize}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight" // <-- This auto adjusts height to fit rows
+            headerHeight={headerHeight}
+            rowHeight={rowHeight}
+            onGridReady={() => {
+              if (gridRef.current) {
+                setPageSize(gridRef.current.api.paginationGetPageSize());
+              }
+            }}
+            onPaginationChanged={onPaginationChanged}
+          />
+        </div>
       </div>
 
       <style jsx>{`

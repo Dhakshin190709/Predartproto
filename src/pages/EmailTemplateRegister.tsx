@@ -10,8 +10,8 @@ const EmailTemplateEditor = () => {
   const location = useLocation();
 
   const query = new URLSearchParams(location.search);
-    const templateID = query.get('id');
-const isEditMode = !!templateID;
+  const templateID = query.get('id');
+  const isEditMode = !!templateID;
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
@@ -33,23 +33,23 @@ const isEditMode = !!templateID;
   };
 
   useEffect(() => {
-  if (!templateID) return;
+    if (!templateID) return;
 
-  const fetchTemplate = async () => {
-    const res = await api.get(`/EmailTemplate/${templateID}`);
-    const template = res.data?.data ?? res.data;
+    const fetchTemplate = async () => {
+      const res = await api.get(`/EmailTemplate/${templateID}`);
+      const template = res.data?.data ?? res.data;
 
-    setFormData({
-      name: template.name || '',
-      subject: template.subject || '',
-      tenantID: template.tenantID || '',
-      hospitalID: template.hospitalID || '',
-      htmlContent: template.body || '',
-    });
-  };
+      setFormData({
+        name: template.name || '',
+        subject: template.subject || '',
+        tenantID: template.tenantID || '',
+        hospitalID: template.hospitalID || '',
+        htmlContent: template.body || '',
+      });
+    };
 
-  fetchTemplate();
-}, [templateID]);
+    fetchTemplate();
+  }, [templateID]);
 
   useEffect(() => {
     api
@@ -64,7 +64,6 @@ const isEditMode = !!templateID;
         console.error('Failed to fetch tenants:', err);
       });
   }, []);
-  
 
   useEffect(() => {
     if (!formData.tenantID) {
@@ -94,7 +93,7 @@ const isEditMode = !!templateID;
 
     const query = new URLSearchParams(location.search);
     const templateID = query.get('id');
-const isEditMode = !!templateID;
+    const isEditMode = !!templateID;
     const payload = {
       emailTemplatesID: templateID || undefined, // for PUT
       createdBy: userID,
@@ -207,19 +206,19 @@ const isEditMode = !!templateID;
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
           <select
-  name="tenantID"
-  value={formData.tenantID}
-  onChange={handleChange}
-  className="border rounded px-3 py-2 w-full"
-  disabled={isEditMode} // ✅ disables in edit mode
->
-  <option value="">Select Tenant</option>
-  {tenantOptions.map((tenant: any) => (
-    <option key={tenant.tenantID} value={tenant.tenantID}>
-      {tenant.tenantName}
-    </option>
-  ))}
-</select>
+            name="tenantID"
+            value={formData.tenantID}
+            onChange={handleChange}
+            className="border rounded px-3 py-2 w-full"
+            
+          >
+            <option value="">Select Tenant</option>
+            {tenantOptions.map((tenant: any) => (
+              <option key={tenant.tenantID} value={tenant.tenantID}>
+                {tenant.tenantName}
+              </option>
+            ))}
+          </select>
 
           {formErrors.tenantID && (
             <p className="text-red-500 text-sm mt-1">{formErrors.tenantID}</p>

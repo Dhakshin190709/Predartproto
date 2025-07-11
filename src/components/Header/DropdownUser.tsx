@@ -23,31 +23,32 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
   const [isCheckedIn, setIsCheckedIn] = useState(false);
 
   useEffect(() => {
-  const fetchCheckInStatus = async () => {
-    const currentRole = sessionStorage.getItem('roleName')?.toLowerCase();
-    if (currentRole !== 'doctor') return;
+    const fetchCheckInStatus = async () => {
+      const currentRole = sessionStorage.getItem('roleName')?.toLowerCase();
+      if (currentRole !== 'doctor') return;
 
-    const doctorID = sessionStorage.getItem('doctorID');
-    if (!doctorID) return;
+      const doctorID = sessionStorage.getItem('doctorID');
+      if (!doctorID) return;
 
-    try {
-      const response = await api.get(`/Doctor/DoctorCheckInOut?doctorId=${doctorID}`);
-      console.log('Doctor check-in GET response:', response.data);
+      try {
+        const response = await api.get(
+          `/Doctor/DoctorCheckInOut?doctorId=${doctorID}`,
+        );
+        console.log('Doctor check-in GET response:', response.data);
 
-      // ✅ Access the first item from the data array
-      const doctorInfo = response.data?.data?.[0];
+        // ✅ Access the first item from the data array
+        const doctorInfo = response.data?.data?.[0];
 
-      if (doctorInfo) {
-        setIsCheckedIn(doctorInfo.checkInOut ?? false); // ✅ Use checkInOut
+        if (doctorInfo) {
+          setIsCheckedIn(doctorInfo.checkInOut ?? false); // ✅ Use checkInOut
+        }
+      } catch (error) {
+        console.error('Error fetching check-in status:', error);
       }
-    } catch (error) {
-      console.error('Error fetching check-in status:', error);
-    }
-  };
+    };
 
-  fetchCheckInStatus();
-}, []);
-
+    fetchCheckInStatus();
+  }, []);
 
   useEffect(() => {
     const username = sessionStorage.getItem('username');
@@ -80,17 +81,11 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
           : '/HospitalFormWizard';
 
   const handleLogout = () => {
-  dispatch(logout());
-
-  // Clear all session storage
-  sessionStorage.clear();
-
-  // Clear all local storage, or just specific keys if needed
-  localStorage.removeItem('authToken');
-
-  navigate('/LoginPage');
-};
-
+    dispatch(logout());
+    sessionStorage.clear();
+    localStorage.removeItem('authToken');
+    navigate('/LoginPage'); // Make sure your login route matches this path!
+  };
 
   useEffect(() => {
     const fetchPhoto = async () => {
@@ -168,38 +163,37 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
 
   return (
     <ClickOutside onClick={() => setDropdownOpen(false)} className="relative">
-      <Link
-        to="#"
-        onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="flex items-center gap-4"
-      >
-        {roleName === 'Patient' && imageBase64 ? (
-          // ✅ Show profile photo only for Patients
-          <div
-            style={{
-              width: '60px',
-              height: '60px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              border: '2px solid #ccc',
-            }}
-          >
+      {sessionStorage.getItem('username') ? (
+        // 👉 If username exists → show avatar
+        <Link
+          to="#"
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center gap-4"
+        >
+          {roleName === 'Patient' && imageBase64 ? (
             <img
-              src={`data:image/jpeg;base64,${imageBase64}`}
-              alt="Patient"
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              src={imageBase64}
+              alt="User"
+              className="h-10 w-10 rounded-full object-cover"
             />
-          </div>
-        ) : (
-          // ✅ Avatar fallback for non-Patients and Patients without photo
-          <div className="bg-blue-400 text-white rounded-full w-[60px] h-[60px] flex items-center justify-center font-bold text-lg border-2 border-gray-300">
-            {avatarLetters}
-          </div>
-        )}
-      </Link>
+          ) : (
+            <div className="bg-blue-400 text-white rounded-full w-[60px] h-[60px] flex items-center justify-center font-bold text-lg border-2 border-gray-300">
+              {avatarLetters}
+            </div>
+          )}
+        </Link>
+      ) : (
+        // 👉 If username does NOT exist → show Login button
+        <Link
+          to="/LoginPage"
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+        hover:from-[#007BFF] hover:to-[#004A99] text-white 
+        transition duration-150 ease-out hover:ease-in 
+        py-2 px-5 rounded-lg"
+        >
+          Login
+        </Link>
+      )}
 
       {/* <!-- Dropdown Start --> */}
       {dropdownOpen && (
@@ -210,6 +204,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
             <li>
               <Link
                 to={profilePath}
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -235,6 +230,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
             <li>
               <Link
                 to="/myContacts"
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -256,6 +252,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
             <li>
               <Link
                 to="/AccountSettings"
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -281,6 +278,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
             <li>
               <Link
                 to="/PrivacyPolicy"
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -316,6 +314,7 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
                         onChange={(e) => {
                           e.stopPropagation();
                           handleCheckInOutToggle(e.target.checked);
+                          setDropdownOpen(false); // ✅ close the dropdown too
                         }}
                       />
                       <div
@@ -336,7 +335,10 @@ const DropdownUser = ({ patientID }: { patientID: string }) => {
             </li>
           </ul>
           <button
-            onClick={handleLogout}
+            onClick={() => {
+              handleLogout();
+              setDropdownOpen(false);
+            }}
             className="flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
           >
             <svg

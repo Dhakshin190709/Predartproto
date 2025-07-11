@@ -169,9 +169,9 @@ const MedicalCamp: React.FC = () => {
     setFormMode('Edit');
 
     setTimeout(() => {
-      editFormRef.current?.scrollIntoView({
+      window.scrollTo({
+        top: 0,
         behavior: 'smooth',
-        block: 'start',
       });
     }, 100);
   };
@@ -633,6 +633,7 @@ const MedicalCamp: React.FC = () => {
                 <div>
                   <select
                     value={formData.tenantID}
+                    disabled={formMode === 'Edit'}
                     onChange={(e) =>
                       setFormData({ ...formData, tenantID: e.target.value })
                     }
@@ -656,10 +657,10 @@ const MedicalCamp: React.FC = () => {
                 <div>
                   <select
                     value={formData.hospitalID}
+                    disabled={formMode === 'Edit' || !formData.tenantID}
                     onChange={(e) =>
                       setFormData({ ...formData, hospitalID: e.target.value })
                     }
-                    disabled={!formData.tenantID}
                     className="w-full rounded-lg border border-stroke bg-transparent py-3 px-4 text-black outline-none focus:border-blue-600 dark:border-form-strokedark dark:bg-form-input dark:text-white"
                   >
                     <option value="">Select Hospital</option>
@@ -672,6 +673,7 @@ const MedicalCamp: React.FC = () => {
                       </option>
                     ))}
                   </select>
+
                   {formErrors.hospitalID && (
                     <p className="text-red-500 text-sm mt-1">
                       {formErrors.hospitalID}
@@ -843,7 +845,11 @@ const MedicalCamp: React.FC = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setShowForm(false)}
+                onClick={() => {
+                  resetFormData(); // ✅ Reset fields
+                  setShowForm(false); // ✅ Hide form
+                  setFormErrors({}); // ✅ Optional: clear errors too if you want
+                }}
                 className="bg-blue-500 hover:bg-blue-600 text-white py-2 px-5 rounded-lg"
               >
                 Cancel
@@ -911,26 +917,26 @@ const MedicalCamp: React.FC = () => {
         </button>
       </div>
 
-   <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-    <AgGridReact
-      rowData={
-        filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
-      }
-      columnDefs={columnDefs}
-      pagination={true}
-      paginationPageSize={10}
-      paginationPageSizeSelector={[10, 20, 50, 100]}
-      domLayout="autoHeight"
-      headerHeight={40}
-      rowHeight={40}
-      onGridReady={onGridReady}
-    />
-  </div>
-</div>
-
-
-
+      <div className="w-full overflow-x-auto">
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            rowData={
+              filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
+            }
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={10}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight"
+            headerHeight={40}
+            rowHeight={40}
+            onGridReady={onGridReady}
+          />
+        </div>
+      </div>
 
       <style jsx>{`
         .center-header .ag-header-cell-label {

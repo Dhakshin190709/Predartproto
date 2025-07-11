@@ -803,29 +803,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
             </div>
             {/* Qualification */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Qualification */}
-              <div>
-                <select
-                  value={formData.qualification}
-                  onChange={(e) =>
-                    handleSingleInputChange('qualification', e.target.value)
-                  }
-                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
-                >
-                  <option value="">Select Qualification</option>
-                  {qualifications.map((qual) => (
-                    <option key={qual.appLOVID} value={qual.appLOVID}>
-                      {qual.name}
-                    </option>
-                  ))}
-                </select>
-
-                {errors.qualification && (
-                  <p className="text-red-500 text-sm">{errors.qualification}</p>
-                )}
-              </div>
+           
 
               {/* Specialization */}
               <div>
@@ -856,6 +834,30 @@ const [toastInProgress, setToastInProgress] = useState(false);
                   <p className="text-red-500 text-sm">
                     {errors.specialization}
                   </p>
+                )}
+              </div>
+
+                 {/* Qualification */}
+              <div>
+                <select
+                  value={formData.qualification}
+                  onChange={(e) =>
+                    handleSingleInputChange('qualification', e.target.value)
+                  }
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                >
+                  <option value="">Select Qualification</option>
+                  {qualifications.map((qual) => (
+                    <option key={qual.appLOVID} value={qual.appLOVID}>
+                      {qual.name}
+                    </option>
+                  ))}
+                </select>
+
+                {errors.qualification && (
+                  <p className="text-red-500 text-sm">{errors.qualification}</p>
                 )}
               </div>
             </div>

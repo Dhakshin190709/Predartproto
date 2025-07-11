@@ -1573,6 +1573,15 @@ const DoctorCard = ({
               <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-br-md rounded-tl-lg flex items-center justify-center">
                 <FaUserMd className="text-gray-500 text-md" />
               </div>
+{/* Check-In/Out Status Circle */}
+<div className="absolute top-2 right-2">
+  <span
+    className={`inline-block w-3 h-3 rounded-full ${
+      doctor.checkInOut ? 'bg-green-500' : 'bg-red-500'
+    }`}
+    title={doctor.checkInOut ? 'Available' : 'Not Available'}
+  ></span>
+</div>
 
               {/* Content Padding */}
               <div className="p-4 space-y-3">
@@ -1652,6 +1661,7 @@ const DoctorCard = ({
                     </span>
                   </div>
                 </div>
+
                 <div className="flex justify-end mb-2 mr-2">
                   <button
                     onClick={() =>

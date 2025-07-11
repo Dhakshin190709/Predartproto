@@ -521,10 +521,11 @@ const AddOn: React.FC = () => {
                   }
                 />
 
-               {formErrors.addOnType && (
-  <p className="text-red-500 text-sm mt-1">{formErrors.addOnType}</p>
-)}
-
+                {formErrors.addOnType && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.addOnType}
+                  </p>
+                )}
               </div>
 
               {/* Price */}
@@ -533,18 +534,16 @@ const AddOn: React.FC = () => {
                   type="number"
                   placeholder="Price"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
-                 value={formData.price ?? ''}
-
+                  value={formData.price ?? ''}
                   onChange={(e) =>
                     setFormData({ ...formData, price: e.target.value })
                   }
                 />
-               {formErrors.price && (
-  <p className="text-red-500 text-sm mt-1">
-    {formErrors.price}
-  </p>
-)}
-
+                {formErrors.price && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {formErrors.price}
+                  </p>
+                )}
               </div>
             </div>
 

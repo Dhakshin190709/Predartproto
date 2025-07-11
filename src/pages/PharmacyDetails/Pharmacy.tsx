@@ -36,7 +36,7 @@ const Hospital: React.FC = () => {
   const [quickSearchText, setQuickSearchText] = useState(''); // For global search
   const [showForm, setShowForm] = useState(false); // Show form for adding/editing
   const [pharmacyTypes, setPharmacyTypes] = useState([]);
-    const [selectedType, setSelectedType] = useState('');
+  const [selectedType, setSelectedType] = useState('');
   const [formData, setFormData] = useState({
     pharmacyID: '',
     pharmacyName: '',
@@ -47,11 +47,12 @@ const Hospital: React.FC = () => {
     workHours: '',
     isActive: true,
   });
-const roleName = sessionStorage.getItem('roleName');
+  const roleName = sessionStorage.getItem('roleName');
   const phoneRegex = /^[6-9]\d{9}$/;
   const [formMode, setFormMode] = useState('');
   const [formErrors, setFormErrors] = useState({});
-  const [pharmacyPhoneNumberValid, setpharmacyPhoneNumberValid] = useState(false);
+  const [pharmacyPhoneNumberValid, setpharmacyPhoneNumberValid] =
+    useState(false);
   const [emailStatus, setEmailStatus] = useState(null);
   const [showAddressForm, setShowAddressForm] = useState(false);
   const gridApi = useRef<any>(null);
@@ -112,57 +113,55 @@ const roleName = sessionStorage.getItem('roleName');
   const navigate = useNavigate();
 
   useEffect(() => {
-  const fetchPharmacies = async () => {
-    try {
-      const roleName = sessionStorage.getItem('roleName');
-      const tenantID = sessionStorage.getItem('tenantID');
-      const unitID = sessionStorage.getItem('unitID');
+    const fetchPharmacies = async () => {
+      try {
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+        const unitID = sessionStorage.getItem('unitID');
 
-      let response;
+        let response;
 
-      if (roleName === 'SuperAdmin') {
-        // ✅ SuperAdmin: fetch all pharmacies without params
-        response = await api.get('/Pharmacy/List');
-      } else if (roleName === 'TenantAdmin') {
-        // ✅ TenantAdmin: fetch by tenant only
-        if (!tenantID) {
-          console.error('Missing tenantID for TenantAdmin.');
-          return;
+        if (roleName === 'SuperAdmin') {
+          // ✅ SuperAdmin: fetch all pharmacies without params
+          response = await api.get('/Pharmacy/List');
+        } else if (roleName === 'TenantAdmin') {
+          // ✅ TenantAdmin: fetch by tenant only
+          if (!tenantID) {
+            console.error('Missing tenantID for TenantAdmin.');
+            return;
+          }
+          response = await api.get('/Pharmacy/List', {
+            params: { tenantId: tenantID },
+          });
+        } else {
+          // ✅ Other roles: require both tenantID and hospitalID
+          if (!tenantID || !unitID) {
+            console.error('Missing tenantID or unitID for role:', roleName);
+            return;
+          }
+          response = await api.get('/Pharmacy/List', {
+            params: {
+              tenantId: tenantID,
+              hospitalId: unitID,
+            },
+          });
         }
-        response = await api.get('/Pharmacy/List', {
-          params: { tenantId: tenantID },
-        });
-      } else {
-        // ✅ Other roles: require both tenantID and hospitalID
-        if (!tenantID || !unitID) {
-          console.error('Missing tenantID or unitID for role:', roleName);
-          return;
+
+        console.log('Pharmacy API Data:', response.data);
+        const pharmacyData = response.data?.data ?? response.data;
+
+        if (Array.isArray(pharmacyData)) {
+          setRowData([...pharmacyData]);
+        } else {
+          console.error('Unexpected API response format:', response.data);
         }
-        response = await api.get('/Pharmacy/List', {
-          params: {
-            tenantId: tenantID,
-            hospitalId: unitID,
-          },
-        });
+      } catch (error: any) {
+        console.error('Error fetching pharmacy data:', error);
       }
+    };
 
-      console.log('Pharmacy API Data:', response.data);
-      const pharmacyData = response.data?.data ?? response.data;
-
-      if (Array.isArray(pharmacyData)) {
-        setRowData([...pharmacyData]);
-      } else {
-        console.error('Unexpected API response format:', response.data);
-      }
-    } catch (error: any) {
-      console.error('Error fetching pharmacy data:', error);
-    }
-  };
-
-  fetchPharmacies();
-}, []);
-
-
+    fetchPharmacies();
+  }, []);
 
   useEffect(() => {
     const fetchPharmacyTypes = async () => {
@@ -176,8 +175,6 @@ const roleName = sessionStorage.getItem('roleName');
 
     fetchPharmacyTypes();
   }, []);
-
-  
 
   const updateAddress = (
     index: number,
@@ -303,43 +300,43 @@ const roleName = sessionStorage.getItem('roleName');
       },
     },
     ...(roleName !== 'TenantAdmin' && roleName !== 'Reception'
-    ? [
-        {
-          headerName: 'Basic Edit',
-          width: 150,
-          headerClass: 'center-header',
-          cellClass: 'text-center',
-          cellRenderer: (params: any) => (
-            <span
-              onClick={() => handleEdit(params.data)}
-              className="cursor-pointer flex justify-center mt-3 items-center"
-            >
-              <Edit
-                size={18}
-                className="text-blue-500 hover:scale-110 transition-transform"
-              />
-            </span>
-          ),
-        },
-        {
-          headerName: 'Address Edit',
-          width: 160,
-          headerClass: 'center-header',
-          cellClass: 'text-center',
-          cellRenderer: (params: any) => (
-            <span
-              onClick={() => handleAddressEdit(params.data)}
-              className="cursor-pointer flex justify-center mt-3 items-center"
-            >
-              <Edit
-                size={18}
-                className="text-blue-500 hover:scale-110 transition-transform"
-              />
-            </span>
-          ),
-        },
-      ]
-    : []),
+      ? [
+          {
+            headerName: 'Basic Edit',
+            width: 150,
+            headerClass: 'center-header',
+            cellClass: 'text-center',
+            cellRenderer: (params: any) => (
+              <span
+                onClick={() => handleEdit(params.data)}
+                className="cursor-pointer flex justify-center mt-3 items-center"
+              >
+                <Edit
+                  size={18}
+                  className="text-blue-500 hover:scale-110 transition-transform"
+                />
+              </span>
+            ),
+          },
+          {
+            headerName: 'Address Edit',
+            width: 160,
+            headerClass: 'center-header',
+            cellClass: 'text-center',
+            cellRenderer: (params: any) => (
+              <span
+                onClick={() => handleAddressEdit(params.data)}
+                className="cursor-pointer flex justify-center mt-3 items-center"
+              >
+                <Edit
+                  size={18}
+                  className="text-blue-500 hover:scale-110 transition-transform"
+                />
+              </span>
+            ),
+          },
+        ]
+      : []),
     {
       headerName: 'Delete',
       hide: true,
@@ -607,7 +604,7 @@ const roleName = sessionStorage.getItem('roleName');
     };
 
     try {
-      const response = await api.patch('/Pharmacy', payload); // ✅ Use base URL from api instance
+      const response = await api.patch('/Pharmacy', payload);
 
       if (response.status === 200) {
         const updatedData = rowData.map((item: any) =>
@@ -620,299 +617,305 @@ const roleName = sessionStorage.getItem('roleName');
         setFilteredData(updatedData);
 
         console.log('Updated isActive:', updatedStatus);
-        toast.success('Hospital status updated successfully!'); // Show success message here
+        toast.success('Pharmacy status updated successfully!'); // ✅ Corrected here
       } else {
-        // If status is not 200, show an error message
-        toast.error('Failed to update hospital status.');
+        toast.error('Failed to update pharmacy status.'); // ✅ Corrected here
       }
     } catch (error: any) {
       console.error('Error updating status:', error);
       const errorMsg =
-        error.response?.data?.message || 'Failed to update hospital status.';
-      toast.error(errorMsg); // Optional: show toast if available
+        error.response?.data?.message || 'Failed to update pharmacy status.'; // ✅ Corrected here too
+      toast.error(errorMsg);
     }
   };
 
-  const handlepharmacyPhoneNumberChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-     let value = e.target.value;
- 
-     // Remove non-digit characters
-     value = value.replace(/\D/g, '');
- 
-     // Update the state with digits-only value
-     setFormData((prev) => ({ ...prev, pharmacyPhoneNumber: value }));
- 
-     const phoneRegex = /^[6-9]\d{9}$/;
- 
-     if (!value) {
-       setFormErrors((prev) => ({
-         ...prev,
-         pharmacyPhoneNumber: 'pharmacyPhoneNumber number is required.',
-       }));
-       setpharmacyPhoneNumberValid(false);
-       return;
-     } else if (!phoneRegex.test(value)) {
-       setFormErrors((prev) => ({
-         ...prev,
-         pharmacyPhoneNumber:
-           'Enter a valid 10-digit pharmacyPhoneNumber number starting with 6, 7, 8, or 9.',
-       }));
-       setpharmacyPhoneNumberValid(false);
-       return;
-     }
- 
-     try {
-       const result = await checkPhoneAvailability(value);
- 
-       if (!result.success) {
-         setFormErrors((prev) => ({
-           ...prev,
-           pharmacyPhoneNumber: result.message,
-         }));
-         setpharmacyPhoneNumberValid(false);
-       } else {
-         setFormErrors((prev) => ({ ...prev, pharmacyPhoneNumber: '' }));
-         setpharmacyPhoneNumberValid(true);
-       }
-     } catch (error) {
-       console.error('Phone availability check failed:', error);
-       setFormErrors((prev) => ({
-         ...prev,
-         pharmacyPhoneNumber: 'Something went wrong. Please try again.',
-       }));
-       setpharmacyPhoneNumberValid(false);
-     }
-   };
+  const handlepharmacyPhoneNumberChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    let value = e.target.value;
 
+    // Remove non-digit characters
+    value = value.replace(/\D/g, '');
 
- useEffect(() => {
-  if (!formData.pharmacyEmail) {
-    setFormErrors((prev) => ({ ...prev, email: '' }));
-    setEmailStatus(null);
-    return;
-  }
+    // Update the state with digits-only value
+    setFormData((prev) => ({ ...prev, pharmacyPhoneNumber: value }));
 
-  const timer = setTimeout(() => {
-    setEmailStatus('checking');
-    checkEmailAvailability(formData.pharmacyEmail)
-      .then((res) => {
-        if (res.success) {
-          setEmailStatus('available');
-          setFormErrors((prev) => ({ ...prev, email: '' }));
-        } else {
-          setEmailStatus('exists');
-          setFormErrors((prev) => ({ ...prev, email: res.message }));
-        }
-      })
-      .catch(() => {
-        setEmailStatus('error');
-        setFormErrors((prev) => ({ ...prev, email: 'Error checking email' }));
-      });
-  }, 500);
+    const phoneRegex = /^[6-9]\d{9}$/;
 
-  return () => clearTimeout(timer);
-}, [formData.pharmacyEmail]);
+    if (!value) {
+      setFormErrors((prev) => ({
+        ...prev,
+        pharmacyPhoneNumber: 'pharmacyPhoneNumber number is required.',
+      }));
+      setpharmacyPhoneNumberValid(false);
+      return;
+    } else if (!phoneRegex.test(value)) {
+      setFormErrors((prev) => ({
+        ...prev,
+        pharmacyPhoneNumber:
+          'Enter a valid 10-digit pharmacyPhoneNumber number starting with 6, 7, 8, or 9.',
+      }));
+      setpharmacyPhoneNumberValid(false);
+      return;
+    }
 
+    try {
+      const result = await checkPhoneAvailability(value);
+
+      if (!result.success) {
+        setFormErrors((prev) => ({
+          ...prev,
+          pharmacyPhoneNumber: result.message,
+        }));
+        setpharmacyPhoneNumberValid(false);
+      } else {
+        setFormErrors((prev) => ({ ...prev, pharmacyPhoneNumber: '' }));
+        setpharmacyPhoneNumberValid(true);
+      }
+    } catch (error) {
+      console.error('Phone availability check failed:', error);
+      setFormErrors((prev) => ({
+        ...prev,
+        pharmacyPhoneNumber: 'Something went wrong. Please try again.',
+      }));
+      setpharmacyPhoneNumberValid(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!formData.pharmacyEmail) {
+      setFormErrors((prev) => ({ ...prev, email: '' }));
+      setEmailStatus(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setEmailStatus('checking');
+      checkEmailAvailability(formData.pharmacyEmail)
+        .then((res) => {
+          if (res.success) {
+            setEmailStatus('available');
+            setFormErrors((prev) => ({ ...prev, email: '' }));
+          } else {
+            setEmailStatus('exists');
+            setFormErrors((prev) => ({ ...prev, email: res.message }));
+          }
+        })
+        .catch(() => {
+          setEmailStatus('error');
+          setFormErrors((prev) => ({ ...prev, email: 'Error checking email' }));
+        });
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [formData.pharmacyEmail]);
 
   const handleDelete = async (hospitalID: number) => {
     setDeleteRowId(hospitalID);
     setShowConfirmation(true);
   };
 
- const validateForm = () => {
-  const errors: Record<string, string> = {};
-const newErrors: any = {};
-  const emailRegex = /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
-  const phoneRegex = /^[6-9]\d{9}$/;
-  const hospitalNameRegex = /^[A-Za-z_]{1,20}$/;
-  const workHourPattern = /^[0-9]+$/;
-  const pharmacyNameRegex = /^[A-Za-z\s._-]{2,50}$/;
-  const pharmacyCodeRegex = /^[A-Z0-9]{3,10}$/;
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    const newErrors: any = {};
+    const emailRegex =
+      /^[a-zA-Z][a-zA-Z0-9_.]*@[a-zA-Z]+\.(com|in|org|net|edu|gov)$/;
+    const phoneRegex = /^[6-9]\d{9}$/;
+    const hospitalNameRegex = /^[A-Za-z_]{1,20}$/;
+    const workHourPattern = /^[0-9]+$/;
+    const pharmacyNameRegex = /^[A-Za-z\s._-]{2,50}$/;
+    const pharmacyCodeRegex = /^[A-Z0-9]{3,10}$/;
 
-  // Hospital Name
-  // if (!formData.hospitalName) {
-  //   console.error('❌ Hospital Name is empty');
-  //   errors.hospitalName = 'Hospital Name is required.';
-  // } else if (!hospitalNameRegex.test(formData.hospitalName)) {
-  //   console.error('❌ Invalid Hospital Name format');
-  //   errors.hospitalName = 'Only letters or underscores allowed (max 20 chars).';
-  // } else if (/^(.)\1{5,}$/.test(formData.hospitalName)) {
-  //   console.error('❌ Hospital Name has repetitive characters');
-  //   errors.hospitalName = 'Avoid repetitive characters (e.g., aaaaaa).';
-  // } else {
-  //   console.log('✅ Hospital Name is valid');
-  // }
+    // Hospital Name
+    // if (!formData.hospitalName) {
+    //   console.error('❌ Hospital Name is empty');
+    //   errors.hospitalName = 'Hospital Name is required.';
+    // } else if (!hospitalNameRegex.test(formData.hospitalName)) {
+    //   console.error('❌ Invalid Hospital Name format');
+    //   errors.hospitalName = 'Only letters or underscores allowed (max 20 chars).';
+    // } else if (/^(.)\1{5,}$/.test(formData.hospitalName)) {
+    //   console.error('❌ Hospital Name has repetitive characters');
+    //   errors.hospitalName = 'Avoid repetitive characters (e.g., aaaaaa).';
+    // } else {
+    //   console.log('✅ Hospital Name is valid');
+    // }
 
-  // Pharmacy ID
-  
-  if (!formData.pharmacyTypes)
+    // Pharmacy ID
+
+    if (!formData.pharmacyTypes)
       newErrors.pharmacyTypes = 'Pharmacy Types is required';
 
-  // Pharmacy Name
-  if (!formData.pharmacyName) {
-    console.error('❌ Pharmacy Name is empty');
-    errors.pharmacyName = 'Pharmacy Name is required.';
-  } else if (!pharmacyNameRegex.test(formData.pharmacyName)) {
-    console.error('❌ Invalid Pharmacy Name format');
-    errors.pharmacyName = 'Pharmacy Name can include letters, spaces, dot, underscore, hyphen (2-50 chars).';
-  } else {
-    console.log('✅ Pharmacy Name is valid');
-  }
+    // Pharmacy Name
+    if (!formData.pharmacyName) {
+      console.error('❌ Pharmacy Name is empty');
+      errors.pharmacyName = 'Pharmacy Name is required.';
+    } else if (!pharmacyNameRegex.test(formData.pharmacyName)) {
+      console.error('❌ Invalid Pharmacy Name format');
+      errors.pharmacyName =
+        'Pharmacy Name can include letters, spaces, dot, underscore, hyphen (2-50 chars).';
+    } else {
+      console.log('✅ Pharmacy Name is valid');
+    }
 
-  // Pharmacy Code
-  if (!formData.pharmacyCode) {
-    console.error('❌ Pharmacy Code is empty');
-    errors.pharmacyCode = 'Pharmacy Code is required.';
-  } else if (!pharmacyCodeRegex.test(formData.pharmacyCode)) {
-    console.error('❌ Invalid Pharmacy Code format');
-    errors.pharmacyCode = 'Pharmacy Code must be 3-10 uppercase alphanumeric characters.';
-  } else {
-    console.log('✅ Pharmacy Code is valid');
-  }
+    // Pharmacy Code
+    if (!formData.pharmacyCode) {
+      console.error('❌ Pharmacy Code is empty');
+      errors.pharmacyCode = 'Pharmacy Code is required.';
+    } else if (!pharmacyCodeRegex.test(formData.pharmacyCode)) {
+      console.error('❌ Invalid Pharmacy Code format');
+      errors.pharmacyCode =
+        'Pharmacy Code must be 3-10 uppercase alphanumeric characters.';
+    } else {
+      console.log('✅ Pharmacy Code is valid');
+    }
 
- 
-  // Pharmacy Email
-  if (formData.pharmacyEmail && !emailRegex.test(formData.pharmacyEmail)) {
-    console.error('❌ Invalid Pharmacy Email format');
-    errors.pharmacyEmail = 'Enter a valid pharmacy email address.';
-  } else {
-    console.log('✅ Pharmacy Email is valid or empty');
-  }
+    // Pharmacy Email
+    if (formData.pharmacyEmail && !emailRegex.test(formData.pharmacyEmail)) {
+      console.error('❌ Invalid Pharmacy Email format');
+      errors.pharmacyEmail = 'Enter a valid pharmacy email address.';
+    } else {
+      console.log('✅ Pharmacy Email is valid or empty');
+    }
 
-  // pharmacyPhoneNumber
-  if (!formData.pharmacyPhoneNumber) {
-    console.error('❌ pharmacyPhoneNumber number is empty');
-    errors.pharmacyPhoneNumber = 'pharmacyPhoneNumber number is required.';
-  } else if (!phoneRegex.test(formData.pharmacyPhoneNumber)) {
-    console.error('❌ Invalid pharmacyPhoneNumber number');
-    errors.pharmacyPhoneNumber = 'Enter a valid 10-digit pharmacyPhoneNumber number starting with 6, 7, 8, or 9.';
-  } else {
-    console.log('✅ pharmacyPhoneNumber number is valid');
-  }
+    // pharmacyPhoneNumber
+    if (!formData.pharmacyPhoneNumber) {
+      console.error('❌ pharmacyPhoneNumber number is empty');
+      errors.pharmacyPhoneNumber = 'pharmacyPhoneNumber number is required.';
+    } else if (!phoneRegex.test(formData.pharmacyPhoneNumber)) {
+      console.error('❌ Invalid pharmacyPhoneNumber number');
+      errors.pharmacyPhoneNumber =
+        'Enter a valid 10-digit pharmacyPhoneNumber number starting with 6, 7, 8, or 9.';
+    } else {
+      console.log('✅ pharmacyPhoneNumber number is valid');
+    }
 
-  // Work Hours
-  if (!formData.workHours || !formData.workHours.trim()) {
-    console.error('❌ Work hours are empty');
-    errors.workHours = 'Work hours are required';
-  } else if (!workHourPattern.test(formData.workHours)) {
-    console.error('❌ Work hours contain non-numeric characters');
-    errors.workHours = 'Only numbers allowed';
-  } else {
-    console.log('✅ Work hours are valid');
-  }
+    // Work Hours
+    if (!formData.workHours || !formData.workHours.trim()) {
+      console.error('❌ Work hours are empty');
+      errors.workHours = 'Work hours are required';
+    } else if (!workHourPattern.test(formData.workHours)) {
+      console.error('❌ Work hours contain non-numeric characters');
+      errors.workHours = 'Only numbers allowed';
+    } else {
+      console.log('✅ Work hours are valid');
+    }
 
-  setFormErrors(errors);
-  const isValid = Object.keys(errors).length === 0;
-  console.log('✅ Final validation result:', isValid);
-  return isValid;
-};
-
-
-
-const handleFormSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  console.log('Form submitted!', formData, formMode);
-
-  const isValid = validateForm();
-  console.log('validateForm result:', isValid);
-  if (!isValid) return;
-
-  const userID = sessionStorage.getItem('userID');
-    const unitID = sessionStorage.getItem('unitID');
-  if (!userID) {
-    console.error('User ID not found in session storage.');
-    alert('User not logged in. Please log in again.');
-    return;
-  }
-
-  if (!formData.pharmacyID && formMode === 'Edit') {
-    console.error('Pharmacy ID is required for update.');
-    toast.error('Pharmacy ID is missing. Cannot update.');
-    return;
-  }
-
-  // Use tenantID from formData, not from selectedTenant
-  const payload: Record<string, any> = {
-    tenantID: formData.tenantID || selectedTenant,  // Prioritize formData.tenantID
-    pharmacyID: formData.pharmacyID || 0,
-    pharmacyName: formData.pharmacyName.trim(),
-    pharmacyCode: formData.pharmacyCode?.trim() || '',
-    type: selectedType,
-    pharmacyEmail: formData.pharmacyEmail?.trim() || '',
-    pharmacyPhoneNumber: formData.pharmacyPhoneNumber?.trim() || '',
-    workHours: formData.workHours?.trim() || '',
-    createdBy: userID,
-    updatedBy: userID,
-    isActive: formData.isActive,
-    hospitalID:unitID,
+    setFormErrors(errors);
+    const isValid = Object.keys(errors).length === 0;
+    console.log('✅ Final validation result:', isValid);
+    return isValid;
   };
 
-  try {
-    console.log('Performing PUT request with tenantID:', payload.tenantID);
-    const response = await api.put('/Pharmacy', payload);
-    console.log('Response status:', response.status);
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Form submitted!', formData, formMode);
 
-    if (response.status === 200 || response.status === 201) {
-      console.log('Success:', response.data);
-      toast.success('Pharmacy information updated successfully!');
-      await refreshTableData();
-      resetForm();
-    } else {
-      console.error('Unexpected response:', response);
-    }
-  } catch (error: any) {
-    console.error('Error updating pharmacy:', error.response?.data || error.message);
-    toast?.error?.('Failed to update pharmacy. Please try again.');
-  }
-};
-const refreshTableData = async () => {
-  try {
-    const roleName = sessionStorage.getItem('roleName');
-    const tenantID = sessionStorage.getItem('tenantID');
+    const isValid = validateForm();
+    console.log('validateForm result:', isValid);
+    if (!isValid) return;
+
+    const userID = sessionStorage.getItem('userID');
     const unitID = sessionStorage.getItem('unitID');
-
-    let response;
-
-    if (roleName === 'SuperAdmin') {
-      // ✅ SuperAdmin: get all pharmacies, no params
-      response = await api.get('/Pharmacy/List');
-    } else if (roleName === 'TenantAdmin') {
-      // ✅ TenantAdmin: get pharmacies by tenantID
-      if (!tenantID) {
-        console.error('Missing tenantID for TenantAdmin.');
-        return;
-      }
-      response = await api.get('/Pharmacy/List', {
-        params: { tenantId: tenantID },
-      });
-    } else {
-      // ✅ Other roles: get pharmacies by tenantID and hospitalID
-      if (!tenantID || !unitID) {
-        console.error('Missing tenantID or unitID for user role:', roleName);
-        return;
-      }
-      response = await api.get('/Pharmacy/List', {
-        params: {
-          tenantId: tenantID,
-          hospitalId: unitID,
-        },
-      });
+    
+    if (!userID) {
+      console.error('User ID not found in session storage.');
+      alert('User not logged in. Please log in again.');
+      return;
     }
 
-    const pharmacyData = response.data?.data ?? response.data;
-
-    if (Array.isArray(pharmacyData)) {
-      setRowData([...pharmacyData]);
-      setFilteredData([...pharmacyData]);
-    } else {
-      console.error('Unexpected response format:', response.data);
+    if (!formData.pharmacyID && formMode === 'Edit') {
+      console.error('Pharmacy ID is required for update.');
+      toast.error('Pharmacy ID is missing. Cannot update.');
+      return;
     }
-  } catch (error) {
-    console.error('Error fetching pharmacy data:', error);
-  }
+
+    // Use tenantID from formData, not from selectedTenant
+   const payload: Record<string, any> = {
+  tenantID: formData.tenantID || selectedTenant,  // ✅
+  pharmacyID: formData.pharmacyID || 0,
+  pharmacyName: formData.pharmacyName.trim(),
+  pharmacyCode: formData.pharmacyCode?.trim() || '',
+  type: selectedType,
+  pharmacyEmail: formData.pharmacyEmail?.trim() || '',
+  pharmacyPhoneNumber: formData.pharmacyPhoneNumber?.trim() || '',
+  workHours: formData.workHours?.trim() || '',
+  createdBy: userID,
+  updatedBy: userID,
+  isActive: formData.isActive,
+  hospitalID: unitID || formData.hospitalID, // ✅ fallback if unitID missing
 };
 
 
+    try {
+      console.log('Performing PUT request with tenantID:', payload.tenantID);
+      const response = await api.put('/Pharmacy', payload);
+      console.log('Response status:', response.status);
+
+      if (response.status === 200 || response.status === 201) {
+        console.log('Success:', response.data);
+        toast.success('Pharmacy information updated successfully!');
+        await refreshTableData();
+        resetForm();
+      } else {
+        console.error('Unexpected response:', response);
+      }
+    } catch (error: any) {
+      console.error(
+        'Error updating pharmacy:',
+        error.response?.data || error.message,
+      );
+      toast?.error?.('Failed to update pharmacy. Please try again.');
+    }
+  };
+
+
+
+  const refreshTableData = async () => {
+    try {
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID');
+      const unitID = sessionStorage.getItem('unitID');
+
+      let response;
+
+      if (roleName === 'SuperAdmin') {
+        // ✅ SuperAdmin: get all pharmacies, no params
+        response = await api.get('/Pharmacy/List');
+      } else if (roleName === 'TenantAdmin') {
+        // ✅ TenantAdmin: get pharmacies by tenantID
+        if (!tenantID) {
+          console.error('Missing tenantID for TenantAdmin.');
+          return;
+        }
+        response = await api.get('/Pharmacy/List', {
+          params: { tenantId: tenantID },
+        });
+      } else {
+        // ✅ Other roles: get pharmacies by tenantID and hospitalID
+        if (!tenantID || !unitID) {
+          console.error('Missing tenantID or unitID for user role:', roleName);
+          return;
+        }
+        response = await api.get('/Pharmacy/List', {
+          params: {
+            tenantId: tenantID,
+            hospitalId: unitID,
+          },
+        });
+      }
+
+      const pharmacyData = response.data?.data ?? response.data;
+
+      if (Array.isArray(pharmacyData)) {
+        setRowData([...pharmacyData]);
+        setFilteredData([...pharmacyData]);
+      } else {
+        console.error('Unexpected response format:', response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching pharmacy data:', error);
+    }
+  };
 
   const resetFormData = () => {
     setFormData({
@@ -936,8 +939,8 @@ const refreshTableData = async () => {
     });
   };
 
-const handleEdit = (data: RowData) => {
-  console.log('Editing pharmacy with tenantID:', data.tenantID);
+ const handleEdit = (data: RowData) => {
+  console.log('Editing row data:', data); // 🔑 Log entire row object
 
   const pharmacyTypeValue = data.type || data.pharmacyType || '';
 
@@ -954,11 +957,12 @@ const handleEdit = (data: RowData) => {
       data.isActive === true ||
       data.isActive === 1
     ),
-    tenantID: data.tenantID,
+     tenantID: data.tenantID,
+  // ✅ Add this if not yet included:
+  hospitalID: data.hospitalID,
   });
 
-  setSelectedType(pharmacyTypeValue); // ✅ ADD THIS LINE to prefill dropdown
-
+  setSelectedType(pharmacyTypeValue);
   setSelectedTenant(data.tenantID || '');
   setShowForm(true);
   setFormMode('Edit');
@@ -972,13 +976,12 @@ const handleEdit = (data: RowData) => {
 };
 
 
-const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 
     // Clear error for this specific field
     setErrors((prev: any) => ({ ...prev, [field]: '' }));
   };
-
 
   const handleFilterSearch = () => {
     const filtered = initialData.filter(
@@ -1004,19 +1007,18 @@ const handleChange = (field: string, value: string) => {
   };
 
   const handleUpdateAddresses = async () => {
-    try {
-      for (const address of addresses) {
-        const response = await api.put('/Address', address);
-        console.log('Updated Address:', response.data);
-        toast.success(`Address updated successfully!`);
-      }
+  try {
+    const response = await api.put('/Address', addresses);
+    console.log('Updated Addresses:', response.data); // ✅ Array of updated addresses
+    toast.success(`Addresses updated successfully!`);
+    setShowAddressForm(false);
+  } catch (error) {
+    console.error('Error updating addresses:', error.response ?? error.message);
+    toast.error('Failed to update addresses. Please try again.');
+  }
+};
 
-      setShowAddressForm(false);
-    } catch (error) {
-      console.error('Error updating address:', error.response ?? error.message);
-      toast.error('Failed to update address. Please try again.');
-    }
-  };
+
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
@@ -1038,11 +1040,10 @@ const handleChange = (field: string, value: string) => {
             onSubmit={handleFormSubmit}
             className="flex flex-wrap gap-4 items-center justify-between"
           >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mb-4">
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full mb-4">
               {/* Tenant Dropdown */}
               {formMode !== 'Edit' && (
-               <div className="w-full flex flex-col">
+                <div className="w-full flex flex-col">
                   <select
                     value={selectedTenant || ''}
                     onChange={(e) => setSelectedTenant(e.target.value)}
@@ -1067,7 +1068,7 @@ const handleChange = (field: string, value: string) => {
               )}
 
               {/* Pharmacy Type Dropdown */}
-             <div className="w-full flex flex-col">
+              <div className="w-full flex flex-col">
                 <select
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
       text-black outline-none focus:border-primary dark:border-form-strokedark 
@@ -1240,7 +1241,7 @@ const handleChange = (field: string, value: string) => {
               />
 
               {/* Submit / Cancel Buttons */}
-               <div className="col-span-3 flex justify-start gap-4 mt-4">
+              <div className="col-span-3 flex justify-start gap-4 mt-4">
                 <CustomButton type="submit">
                   {formData.pharmacyID ? 'Update' : 'Save'}
                 </CustomButton>
@@ -1566,39 +1567,42 @@ const handleChange = (field: string, value: string) => {
           </span>
         </div>
 
-       {roleName !== 'TenantAdmin' && roleName !== 'Reception' && (
-  <button
-    onClick={() => navigate('/PharmacyDetails/PharmacyCreation')}
-    className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+        {roleName !== 'TenantAdmin' && roleName !== 'Reception' && (
+          <button
+            onClick={() => navigate('/PharmacyDetails/PharmacyCreation')}
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
       hover:from-[#007BFF] hover:to-[#004A99]
       text-white transition duration-150 
       ease-out hover:ease-in py-2 px-5 rounded-lg"
-  >
-    Add New
-  </button>
-)}
+          >
+            Add New
+          </button>
+        )}
       </div>
 
       <div className="w-full overflow-x-auto">
-  <div className="ag-theme-alpine min-w-[600px]" style={{ height: 'auto' }}>
-        <AgGridReact
-          ref={gridRef}
-          rowData={rowData}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={pageSize}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight" // <-- This auto adjusts height to fit rows
-          headerHeight={headerHeight}
-          rowHeight={rowHeight}
-          onGridReady={() => {
-            if (gridRef.current) {
-              setPageSize(gridRef.current.api.paginationGetPageSize());
-            }
-          }}
-          onPaginationChanged={onPaginationChanged}
-        />
-      </div>
+        <div
+          className="ag-theme-alpine min-w-[600px]"
+          style={{ height: 'auto' }}
+        >
+          <AgGridReact
+            ref={gridRef}
+            rowData={rowData}
+            columnDefs={columnDefs}
+            pagination={true}
+            paginationPageSize={pageSize}
+            paginationPageSizeSelector={[10, 20, 50, 100]}
+            domLayout="autoHeight" // <-- This auto adjusts height to fit rows
+            headerHeight={headerHeight}
+            rowHeight={rowHeight}
+            onGridReady={() => {
+              if (gridRef.current) {
+                setPageSize(gridRef.current.api.paginationGetPageSize());
+              }
+            }}
+            onPaginationChanged={onPaginationChanged}
+          />
+        </div>
       </div>
 
       <style jsx>{`

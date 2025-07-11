@@ -8,7 +8,7 @@ const DevelopmentInProgress: React.FC = () => {
           🚧 Development in Progress
         </h1>
         <p className="text-gray-700">
-          This feature is currently under development. Please check back later!
+          This feature is upcoming version. Please check back later!
         </p>
       </div>
     </div>

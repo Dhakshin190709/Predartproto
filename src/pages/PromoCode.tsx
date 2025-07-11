@@ -155,31 +155,35 @@ const [errors, setErrors] = useState<Record<string, string>>({});
     if (!promoName) {
       errors.promoName = 'PromoCode Name is required';
       isValid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(promoName)) {
-      errors.promoName = 'PromoCode Name should contain only letters';
-      isValid = false;
-    }
+    } else if (!/^[A-Za-z0-9\s]+$/.test(promoName)) {
+  errors.promoName = 'PromoCode Name should contain only letters, numbers, and spaces';
+  isValid = false;
+}
+
 
     // Description: required & only letters
     if (!formData.description) {
-      errors.description = 'Description is required';
-      isValid = false;
-    } else if (!/^[A-Za-z\s]+$/.test(formData.description)) {
-      errors.description = 'Description should contain only letters';
-      isValid = false;
-    }
+  errors.description = 'Description is required';
+  isValid = false;
+} else if (!/^[A-Za-z0-9\s₹.,:;'"()\-!?]+$/.test(formData.description)) {
+  errors.description = 'Description contains invalid characters';
+  isValid = false;
+}
 
-    // Discount Value: required & only numbers
-    if (!formData.discountValue) {
-      errors.discountValue = 'Discount Value is required';
-      isValid = false;
-    } else if (!/^\d+$/.test(formData.discountValue)) {
-      errors.discountValue = 'Discount Value should contain only numbers';
-      isValid = false;
-    } else if (formData.discountValue.length > 2) {
-      errors.discountValue = 'Discount Value must be at most 2 digits';
-      isValid = false;
-    }
+
+   
+   // Discount Value: required & only numbers, up to 4 digits
+if (!formData.discountValue) {
+  errors.discountValue = 'Discount Value is required';
+  isValid = false;
+} else if (!/^\d+$/.test(formData.discountValue)) {
+  errors.discountValue = 'Discount Value should contain only numbers';
+  isValid = false;
+} else if (formData.discountValue.length > 4) {
+  errors.discountValue = 'Discount Value must be at most 4 digits';
+  isValid = false;
+}
+
 
     // Valid From date: required
     if (!formData.validFrom) {
@@ -595,13 +599,13 @@ const [errors, setErrors] = useState<Record<string, string>>({});
                 <input
                   type="text" // change to text to allow maxLength
                   placeholder="Discount Value"
-                  maxLength={2}
+                  maxLength={4}
                   inputMode="numeric"
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none"
                   value={formData.discountValue}
                   onChange={(e) => {
                     const value = e.target.value;
-                    if (/^\d{0,2}$/.test(value)) {
+                    if (/^\d{0,4}$/.test(value)) {
                       setFormData({ ...formData, discountValue: value });
                     }
                   }}
