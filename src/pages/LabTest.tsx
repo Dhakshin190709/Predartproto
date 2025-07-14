@@ -216,7 +216,7 @@ const PricePlan: React.FC = () => {
     const fetchTenantList = async () => {
       setLoading(true);
       try {
-        const response = await api.get('/Tenant');
+        const response = await api.get('/Tenant/TenantList');
         if (response.data?.data) {
           const tenantData = response.data.data;
           setTenants(tenantData);

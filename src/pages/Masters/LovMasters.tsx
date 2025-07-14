@@ -423,6 +423,7 @@ const LovMasters: React.FC = () => {
           <option value="MedicalRecordDocument">MedicalRecordDocument</option>
           <option value="LabType">LabType</option>
           <option value="LabFacilities">LabFacilities</option>
+          <option value="Status">Status</option>
         </select>
 
         {/* Search Button */}
@@ -485,6 +486,7 @@ const LovMasters: React.FC = () => {
                 </option>
                 <option value="LabType">LabType</option>
                 <option value="LabFacilities">LabFacilities</option>
+                  <option value="Status">Status</option>
               </select>
 
               {/* Name Input */}

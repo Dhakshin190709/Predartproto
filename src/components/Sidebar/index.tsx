@@ -28,6 +28,7 @@ import {
   FaPrescriptionBottleAlt,
   FaNotesMedical,
   FaRegEnvelope,
+  FaFileInvoice,
 } from 'react-icons/fa';
 
 import {
@@ -85,7 +86,7 @@ import {
   MdAssignmentTurnedIn,
 } from 'react-icons/md';
 import api from '../../api/request';
-import { BiDetail } from 'react-icons/bi';
+import { BiDetail, BiPurchaseTag } from 'react-icons/bi';
 
 // Define types
 interface MenuItem {
@@ -239,6 +240,8 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   //Profile: { icon: <FaUserCircle />, route: '/settings/profile' },
   Communication: { icon: <FaCommentAlt />, route: '/settings/communication' },
   Privacy: { icon: <FaShieldAlt />, route: '/settings/privacy' },
+   Invoice: { icon: <FaFileInvoice />, route: '/invoice' },
+   PurchaseOrder: { icon: <BiPurchaseTag  />, route: '/purchaseOrder' },
   Family: { icon: <FaUsers />, route: '/settings/family' },
   Masters: { icon: <FaDatabase />, route: '#' },
   TenantMaster: { icon: <FaUsers />, route: '#' },

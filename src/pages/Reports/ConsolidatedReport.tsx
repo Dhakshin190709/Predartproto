@@ -81,7 +81,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
 
     try {
       const response = await api.get<{ success: boolean; data: Doctor[] }>(
-        `/Doctor?hospitalId=${hospitalId}`,
+        `/Doctor/GetDoctorsList?hospitalId=${hospitalId}`,
       );
 
       if (response.data.success && Array.isArray(response.data.data)) {

@@ -22,10 +22,10 @@ const [toastInProgress, setToastInProgress] = useState(false);
         const unitID = sessionStorage.getItem('unitID');
         const tenantID = sessionStorage.getItem('tenantID');
 
-        let endpoint = '/Doctor';
+        let endpoint = '/Doctor/GetDoctorsList';
 
         if (roleName === 'Reception' && unitID && tenantID) {
-          endpoint = `/Doctor?hospitalId=${unitID}&tenantId=${tenantID}`;
+          endpoint = `/Doctor/GetDoctorsList?hospitalId=${unitID}&tenantId=${tenantID}`;
         }
 
         const response = await api.get(endpoint);

@@ -86,58 +86,56 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
   // Fetch data from the API
   const navigate = useNavigate();
 
- useEffect(() => {
-  const fetchEmailTemplates = async () => {
-    try {
-      const roleName = sessionStorage.getItem('roleName');
-      const tenantID = sessionStorage.getItem('tenantID');
-      const unitID = sessionStorage.getItem('unitID');
+const fetchEmailTemplates = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+    const unitID = sessionStorage.getItem('unitID');
 
-      let response;
+    let response;
 
-      if (roleName === 'SuperAdmin') {
-        response = await api.get('/EmailTemplate');
-      } else if (roleName === 'TenantAdmin') {
-        if (!tenantID) {
-          console.error('Missing tenantID for TenantAdmin.');
-          return;
-        }
-        response = await api.get('/EmailTemplate', {
-          params: { tenantId: tenantID },
-        });
-      } else {
-        if (!tenantID || !unitID) {
-          console.error('Missing tenantID or unitID for role:', roleName);
-          return;
-        }
-        response = await api.get('/EmailTemplate', {
-          params: { tenantId: tenantID, hospitalId: unitID },
-        });
+    if (roleName === 'SuperAdmin') {
+      response = await api.get('/EmailTemplate');
+    } else if (roleName === 'TenantAdmin') {
+      if (!tenantID) {
+        console.error('Missing tenantID for TenantAdmin.');
+        return;
       }
-
-      console.log('EmailTemplate API Data:', response.data);
-      const templateData = response.data?.data ?? response.data;
-
-      if (Array.isArray(templateData)) {
-        // ✅ Combine raw data + mappings:
-        const enriched = templateData.map((item) => ({
-          ...item,
-          tenantName: tenantMap[item.tenantID] || 'N/A',
-          hospitalName: hospitalMap[item.hospitalID] || 'N/A',
-        }));
-
-        setInitialData(enriched);
-        setRowData(enriched);
-      } else {
-        console.error('Unexpected API response format:', response.data);
+      response = await api.get('/EmailTemplate', {
+        params: { tenantId: tenantID },
+      });
+    } else {
+      if (!tenantID || !unitID) {
+        console.error('Missing tenantID or unitID for user role:', roleName);
+        return;
       }
-    } catch (error: any) {
-      console.error('Error fetching email template data:', error);
+      response = await api.get('/EmailTemplate', {
+        params: { tenantId: tenantID, hospitalId: unitID },
+      });
     }
-  };
 
-  // ✅ Re-fetch if mappings change too
-  fetchEmailTemplates();
+    const templateData = response.data?.data ?? response.data;
+
+    if (Array.isArray(templateData)) {
+      const enriched = templateData.map((item) => ({
+        ...item,
+        tenantName: tenantMap[item.tenantID] || 'N/A',
+        hospitalName: hospitalMap[item.hospitalID] || 'N/A',
+      }));
+
+      setInitialData(enriched);
+      setRowData(enriched);
+    } else {
+      console.error('Unexpected API response format:', response.data);
+    }
+  } catch (error: any) {
+    console.error('Error fetching email template data:', error);
+  }
+};
+useEffect(() => {
+  if (Object.keys(tenantMap).length && Object.keys(hospitalMap).length) {
+    fetchEmailTemplates();
+  }
 }, [tenantMap, hospitalMap]);
 
  
@@ -365,52 +363,10 @@ const [initialData, setInitialData] = useState<RowData[]>([]);
     }
   };
 
-  const refreshTableData = async () => {
-    try {
-      const roleName = sessionStorage.getItem('roleName');
-      const tenantID = sessionStorage.getItem('tenantID');
-      const unitID = sessionStorage.getItem('unitID');
+ const refreshTableData = () => {
+  fetchEmailTemplates();
+};
 
-      let response;
-
-      if (roleName === 'SuperAdmin') {
-        // ✅ SuperAdmin: get all email templates, no params
-        response = await api.get('/EmailTemplate');
-      } else if (roleName === 'TenantAdmin') {
-        // ✅ TenantAdmin: get email templates by tenantID
-        if (!tenantID) {
-          console.error('Missing tenantID for TenantAdmin.');
-          return;
-        }
-        response = await api.get('/EmailTemplate', {
-          params: { tenantId: tenantID },
-        });
-      } else {
-        // ✅ Other roles: get email templates by tenantID and hospitalID
-        if (!tenantID || !unitID) {
-          console.error('Missing tenantID or unitID for user role:', roleName);
-          return;
-        }
-        response = await api.get('/EmailTemplate', {
-          params: {
-            tenantId: tenantID,
-            hospitalId: unitID,
-          },
-        });
-      }
-
-      const emailTemplateData = response.data?.data ?? response.data;
-
-      if (Array.isArray(emailTemplateData)) {
-        setRowData([...emailTemplateData]);
-        setFilteredData([...emailTemplateData]);
-      } else {
-        console.error('Unexpected response format:', response.data);
-      }
-    } catch (error) {
-      console.error('Error fetching email template data:', error);
-    }
-  };
 
   const resetFormData = () => {
     setFormData({
@@ -475,7 +431,7 @@ const handleFilterSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
   useEffect(() => {
     const fetchTenants = async () => {
       try {
-        const response = await api.get('/Tenant');
+        const response = await api.get('/Tenant/TenantList');
         if (response.data.success && Array.isArray(response.data.data)) {
           setTenantList(response.data.data);
           const mapping = {};

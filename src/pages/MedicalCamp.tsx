@@ -92,7 +92,7 @@ const MedicalCamp: React.FC = () => {
   useEffect(() => {
     const fetchTenants = async () => {
       try {
-        const response = await api.get('/Tenant');
+        const response = await api.get('/Tenant/TenantList');
         if (response.data.success && Array.isArray(response.data.data)) {
           setTenantList(response.data.data);
           const mapping = {};

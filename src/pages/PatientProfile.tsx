@@ -75,6 +75,7 @@ const PatientProfileCard: React.FC<PatientInfoProps> = () => {
       [index]: !prev[index],
     }));
   };
+
   useEffect(() => {
     if (!patientID) return;
 
@@ -113,12 +114,26 @@ const PatientProfileCard: React.FC<PatientInfoProps> = () => {
         }
 
         // Fetch Blood Groups
-        const bloodGroupRes = await api.get(`/AppLOV`, {
-          params: { type: 'bloodGroup' },
-        });
-        if (bloodGroupRes.data.success && bloodGroupRes.data.data) {
-          setBloodGroups(bloodGroupRes.data.data);
-        }
+      // ✅ Use only localStorage, do NOT call API as fallback
+const cachedLOV = localStorage.getItem('masterLOV');
+if (cachedLOV) {
+  try {
+    const parsed = JSON.parse(cachedLOV);
+    if (parsed.success && Array.isArray(parsed.data)) {
+      const bloodGroups = parsed.data.filter(
+        (item) => item.type === 'bloodGroup',
+      );
+      setBloodGroups(bloodGroups);
+    } else {
+      console.warn('masterLOV has unexpected format');
+    }
+  } catch (err) {
+    console.error('Failed to parse masterLOV:', err);
+  }
+} else {
+  console.warn('⚠️ masterLOV not found in localStorage — skipping bloodGroup LOV.');
+}
+
 
         // Fetch Family Data
         const familyRes = await api.get(`/Patient/GetFamily`, {

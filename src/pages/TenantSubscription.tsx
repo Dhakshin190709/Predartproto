@@ -310,89 +310,91 @@ const TenantSubscription: React.FC = () => {
   };
 
   const fetchData = async () => {
-    try {
-      const roleName = sessionStorage.getItem('roleName');
-      const tenantID = sessionStorage.getItem('tenantID');
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
 
-      let tenantMapLocal: Record<string, string> = {};
-      let tenantOptionsLocal: any[] = [];
+    let tenantMapLocal: Record<string, string> = {};
+    let tenantOptionsLocal: any[] = [];
 
-      if (roleName === 'TenantAdmin' && tenantID) {
-        const tenantRes = await api.get(`/Tenant/${tenantID}`);
-        if (tenantRes.data.success && tenantRes.data.data) {
-          const tenant = tenantRes.data.data;
+    if (roleName === 'TenantAdmin' && tenantID) {
+      const tenantRes = await api.get(`/Tenant/${tenantID}`);
+      if (tenantRes.data.success && tenantRes.data.data) {
+        const tenant = tenantRes.data.data;
 
-          tenantMapLocal[tenant.tenantID] = tenant.tenantName;
-          tenantOptionsLocal = [
-            {
-              tenantID: tenant.tenantID,
-              tenantName: tenant.tenantName,
-            },
-          ];
-
-          // ✅ PREFILL tenantID in formData
-          setFormData((prev) => ({
-            ...prev,
+        tenantMapLocal[tenant.tenantID] = tenant.tenantName;
+        tenantOptionsLocal = [
+          {
             tenantID: tenant.tenantID,
-          }));
-        }
-      } else {
-        const tenantRes = await api.get('/Tenant');
-        if (tenantRes.data.success) {
-          const tenants = tenantRes.data.data;
+            tenantName: tenant.tenantName,
+          },
+        ];
 
-          tenantMapLocal = tenants.reduce(
-            (map, t) => {
-              map[t.tenantID] = t.tenantName;
-              return map;
-            },
-            {} as Record<string, string>,
-          );
-
-          tenantOptionsLocal = tenants
-            .filter((t: any) => t.isActive)
-            .map((t: any) => ({
-              tenantID: t.tenantID,
-              tenantName: t.tenantName,
-            }));
-        }
+        // ✅ Prefill tenantID in formData
+        setFormData((prev) => ({
+          ...prev,
+          tenantID: tenant.tenantID,
+        }));
       }
+    } else {
+      // ✅ Use the correct endpoint
+      const tenantRes = await api.get('/Tenant/TenantList');
+      if (tenantRes.data.success) {
+        const tenants = tenantRes.data.data;
 
-      setTenantMap(tenantMapLocal);
-      setTenantOptions(tenantOptionsLocal);
-
-      // Price Plans
-      const planRes = await api.get('/PricePlan');
-      let pricePlanMapLocal: Record<string, string> = {};
-      let pricePlansLocal: any[] = [];
-
-      if (planRes.data.success) {
-        const plans = planRes.data.data;
-
-        pricePlanMapLocal = plans.reduce(
-          (map, p) => {
-            map[p.pricePlanID] = p.planName;
+        tenantMapLocal = tenants.reduce(
+          (map, t) => {
+            map[t.tenantID] = t.tenantName;
             return map;
           },
-          {} as Record<string, string>,
+          {} as Record<string, string>
         );
 
-        pricePlansLocal = plans
-          .filter((p: any) => p.isActive)
-          .map((p: any) => ({
-            pricePlanID: p.pricePlanID,
-            planName: p.planName,
-          }));
-
-        setPricePlanMap(pricePlanMapLocal);
-        setPricePlans(pricePlansLocal);
+        tenantOptionsLocal = tenants.map((t: any) => ({
+          tenantID: t.tenantID,
+          tenantName: t.tenantName,
+        }));
       }
-
-      await fetchTenantSubscriptions(tenantMapLocal, pricePlanMapLocal);
-    } catch (error) {
-      console.error('❌ Failed to fetch data:', error);
     }
-  };
+
+    setTenantMap(tenantMapLocal);
+    setTenantOptions(tenantOptionsLocal);
+
+    // ✅ Price Plans logic unchanged — assuming PricePlan still uses isActive
+    const planRes = await api.get('/PricePlan');
+    let pricePlanMapLocal: Record<string, string> = {};
+    let pricePlansLocal: any[] = [];
+
+    if (planRes.data.success) {
+      const plans = planRes.data.data;
+
+      pricePlanMapLocal = plans.reduce(
+        (map, p) => {
+          map[p.pricePlanID] = p.planName;
+          return map;
+        },
+        {} as Record<string, string>
+      );
+
+      pricePlansLocal = plans
+        .filter((p: any) => p.isActive)
+        .map((p: any) => ({
+          pricePlanID: p.pricePlanID,
+          planName: p.planName,
+        }));
+
+      setPricePlanMap(pricePlanMapLocal);
+      setPricePlans(pricePlansLocal);
+    }
+
+    await fetchTenantSubscriptions(tenantMapLocal, pricePlanMapLocal);
+  } catch (error) {
+    console.error('❌ Failed to fetch data:', error);
+  }
+};
+
+
+
   useEffect(() => {
     console.log('📌 tenantID set in formData:', formData.tenantID);
   }, [formData.tenantID]);

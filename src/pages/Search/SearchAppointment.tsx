@@ -137,7 +137,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
       if (!selectedHospitalID) return;
 
       try {
-        const response = await api.get('/Doctor', {
+        const response = await api.get('/Doctor/GetDoctorsList', {
           params: { hospitalId: selectedHospitalID },
         });
         setDoctors(response.data.data || []);

@@ -54,20 +54,26 @@ const MedicalDocumentUpload: React.FC = () => {
   };
   // 🔄 Load Document Types
  useEffect(() => {
-  const fetchDocumentTypes = async () => {
+  const fetchDocumentTypes = () => {
     try {
-      const response = await api.get('/AppLOV?type=MedicalRecordDocument');
-      if (response.data && Array.isArray(response.data.data)) {
-        const active = response.data.data.filter(item => item.isActive === true);
-        // Here we use `appLOVID` as the id
-        setDocumentTypes(active);
+      const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
+
+      if (masterLOV && Array.isArray(masterLOV.data)) {
+        const activeDocs = masterLOV.data
+          .filter((item: any) => item.type === 'MedicalRecordDocument' && item.isActive === true);
+
+        setDocumentTypes(activeDocs);
+      } else {
+        console.warn('No masterLOV data found in localStorage.');
       }
     } catch (error) {
-      console.error('Error fetching medical record document types:', error);
+      console.error('Error reading masterLOV from localStorage:', error);
     }
   };
+
   fetchDocumentTypes();
 }, []);
+
 
 
   // 🔄 Load Uploaded Documents (when appointment found)

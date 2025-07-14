@@ -125,6 +125,8 @@ import Offers from './pages/Offers';
 import Chart from './pages/Chart';
 import HomePage from './pages/HomePage';
 import TenantFormWizard from './pages/TenantFormWizard';
+import Invoice from './pages/Invoice';
+import PurchaseOrder from './pages/PurchaseOrder';
 
 import AdmissionPage from './pages/AdmissionPage';
 import AdmissionDetails from './pages/AdmissionDetails';
@@ -158,6 +160,7 @@ import FeedBackForm from './pages/FeedBack/FeedBackForm';
 import MyContacts from './pages/MyContacts';
 import PatientCardNavigation from './pages/PatientCardNavigation';
 import ProtectedRoute from './components/ProtectedRoute';
+import api from './api/request';
 interface RootState {
   auth: {
     isAuthenticated: boolean;
@@ -174,6 +177,27 @@ function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [pathname]);
+
+   useEffect(() => {
+    const fetchMaster = async () => {
+      try {
+        const res = await api.get('/AppLOV'); // your URL
+        const data = res.data;
+
+        // Save whole data in localStorage
+        localStorage.setItem('masterLOV', JSON.stringify(data));
+
+        console.log('Master LOV saved:', data);
+      } catch (err) {
+        console.error('Failed to fetch AppLOV:', err);
+      }
+    };
+
+    // ✅ Fetch only if not already saved
+    if (!localStorage.getItem('masterLOV')) {
+      fetchMaster();
+    }
+  }, []);
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1000);
@@ -392,6 +416,24 @@ function App() {
               <>
                 <PageTitle title="PatientLabTest | PreCare" />
                 <PatientLabTest />
+              </>
+            }
+          />
+          <Route
+            path="/invoice"
+            element={
+              <>
+                <PageTitle title="Invoice | PreCare" />
+                <Invoice />
+              </>
+            }
+          />
+          <Route
+            path="/purchaseOrder"
+            element={
+              <>
+                <PageTitle title="PurchaseOrder | PreCare" />
+                <PurchaseOrder />
               </>
             }
           />

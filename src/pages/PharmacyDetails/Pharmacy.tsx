@@ -163,18 +163,18 @@ const Hospital: React.FC = () => {
     fetchPharmacies();
   }, []);
 
-  useEffect(() => {
-    const fetchPharmacyTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV?type=PharmacyType');
-        setPharmacyTypes(response.data?.data || []);
-      } catch (error) {
-        console.error('Failed to fetch pharmacy types:', error);
-      }
-    };
-
-    fetchPharmacyTypes();
-  }, []);
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const pharmacyTypes = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'PharmacyType'
+    ) || [];
+    setPharmacyTypes(pharmacyTypes);
+  } else {
+    console.warn('No masterLOV found in localStorage for Pharmacy Types');
+  }
+}, []);
 
   const updateAddress = (
     index: number,
@@ -455,29 +455,20 @@ const Hospital: React.FC = () => {
     fetchStates();
   }, []);
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const addressTypes = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Address'
+    ) || [];
+    setAddressTypes(addressTypes);
+  } else {
+    console.warn('No masterLOV found in localStorage for Address Types');
+    toast.error('Failed to load address types');
+  }
+}, []);
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
-        } else {
-          console.warn('Unexpected API response format');
-        }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
-      }
-    };
-
-    fetchAddressTypes();
-  }, []);
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };

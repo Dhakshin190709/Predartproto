@@ -113,20 +113,8 @@ const Hospital: React.FC = () => {
     return sessionStorage.getItem('tenantID') || '';
   });
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      try {
-        const response = await api.get('/Hospital/HospitalsList');
-        console.log('API Data:', response.data); // Debug log
+ 
 
-        setRowData(response.data?.data || response.data); // Adjust based on actual API structure
-      } catch (error: any) {
-        console.error('Error fetching data:', error);
-      }
-    };
-
-    fetchHospitals();
-  }, []);
   // Fetch tenant data from utils
   useEffect(() => {
     fetchTenants().then(setTenants);
@@ -487,29 +475,34 @@ if (!address.address2 || !noOnlySpaces.test(address.address2)) {
     fetchStates();
   }, []);
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+ useEffect(() => {
+  const fetchAddressTypes = () => {
+    try {
+      const masterLOVString = localStorage.getItem('masterLOV');
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
-        } else {
-          console.warn('Unexpected API response format');
-        }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
+      if (!masterLOVString) {
+        console.warn('No masterLOV found in localStorage.');
+        return;
       }
-    };
 
-    fetchAddressTypes();
-  }, []);
+      const result = JSON.parse(masterLOVString);
+
+      if (result && Array.isArray(result.data)) {
+        const filteredAddressTypes = result.data.filter(
+          (item: { type: string }) => item.type === 'Address'
+        );
+        setAddressTypes(filteredAddressTypes);
+      } else {
+        console.warn('Unexpected masterLOV structure.');
+      }
+    } catch (error) {
+      console.error('Error reading address types from localStorage:', error);
+      toast.error('Failed to load address types');
+    }
+  };
+
+  fetchAddressTypes();
+}, []);
 
   const handleChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

@@ -52,18 +52,18 @@ const EmailTemplateEditor = () => {
   }, [templateID]);
 
   useEffect(() => {
-    api
-      .get('/Tenant')
-      .then((res) => {
-        if (res.data?.success) {
-          const activeTenants = res.data.data.filter((t: any) => t.isActive);
-          setTenantOptions(activeTenants);
-        }
-      })
-      .catch((err) => {
-        console.error('Failed to fetch tenants:', err);
-      });
-  }, []);
+  api
+    .get('/Tenant/TenantList')
+    .then((res) => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setTenantOptions(res.data.data); // <-- no filter if no isActive
+      }
+    })
+    .catch((err) => {
+      console.error('Failed to fetch tenants:', err);
+    });
+}, []);
+
 
   useEffect(() => {
     if (!formData.tenantID) {

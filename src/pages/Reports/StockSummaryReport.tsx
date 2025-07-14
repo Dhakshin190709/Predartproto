@@ -137,42 +137,46 @@ const TenantHospitalPharmacyGrid: React.FC = () => {
     fetchPharmacies();
   }, []);
 
-  useEffect(() => {
-    const role = sessionStorage.getItem('roleName');
-    setRoleName(role || '');
 
-    if (role === 'SuperAdmin') {
+useEffect(() => {
+  const role = sessionStorage.getItem('roleName');
+  setRoleName(role || '');
+
+  if (role === 'SuperAdmin') {
+    api
+      .get('/Tenant/TenantList')
+      .then((res) => {
+        if (res.data.success && Array.isArray(res.data.data)) {
+          // No isActive flag in new response — so use all tenants
+          setTenantOptions(res.data.data);
+        }
+      })
+      .catch((err) => console.error('Error fetching tenants:', err));
+  }
+}, []);
+
+// This useEffect runs for non-SuperAdmin to fetch specific tenant
+useEffect(() => {
+  if (roleName && roleName !== 'SuperAdmin') {
+    const storedTenantID = sessionStorage.getItem('tenantID');
+    if (storedTenantID) {
+      setTenantID(storedTenantID);
       api
-        .get('/Tenant')
+        .get(`/Tenant/${storedTenantID}`)
         .then((res) => {
-          if (res.data.success && Array.isArray(res.data.data)) {
-            const activeTenants = res.data.data.filter(
-              (tenant: any) => tenant.isActive,
-            );
-            setTenantOptions(activeTenants);
+          if (res.data.success && res.data.data) {
+            const tenantData = res.data.data;
+            setTenantName(tenantData.tenantName);
+            setFormData((prev) => ({
+              ...prev,
+              tenantName: tenantData.tenantID, // Set ID, not Name
+            }));
           }
         })
-        .catch((err) => console.error('Error fetching tenants:', err));
-    } else {
-      const storedTenantID = sessionStorage.getItem('tenantID');
-      if (storedTenantID) {
-        setTenantID(storedTenantID);
-        api
-          .get(`/Tenant/${storedTenantID}`)
-          .then((res) => {
-            if (res.data.success && res.data.data) {
-              const tenantData = res.data.data;
-              setTenantName(tenantData.tenantName);
-              setFormData((prev) => ({
-                ...prev,
-                tenantName: tenantData.tenantID, // Set ID, not Name
-              }));
-            }
-          })
-          .catch((err) => console.error('Error:', err));
-      }
+        .catch((err) => console.error('Error:', err));
     }
-  }, []);
+  }
+}, [roleName]); // This depends on roleName being set
 
   useEffect(() => {
     const role = sessionStorage.getItem('roleName') || '';

@@ -163,27 +163,20 @@ const HospitalCards = () => {
     );
   };
 
-  const fetchRelationships = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: {
-          type: 'Relationship',
-        },
-      });
+ const fetchRelationships = () => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const relationships = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Relationship'
+    ) || [];
+    console.log('Relationships:', relationships);
+    setRelationships(relationships);
+  } else {
+    console.warn('No masterLOV found in localStorage for relationships');
+  }
+};
 
-      console.log('API Response:', response.data); // Check the response structure
-
-      if (Array.isArray(response.data.data)) {
-        setRelationships(response.data.data);
-      } else {
-        console.error('Invalid relationship data format:', response.data.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
-      setRelationships([]);
-    }
-  };
 
   // Fetch on component mount
   useEffect(() => {
@@ -207,20 +200,19 @@ const HospitalCards = () => {
       return; // Skip the API call
     }
 
-    const fetchOptions = async () => {
-      try {
-        const response = await api.get('/AppLOV', {
-          params: { type: 'toWhom' },
-        });
+     const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const toWhomOptions = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'toWhom'
+    ) || [];
+    console.log('toWhom Options:', toWhomOptions);
+    setOptions(toWhomOptions);
+  } else {
+    console.warn('No masterLOV found in localStorage for toWhom options');
+  }
 
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
-
-    fetchOptions();
+ 
   }, []);
 
   const handleInputChange = (
@@ -253,7 +245,7 @@ const HospitalCards = () => {
 
   const fetchDoctors = async () => {
     try {
-      const response = await api.get('/Doctor');
+      const response = await api.get('/Doctor/GetDoctorsList');
 
       if (response.data.success && Array.isArray(response.data.data)) {
         setDoctors(response.data.data);

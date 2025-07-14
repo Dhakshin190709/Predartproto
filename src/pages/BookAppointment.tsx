@@ -103,25 +103,20 @@ const BookAppointment = () => {
 
   const [selectedDoctorID, setSelectedDoctorID] = useState(null);
 
-  const fetchRelationships = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'Relationship' },
-      });
-      const result = response.data;
+ const fetchRelationships = () => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const relationships = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Relationship'
+    ) || [];
+    console.log('Relationships:', relationships);
+    setRelationships(relationships);
+  } else {
+    console.warn('No masterLOV found in localStorage for relationships');
+  }
+};
 
-      console.log('API Response:', result);
-
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data);
-      } else {
-        console.error('Invalid relationship data format:', result.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
-    }
-  };
 
   // Fetch on component mount
   useEffect(() => {
@@ -173,7 +168,7 @@ const BookAppointment = () => {
 
   const fetchDoctors = async (hospitalId: string) => {
     try {
-      const response = await api.get(`/Doctor?HospitalID=${hospitalId}`);
+      const response = await api.get(`/Doctor/GetDoctorsList?HospitalID=${hospitalId}`);
       const result = response.data;
 
       if (result.success && Array.isArray(result.data)) {
@@ -195,19 +190,20 @@ const BookAppointment = () => {
     console.log('Retrieved role:', storedRole);
   }, []);
 
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const response = await api.get('/AppLOV?type=toWhom');
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const toWhomOptions = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'toWhom'
+    ) || [];
+    console.log('toWhom Options:', toWhomOptions);
+    setOptions(toWhomOptions);
+  } else {
+    console.warn('No masterLOV found in localStorage for toWhom options');
+  }
+}, []);
 
-    fetchOptions();
-  }, []);
 
   useEffect(() => {
     const fetchPatientData = async () => {

@@ -159,46 +159,21 @@ const DoctorProfilePage = () => {
     return match ? match.name : 'N/A';
   };
 
-  useEffect(() => {
-    api
-      .get('/AppLOV?type=Worktype')
-      .then((response) => {
-        const data = response.data;
-        if (data.success && Array.isArray(data.data)) {
-          setWorkTypes(data.data);
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to fetch work types:', error);
-      });
-  }, []);
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    if (parsed.data && Array.isArray(parsed.data)) {
+      const filtered = parsed.data.filter((item) => item.type === 'Worktype');
+      setWorkTypes(filtered);
+    }
+  } else {
+    console.warn('No masterLOV found in localStorage for Worktype');
+  }
+}, []);
 
-  // useEffect(() => {
-  //   const doctorID = sessionStorage.getItem('doctorID');
 
-  //   if (doctorID) {
-  //     api
-  //       .get(`/Doctor/GetDoctorAward?doctorId=${doctorID}`)
-  //       .then((response) => {
-  //         const data = response.data;
-  //         console.log('Award API response:', data);
-  //         if (
-  //           data?.success &&
-  //           Array.isArray(data.data) &&
-  //           data.data.length > 0
-  //         ) {
-  //           setAwards(data.data);
-  //           console.log('Awards set to state:', data.data);
-  //         } else {
-  //           console.warn('No awards found or response error.');
-  //         }
-  //       })
-  //       .catch((err) => console.error('Error fetching doctor awards:', err));
-  //   } else {
-  //     console.warn('doctorId not found in sessionStorage.');
-  //   }
-  // }, []);
-
+ 
   useEffect(() => {
     const doctorID = sessionStorage.getItem('doctorID');
 
@@ -239,52 +214,52 @@ const DoctorProfilePage = () => {
   
   
 
-  useEffect(() => {
-    const doctorID = sessionStorage.getItem('doctorID');
+ useEffect(() => {
+  const doctorID = sessionStorage.getItem('doctorID');
 
-    if (!doctorID) {
-      console.warn('doctorId not found in sessionStorage.');
-      return;
+  if (!doctorID) {
+    console.warn('doctorId not found in sessionStorage.');
+    return;
+  }
+
+  Promise.all([
+    api.get(`/Doctor/GetLanguage?doctorId=${doctorID}`),
+  ]).then(([doctorLangRes]) => {
+    if (doctorLangRes.data.success) {
+      const fetchedLangs = doctorLangRes.data.data || [];
+
+      const uniqueLangs = [];
+      const seenKeys = new Set();
+
+      for (const lang of fetchedLangs) {
+        const key = `${lang.languageMasterID}-${lang.read}-${lang.write}-${lang.speak}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueLangs.push(lang);
+        }
+      }
+
+      setDoctorLanguages(uniqueLangs);
+    } else {
+      console.warn('Failed to fetch doctor languages.');
     }
 
-    Promise.all([
-      api.get(`/Doctor/GetLanguage?doctorId=${doctorID}`),
-      api.get('/AppLOV?type=languageMaster'),
-    ])
-      .then(([doctorLangRes, langMasterRes]) => {
-        if (doctorLangRes.data.success) {
-          const fetchedLangs = doctorLangRes.data.data || [];
+    const masterLOV = localStorage.getItem('masterLOV');
+    if (masterLOV) {
+      const parsed = JSON.parse(masterLOV);
+      const langs = parsed.data.filter((item) => item.type === 'languageMaster');
+      setLanguageMaster(langs);
+    } else {
+      console.warn('No masterLOV found for languageMaster');
+    }
+  }).catch((err) => {
+    console.error('Error fetching languages:', err);
+  });
+}, []);
 
-          // ✅ Deduplicate by languageMasterID + read/write/speak combo
-          const uniqueLangs = [];
-          const seenKeys = new Set();
-
-          for (const lang of fetchedLangs) {
-            const key = `${lang.languageMasterID}-${lang.read}-${lang.write}-${lang.speak}`;
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              uniqueLangs.push(lang);
-            }
-          }
-
-          setDoctorLanguages(uniqueLangs);
-        } else {
-          console.warn('Failed to fetch doctor languages.');
-        }
-
-        if (langMasterRes.data.success) {
-          setLanguageMaster(langMasterRes.data.data || []);
-        } else {
-          console.warn('Failed to fetch language master.');
-        }
-      })
-      .catch((err) => {
-        console.error('Error fetching languages:', err);
-      });
-  }, []);
   
 
- useEffect(() => {
+useEffect(() => {
   const doctorID = sessionStorage.getItem('doctorID');
 
   const fetchDoctorData = async () => {
@@ -295,13 +270,9 @@ const DoctorProfilePage = () => {
         return;
       }
 
-      const [profileRes, educationRes, lovsRes] = await Promise.all([
+      const [profileRes, educationRes] = await Promise.all([
         api.get(`/Doctor/${doctorID}`),
         api.get(`/Doctor/GetDoctorEducation?doctorId=${doctorID}`),
-        Promise.all([
-          api.get('/AppLOV?type=Qualification'),
-          api.get('/AppLOV?type=Specializations'),
-        ]),
       ]);
 
       if (profileRes.data.success) {
@@ -312,9 +283,18 @@ const DoctorProfilePage = () => {
         setEducationList(educationRes.data.data || []);
       }
 
-      const [qualRes, specRes] = lovsRes;
-      setQualifications(qualRes.data.data || []);
-      setSpecializations(specRes.data.data || []);
+      const masterLOV = localStorage.getItem('masterLOV');
+      if (masterLOV) {
+        const parsed = JSON.parse(masterLOV);
+        const qualifications = parsed.data.filter((item) => item.type === 'Qualification');
+        const specializations = parsed.data.filter((item) => item.type === 'Specializations');
+
+        setQualifications(qualifications);
+        setSpecializations(specializations);
+      } else {
+        console.warn('No masterLOV found for Qualification/Specializations');
+      }
+
     } catch (error) {
       console.error('Error fetching doctor data:', error);
     } finally {

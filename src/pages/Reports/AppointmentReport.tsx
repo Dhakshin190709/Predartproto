@@ -322,7 +322,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
       if (!selectedHospitalID) return; // Wait until hospital is selected
 
       try {
-        const response = await api.get('/Doctor', {
+        const response = await api.get('/Doctor/GetDoctorsList', {
           params: { hospitalId: selectedHospitalID },
         });
         const result = response.data;
@@ -483,47 +483,59 @@ const [toastInProgress, setToastInProgress] = useState(false);
     setExportData(rowData); // Whenever rowData updates, update exportData
   }, [rowData]);
 
-  const fetchStatusOptions = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'AppointmentStatus' },
-      });
+ const fetchStatusOptions = () => {
+  try {
+    const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
 
-      const data = response.data?.data || [];
-      setStatusOptions(data);
-
-      const statusMap = data.reduce(
-        (acc: Record<string, string>, item: any) => {
-          acc[item.appLOVID] = item.name;
-          return acc;
-        },
-        {},
+    if (masterLOV && Array.isArray(masterLOV.data)) {
+      const statusItems = masterLOV.data.filter(
+        (item: any) => item.type === 'AppointmentStatus'
       );
-      setStatusMapping(statusMap);
-    } catch (error) {
-      console.error('Error fetching status data:', error);
-    }
-  };
 
-  const fetchToWhomOptions = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'toWhom' },
-      });
+      setStatusOptions(statusItems);
 
-      const toWhomMap = (response.data.data || []).reduce(
+      const statusMap = statusItems.reduce(
         (acc: Record<string, string>, item: any) => {
           acc[item.appLOVID] = item.name;
           return acc;
         },
-        {},
+        {}
+      );
+
+      setStatusMapping(statusMap);
+    } else {
+      console.warn('No masterLOV data found in localStorage.');
+    }
+  } catch (error) {
+    console.error('Error reading status data from localStorage:', error);
+  }
+};
+
+ const fetchToWhomOptions = () => {
+  try {
+    const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
+
+    if (masterLOV && Array.isArray(masterLOV.data)) {
+      const toWhomItems = masterLOV.data.filter(
+        (item: any) => item.type === 'toWhom'
+      );
+
+      const toWhomMap = toWhomItems.reduce(
+        (acc: Record<string, string>, item: any) => {
+          acc[item.appLOVID] = item.name;
+          return acc;
+        },
+        {}
       );
 
       setToWhomMapping(toWhomMap);
-    } catch (error) {
-      console.error('Error fetching toWhom data:', error);
+    } else {
+      console.warn('No masterLOV data found in localStorage.');
     }
-  };
+  } catch (error) {
+    console.error('Error reading toWhom data from localStorage:', error);
+  }
+};
 
   return (
     <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">

@@ -165,146 +165,162 @@ const EPharmacyPage: React.FC = () => {
     setErrors((prev: any) => ({ ...prev, [field]: '' }));
   };
 
-  useEffect(() => {
-    const sessionTenantID = sessionStorage.getItem('tenantID');
-    const sessionHospitalID = sessionStorage.getItem('unitID');
+ useEffect(() => {
+  const roleName = sessionStorage.getItem('roleName');
 
-    setFormData((prev) => ({
-      ...prev,
-      tenant: sessionTenantID || '',
-      hospital: sessionHospitalID || '',
-    }));
+  if (roleName === 'SuperAdmin') {
+    console.log('SuperAdmin → skip session prefill for tenant/hospital.');
+    return; // ⛔️ EXIT: no session prefill for SuperAdmin
+  }
 
-    if (sessionTenantID) setIsTenantPrefilled(true);
-    if (sessionHospitalID) setIsHospitalPrefilled(true);
-  }, []);
+  const sessionTenantID = sessionStorage.getItem('tenantID');
+  const sessionHospitalID = sessionStorage.getItem('unitID');
 
-  useEffect(() => {
-    const fetchLabTypes = async () => {
-      try {
-        const res = await api.get('/AppLOV?type=LabType');
-        if (res.data?.success && Array.isArray(res.data.data)) {
-          const activeTypes = res.data.data.filter((item) => item.isActive);
-          setLabTypes(activeTypes);
-        }
-      } catch (err) {
-        console.error('Failed to fetch LabType:', err);
-      }
-    };
+  setFormData((prev) => ({
+    ...prev,
+    tenant: sessionTenantID || '',
+    hospital: sessionHospitalID || '',
+  }));
 
-    fetchLabTypes();
-  }, []);
+  if (sessionTenantID) setIsTenantPrefilled(true);
+  if (sessionHospitalID) setIsHospitalPrefilled(true);
+}, []);
 
-  useEffect(() => {
-    const fetchLabFacilities = async () => {
-      try {
-        const res = await api.get('/AppLOV?type=LabFacilities');
-        if (res.data?.success && Array.isArray(res.data.data)) {
-          const activeFacilities = res.data.data.filter((f) => f.isActive);
-          setLabFacilities(activeFacilities);
-        }
-      } catch (error) {
-        console.error('Error fetching lab facilities:', error);
-      }
-    };
 
-    fetchLabFacilities();
-  }, []);
+ useEffect(() => {
+  const master = localStorage.getItem('masterLOV');
+  if (!master) return;
+
+  try {
+    const parsed = JSON.parse(master);
+    const activeTypes = parsed.data
+      .filter((item: any) => item.type === 'LabType' && item.isActive);
+
+    setLabTypes(activeTypes);
+  } catch (err) {
+    console.error('Error parsing LabType from masterLOV:', err);
+  }
+}, []);
 
   useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+  const master = localStorage.getItem('masterLOV');
+  if (!master) return;
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
+  try {
+    const parsed = JSON.parse(master);
+    const activeFacilities = parsed.data
+      .filter((item: any) => item.type === 'LabFacilities' && item.isActive);
+
+    setLabFacilities(activeFacilities);
+  } catch (err) {
+    console.error('Error parsing LabFacilities from masterLOV:', err);
+  }
+}, []);
+
+
+  useEffect(() => {
+  const master = localStorage.getItem('masterLOV');
+  if (!master) return;
+
+  try {
+    const parsed = JSON.parse(master);
+    const filteredAddressTypes = parsed.data
+      .filter((item: any) => item.type === 'Address');
+
+    setAddressTypes(filteredAddressTypes);
+  } catch (err) {
+    console.error('Error parsing AddressTypes from masterLOV:', err);
+  }
+}, []);
+
+useEffect(() => {
+  const fetchTenants = async () => {
+    try {
+      const response = await api.get('/Tenant/TenantList');
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        // ✅ If your API does NOT return isActive, remove the filter!
+        // const activeTenants = response.data.data.filter((t) => t.isActive);
+        const activeTenants = response.data.data;
+
+        setTenants(activeTenants);
+
+        const roleName = sessionStorage.getItem('roleName');
+        const tenantID = sessionStorage.getItem('tenantID');
+
+        if (roleName !== 'SuperAdmin' && tenantID) {
+          // ✅ For normal admins → prefill & disable dropdown
+          setFormData((prev) => ({
+            ...prev,
+            tenant: tenantID,
+          }));
+          setIsTenantPrefilled(true);
         } else {
-          console.warn('Unexpected API response format');
+          // ✅ For SuperAdmin → dropdown stays enabled
+          setIsTenantPrefilled(false);
         }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
+      } else {
+        console.warn('Unexpected tenant response format', response.data);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching tenants:', error);
+      toast.error('Failed to load tenants');
+    }
+  };
 
-    fetchAddressTypes();
-  }, []);
+  fetchTenants();
+}, []);
 
-  useEffect(() => {
-    const fetchTenants = async () => {
-      try {
-        const response = await api.get('/Tenant');
 
-        if (response.data.success && Array.isArray(response.data.data)) {
-          const activeTenants = response.data.data.filter((t) => t.isActive);
-          setTenants(activeTenants);
+ useEffect(() => {
+  const fetchHospitals = async () => {
+    const roleName = sessionStorage.getItem('roleName');
+    const storedTenantID = sessionStorage.getItem('tenantID');
 
-          const roleName = sessionStorage.getItem('roleName');
-          const tenantID = sessionStorage.getItem('tenantID');
+    let selectedTenantID = '';
 
-          // Prefill only if NOT SuperAdmin
-          if (roleName !== 'SuperAdmin' && tenantID) {
-            setFormData((prev) => ({
-              ...prev,
-              tenant: tenantID,
-            }));
-            setIsTenantPrefilled(true); // disable dropdown
-          } else {
-            setIsTenantPrefilled(false); // allow SuperAdmin to select
-          }
-        } else {
-          console.warn('Unexpected tenant response format');
-        }
-      } catch (error) {
-        console.error('Error fetching tenants:', error);
-        toast.error('Failed to load tenants');
-      }
-    };
+    if (roleName === 'SuperAdmin') {
+      selectedTenantID = formData.tenant; // ✅ only what user picks
+    } else {
+      selectedTenantID = formData.tenant || storedTenantID;
+    }
 
-    fetchTenants();
-  }, []);
+    // 👉 If HospitalAdmin and tenant not set yet: prefill and exit.
+    if (roleName === 'HospitalAdmin' && storedTenantID && !formData.tenant) {
+      setFormData((prev) => ({
+        ...prev,
+        tenant: storedTenantID,
+      }));
+      return; // ✅ do NOT call fetch yet, will run again when tenant updates
+    }
 
-  useEffect(() => {
-    const fetchHospitals = async () => {
-      if (!formData.tenant) {
-        setHospitals([]); // Clear hospitals if no tenant selected
-        return;
-      }
+    if (!selectedTenantID) {
+      console.error('Tenant ID not available.');
+      setHospitals([]);
+      return;
+    }
 
-      try {
-        const response = await api.get(
-          `/Hospital/HospitalsList?tenantId=${formData.tenant}`,
-        );
+    try {
+      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantID}`);
+      const data = response.data;
 
-        if (Array.isArray(response.data)) {
-          const activeHospitals = response.data.filter((h) => h.isActive);
-          setHospitals(activeHospitals);
+      console.log('Filtered Hospitals:', data);
 
-          // Auto-select if only one hospital and hospital not prefilled
-          if (activeHospitals.length === 1 && !isHospitalPrefilled) {
-            setFormData((prev) => ({
-              ...prev,
-              hospital: activeHospitals[0].hospitalID,
-            }));
-          }
-        } else {
-          console.warn('Unexpected response format for hospitals');
-          setHospitals([]);
-        }
-      } catch (error) {
-        console.error('Error fetching hospitals:', error);
-        toast.error('Failed to load hospitals');
+      if (Array.isArray(data)) {
+        const activeHospitals = data.filter((hospital) => hospital.isActive);
+        setHospitals(activeHospitals);
+      } else {
+        console.warn('Unexpected response format:', data);
         setHospitals([]);
       }
-    };
+    } catch (error) {
+      console.error('Error fetching hospitals:', error);
+      setHospitals([]);
+    }
+  };
 
-    fetchHospitals();
-  }, [formData.tenant]); // 👈 Depend on selected tenant
+  fetchHospitals();
+}, [formData.tenant]);
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };

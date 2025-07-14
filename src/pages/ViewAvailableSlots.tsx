@@ -218,27 +218,20 @@ const Calendar: React.FC = () => {
     }
   }, [appointmentType]);
 
-  const fetchRelationships = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'Relationship' }, // ✅ Axios handles query params like this
-      });
+ const fetchRelationships = () => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const relationships = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Relationship'
+    ) || [];
+    console.log('Relationships:', relationships);
+    setRelationships(relationships);
+  } else {
+    console.warn('No masterLOV found in localStorage for relationships');
+  }
+};
 
-      const result = response.data;
-
-      console.log('API Response:', result); // Check the response structure
-
-      if (Array.isArray(result.data)) {
-        setRelationships(result.data); // Set the fetched relationships
-      } else {
-        console.error('Invalid relationship data format:', result.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
-      setRelationships([]);
-    }
-  };
 
   // Fetch on component mount
   useEffect(() => {
@@ -528,7 +521,7 @@ const Calendar: React.FC = () => {
       // Build params conditionally
       const params = roleName === 'SuperAdmin' ? {} : { hospitalId: unitID };
 
-      const response = await api.get(`/Doctor`, { params });
+      const response = await api.get(`/Doctor/GetDoctorsList`, { params });
 
       const result = response.data;
 
@@ -1235,21 +1228,22 @@ const Calendar: React.FC = () => {
     }));
   };
 
-  useEffect(() => {
-    const fetchOptions = async () => {
-      try {
-        const response = await api.get('/AppLOV', {
-          params: { type: 'toWhom' }, // use params instead of query string in URL
-        });
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const toWhomOptions = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'toWhom'
+    ) || [];
+    console.log('toWhom Options:', toWhomOptions);
+    setOptions(toWhomOptions);
+  } else {
+    console.warn('No masterLOV found in localStorage for toWhom options');
+  }
+}, []);
 
-    fetchOptions();
-  }, []);
+
+
   const handleOptionChange = (selectedOption: AppLOVOption) => {
     setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
     console.log(

@@ -467,38 +467,40 @@ const TenantAddOn: React.FC = () => {
     return false;
   };
 
-  useEffect(() => {
-    const fetchTenantData = async () => {
-      try {
-        const roleName = sessionStorage.getItem('roleName');
-        const tenantID = sessionStorage.getItem('tenantID');
+ useEffect(() => {
+  const fetchTenantData = async () => {
+    try {
+      const roleName = sessionStorage.getItem('roleName');
+      const tenantID = sessionStorage.getItem('tenantID');
 
-        if (roleName === 'TenantAdmin' && tenantID) {
-          const response = await api.get(`/Tenant/${tenantID}`);
-          if (response.data.success && response.data.data) {
-            const tenant = response.data.data;
-            setTenantList([tenant]); // Set as single-item list
-            setFormData((prev) => ({
-              ...prev,
-              tenantID: String(tenant.tenantID),
-            }));
-          } else {
-            console.error('Tenant fetch failed:', response.data.message);
-          }
+      if (roleName === 'TenantAdmin' && tenantID) {
+        const response = await api.get(`/Tenant/${tenantID}`);
+        if (response.data.success && response.data.data) {
+          const tenant = response.data.data;
+          setTenantList([tenant]); // Single-item list for dropdown or form
+          setFormData((prev) => ({
+            ...prev,
+            tenantID: String(tenant.tenantID),
+          }));
         } else {
-          // For other roles, fetch all tenants
-          const response = await api.get('/Tenant');
-          if (response.data.success && Array.isArray(response.data.data)) {
-            setTenantList(response.data.data);
-          }
+          console.error('Tenant fetch failed:', response.data.message);
         }
-      } catch (error) {
-        console.error('Error fetching tenant(s):', error);
+      } else {
+        // For other roles (like SuperAdmin) use new TenantList endpoint
+        const response = await api.get('/Tenant/TenantList');
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setTenantList(response.data.data);
+        } else {
+          console.error('Failed to fetch tenant list:', response.data.message);
+        }
       }
-    };
+    } catch (error) {
+      console.error('Error fetching tenant(s):', error);
+    }
+  };
 
-    fetchTenantData();
-  }, []);
+  fetchTenantData();
+}, []);
 
   useEffect(() => {
     if (formMode === 'Add') {

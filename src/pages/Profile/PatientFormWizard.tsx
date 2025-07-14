@@ -268,35 +268,46 @@ const PatientFormWizard: React.FC = () => {
   };
 
   useEffect(() => {
-    api
-      .get('/AppLOV')
-      .then((response) => {
-        console.log('Fetched data:', response.data);
-        const filteredBloodGroups = response.data.data.filter(
-          (item) => item.type === 'Bloodgroup',
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    try {
+      const parsed = JSON.parse(masterLOV);
+      if (parsed.success && Array.isArray(parsed.data)) {
+        const filteredBloodGroups = parsed.data.filter(
+          (item) => item.type?.toLowerCase() === 'bloodgroup'
         );
         setBloodGroups(filteredBloodGroups);
-      })
-      .catch((error) => {
-        console.error('Error fetching blood groups:', error);
-      });
-  }, []);
+      }
+    } catch (err) {
+      console.error('Error parsing masterLOV:', err);
+    }
+  } else {
+    console.warn('masterLOV not found for Blood Groups.');
+  }
+}, []);
+
 
   const [addressTypes, setAddressTypes] = useState([]);
 
-  useEffect(() => {
-    api
-      .get('/AppLOV')
-      .then((response) => {
-        const filteredAddressTypes = response.data.data.filter(
-          (item) => item.type === 'Address',
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    try {
+      const parsed = JSON.parse(masterLOV);
+      if (parsed.success && Array.isArray(parsed.data)) {
+        const filteredAddressTypes = parsed.data.filter(
+          (item) => item.type?.toLowerCase() === 'address'
         );
         setAddressTypes(filteredAddressTypes);
-      })
-      .catch((error) => {
-        console.error('Error fetching address types:', error);
-      });
-  }, []);
+      }
+    } catch (err) {
+      console.error('Error parsing masterLOV:', err);
+    }
+  } else {
+    console.warn('masterLOV not found for Address types.');
+  }
+}, []);
+
 
   useEffect(() => {
   const fetchFamilyData = async () => {
@@ -505,24 +516,24 @@ const PatientFormWizard: React.FC = () => {
   // Experience
 
   // Fetch the gender options on component mount
-  useEffect(() => {
-    const fetchGenderOptions = async () => {
-      try {
-        const response = await api.get('/AppLOV', {
-          params: { type: 'gender' },
-        });
-
-        if (response.data && response.data.data) {
-          console.log('Gender Options:', response.data.data); // 👈 Add this line
-          setGenderOptions(response.data.data);
-        }
-      } catch (error) {
-        console.error('Error fetching gender options:', error);
+useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    try {
+      const parsed = JSON.parse(masterLOV);
+      if (parsed.success && Array.isArray(parsed.data)) {
+        const genders = parsed.data.filter(
+          (item) => item.type?.toLowerCase() === 'gender'
+        );
+        setGenderOptions(genders);
       }
-    };
-
-    fetchGenderOptions();
-  }, []);
+    } catch (err) {
+      console.error('Error parsing masterLOV:', err);
+    }
+  } else {
+    console.warn('masterLOV not found for Gender.');
+  }
+}, []);
 
   // Handle input change for form data
 
@@ -1512,22 +1523,25 @@ const PatientFormWizard: React.FC = () => {
 
   //document upload
 
-  const fetchDocumentTypes = async () => {
+ const fetchDocumentTypes = () => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
     try {
-      const response = await api.get('/AppLOV?type=documentType');
-
-      if (response.data && Array.isArray(response.data.data)) {
-        const activeDocumentTypes = response.data.data.filter(
-          (item) => item.isActive === true, // or item.status === 'Active'
+      const parsed = JSON.parse(masterLOV);
+      if (parsed.success && Array.isArray(parsed.data)) {
+        const docs = parsed.data.filter(
+          (item) =>
+            item.type?.toLowerCase() === 'documenttype' && item.isActive
         );
-        setDocumentTypes(activeDocumentTypes);
-      } else {
-        console.error('Invalid data format:', response.data);
+        setDocumentTypes(docs);
       }
-    } catch (error) {
-      console.error('Failed to fetch document types:', error);
+    } catch (err) {
+      console.error('Error parsing masterLOV:', err);
     }
-  };
+  } else {
+    console.warn('masterLOV not found for Document Types.');
+  }
+};
 
   useEffect(() => {
     fetchDocumentTypes();

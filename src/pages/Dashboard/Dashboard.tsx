@@ -210,22 +210,22 @@ const AppointmentCard: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (roleName && roleName !== 'Patient') {
-      console.log('Calling fetchPatients...');
-      fetchPatients();
-    }
-  }, [roleName]);
+  // useEffect(() => {
+  //   if (roleName && roleName !== 'Patient') {
+  //     console.log('Calling fetchPatients...');
+  //     fetchPatients();
+  //   }
+  // }, [roleName]);
 
-  const fetchPatients = async () => {
-    try {
-      const res = await api.get('/Patient'); // 🔗 Relative to baseURL
-      console.log('Patient API Response:', res.data);
-      setPatients(res.data.data);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
-    }
-  };
+  // const fetchPatients = async () => {
+  //   try {
+  //     const res = await api.get('/Patient'); // 🔗 Relative to baseURL
+  //     console.log('Patient API Response:', res.data);
+  //     setPatients(res.data.data);
+  //   } catch (error) {
+  //     console.error('Error fetching patients:', error);
+  //   }
+  // };
 
   useEffect(() => {
     const userID = sessionStorage.getItem('userID');
@@ -586,62 +586,61 @@ const AppointmentCard: React.FC = () => {
     }
   };
 
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const activeStatusList = parsedLOV?.data?.filter(
+      (item: any) =>
+        item.type === 'AppointmentStatus' && item.isActive === true
+    ) || [];
+    setStatusList(activeStatusList);
+  } else {
+    console.warn('No masterLOV found in localStorage for AppointmentStatus');
+  }
+}, []);
+
+
   useEffect(() => {
-    const fetchStatusList = async () => {
-      try {
-        const response = await api.get('/AppLOV?type=AppointmentStatus');
-        // Filter only active items
-        if (Array.isArray(response.data?.data)) {
-          const activeStatusList = response.data.data.filter(
-            (item: any) => item.isActive === true,
-          );
-          setStatusList(activeStatusList);
-        }
-      } catch (error) {
-        console.error('Failed to fetch status list.', error);
+  const roleName = sessionStorage.getItem('roleName');
+  if (roleName === 'SuperAdmin') {
+    console.log('Skipping GetDoctorsList for SuperAdmin');
+    return;
+  }
+
+  api
+    .get('/Doctor/GetDoctorsList')
+    .then((response) => {
+      if (response.data.success && Array.isArray(response.data.data)) {
+        // Step 1: Remove duplicates
+        const uniqueMap = new Map();
+
+        response.data.data.forEach((doctor) => {
+          const nameKey = doctor.doctorName.toLowerCase().trim();
+          if (!uniqueMap.has(nameKey)) {
+            uniqueMap.set(nameKey, doctor);
+          }
+        });
+
+        const uniqueDoctors = Array.from(uniqueMap.values());
+
+        // Step 2: Sort names
+        const sortedDoctors = uniqueDoctors.sort((a, b) => {
+          const nameA = a.doctorName.trim();
+          const nameB = b.doctorName.trim();
+          return nameA.localeCompare(nameB, undefined, { sensitivity: 'base' });
+        });
+
+        setDoctors(sortedDoctors);
+      } else {
+        console.error('Invalid data format');
       }
-    };
+    })
+    .catch((error) => {
+      console.error('Error fetching doctors:', error);
+    });
+}, []);
 
-    fetchStatusList();
-  }, []);
-
-  useEffect(() => {
-    api
-      .get('/Doctor')
-      .then((response) => {
-        if (response.data.success && Array.isArray(response.data.data)) {
-          // Step 1: Remove duplicates
-          const uniqueMap = new Map();
-
-          response.data.data.forEach((doctor) => {
-            const nameKey = doctor.doctorName.toLowerCase().trim();
-            if (!uniqueMap.has(nameKey)) {
-              uniqueMap.set(nameKey, doctor);
-            }
-          });
-
-          const uniqueDoctors = Array.from(uniqueMap.values());
-
-          // Step 2: Forcefully sort Dr. names under 'D'
-          const sortedDoctors = uniqueDoctors.sort((a, b) => {
-            const nameA = a.doctorName.trim();
-            const nameB = b.doctorName.trim();
-
-            // Dr. names go by full string comparison as-is
-            return nameA.localeCompare(nameB, undefined, {
-              sensitivity: 'base',
-            });
-          });
-
-          setDoctors(sortedDoctors);
-        } else {
-          console.error('Invalid data format');
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching doctors:', error);
-      });
-  }, []);
 
   const toggleDropdown = (index: number) => {
     setDropdownVisible((prev) => ({
@@ -1224,10 +1223,15 @@ const AppointmentCard: React.FC = () => {
           params.DoctorID = selectedDoctorID;
         }
       } else {
-        if (selectedPatientID) {
-          params.PatientID = selectedPatientID;
-        }
-      }
+  if (selectedPatientID) {
+    if (roleName === 'SuperAdmin') {
+      params.PatientName = selectedPatientID.trim();
+    } else {
+      params.PatientID = selectedPatientID;
+    }
+  }
+}
+
 
       if (selectedStatusID) {
         params.StatusID = selectedStatusID;
@@ -1398,19 +1402,21 @@ const AppointmentCard: React.FC = () => {
           {/* Buttons */}
           <CustomButton onClick={handleSearch}>Search</CustomButton>
 
-          <CustomButton
-            onClick={() => {
-              setSelectedDoctorID('');
-              setFromTime('');
-              setToTime('');
-              setSelectedPatientID('');
-              setSelectedStatusID('');
-              fetchAppointmentsBasedOnRole(userID, roleName);
-            }}
-            className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
-          >
-            Reset
-          </CustomButton>
+         <CustomButton
+  onClick={() => {
+    const today = new Date().toISOString().split('T')[0]; // yyyy-mm-dd
+    setSelectedDoctorID('');
+    setFromTime(today);
+    setToTime('');
+    setSelectedPatientID('');
+    setSelectedStatusID('');
+    fetchAppointmentsBasedOnRole(userID, roleName);
+  }}
+  className="opacity-60 hover:opacity-100 border border-gray-300 flex items-center gap-2"
+>
+  Reset
+</CustomButton>
+
         </div>
 
         {roleName === 'Reception' && (
@@ -1526,7 +1532,7 @@ const AppointmentCard: React.FC = () => {
                       {appointment.patientPhoneNumber}
                     </div>
                   </div>
-                   {/* Hospital */}
+                  {/* Hospital */}
                   <div className="flex items-center mb-1">
                     <img
                       src={HospitalIcon}
@@ -1537,7 +1543,6 @@ const AppointmentCard: React.FC = () => {
                       {appointment.hospitalName}
                     </div>
                   </div>
-
                 </div>
 
                 {/* Column 2 - Hospital & Date */}
@@ -1551,27 +1556,25 @@ const AppointmentCard: React.FC = () => {
                     />
                     <div>{formatDate(appointment.appointmentDate)}</div>
                   </div>
-                
 
-              <div className="flex flex-col mb-1">
-  <div className="flex items-center mb-1">
-    <img
-      src={DoctorIcon}
-      alt="doctor"
-      className="w-4 h-5 mr-2"
-    />
-    <div className="whitespace-normal break-words">
-      {appointment.doctorName}
-    </div>
-  </div>
-  {/* <span
+                  <div className="flex flex-col mb-1">
+                    <div className="flex items-center mb-1">
+                      <img
+                        src={DoctorIcon}
+                        alt="doctor"
+                        className="w-4 h-5 mr-2"
+                      />
+                      <div className="whitespace-normal break-words">
+                        {appointment.doctorName}
+                      </div>
+                    </div>
+                    {/* <span
     className={`inline-block w-3 h-3 rounded-full ${
       appointment.checkInOut ? 'bg-green-500' : 'bg-red-500'
     }`}
     title={appointment.checkInOut ? 'Available' : 'Not Available'}
   ></span> */}
-</div>
-
+                  </div>
                 </div>
 
                 {/* Column 3 - Empty & Time */}

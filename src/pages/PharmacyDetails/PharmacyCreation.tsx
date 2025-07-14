@@ -174,83 +174,73 @@ const EPharmacyPage: React.FC = () => {
     setErrors((prev: any) => ({ ...prev, [field]: '' }));
   };
 
-  useEffect(() => {
-    const sessionTenantID = sessionStorage.getItem('tenantID');
-    const sessionHospitalID = sessionStorage.getItem('unitID');
+useEffect(() => {
+  const roleName = sessionStorage.getItem('roleName'); // ✅ get the role
 
-    setFormData((prev) => ({
-      ...prev,
-      tenant: sessionTenantID || '',
-      hospital: sessionHospitalID || '',
-    }));
+  if (roleName === 'SuperAdmin') {
+    // ❌ For SuperAdmin → skip prefill → do nothing
+    return;
+  }
 
-    if (sessionTenantID) setIsTenantPrefilled(true);
-    if (sessionHospitalID) setIsHospitalPrefilled(true);
-  }, []);
+  const sessionTenantID = sessionStorage.getItem('tenantID');
+  const sessionHospitalID = sessionStorage.getItem('unitID');
 
-  useEffect(() => {
-    const fetchPharmacyTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV?type=PharmacyType');
-        if (response.data.success) {
-          setPharmacyTypes(response.data.data);
-        } else {
-          console.warn('API returned success = false');
-        }
-      } catch (error) {
-        console.error('Error fetching pharmacy types:', error);
-        toast.error('Failed to load pharmacy types'); // Optional: user-facing feedback
-      }
-    };
+  setFormData((prev) => ({
+    ...prev,
+    tenant: sessionTenantID || '',
+    hospital: sessionHospitalID || '',
+  }));
 
-    fetchPharmacyTypes();
-  }, []);
+  if (sessionTenantID) setIsTenantPrefilled(true);
+  if (sessionHospitalID) setIsHospitalPrefilled(true);
+}, []);
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+ useEffect(() => {
+  const storedMaster = JSON.parse(localStorage.getItem('masterLOV') || '{}');
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
-        } else {
-          console.warn('Unexpected API response format');
-        }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
-      }
-    };
+  const dataArray = storedMaster.data || [];
 
-    fetchAddressTypes();
-  }, []);
+  const pharmacyTypes = dataArray.filter(
+    (item) => item.type === 'PharmacyType'
+  );
+
+  setPharmacyTypes(pharmacyTypes);
+}, []);
+
+
+ useEffect(() => {
+  const storedMaster = JSON.parse(localStorage.getItem('masterLOV') || '{}');
+
+  const dataArray = storedMaster.data || [];
+
+  const addressTypes = dataArray.filter(
+    (item) => item.type === 'Address'
+  );
+
+  setAddressTypes(addressTypes);
+}, []);
+
 
 useEffect(() => {
   const fetchTenants = async () => {
     try {
-      const response = await api.get('/Tenant');
+      const response = await api.get('/Tenant/TenantList');
 
       if (response.data.success && Array.isArray(response.data.data)) {
-        const activeTenants = response.data.data.filter((t) => t.isActive);
-        setTenants(activeTenants);
+        const tenants = response.data.data; // ✅ use as-is
+        setTenants(tenants);
 
         const roleName = sessionStorage.getItem('roleName');
         const tenantID = sessionStorage.getItem('tenantID');
 
-        // Prefill only if NOT SuperAdmin
         if (roleName !== 'SuperAdmin' && tenantID) {
           setFormData((prev) => ({
             ...prev,
             tenant: tenantID,
           }));
-          setIsTenantPrefilled(true); // disable dropdown
+          setIsTenantPrefilled(true);
         } else {
-          setIsTenantPrefilled(false); // allow SuperAdmin to select
+          setIsTenantPrefilled(false);
         }
       } else {
         console.warn('Unexpected tenant response format');
@@ -267,39 +257,54 @@ useEffect(() => {
 
  useEffect(() => {
   const fetchHospitals = async () => {
-    const selectedTenantId = formData.tenant || sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
+    const storedTenantID = sessionStorage.getItem('tenantID');
 
-    if (!selectedTenantId) {
+    let selectedTenantID = '';
+
+    if (roleName === 'SuperAdmin') {
+      selectedTenantID = formData.tenant; // ✅ only what user picks
+    } else {
+      selectedTenantID = formData.tenant || storedTenantID;
+    }
+
+    // 👉 If HospitalAdmin and tenant not set yet: prefill and exit.
+    if (roleName === 'HospitalAdmin' && storedTenantID && !formData.tenant) {
+      setFormData((prev) => ({
+        ...prev,
+        tenant: storedTenantID,
+      }));
+      return; // ✅ do NOT call fetch yet, will run again when tenant updates
+    }
+
+    if (!selectedTenantID) {
+      console.error('Tenant ID not available.');
       setHospitals([]);
       return;
     }
 
     try {
-      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantId}`);
-      if (Array.isArray(response.data)) {
-        const activeHospitals = response.data.filter((h) => h.isActive);
-        setHospitals(activeHospitals);
+      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantID}`);
+      const data = response.data;
 
-        // Auto-select if only one hospital
-        if (activeHospitals.length === 1 && !isHospitalPrefilled) {
-          setFormData((prev) => ({
-            ...prev,
-            hospital: activeHospitals[0].hospitalID,
-          }));
-        }
+      console.log('Filtered Hospitals:', data);
+
+      if (Array.isArray(data)) {
+        const activeHospitals = data.filter((hospital) => hospital.isActive);
+        setHospitals(activeHospitals);
       } else {
-        console.warn('Unexpected response format for hospitals');
+        console.warn('Unexpected response format:', data);
         setHospitals([]);
       }
     } catch (error) {
       console.error('Error fetching hospitals:', error);
-      toast.error('Failed to load hospitals');
       setHospitals([]);
     }
   };
 
   fetchHospitals();
-}, [formData.tenant]); // 🔁 Refetch hospitals whenever tenant changes
+}, [formData.tenant]);
+ // 🔁 Refetch hospitals whenever tenant changes
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };

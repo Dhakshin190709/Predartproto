@@ -103,7 +103,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
       // If not doctor, fetch doctors for selected hospital
       if (!hospitalId) return;
 
-      const response = await api.get(`/Doctor`, {
+      const response = await api.get(`/Doctor/GetDoctorsList`, {
         params: { hospitalId },
       });
 
@@ -129,23 +129,34 @@ const [toastInProgress, setToastInProgress] = useState(false);
     fetchStatusOptions();
   }, []);
 
-  const fetchStatusOptions = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'AppointmentStatus' },
-      });
-      const data = response.data?.data || [];
-      setStatusOptions(data);
+  const fetchStatusOptions = () => {
+  try {
+    const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
 
-      const statusMap = data.reduce((acc: any, item: any) => {
-        acc[item.appLOVID] = item.name;
-        return acc;
-      }, {});
+    if (masterLOV && Array.isArray(masterLOV.data)) {
+      const statusItems = masterLOV.data.filter(
+        (item: any) => item.type === 'AppointmentStatus'
+      );
+
+      setStatusOptions(statusItems);
+
+      const statusMap = statusItems.reduce(
+        (acc: Record<string, string>, item: any) => {
+          acc[item.appLOVID] = item.name;
+          return acc;
+        },
+        {}
+      );
+
       setStatusMapping(statusMap);
-    } catch (error) {
-      console.error('Error fetching status data:', error);
+    } else {
+      console.warn('No masterLOV data found in localStorage.');
     }
-  };
+  } catch (error) {
+    console.error('Error reading status data from localStorage:', error);
+  }
+};
+
 
   const handleDoctorChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedDoctor(event.target.value);

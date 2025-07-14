@@ -265,14 +265,14 @@ const DoctorForm: React.FC = () => {
 
   useEffect(() => {
     fetchHospitals();
-    fetchWeekdays();
+   
     fetchDoctorTimeSlots();
   }, []);
 
   const fetchHospitals = async () => {
     try {
       const unitID = sessionStorage.getItem('unitID');
-      const response = await api.get('/Hospital/List'); // ✅ Axios handles base URL and response parsing
+      const response = await api.get('/Hospital/HospitalsList'); // ✅ Axios handles base URL and response parsing
 
       const result = response.data;
 
@@ -291,18 +291,19 @@ const DoctorForm: React.FC = () => {
     }
   };
 
-  const fetchWeekdays = async () => {
-    try {
-      const response = await api.get('/AppLOV?type=Weekday'); // ✅ Only relative path
-      const result = response.data;
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    const filtered = parsed.data?.filter(
+      (item: any) => item.type?.toLowerCase() === 'weekday'
+    );
+    setWeekdays(filtered || []);
+  } else {
+    console.warn('⚠️ masterLOV not found for Weekdays');
+  }
+}, []);
 
-      if (result.success && Array.isArray(result.data)) {
-        setWeekdays(result.data);
-      }
-    } catch (error) {
-      console.error('Error fetching weekdays:', error);
-    }
-  };
 
   const handleTimeChange = (slots, setSlots, index, field, value) => {
     const updatedSlots = [...slots];
@@ -623,7 +624,7 @@ const DoctorForm: React.FC = () => {
           return;
         }
 
-        const hospitalRes = await api.get('/Hospital/List');
+        const hospitalRes = await api.get('/Hospital/HospitalsList');
         const allHospitals = hospitalRes.data;
 
         const activeHospitals = allHospitals
@@ -657,7 +658,7 @@ const DoctorForm: React.FC = () => {
     };
 
     fetchDoctorAndHospital();
-    fetchWeekdays();
+   
     fetchDoctorTimeSlots();
   }, []);
 
@@ -1761,49 +1762,40 @@ const DoctorForm: React.FC = () => {
     return newErrors.every((err) => Object.keys(err).length === 0);
   };
 
-  useEffect(() => {
-    const fetchSkills = async () => {
-      try {
-        const res = await api.get('/AppLOV', {
-          params: { type: 'Specializations' },
-        });
-        const activeSkills = res.data.data.filter((item: any) => item.isActive);
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    const activeSkills = parsed.data?.filter(
+      (item: any) =>
+        item.type?.toLowerCase() === 'specializations' && item.isActive
+    );
+    const formattedSkills = activeSkills?.map((item: any) => ({
+      id: item.appLOVID,
+      name: item.name,
+    }));
+    console.log('Skills from local:', formattedSkills);
+    setSkillsList(formattedSkills || []);
+  } else {
+    console.warn('⚠️ masterLOV not found for Specializations');
+  }
+}, []);
 
-        const formattedSkills = activeSkills.map((item: any) => ({
-          id: item.appLOVID, // MUST be GUID
-          name: item.name,
-        }));
 
-        console.log(formattedSkills); // Log the skills list here to check
-        setSkillsList(formattedSkills);
-      } catch (err) {
-        console.error('Error fetching skills:', err);
-      }
-    };
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    const filtered = parsed.data?.filter(
+      (item: any) => item.type?.toLowerCase() === 'worktype'
+    );
+    console.log('📌 Employment Types from local:', filtered);
+    setEmploymentTypes(filtered || []);
+  } else {
+    console.warn('⚠️ masterLOV not found for Employment Types');
+  }
+}, []);
 
-    fetchSkills();
-  }, []);
-
-  useEffect(() => {
-    const fetchEmploymentTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV', {
-          params: { type: 'Worktype' },
-        });
-        console.log('📌 Employment Type API Response:', response.data);
-
-        if (response.data?.data) {
-          setEmploymentTypes(response.data.data);
-        } else {
-          console.warn('⚠️ Employment Types response missing data key');
-        }
-      } catch (err) {
-        console.error('❌ Error fetching Employment Types:', err);
-      }
-    };
-
-    fetchEmploymentTypes();
-  }, []);
 
   const isDuplicateExperience = (exp: any, list: any[]) => {
     return list.some(
@@ -2053,23 +2045,20 @@ const DoctorForm: React.FC = () => {
     return isValid;
   };
 
-  useEffect(() => {
-    api
-      .get('/AppLOV?Type=LanguageMaster')
-      .then((res) => {
-        console.log('Language options:', res.data);
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    const filtered = parsed.data?.filter(
+      (item: any) => item.type?.toLowerCase() === 'languagemaster'
+    );
+    console.log('Language Options from local:', filtered);
+    setLanguageOptions(filtered || []);
+  } else {
+    console.warn('⚠️ masterLOV not found for LanguageMaster');
+  }
+}, []);
 
-        if (res.data && res.data.data) {
-          setLanguageOptions(res.data.data);
-        } else {
-          console.error('Unexpected response structure:', res.data);
-        }
-      })
-      .catch((error) => {
-        console.error('Error fetching language options:', error);
-        alert('Error fetching language options');
-      });
-  }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const lastSubmittedPayload = useRef<string | null>(null);
@@ -2690,23 +2679,19 @@ const DoctorForm: React.FC = () => {
       .catch(console.error);
   };
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV'); // ✅ Relative path
-        const data = response.data;
+ useEffect(() => {
+  const masterLOV = localStorage.getItem('masterLOV');
+  if (masterLOV) {
+    const parsed = JSON.parse(masterLOV);
+    const filtered = parsed.data?.filter(
+      (item: any) => item.type?.toLowerCase() === 'address'
+    );
+    setAddressTypes(filtered || []);
+  } else {
+    console.warn('⚠️ masterLOV not found for Address Types');
+  }
+}, []);
 
-        const filteredAddressTypes = data.data.filter(
-          (item: any) => item.type === 'Address',
-        );
-        setAddressTypes(filteredAddressTypes);
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-      }
-    };
-
-    fetchAddressTypes();
-  }, []);
 
   const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
@@ -3154,33 +3139,47 @@ const DoctorForm: React.FC = () => {
       .catch((err) => console.error('Error fetching tenants:', err));
   }, []);
 
-  const fetchLOV = useCallback(
-    async (
-      type: string,
-      setter: React.Dispatch<
-        React.SetStateAction<{ id: number; name: string }[]>
-      >,
-    ) => {
-      try {
-        const res = await api.get(`/AppLOV?type=${type}`); // ✅ Only the endpoint path
-        const activeItems = res.data.data.filter((item: any) => item.isActive);
-        setter(
-          activeItems.map((item: any) => ({
-            id: item.appLOVID,
-            name: item.name,
-          })),
-        );
-      } catch (err) {
-        console.error(`Error fetching ${type}:`, err);
+ const fetchLOV = useCallback(
+  (
+    type: string,
+    setter: React.Dispatch<
+      React.SetStateAction<{ id: number | string; name: string }[]>
+    >,
+  ) => {
+    try {
+      const masterLOV = localStorage.getItem('masterLOV');
+      if (!masterLOV) {
+        console.warn(`⚠️ masterLOV not found for ${type}`);
+        setter([]);
+        return;
       }
-    },
-    [], // ✅ Memoized on mount
-  );
+
+      const parsed = JSON.parse(masterLOV);
+      const activeItems = parsed.data?.filter(
+        (item: any) =>
+          item.type?.toLowerCase() === type.toLowerCase() && item.isActive,
+      );
+
+      setter(
+        activeItems?.map((item: any) => ({
+          id: item.appLOVID,
+          name: item.name,
+        })) || [],
+      );
+    } catch (err) {
+      console.error(`❌ Error reading ${type} from localStorage:`, err);
+      setter([]);
+    }
+  },
+  [], // ✅ Still memoized!
+);
+
   useEffect(() => {
-    fetchLOV('Qualification', setQualifications);
-    fetchLOV('Specializations', setSpecializations);
-    fetchLOV('Gender', setGenders);
-  }, [fetchLOV]);
+  fetchLOV('Qualification', setQualifications);
+  fetchLOV('Specializations', setSpecializations);
+  fetchLOV('Gender', setGenders);
+}, [fetchLOV]);
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

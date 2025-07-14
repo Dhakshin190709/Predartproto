@@ -40,6 +40,9 @@ const DoctorRegistration: React.FC = () => {
     pan: '',
     tenant: '',
   });
+  const roleName = sessionStorage.getItem('roleName');
+  const isSuperAdmin = roleName === 'SuperAdmin';
+
   const [hospitals, setHospitals] = useState([]);
   const [tenants, setTenants] = useState([]); // State for tenant data
   const [selectedTenant, setSelectedTenant] = useState('');
@@ -55,12 +58,10 @@ const DoctorRegistration: React.FC = () => {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null);
   const [aadhaarExists, setAadhaarExists] = useState<boolean | null>(null); // null: not checked, false: does not exist, true: exists
   const [panExists, setPanExists] = useState<boolean | null>(null);
-  const roleName = sessionStorage.getItem('roleName');
 
   const [phoneAvailable, setPhoneAvailable] = useState<boolean | null>(null);
 
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-const [toastInProgress, setToastInProgress] = useState(false);
+  const [toastInProgress, setToastInProgress] = useState(false);
   const [genders, setGenders] = useState([]);
   const [hospitalTypes, setHospitalTypes] = useState([]);
 
@@ -118,23 +119,24 @@ const [toastInProgress, setToastInProgress] = useState(false);
       newErrors.qualification = 'Qualification is required.';
     if (!formData.specialization)
       newErrors.specialization = 'Specialization is required.';
-    if (!formData.tenant) newErrors.tenant = 'Tenant is required.';
+    if (roleName === 'SuperAdmin' && !formData.tenant) {
+      newErrors.tenant = 'Tenant is required.';
+    }
     if (!formData.hospitalType)
       newErrors.hospitalType = 'Hospital is required.';
     if (!formData.gender) newErrors.gender = 'Gender is required.';
 
     if (!formData.aadhaar) {
-  newErrors.aadhaar = 'Aadhaar is required.';
-} else if (!/^\d{12}$/.test(formData.aadhaar)) {
-  newErrors.aadhaar = 'Aadhaar must be a 12-digit number.';
-} else if (
-  /^(\d)\1{11}$/.test(formData.aadhaar) ||       // Same digit repeated 12 times (e.g., 000000000000)
-  /^0{6,}\d{6,}$/.test(formData.aadhaar) ||      // 6+ leading 0s (e.g., 000000123456)
-  /^(\d{6})\1$/.test(formData.aadhaar)           // Repeating 6-digit blocks (e.g., 123456123456)
-) {
-  newErrors.aadhaar = 'Invalid Aadhaar number.';
-}
-
+      newErrors.aadhaar = 'Aadhaar is required.';
+    } else if (!/^\d{12}$/.test(formData.aadhaar)) {
+      newErrors.aadhaar = 'Aadhaar must be a 12-digit number.';
+    } else if (
+      /^(\d)\1{11}$/.test(formData.aadhaar) || // Same digit repeated 12 times (e.g., 000000000000)
+      /^0{6,}\d{6,}$/.test(formData.aadhaar) || // 6+ leading 0s (e.g., 000000123456)
+      /^(\d{6})\1$/.test(formData.aadhaar) // Repeating 6-digit blocks (e.g., 123456123456)
+    ) {
+      newErrors.aadhaar = 'Invalid Aadhaar number.';
+    }
 
     if (!trimmedPan) {
       newErrors.pan = 'PAN is required.';
@@ -212,12 +214,12 @@ const [toastInProgress, setToastInProgress] = useState(false);
   const handleRegister = async () => {
     const userID = sessionStorage.getItem('userID');
     if (!userID) {
-    if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.error('User not logged in. Please log in again.', {
-        onClose: () => setToastInProgress(false),
-      });
-    }
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('User not logged in. Please log in again.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       return { isValid: false, errors: { userID: 'User not logged in.' } };
     }
 
@@ -226,12 +228,12 @@ const [toastInProgress, setToastInProgress] = useState(false);
     const isValid = await validateFields();
     if (!isValid) {
       console.log('Validation failed!');
-       if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.error('Validation failed. Please correct the errors.', {
-        onClose: () => setToastInProgress(false),
-      });
-    }
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Validation failed. Please correct the errors.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
       return;
     }
 
@@ -263,12 +265,12 @@ const [toastInProgress, setToastInProgress] = useState(false);
         sessionStorage.setItem('doctorID', doctorID);
         console.log('Stored doctorID:', doctorID);
 
-         if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.success('Doctor registered successfully!', {
-          onClose: () => setToastInProgress(false),
-        });
-      }
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.success('Doctor registered successfully!', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
         setFormData((prev) => ({
           ...prev,
           name: '',
@@ -280,9 +282,14 @@ const [toastInProgress, setToastInProgress] = useState(false);
           DateOfBirth: '',
           aadhaar: '',
           pan: '',
-          // 👇 retain these
-          tenant: prev.tenant,
-          hospitalType: prev.hospitalType,
+          tenant:
+            roleName === 'SuperAdmin'
+              ? '' // ✅ Clear tenant for SuperAdmin
+              : prev.tenant,
+          hospitalType:
+            roleName === 'SuperAdmin'
+              ? '' // ✅ Clear hospitalType for SuperAdmin
+              : prev.hospitalType,
         }));
         setErrors({});
         // ✅ Clear Aadhaar/PAN existence checks
@@ -290,22 +297,34 @@ const [toastInProgress, setToastInProgress] = useState(false);
         setPanExists(null);
       } else {
         if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.error('Something went wrong. Please try again.', {
-          onClose: () => setToastInProgress(false),
-        });
-      }
+          setToastInProgress(true);
+          toast.error('Something went wrong. Please try again.', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
       if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.error('Error occurred while registering the doctor.', {
-        onClose: () => setToastInProgress(false),
-      });
-    }
+        setToastInProgress(true);
+        toast.error('Error occurred while registering the doctor.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
     }
   };
+
+useEffect(() => {
+  const storedHospitalID = sessionStorage.getItem('hospitalID');
+  const roleName = sessionStorage.getItem('roleName');
+
+  if (roleName === 'HospitalAdmin' && storedHospitalID) {
+    setFormData((prev) => ({
+      ...prev,
+      hospitalType: storedHospitalID
+    }));
+  }
+}, []);
 
   const handleSingleInputChange = (field: string, value: string) => {
     // Only convert PAN to uppercase
@@ -367,50 +386,70 @@ const [toastInProgress, setToastInProgress] = useState(false);
     }
   };
 
-  useEffect(() => {
-    const fetchAppLOV = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const data = response.data;
+ useEffect(() => {
+  const lovString = localStorage.getItem('masterLOV');
 
-        if (data) {
-          // Filter and set state based on item type
-          setQualifications(
-            data.data.filter(
-              (item: { type: string }) => item.type === 'Qualification',
-            ),
-          );
-          setSpecializations(
-            data.data.filter(
-              (item: { type: string }) => item.type === 'Specializations',
-            ),
-          );
-          setGenders(
-            data.data.filter(
-              (item: { type: string }) => item.type === 'Gender',
-            ),
-          );
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error);
-      }
-    };
+  if (lovString) {
+    const parsed = JSON.parse(lovString);
+    const lovArray = parsed.data || []; // ✅ Get `data` array
 
-    fetchAppLOV();
-  }, []);
+    const qualificationItems = lovArray.filter(
+      (item: { type: string }) => item.type === 'Qualification'
+    );
 
-  useEffect(() => {
+    const specializationItems = lovArray.filter(
+      (item: { type: string }) => item.type === 'Specializations'
+    );
+
+    const genderItems = lovArray.filter(
+      (item: { type: string }) => item.type === 'Gender'
+    );
+
+    setQualifications(qualificationItems);
+    setSpecializations(specializationItems);
+    setGenders(genderItems);
+
+    console.log('Loaded LOV from localStorage:', {
+      qualificationItems,
+      specializationItems,
+      genderItems
+    });
+  } else {
+    console.error('No masterLOV found in localStorage.');
+  }
+}, []);
+
+
+ useEffect(() => {
   const fetchHospitals = async () => {
-    const selectedTenantId = formData.tenant || sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
+    const storedTenantID = sessionStorage.getItem('tenantID');
 
-    if (!selectedTenantId) {
+    let selectedTenantID = '';
+
+    if (roleName === 'SuperAdmin') {
+      selectedTenantID = formData.tenant; // ✅ only what user picks
+    } else {
+      selectedTenantID = formData.tenant || storedTenantID;
+    }
+
+    // 👉 If HospitalAdmin and tenant not set yet: prefill and exit.
+    if (roleName === 'HospitalAdmin' && storedTenantID && !formData.tenant) {
+      setFormData((prev) => ({
+        ...prev,
+        tenant: storedTenantID,
+      }));
+      return; // ✅ do NOT call fetch yet, will run again when tenant updates
+    }
+
+    if (!selectedTenantID) {
       console.error('Tenant ID not available.');
       setHospitals([]);
       return;
     }
 
     try {
-      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantId}`);
+      const response = await api.get(`/Hospital/HospitalsList?tenantId=${selectedTenantID}`);
       const data = response.data;
 
       console.log('Filtered Hospitals:', data);
@@ -429,7 +468,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
   };
 
   fetchHospitals();
-}, [formData.tenant]); // 👈 Re-fetch whenever tenant changes
+}, [formData.tenant]);
 
 
   // Prefill the dropdown with hospital from session
@@ -443,73 +482,20 @@ const [toastInProgress, setToastInProgress] = useState(false);
     }
   }, []);
 
-  // Fetch and set user roles to determine if user is a SuperAdmin
-  useEffect(() => {
-    const userID = sessionStorage.getItem('userID');
-    const tenantID = sessionStorage.getItem('tenantID');
-
-    console.log('UserID from session:', userID);
-    console.log('TenantID from session:', tenantID);
-    if (!userID) {
-      console.error('User ID not found in session storage.');
-      return;
-    }
-
-    const fetchUserRoles = async () => {
-      try {
-        // Fetch user roles
-        const roleResponse = await api.get(`/UserRoles/${userID}`);
-
-        if (
-          !roleResponse.data.success ||
-          !Array.isArray(roleResponse.data.data) ||
-          roleResponse.data.data.length === 0
-        ) {
-          throw new Error('No user roles found.');
-        }
-
-        const roleIDs = roleResponse.data.data.map(
-          (item: { roleID: number }) => item.roleID,
-        );
-
-        // Fetch role names for each role ID
-        const roleNamesPromises = roleIDs.map(async (roleID: number) => {
-          try {
-            const roleResponse = await api.get(`/Role/${roleID}`);
-            return (
-              roleResponse.data.data?.roleName || `Unknown Role (${roleID})`
-            );
-          } catch (error) {
-            console.error(`Failed to fetch role for roleID: ${roleID}`);
-            return null; // Handle failure gracefully
-          }
-        });
-
-        const resolvedRoleNames = await Promise.all(roleNamesPromises);
-
-        // Set isSuperAdmin to true if the resolved roles include "SuperAdmin"
-        setIsSuperAdmin(resolvedRoleNames.includes('SuperAdmin'));
-      } catch (error) {
-        console.error('Error fetching user roles:', error);
-      }
-    };
-
-    fetchUserRoles();
-  }, []);
-
   useEffect(() => {
     const fetchTenantData = async () => {
       try {
-        // Using axios to fetch tenant data
-        const response = await api.get('/Tenant'); // '/Tenant' is the endpoint
+        const response = await api.get('/Tenant/TenantList');
         console.log('Tenant Data:', response.data);
 
-        const tenantList = response.data.data || response.data; // Adjust based on your response structure
+        const tenantList = response.data.data || response.data;
         setTenants(tenantList);
 
-        // Check for stored tenantID in sessionStorage
         const storedTenantID = sessionStorage.getItem('tenantID');
-        if (storedTenantID) {
+        const roleName = sessionStorage.getItem('roleName');
+
+        // Only prefill if role is NOT SuperAdmin
+        if (storedTenantID && roleName !== 'SuperAdmin') {
           const tenantExists = tenantList.find(
             (tenant) =>
               tenant.tenantID === storedTenantID ||
@@ -517,7 +503,10 @@ const [toastInProgress, setToastInProgress] = useState(false);
           );
 
           if (tenantExists) {
-            setFormData((prev) => ({ ...prev, tenant: storedTenantID }));
+            setFormData((prev) => ({
+              ...prev,
+              tenantID: storedTenantID, // ✅ Correct key here
+            }));
           }
         }
       } catch (error) {
@@ -526,7 +515,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
     };
 
     fetchTenantData();
-  }, []); // Empty dependency array means this will run once when the component mounts
+  }, []);
 
   const handleUsernameBlur = async () => {
     setTouchedFields((prev) => ({ ...prev, name: true }));
@@ -552,39 +541,38 @@ const [toastInProgress, setToastInProgress] = useState(false);
     }
   };
 
- const handlePhoneBlur = async () => {
-  const phone = formData.phone.trim();
-  const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
+  const handlePhoneBlur = async () => {
+    const phone = formData.phone.trim();
+    const phoneRegex = /^(?!.*(\d)\1{4,})[6-9]\d{9}$/;
 
-  if (!phoneRegex.test(phone)) {
-    setErrors((prev) => ({
-      ...prev,
-      phone: 'Invalid phone number format.',
-    }));
-    setPhoneAvailable(false);
-    return;
-  }
-
-  try {
-    const { success, message } = await checkPhoneAvailability(phone);
-
-    if (!success) {
-      setErrors((prev) => ({ ...prev, phone: message }));
+    if (!phoneRegex.test(phone)) {
+      setErrors((prev) => ({
+        ...prev,
+        phone: 'Invalid phone number format.',
+      }));
       setPhoneAvailable(false);
-    } else {
-      setErrors((prev) => ({ ...prev, phone: '' }));
-      setPhoneAvailable(true);
+      return;
     }
-  } catch (error) {
-    console.error('Phone availability check failed:', error);
-    setErrors((prev) => ({
-      ...prev,
-      phone: 'Error checking phone availability.',
-    }));
-    setPhoneAvailable(false);
-  }
-};
 
+    try {
+      const { success, message } = await checkPhoneAvailability(phone);
+
+      if (!success) {
+        setErrors((prev) => ({ ...prev, phone: message }));
+        setPhoneAvailable(false);
+      } else {
+        setErrors((prev) => ({ ...prev, phone: '' }));
+        setPhoneAvailable(true);
+      }
+    } catch (error) {
+      console.error('Phone availability check failed:', error);
+      setErrors((prev) => ({
+        ...prev,
+        phone: 'Error checking phone availability.',
+      }));
+      setPhoneAvailable(false);
+    }
+  };
 
   return (
     <div className="bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
@@ -600,52 +588,45 @@ const [toastInProgress, setToastInProgress] = useState(false);
             {/* Tenant */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                {/* Conditionally render the tenant dropdown only for SuperAdmin */}
-                {isSuperAdmin && (
-                  <div>
-                    <select
-                      name="tenant"
-                      value={formData.tenant}
-                      onChange={(e) =>
-                        setFormData({ ...formData, tenant: e.target.value })
-                      }
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                 text-black outline-none focus:border-primary dark:border-form-strokedark 
-                 dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    >
-                      <option value="">Select Tenant</option>
-                      {tenants.map((tenant) => (
-                        <option
-                          key={tenant.tenantID || tenant.id}
-                          value={tenant.tenantID || tenant.id}
-                        >
-                          {tenant.tenantName || tenant.name || 'Unnamed Tenant'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                {!isSuperAdmin && (
-                  <div>
-                    <select
-                      disabled
-                      name="tenant"
-                      value={formData.tenant}
-                      className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-                 text-black outline-none focus:border-primary dark:border-form-strokedark 
-                 dark:bg-form-input dark:text-white dark:focus:border-primary"
-                    >
-                      {tenants.map((tenant) => (
-                        <option
-                          key={tenant.tenantID || tenant.id}
-                          value={tenant.tenantID || tenant.id}
-                        >
-                          {tenant.tenantName || tenant.name || 'Default Tenant'}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                {isSuperAdmin ? (
+                  <select
+                    name="tenant"
+                    value={formData.tenant}
+                    onChange={(e) =>
+                      setFormData({ ...formData, tenant: e.target.value })
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Tenant</option>
+                    {tenants.map((tenant) => (
+                      <option
+                        key={tenant.tenantID || tenant.id}
+                        value={tenant.tenantID || tenant.id}
+                      >
+                        {tenant.tenantName || tenant.name || 'Unnamed Tenant'}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <select
+                    disabled
+                    name="tenant"
+                    value={formData.tenant}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+      text-black outline-none focus:border-primary dark:border-form-strokedark 
+      dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    {tenants.map((tenant) => (
+                      <option
+                        key={tenant.tenantID || tenant.id}
+                        value={tenant.tenantID || tenant.id}
+                      >
+                        {tenant.tenantName || tenant.name || 'Default Tenant'}
+                      </option>
+                    ))}
+                  </select>
                 )}
 
                 {errors.tenant && (
@@ -657,15 +638,13 @@ const [toastInProgress, setToastInProgress] = useState(false);
               <div>
                 <select
                   value={formData.hospitalType}
-                  disabled={
-                    roleName !== 'SuperAdmin' && roleName !== 'TenantAdmin'
-                  }
+                  disabled={!isSuperAdmin && roleName !== 'TenantAdmin'}
                   onChange={(e) =>
                     handleSingleInputChange('hospitalType', e.target.value)
                   }
                   className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
-      text-black outline-none focus:border-primary dark:border-form-strokedark 
-      dark:bg-form-input dark:text-white dark:focus:border-primary"
+    text-black outline-none focus:border-primary dark:border-form-strokedark 
+    dark:bg-form-input dark:text-white dark:focus:border-primary"
                 >
                   <option value="">Select Hospital</option>
                   {hospitals.length > 0 ? (
@@ -803,8 +782,6 @@ const [toastInProgress, setToastInProgress] = useState(false);
             </div>
             {/* Qualification */}
             <div className="grid grid-cols-2 gap-4">
-           
-
               {/* Specialization */}
               <div>
                 <select
@@ -837,7 +814,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
                 )}
               </div>
 
-                 {/* Qualification */}
+              {/* Qualification */}
               <div>
                 <select
                   value={formData.qualification}

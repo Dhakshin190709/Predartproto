@@ -1,12 +1,22 @@
 
 import axios from "axios";
 import api from "./api/request";
-export const fetchHospitalAPI = async () => {
-  try {
-    const response = await api.get('/AppLOV');
-    const data = response.data;
 
-    console.log("Fetched Data:", data); // Log to check structure
+export const fetchHospitalAPI = () => {
+  try {
+    const masterLOVString = localStorage.getItem('masterLOV');
+
+    if (!masterLOVString) {
+      console.warn('No masterLOV found in localStorage.');
+      return [];
+    }
+
+    const data = JSON.parse(masterLOVString);
+
+    if (!data || !Array.isArray(data.data)) {
+      console.warn('Invalid masterLOV structure.');
+      return [];
+    }
 
     return data.data
       .filter((item: { type: string }) => item.type === "Hospital")
@@ -15,15 +25,16 @@ export const fetchHospitalAPI = async () => {
         name: item.name,
       }));
   } catch (error) {
-    console.error("Error fetching data:", error);
+    console.error('Error reading Hospital data from localStorage:', error);
     return [];
   }
 };
+
   
   //Fetch Tenant
  export const fetchTenants = async () => {
   try {
-    const response = await api.get('/Tenant');
+    const response = await api.get('/Tenant/TenantList');
     // Axios automatically parses JSON and returns the data
     // Adjust below depending on your API response structure
     return response.data.data || response.data;
@@ -35,25 +46,34 @@ export const fetchHospitalAPI = async () => {
 
   
   // Fetch specialization
-  export const fetchSpecializations = async (): Promise<{ [key: string]: string }> => {
+  export const fetchSpecializations = (): { [key: string]: string } => {
   try {
-    const response = await api.get('/AppLOV', {
-      params: { type: 'Specializations' },
-    });
-    const data = response.data;
+    const masterLOVString = localStorage.getItem('masterLOV');
 
-    if (data.success && Array.isArray(data.data)) {
-      return data.data.reduce((acc: { [key: string]: string }, spec: any) => {
+    if (!masterLOVString) {
+      console.warn('No masterLOV found in localStorage.');
+      return {};
+    }
+
+    const data = JSON.parse(masterLOVString);
+
+    if (!data || !Array.isArray(data.data)) {
+      console.warn('Invalid masterLOV structure.');
+      return {};
+    }
+
+    return data.data
+      .filter((item: { type: string }) => item.type === "Specializations")
+      .reduce((acc: { [key: string]: string }, spec: any) => {
         acc[String(spec.appLOVID).trim()] = spec.name;
         return acc;
       }, {});
-    }
-    return {};
   } catch (error) {
-    console.error("Error fetching Specializations:", error);
+    console.error("Error reading Specializations from localStorage:", error);
     return {};
   }
 };
+
 
 
 // Fetch Role

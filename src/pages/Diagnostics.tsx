@@ -475,29 +475,34 @@ const Diagnostics: React.FC = () => {
     fetchStates();
   }, []);
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+ useEffect(() => {
+  const fetchAddressTypes = () => {
+    const master = localStorage.getItem('masterLOV');
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
+    if (master) {
+      try {
+        const parsed = JSON.parse(master);
+        const items = parsed.data || parsed; // depends how you saved it
+
+        if (Array.isArray(items)) {
+          const filteredAddressTypes = items.filter(
+            (item: any) => item.type === 'Address'
           );
           setAddressTypes(filteredAddressTypes);
         } else {
-          console.warn('Unexpected API response format');
+          console.warn('masterLOV format unexpected:', parsed);
         }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
+      } catch (err) {
+        console.error('Error parsing masterLOV:', err);
       }
-    };
+    } else {
+      console.warn('masterLOV not found in localStorage');
+    }
+  };
 
-    fetchAddressTypes();
-  }, []);
+  fetchAddressTypes();
+}, []);
+
 
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };

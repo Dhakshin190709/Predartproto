@@ -75,79 +75,80 @@ const TenantPromoUsage: React.FC = () => {
   }, [formMode]);
 
   const fetchTenants = async () => {
-    try {
-      const tenantID = sessionStorage.getItem('tenantID');
-      const roleName = sessionStorage.getItem('roleName');
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+    const roleName = sessionStorage.getItem('roleName');
 
-      console.log('Role:', roleName);
-      console.log('Tenant ID from session:', tenantID);
+    console.log('Role:', roleName);
+    console.log('Tenant ID from session:', tenantID);
 
-      if (roleName === 'TenantAdmin' && tenantID) {
-        console.log('Fetching single tenant...');
-        const response = await api.get(`/Tenant/${tenantID}`);
-        console.log('Single tenant API response:', response.data);
+    if (roleName === 'TenantAdmin' && tenantID) {
+      console.log('Fetching single tenant...');
+      const response = await api.get(`/Tenant/${tenantID}`);
+      console.log('Single tenant API response:', response.data);
 
-        if (response.data.success && response.data.data) {
-          const tenant = response.data.data;
+      if (response.data.success && response.data.data) {
+        const tenant = response.data.data;
 
-          console.log('Setting tenant options:', [
-            {
-              tenantID: tenant.tenantID,
-              tenantName: tenant.tenantName,
-            },
-          ]);
+        console.log('Setting tenant options:', [
+          {
+            tenantID: tenant.tenantID,
+            tenantName: tenant.tenantName,
+          },
+        ]);
 
-          setTenantOptions([
-            {
-              tenantID: tenant.tenantID,
-              tenantName: tenant.tenantName,
-            },
-          ]);
+        setTenantOptions([
+          {
+            tenantID: tenant.tenantID,
+            tenantName: tenant.tenantName,
+          },
+        ]);
 
-          setTenantNameMap({
-            [tenant.tenantID]: tenant.tenantName,
-          });
+        setTenantNameMap({
+          [tenant.tenantID]: tenant.tenantName,
+        });
 
-          setFormData((prev) => {
-            const updatedForm = {
-              ...prev,
-              tenantID: tenant.tenantID,
-            };
-            console.log('FormData after prefill:', updatedForm);
-            return updatedForm;
-          });
-        }
-      } else {
-        console.log('Fetching all tenants...');
-        const response = await api.get('/Tenant');
-        console.log('All tenant API response:', response.data);
-
-        if (response.data.success) {
-          const activeTenants = response.data.data.filter(
-            (tenant: any) => tenant.isActive,
-          );
-          console.log('Active Tenants:', activeTenants);
-
-          setTenantOptions(
-            activeTenants.map((tenant: any) => ({
-              tenantID: tenant.tenantID,
-              tenantName: tenant.tenantName,
-            })),
-          );
-
-          const map: { [key: string]: string } = {};
-          activeTenants.forEach((tenant: any) => {
-            map[tenant.tenantID] = tenant.tenantName;
-          });
-          console.log('Tenant Name Map:', map);
-
-          setTenantNameMap(map);
-        }
+        setFormData((prev) => {
+          const updatedForm = {
+            ...prev,
+            tenantID: tenant.tenantID,
+          };
+          console.log('FormData after prefill:', updatedForm);
+          return updatedForm;
+        });
       }
-    } catch (error) {
-      console.error('❌ Failed to fetch tenants:', error);
+    } else {
+      console.log('Fetching all tenants...');
+      // ✅ USE THE NEW ENDPOINT
+      const response = await api.get('/Tenant/TenantList');
+      console.log('All tenant API response:', response.data);
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        const allTenants = response.data.data;
+
+        console.log('All Tenants:', allTenants);
+
+        setTenantOptions(
+          allTenants.map((tenant: any) => ({
+            tenantID: tenant.tenantID,
+            tenantName: tenant.tenantName,
+          })),
+        );
+
+        const map: { [key: string]: string } = {};
+        allTenants.forEach((tenant: any) => {
+          map[tenant.tenantID] = tenant.tenantName;
+        });
+        console.log('Tenant Name Map:', map);
+
+        setTenantNameMap(map);
+      }
     }
-  };
+  } catch (error) {
+    console.error('❌ Failed to fetch tenants:', error);
+  }
+};
+
 
   const [roleName, setRoleName] = useState('');
 

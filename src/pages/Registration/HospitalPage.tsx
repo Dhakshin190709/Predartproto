@@ -5,7 +5,7 @@ import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import axios from 'axios';
 import { CheckCircle, Edit } from 'lucide-react';
-import { fetchHospitalAPI, fetchTenants } from '../../Utils';
+import { fetchHospitalAPI} from '../../Utils';
 import CustomButton from '../../components/CustomButton';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -116,40 +116,43 @@ const [initialData, setInitialData] = useState<any[]>([]);
   // Fetch data from the API
   const navigate = useNavigate();
 
-  
-useEffect(() => {
-  const fetchHospitals = async () => {
-    try {
-      const tenantID = sessionStorage.getItem('tenantID');
+const fetchHospitals = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
 
+    let params = {};
+
+    if (roleName !== 'SuperAdmin') {
       if (!tenantID) {
         console.error('Missing tenantID in session storage.');
         return;
       }
-
-      const response = await api.get('/Hospital', {
-        params: { tenantId: tenantID },
-      });
-
-      const apiData = response.data?.data || response.data;
-
-      console.log('API Raw Data:', apiData);
-
-      // ✅ Flatten each item: { ...hospital, ...address }
-      const hospitalList = apiData.map((item: any) => ({
-        ...item.hospital,
-        ...item.address,
-      }));
-
-      console.log('Flattened Data:', hospitalList);
-
-      setRowData(hospitalList);
-      setInitialData(hospitalList);
-    } catch (error: any) {
-      console.error('Error fetching data:', error);
+      params = { tenantId: tenantID };
     }
-  };
 
+    const response = await api.get('/Hospital', {
+      params,
+    });
+
+    const apiData = response.data?.data || response.data;
+
+    const hospitalList = apiData.map((item: any) => ({
+      ...item.hospital,
+      ...item.address,
+    }));
+
+    console.log('Flattened Data:', hospitalList);
+
+    setRowData(hospitalList);
+    setInitialData(hospitalList);
+    setFilteredData(hospitalList); // ✅ If you use it for filters too
+  } catch (error) {
+    console.error('Error fetching hospitals:', error);
+  }
+};
+
+useEffect(() => {
   fetchHospitals();
 }, []);
 
@@ -186,10 +189,7 @@ useEffect(() => {
 
     return errors; // ✅ Return the errors
   };
-  useEffect(() => {
-    fetchTenants().then(setTenants);
-  }, []);
-
+ 
   // Handle tenant selection
   const handleTenantChange = (e) => {
     setSelectedTenant(e.target.value);
@@ -439,29 +439,37 @@ useEffect(() => {
     fetchStates();
   }, []);
 
-  useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV');
-        const result = response.data;
+ useEffect(() => {
+  const fetchAddressTypes = () => {
+    try {
+      const masterLOVString = localStorage.getItem('masterLOV');
 
-        // If the API returns a success flag
-        if (result.success && Array.isArray(result.data)) {
-          const filteredAddressTypes = result.data.filter(
-            (item) => item.type === 'Address',
-          );
-          setAddressTypes(filteredAddressTypes);
-        } else {
-          console.warn('Unexpected API response format');
-        }
-      } catch (error) {
-        console.error('Error fetching address types:', error);
-        toast.error('Failed to load address types');
+      if (!masterLOVString) {
+        console.warn('No masterLOV found in localStorage.');
+        return;
       }
-    };
 
-    fetchAddressTypes();
-  }, []);
+      const result = JSON.parse(masterLOVString);
+
+      if (result && Array.isArray(result.data)) {
+        const filteredAddressTypes = result.data.filter(
+          (item: { type: string }) => item.type === 'Address'
+        );
+        setAddressTypes(filteredAddressTypes);
+      } else {
+        console.warn('Unexpected masterLOV structure.');
+      }
+    } catch (error) {
+      console.error('Error reading address types from localStorage:', error);
+      toast.error('Failed to load address types');
+    }
+  };
+
+  fetchAddressTypes();
+}, []);
+
+
+
   const handleSelectAddress = (index: number) => {
     const newTouched = { ...touchedFields };
     Object.keys(addresses[index]).forEach((field) => {
@@ -846,31 +854,9 @@ useEffect(() => {
   };
 
  const refreshTableData = async () => {
-  try {
-    const tenantID = sessionStorage.getItem('tenantID');
-
-    if (!tenantID) {
-      console.error('Missing tenantID in session storage.');
-      return;
-    }
-
-    const response = await api.get('/Hospital', {
-      params: { tenantId: tenantID },
-    });
-
-    const apiData = response.data?.data || response.data;
-
-    const hospitalList = apiData.map((item: any) => ({
-      ...item.hospital,
-      ...item.address,
-    }));
-
-    setRowData(hospitalList);
-    setFilteredData(hospitalList);
-  } catch (error) {
-    console.error('Error refreshing table data:', error);
-  }
+  await fetchHospitals();
 };
+
 
 
   const resetFormData = () => {

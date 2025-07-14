@@ -263,24 +263,20 @@ const SearchDoctors: React.FC = () => {
     fetchAllDoctors();
   }, []);
 
-  const fetchRelationships = async () => {
-    try {
-      const response = await api.get('/AppLOV', {
-        params: { type: 'Relationship' },
-      });
+  const fetchRelationships = () => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const relationships = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Relationship'
+    ) || [];
+    console.log('Relationships:', relationships);
+    setRelationships(relationships);
+  } else {
+    console.warn('No masterLOV found in localStorage for relationships');
+  }
+};
 
-      console.log('API Response:', response.data); // Axios response data
-
-      if (Array.isArray(response.data.data)) {
-        setRelationships(response.data.data);
-      } else {
-        console.error('Invalid relationship data format:', response.data.data);
-        setRelationships([]);
-      }
-    } catch (error) {
-      console.error('Error fetching relationships:', error);
-    }
-  };
 
   // Fetch on component mount
   useEffect(() => {
@@ -383,19 +379,17 @@ const SearchDoctors: React.FC = () => {
       return; // Skip the API call
     }
 
-    const fetchOptions = async () => {
-      try {
-        const response = await api.get('/AppLOV', {
-          params: { type: 'toWhom' },
-        });
-        console.log('API Response:', response.data);
-        setOptions(response.data?.data ?? []);
-      } catch (error) {
-        console.error('Error fetching options:', error);
-      }
-    };
-
-    fetchOptions();
+    const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const toWhomOptions = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'toWhom'
+    ) || [];
+    console.log('toWhom Options:', toWhomOptions);
+    setOptions(toWhomOptions);
+  } else {
+    console.warn('No masterLOV found in localStorage for toWhom options');
+  }
   }, []);
 
   // Open popup and set doctor details
@@ -1573,15 +1567,15 @@ const DoctorCard = ({
               <div className="absolute top-0 left-0 bg-blue-100 w-10 h-10 rounded-br-md rounded-tl-lg flex items-center justify-center">
                 <FaUserMd className="text-gray-500 text-md" />
               </div>
-{/* Check-In/Out Status Circle */}
-<div className="absolute top-2 right-2">
-  <span
-    className={`inline-block w-3 h-3 rounded-full ${
-      doctor.checkInOut ? 'bg-green-500' : 'bg-red-500'
-    }`}
-    title={doctor.checkInOut ? 'Available' : 'Not Available'}
-  ></span>
-</div>
+              {/* Check-In/Out Status Circle */}
+              <div className="absolute top-1 right-1">
+                <span
+                  className={`inline-block w-3 h-3 rounded-full ${
+                    doctor.checkInOut ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                  title={doctor.checkInOut ? 'Available' : 'Not Available'}
+                ></span>
+              </div>
 
               {/* Content Padding */}
               <div className="p-4 space-y-3">
