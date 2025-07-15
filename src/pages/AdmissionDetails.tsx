@@ -12,8 +12,11 @@ const AdmissionDetails = () => {
   const [dischargeDate, setDischargeDate] = useState(null);
   const [dischargeTime, setDischargeTime] = useState(null);
   return (
-    <div className="max-w-7xl mx-auto min-h-screen p-6 bg-white shadow-lg border border-gray-300 rounded-lg">
-      {/* Hospital Header */}
+    <>
+ <h1 className="text-3xl font-bold mb-4 text-center text-black pt-28">
+    Admission Details
+  </h1>
+    <div className="max-w-7xl mx-auto min-h-screen p-6 bg-white shadow-lg border mb-8 border-gray-300 rounded-lg">
       <div className="text-center mb-6 border-b pb-4">
         <h1 className="text-xl font-bold">XYZ Hospital</h1>
         <p className="text-sm">ABS Global, Pudur - 628905</p>
@@ -273,6 +276,7 @@ dark:bg-form-input dark:text-white dark:focus:border-primary"
 
        
     </div>
+    </>
   );
 };
 

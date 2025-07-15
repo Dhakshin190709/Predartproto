@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 
 import 'react-toastify/dist/ReactToastify.css';
+import { Eye, X } from 'lucide-react';
 
 const ITEMS_PER_PAGE = 3;
 interface State {
@@ -62,7 +63,7 @@ export default function TenantFormWizard() {
   const [selectedState, setSelectedState] = useState('');
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
-
+const [toastInProgress, setToastInProgress] = useState(false);
   const location = useLocation();
   const [touchedFields, setTouchedFields] = useState<{
     [key: string]: boolean;
@@ -281,22 +282,26 @@ export default function TenantFormWizard() {
   };
 
   useEffect(() => {
-    const fetchAddressTypes = async () => {
-      try {
-        const response = await api.get('/AppLOV'); // ✅ Relative path
-        const data = response.data;
-
+  const fetchAddressTypes = () => {
+    try {
+      const masterLOV = localStorage.getItem('masterLOV');
+      if (masterLOV) {
+        const data = JSON.parse(masterLOV);
         const filteredAddressTypes = data.data.filter(
           (item: any) => item.type === 'Address',
         );
         setAddressTypes(filteredAddressTypes);
-      } catch (error) {
-        console.error('Error fetching address types:', error);
+      } else {
+        console.error('masterLOV not found in localStorage');
       }
-    };
+    } catch (error) {
+      console.error('Error fetching address types from localStorage:', error);
+    }
+  };
 
-    fetchAddressTypes();
-  }, []);
+  fetchAddressTypes();
+}, []);
+
 
   const validateAddress = (address: Address, index: number) => {
     const errors: { [key: string]: string } = {};
@@ -1003,110 +1008,117 @@ export default function TenantFormWizard() {
 
   const [isRemoveConfirmOpen, setIsRemoveConfirmOpen] = useState(false);
 
-  const fetchDocumentTypes = async () => {
-    try {
-      const response = await api.get('/AppLOV?type=documentType');
-
-      if (response.data && Array.isArray(response.data.data)) {
-        const activeDocumentTypes = response.data.data.filter(
-          (item) => item.isActive === true, // or item.status === 'Active'
-        );
-        setDocumentTypes(activeDocumentTypes);
-      } else {
-        console.error('Invalid data format:', response.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch document types:', error);
+ const fetchDocumentTypes = () => {
+  try {
+    const masterLOV = localStorage.getItem('masterLOV');
+    if (masterLOV) {
+      const data = JSON.parse(masterLOV);
+      const activeDocumentTypes = data.data.filter(
+        (item: any) => item.type === 'TenantDocumentType' && item.isActive === true,
+      );
+      setDocumentTypes(activeDocumentTypes);
+    } else {
+      console.error('masterLOV not found in localStorage');
     }
-  };
-
-  useEffect(() => {
-    fetchDocumentTypes();
-  }, []);
+  } catch (error) {
+    console.error('Failed to fetch document types from localStorage:', error);
+  }
+};
 
   useEffect(() => {
     fetchUploadedDocuments();
+    fetchDocumentTypes();
   }, []);
 
-  const fetchUploadedDocuments = async () => {
-    try {
-      console.log('Fetching documents for patientId:', sessionPatientId);
-      const response = await api.get(`/Doctor/GetDocuments`, {
-        params: { patientId: sessionPatientId },
-      });
-      console.log('API response:', response.data);
-      setUploadedDocuments(response.data);
-
-      console.log('Uploaded documents:', response.data.data);
-    } catch (error) {
-      console.error('Failed to fetch uploaded documents:', error);
+ const fetchUploadedDocuments = async () => {
+  try {
+    const tenantID = sessionStorage.getItem('tenantID');
+    if (!tenantID) {
+      console.error('Tenant ID not found in session.');
+      return;
     }
-  };
 
-  useEffect(() => {
-    const fetchPatients = async () => {
-      const tenantID = sessionStorage.getItem('tenantID');
-      const sessionPatientId = sessionStorage.getItem('patientID');
-      const storedRoleName = sessionStorage.getItem('roleName');
+    console.log('Fetching documents for tenantID:', tenantID);
 
-      setRoleName(storedRoleName ?? '');
+    const response = await api.get(`/Document/GetDocuments`, {
+      params: { ID: tenantID },
+    });
 
-      console.log('Session Patient ID:', sessionPatientId);
-      console.log('Role Name:', storedRoleName);
+    console.log('API response:', response.data);
+    console.log('Uploaded documents:', response.data.data);
 
-      if (!tenantID || !storedRoleName) {
-        console.warn('Missing tenantID or roleName in session.');
-        return;
-      }
+    // ✅ Correct:
+    setUploadedDocuments(response.data.data);
 
-      try {
-        if (storedRoleName.toLowerCase() === 'patient' && sessionPatientId) {
-          // 👉 Case: role is patient AND patient ID exists
-          const response = await api.get(`/Patient/${sessionPatientId}`);
-          const data = response.data;
+  } catch (error) {
+    console.error('Failed to fetch uploaded documents:', error);
+  }
+};
 
-          if (data.success && data.data) {
-            setSelectedPatient(data.data.patientID);
-            setSelectedPatientName(data.data.patientName);
-            setPatients([data.data]);
-          } else {
-            console.warn('No data returned for single patient.');
-          }
-        } else {
-          // 👉 Case: role is TenantAdmin OR patientID is missing → fetch all
-          const response = await api.get('/Patient', {
-            params: { tenantID },
-          });
+  // useEffect(() => {
+  //   const fetchPatients = async () => {
+  //     const tenantID = sessionStorage.getItem('tenantID');
+  //     const sessionPatientId = sessionStorage.getItem('patientID');
+  //     const storedRoleName = sessionStorage.getItem('roleName');
 
-          const data = response.data;
+  //     setRoleName(storedRoleName ?? '');
 
-          if (data.success && Array.isArray(data.data)) {
-            setPatients(data.data);
+  //     console.log('Session Patient ID:', sessionPatientId);
+  //     console.log('Role Name:', storedRoleName);
 
-            // Try to auto-select patient if ID was present earlier
-            if (sessionPatientId) {
-              const matchedPatient = data.data.find(
-                (p) => String(p.patientID) === String(sessionPatientId),
-              );
+  //     if (!tenantID || !storedRoleName) {
+  //       console.warn('Missing tenantID or roleName in session.');
+  //       return;
+  //     }
 
-              if (matchedPatient) {
-                setSelectedPatient(matchedPatient.patientID);
-                setSelectedPatientName(matchedPatient.patientName);
-              } else {
-                console.warn('Session patient ID not found in list.');
-              }
-            }
-          } else {
-            console.warn('No patient list returned.');
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching patient(s):', err);
-      }
-    };
+  //     try {
+  //       if (storedRoleName.toLowerCase() === 'patient' && sessionPatientId) {
+  //         // 👉 Case: role is patient AND patient ID exists
+  //         const response = await api.get(`/Patient/${sessionPatientId}`);
+  //         const data = response.data;
 
-    fetchPatients();
-  }, []);
+  //         if (data.success && data.data) {
+  //           setSelectedPatient(data.data.patientID);
+  //           setSelectedPatientName(data.data.patientName);
+  //           setPatients([data.data]);
+  //         } else {
+  //           console.warn('No data returned for single patient.');
+  //         }
+  //       } else {
+  //         // 👉 Case: role is TenantAdmin OR patientID is missing → fetch all
+  //         const response = await api.get('/Patient', {
+  //           params: { tenantID },
+  //         });
+
+  //         const data = response.data;
+
+  //         if (data.success && Array.isArray(data.data)) {
+  //           setPatients(data.data);
+
+  //           // Try to auto-select patient if ID was present earlier
+  //           if (sessionPatientId) {
+  //             const matchedPatient = data.data.find(
+  //               (p) => String(p.patientID) === String(sessionPatientId),
+  //             );
+
+  //             if (matchedPatient) {
+  //               setSelectedPatient(matchedPatient.patientID);
+  //               setSelectedPatientName(matchedPatient.patientName);
+  //             } else {
+  //               console.warn('Session patient ID not found in list.');
+  //             }
+  //           }
+  //         } else {
+  //           console.warn('No patient list returned.');
+  //         }
+  //       }
+  //     } catch (err) {
+  //       console.error('Error fetching patient(s):', err);
+  //     }
+  //   };
+
+  //   fetchPatients();
+  // }, []);
 
   const isPatientRole = roleName?.toLowerCase() === 'patient';
 
@@ -1133,89 +1145,84 @@ export default function TenantFormWizard() {
     setSelectedDocumentType(event.target.value);
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile || !selectedType) {
-      toast.error('Please select all fields..');
+const handleUpload = async () => {
+  if (toastInProgress) return; // ✅ Prevent multiple clicks
+
+  if (!selectedFile || !selectedType) {
+    toast.error('Please select all fields.');
+    return;
+  }
+
+  setToastInProgress(true); // ✅ Set flag ON
+
+  const reader = new FileReader();
+  reader.readAsDataURL(selectedFile);
+
+  reader.onload = async () => {
+    const base64String = reader.result?.toString().split(',')[1];
+    if (!base64String) {
+      toast.error('Failed to convert file to Base64.');
+      setToastInProgress(false); // ✅ Reset flag
       return;
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(selectedFile);
+    const tenantID = sessionStorage.getItem('tenantID');
+    if (!tenantID) {
+      toast.error('Tenant ID not found in session.');
+      setToastInProgress(false);
+      return;
+    }
 
-    reader.onload = async () => {
-      const base64String = reader.result?.toString().split(',')[1];
-      if (!base64String) {
-        toast.error('Failed to convert file to Base64.');
-        return;
-      }
+    const userID = sessionStorage.getItem('userID');
+    if (!userID) {
+      toast.error('User not logged in. Please log in again.');
+      setToastInProgress(false);
+      return;
+    }
 
-      const roleName = sessionStorage.getItem('roleName');
-      let id = '';
+    const fileExtension = selectedFile.name.split('.').pop();
+    const filePath = `uploads/${selectedFile.name}`;
 
-      if (roleName === 'Patient') {
-        const sessionPatientId = sessionStorage.getItem('patientID');
-        if (!sessionPatientId) {
-          toast.error('Patient ID not found in session for Patient role.');
-          return;
-        }
-        id = sessionPatientId;
-      } else if (roleName === 'Reception' || roleName === 'TenantAdmin') {
-        if (!selectedPatient) {
-          toast.error('Please select a patient from the dropdown.');
-          return;
-        }
-        id = selectedPatient;
-      } else {
-        toast.error('Unsupported role.');
-        return;
-      }
-
-      const userID = sessionStorage.getItem('userID');
-      if (!userID) {
-        toast.error('User not logged in. Please log in again.');
-        return;
-      }
-
-      const fileExtension = selectedFile.name.split('.').pop();
-      const filePath = `uploads/${selectedFile.name}`;
-
-      const payload = {
-        createdBy: userID,
-        isActive: true,
-        id: id,
-        type: 'patient',
-        documentType: selectedType,
-        fileName: selectedFile.name,
-        fileLocation: filePath,
-        fileBase64: base64String,
-        fileExtension: fileExtension,
-      };
-
-      try {
-        const response = await api.post('/Doctor/SaveDocuments', payload);
-
-        if (response.status === 200 || response.status === 201) {
-          toast.success('Document uploaded successfully!');
-          setSelectedFile(null);
-          setPreviewSrc(null);
-          setSelectedType('');
-          // 🔁 Re-fetch uploaded documents
-          fetchUploadedDocuments();
-        } else {
-          toast.error('Upload failed. Please try again.');
-        }
-      } catch (error: any) {
-        toast.error(
-          'Upload failed: ' + (error.response?.data?.message || error.message),
-        );
-      }
+    const payload = {
+      createdBy: userID,
+      isActive: true,
+      id: tenantID, // ✅ Always pass tenantID
+      type: 'Tenant',
+      documentType: selectedType,
+      fileName: selectedFile.name,
+      fileLocation: filePath,
+      fileBase64: base64String,
+      fileExtension: fileExtension,
     };
+
+    try {
+      const response = await api.post('/Document', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success('Tenant Document uploaded successfully!');
+        setSelectedFile(null);
+        setPreviewSrc(null);
+        setSelectedType('');
+        fetchUploadedDocuments();
+      } else {
+        toast.error('Upload failed. Please try again.');
+      }
+    } catch (error: any) {
+      toast.error(
+        'Upload failed: ' + (error.response?.data?.message || error.message),
+      );
+    } finally {
+      setToastInProgress(false); // ✅ Always reset
+    }
   };
+};
+
+
 
   // View Document in Modal
   const handleViewDocument = async (documentID: string, fileName: string) => {
     try {
-      const response = await api.get(`/Doctor/Documents/${documentID}`);
+      const response = await api.get(`/Document/${documentID}`);
 
       const fileBase64 = response.data?.data?.fileBase64;
       if (!fileBase64) {
@@ -1967,29 +1974,6 @@ export default function TenantFormWizard() {
 
               {/* File Upload Section */}
               <div className="flex items-center gap-2 flex-wrap">
-                {isPatientRole ? (
-                  <input
-                    type="text"
-                    readOnly
-                    value={selectedPatientName}
-                    className="w-[35] rounded-lg border border-stroke bg-gray-100 py-2 px-4 text-black outline-none cursor-not-allowed"
-                  />
-                ) : (
-                  <select
-                    id="patientDropdown"
-                    value={selectedPatient || ''}
-                    onChange={(e) => setSelectedPatient(e.target.value)}
-                    className="w-[35] rounded-lg border border-stroke bg-transparent py-2 px-4 text-black outline-none focus:border-primary"
-                  >
-                    <option value="">Select a patient</option>
-                    {patients.map((patient) => (
-                      <option key={patient.patientID} value={patient.patientID}>
-                        {patient.patientName}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
                 {/* Document Type Dropdown */}
                 <select
                   className="w-[35%] rounded-lg border border-stroke bg-transparent py-2 px-4 text-black 
@@ -2173,19 +2157,16 @@ export default function TenantFormWizard() {
               </div>
             }
           >
-            <div>
-              <input
-                type="text"
-                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
-                onChange={(e) => {
-                  const sanitizedValue = e.target.value.replace(
-                    /[^a-zA-Z0-9, /]/g,
-                    '',
-                  );
-                }}
-                placeholder="Enter address line 1"
-              />
-            </div>
+            <div className="flex items-center justify-center h-screen bg-gray-100">
+      <div className="bg-white p-8 rounded-2xl shadow-lg text-center max-w-md w-full">
+        <h1 className="text-2xl font-bold text-red-600 mb-4">
+          🚧 Development in Progress
+        </h1>
+        <p className="text-gray-700">
+          This feature is currently under development. Please check back later!
+        </p>
+      </div>
+    </div>
           </FormWizard.TabContent>
         </FormWizard>
       )}

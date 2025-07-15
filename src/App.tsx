@@ -135,6 +135,7 @@ import OrderTracking from './pages/OrderTracking';
 import TenantSubscription from './pages/TenantSubscription';
 import TenantAddOn from './pages/TenantAddOn';
 import TenantPromoUsage from './pages/TenantPromoUsage';
+import ApplicationForm from './pages/ApplicationForm';
 
 import Tenant from './pages/Tenant';
 import Diagnostics from './pages/Diagnostics';
@@ -179,25 +180,22 @@ function App() {
   }, [pathname]);
 
    useEffect(() => {
-    const fetchMaster = async () => {
-      try {
-        const res = await api.get('/AppLOV'); // your URL
-        const data = res.data;
+  const fetchMaster = async () => {
+    try {
+      const res = await api.get('/AppLOV');
+      const data = res.data;
 
-        // Save whole data in localStorage
-        localStorage.setItem('masterLOV', JSON.stringify(data));
-
-        console.log('Master LOV saved:', data);
-      } catch (err) {
-        console.error('Failed to fetch AppLOV:', err);
-      }
-    };
-
-    // ✅ Fetch only if not already saved
-    if (!localStorage.getItem('masterLOV')) {
-      fetchMaster();
+      localStorage.setItem('masterLOV', JSON.stringify(data));
+      console.log('Master LOV saved:', data);
+    } catch (err) {
+      console.error('Failed to fetch AppLOV:', err);
     }
-  }, []);
+  };
+
+  // 🔥 Always fetch fresh
+  fetchMaster();
+}, []);
+
 
   useEffect(() => {
     setTimeout(() => setLoading(false), 1000);
@@ -330,6 +328,16 @@ function App() {
                 <PageTitle title="TenantFormWizard | PreCare" />
 
                 <TenantFormWizard />
+              </>
+            }
+          />
+          <Route
+            path="/ApplicationForm"
+            element={
+              <>
+                <PageTitle title="ApplicationForm | PreCare" />
+
+                <ApplicationForm />
               </>
             }
           />

@@ -29,6 +29,7 @@ import {
   FaNotesMedical,
   FaRegEnvelope,
   FaFileInvoice,
+  FaWpforms,
 } from 'react-icons/fa';
 
 import {
@@ -249,6 +250,7 @@ const iconMapping: Record<string, { icon: JSX.Element; route: string }> = {
   TenantSubscription: { icon: <FaCrown />, route: '/TenantSubscription' },
   TenantPromoUsage: { icon: <FaTicketAlt />, route: '/TenantPromoUsage' },
   Notification: { icon: <FaBell />, route: '/settings/notification' },
+  ApplicationForm: { icon: <FaWpforms  />, route: '/ApplicationForm' },
   MedicalDocument: {
     icon: <FaCloudUploadAlt />,
     route: '/MedicalDocumentUpload',

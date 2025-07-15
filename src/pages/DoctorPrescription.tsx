@@ -23,10 +23,14 @@ const MedicalPrescription: React.FC = () => {
   const [showLabForm, setShowLabForm] = useState(false);
   const [selectedLab, setSelectedLab] = useState('');
   const [labStatus, setLabStatus] = useState('');
+  const [diagnosis, setDiagnosis] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
+
   const [labs, setLabs] = useState([]);
-const [toastInProgress, setToastInProgress] = useState(false);
+  const [toastInProgress, setToastInProgress] = useState(false);
   const [hospitalInfo, setHospitalInfo] = useState<any>(null);
   const appointment = location.state?.appointment; // Extract from state
+  const [errors, setErrors] = useState({});
 
   const [medicines, setMedicines] = useState([]);
 
@@ -82,10 +86,85 @@ const [toastInProgress, setToastInProgress] = useState(false);
     fetchHospitalDetails();
   }, []);
 
+  const validateDiagnosis = (value) => {
+    if (!value.trim()) return 'Diagnosis is required';
+    const regex = /^[\w\s.,;:!?'-]+$/; // Only letters, numbers, basic punctuation
+    if (!regex.test(value)) return 'Invalid characters used';
+    if (/(.)\1{2,}/.test(value)) return 'No repeating letters/numbers allowed';
+    return '';
+  };
+
+  const validateFollowUpDate = (date) => {
+  const today = new Date().setHours(0, 0, 0, 0);
+  const selected = new Date(date).setHours(0, 0, 0, 0);
+  if (!date) return 'Follow-up date is required';
+  if (selected < today) return 'Cannot select past date';
+  return '';
+};
+
+
+  const validateRow = (row) => {
+    const rowErrors = {};
+
+    // ✅ Medicine name required
+    if (!row.name) rowErrors.name = 'Medicine name is required';
+
+    // ✅ Timings: at least one must be checked
+    const hasTiming = Object.values(row.timings || {}).some(
+      (t) => t.BF || t.AF,
+    );
+    if (!hasTiming) rowErrors.timings = 'At least one timing must be checked';
+
+    // ✅ Days: required, only digits, no 00, must be > 0, max 2 digits
+    const days = String(row.days || '').trim();
+    if (!days) {
+      rowErrors.days = 'Days is required';
+    } else if (!/^\d{1,2}$/.test(days)) {
+      rowErrors.days = 'Days must be 1 or 2 digits';
+    } else if (Number(days) <= 0) {
+      rowErrors.days = 'Days must be greater than 0';
+    } else if (days === '00') {
+      rowErrors.days = 'Days cannot be 00';
+    }
+
+    // ✅ Instructions: required, valid characters, no repeating letters/numbers
+    if (!row.instructions?.trim()) {
+      rowErrors.instructions = 'Instructions required';
+    } else {
+      const regex = /^[\w\s.,;:!?'-]+$/;
+      if (!regex.test(row.instructions)) {
+        rowErrors.instructions = 'Instructions contain invalid characters';
+      } else if (/(.)\1{2,}/.test(row.instructions)) {
+        rowErrors.instructions = 'No repeating letters/numbers allowed';
+      }
+    }
+
+    return rowErrors;
+  };
+
   const handleSubmit = async () => {
     const userId = sessionStorage.getItem('userID');
     const now = new Date().toISOString();
+    const newErrors = {};
+    newErrors.diagnosis = validateDiagnosis(diagnosis);
+    newErrors.followUpDate = validateFollowUpDate(followUpDate);
 
+    const rowErrors = {};
+    rows.forEach((row) => {
+      const err = validateRow(row);
+      if (Object.keys(err).length) rowErrors[row.id] = err;
+    });
+
+    newErrors.rows = rowErrors;
+
+    setErrors(newErrors);
+
+    const hasErrors =
+      newErrors.diagnosis ||
+      newErrors.followUpDate ||
+      Object.keys(rowErrors).length;
+
+    if (hasErrors) return;
     const payload = {
       doctorPrescription: {
         createdBy: userId,
@@ -133,32 +212,32 @@ const [toastInProgress, setToastInProgress] = useState(false);
       console.log('✅ Response Data:', response.data);
 
       if (response.status === 200 && typeof response.data === 'string') {
-     if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.success('Prescription saved successfully.', {
-          onClose: () => setToastInProgress(false),
-        });
-      }
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.success('Prescription saved successfully.', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
         //navigate('/prescription', { state: { entries: rows } });
       } else {
-       if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.error(
-          'Failed to save: ' + (response.data?.message || 'Unknown error'),
-          {
-            onClose: () => setToastInProgress(false),
-          }
-        );
-      }
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.error(
+            'Failed to save: ' + (response.data?.message || 'Unknown error'),
+            {
+              onClose: () => setToastInProgress(false),
+            },
+          );
+        }
       }
     } catch (error) {
       console.error('Error saving prescription:', error);
-       if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.error('Something went wrong.', {
-        onClose: () => setToastInProgress(false),
-      });
-    }
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Something went wrong.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
     }
   };
 
@@ -258,14 +337,14 @@ const [toastInProgress, setToastInProgress] = useState(false);
     const now = new Date().toISOString();
 
     if (!selectedLab || !labStatus) {
-    if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.warn('Please select both Lab and Status.', {
-        onClose: () => setToastInProgress(false),
-      });
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.warn('Please select both Lab and Status.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
+      return;
     }
-    return;
-  }
 
     const payload = {
       createdBy: userId,
@@ -285,12 +364,12 @@ const [toastInProgress, setToastInProgress] = useState(false);
       const res = await api.post('/PatientLabOrder', payload);
 
       if (res.status === 200 || res.status === 201) {
-       if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.success('Lab Test submitted successfully.', {
-          onClose: () => setToastInProgress(false),
-        });
-      }
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.success('Lab Test submitted successfully.', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
         setShowLabForm(false);
         setSelectedLab('');
         setLabStatus('');
@@ -299,21 +378,21 @@ const [toastInProgress, setToastInProgress] = useState(false);
           navigate('/PatientLabTest');
         }, 1000);
       } else {
-       if (!toastInProgress) {
-        setToastInProgress(true);
-        toast.error('Failed to submit Lab Test.', {
-          onClose: () => setToastInProgress(false),
-        });
-      }
+        if (!toastInProgress) {
+          setToastInProgress(true);
+          toast.error('Failed to submit Lab Test.', {
+            onClose: () => setToastInProgress(false),
+          });
+        }
       }
     } catch (error) {
       console.error('Lab Test error:', error);
-     if (!toastInProgress) {
-      setToastInProgress(true);
-      toast.error('Lab Test submission failed.', {
-        onClose: () => setToastInProgress(false),
-      });
-    }
+      if (!toastInProgress) {
+        setToastInProgress(true);
+        toast.error('Lab Test submission failed.', {
+          onClose: () => setToastInProgress(false),
+        });
+      }
     }
   };
 
@@ -396,27 +475,33 @@ const [toastInProgress, setToastInProgress] = useState(false);
 
               {/* Follow-Up Date */}
               <div className="w-1/2">
-                {!showFollowUpPicker ? (
-                  <input
-                    type="text"
-                    readOnly
-                    value={followUpDate ? followUpDate : ''}
-                    onClick={() => setShowFollowUpPicker(true)}
-                    placeholder="Follow-Up Date"
-                    className="w-full rounded-lg border border-stroke bg-white py-3 pl-4 pr-6 text-black outline-none focus:border-primary placeholder:text-gray-500 cursor-pointer"
-                  />
-                ) : (
-                  <input
-                    type="date"
-                    min={new Date().toISOString().split('T')[0]}
-                    value={followUpDate}
-                    onChange={(e) => setFollowUpDate(e.target.value)}
-                    onBlur={() => !followUpDate && setShowFollowUpPicker(false)}
-                    className="w-full rounded-lg border border-stroke bg-white py-3 pl-4 pr-6 text-black outline-none focus:border-primary"
-                    autoFocus
-                  />
-                )}
-              </div>
+  {!showFollowUpPicker ? (
+    <input
+      type="text"
+      readOnly
+      value={followUpDate ? followUpDate : ''}
+      onClick={() => setShowFollowUpPicker(true)}
+      placeholder="Follow-Up Date"
+      className="w-full rounded-lg border border-stroke bg-white py-3 pl-4 pr-6 text-black outline-none focus:border-primary placeholder:text-gray-500 cursor-pointer"
+    />
+  ) : (
+    <input
+      type="date"
+      min={new Date().toISOString().split('T')[0]}
+      value={followUpDate}
+      onChange={(e) => setFollowUpDate(e.target.value)}
+      onBlur={() => !followUpDate && setShowFollowUpPicker(false)}
+      className="w-full rounded-lg border border-stroke bg-white py-3 pl-4 pr-6 text-black outline-none focus:border-primary"
+      autoFocus
+    />
+  )}
+
+  {/* ✅ Show error below */}
+  {errors?.followUpDate && (
+    <p className="text-red-500 text-xs mt-1">{errors.followUpDate}</p>
+  )}
+</div>
+
             </div>
           </div>
 
@@ -424,10 +509,15 @@ const [toastInProgress, setToastInProgress] = useState(false);
           <div className="w-full md:w-3/5">
             <textarea
               id="description"
+              value={diagnosis}
+              onChange={(e) => setDiagnosis(e.target.value)}
               rows={5}
               className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-6 text-black leading-[1.1rem] outline-none focus:border-primary resize-y placeholder:text-base dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
               placeholder="Enter Diagnosis here"
             />
+            {errors.diagnosis && (
+              <p className="text-red-500 text-xs mt-1">{errors.diagnosis}</p>
+            )}
           </div>
         </div>
       </div>
@@ -439,6 +529,7 @@ const [toastInProgress, setToastInProgress] = useState(false);
             className="border border-stroke rounded-lg p-4 shadow-md space-y-4 bg-gray-50"
           >
             <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 flex-wrap">
+              
               {/* Name Dropdown */}
               <div className="flex-shrink-0 w-full md:w-[25%]">
                 <select
@@ -455,11 +546,15 @@ const [toastInProgress, setToastInProgress] = useState(false);
                     </option>
                   ))}
                 </select>
+                {errors?.rows?.[row.id]?.name && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.rows[row.id].name}
+                  </p>
+                )}
               </div>
 
               {/* ✅ Timings Block (Place this inside the map loop!) */}
-             <div className="flex flex-wrap flex-1 gap-4 w-full md:max-w-[40%]">
-
+              <div className="flex flex-wrap flex-1 gap-4 w-full md:max-w-[40%]">
                 {[
                   { label: 'Morning', order: 1 },
                   { label: 'Evening', order: 2 },
@@ -512,6 +607,13 @@ const [toastInProgress, setToastInProgress] = useState(false);
                       </div>
                     </div>
                   ))}
+
+                  {errors?.rows?.[row.id]?.timings && (
+  <p className="w-full text-red-500 text-xs mt-2">
+    {errors.rows[row.id].timings}
+  </p>
+)}
+
               </div>
 
               {/* Days Input */}
@@ -521,10 +623,22 @@ const [toastInProgress, setToastInProgress] = useState(false);
                   placeholder="Days"
                   className="w-full rounded-lg border border-stroke bg-transparent py-3 pl-4 pr-6 text-black outline-none focus:border-primary"
                   value={row.days || ''}
+                  onInput={(e) => {
+                    if (e.target.value.length > 2) {
+                      e.target.value = e.target.value.slice(0, 2);
+                    }
+                  }}
                   onChange={(e) =>
                     handleInputChange(row.id, 'days', e.target.value)
                   }
+                  min="1"
+                  max="99"
                 />
+                {errors?.rows?.[row.id]?.days && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.rows[row.id].days}
+                  </p>
+                )}
               </div>
 
               {/* Instructions */}
@@ -538,6 +652,11 @@ const [toastInProgress, setToastInProgress] = useState(false);
                     handleInputChange(row.id, 'instructions', e.target.value)
                   }
                 />
+                {errors?.rows?.[row.id]?.instructions && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.rows[row.id].instructions}
+                  </p>
+                )}
               </div>
             </div>
           </div>

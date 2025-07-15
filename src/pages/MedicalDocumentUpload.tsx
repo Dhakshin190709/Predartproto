@@ -27,7 +27,7 @@ const MedicalDocumentUpload: React.FC = () => {
  const [modalOpen, setModalOpen] = useState(false);
   const [documentURL, setDocumentURL] = useState('');
   const [isImage, setIsImage] = useState(false);
- 
+ const [toastInProgress, setToastInProgress] = useState(false);
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [selectedType, setSelectedType] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -53,14 +53,19 @@ const MedicalDocumentUpload: React.FC = () => {
     return fileName.split('_').pop();
   };
   // 🔄 Load Document Types
- useEffect(() => {
+useEffect(() => {
   const fetchDocumentTypes = () => {
     try {
       const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
+      console.log('Full masterLOV:', masterLOV);
 
       if (masterLOV && Array.isArray(masterLOV.data)) {
-        const activeDocs = masterLOV.data
-          .filter((item: any) => item.type === 'MedicalRecordDocument' && item.isActive === true);
+        const activeDocs = masterLOV.data.filter(
+          (item: any) =>
+            item.type === 'MedicalRecordDocument' && item.isActive === true
+        );
+
+        console.log('Filtered MedicalRecordDocument types:', activeDocs);
 
         setDocumentTypes(activeDocs);
       } else {
@@ -75,18 +80,6 @@ const MedicalDocumentUpload: React.FC = () => {
 }, []);
 
 
-
-  // 🔄 Load Uploaded Documents (when appointment found)
-  // const fetchUploadedDocuments = async (patientID: string) => {
-  //   try {
-  //     const response = await api.get(`/Document/GetDocuments`, {
-  //       params: { ID: patientID },
-  //     });
-  //     setUploadedDocuments(response.data.data || []);
-  //   } catch (error) {
-  //     console.error('Error fetching uploaded documents:', error);
-  //   }
-  // };
 
 
 const handleViewDocument = async (documentID: string, fileName: string) => {
@@ -127,45 +120,74 @@ const handleViewDocument = async (documentID: string, fileName: string) => {
       alert('Error loading document.');
     }
   };
+
+
+
   const handleSearch = async () => {
-    if (!selectedPatientID && !appointmentNumber) {
-      toast.warn('Please select at least one filter!');
-      return;
-    }
-    if (!selectedPatientID) {
-      toast.warn('Please select a patient!');
-      return;
-    }
-    if (!appointmentNumber) {
-      toast.warn('Please enter appointment number!');
-      return;
-    }
+  if (toastInProgress) return;
 
-    try {
-      const res = await api.get(`/Appointment/GetAppointment?PatientID=${selectedPatientID}`);
-      if (res.data && Array.isArray(res.data)) {
-        const matched = res.data.find(
-          (a: Appointment) => a.appointmentNumber === Number(appointmentNumber)
-        );
+  if (!selectedPatientID && !appointmentNumber) {
+    setToastInProgress(true);
+    toast.warn('Please select at least one filter!', {
+      onClose: () => setToastInProgress(false),
+    });
+    return;
+  }
 
-        if (matched) {
-          setAppointmentDetails(matched);
-         // fetchUploadedDocuments(matched.patientID);
-        } else {
-          setAppointmentDetails(null);
-          setUploadedDocuments([]);
-          toast.warn('No matching appointment found for this patient.');
-        }
+  if (!selectedPatientID) {
+    setToastInProgress(true);
+    toast.warn('Please select a patient!', {
+      onClose: () => setToastInProgress(false),
+    });
+    return;
+  }
+
+  if (!appointmentNumber) {
+    setToastInProgress(true);
+    toast.warn('Please enter appointment number!', {
+      onClose: () => setToastInProgress(false),
+    });
+    return;
+  }
+
+  try {
+    const res = await api.get(
+      `/Appointment/GetAppointment?PatientID=${selectedPatientID}`
+    );
+
+    if (res.data && Array.isArray(res.data)) {
+      const matched = res.data.find(
+        (a: Appointment) => a.appointmentNumber === Number(appointmentNumber)
+      );
+
+      if (matched) {
+        setAppointmentDetails(matched);
+        // fetchUploadedDocuments(matched.patientID);
       } else {
         setAppointmentDetails(null);
         setUploadedDocuments([]);
-        toast.warn('No appointments found for this patient.');
+        setToastInProgress(true);
+        toast.warn('No matching appointment found for this patient.', {
+          onClose: () => setToastInProgress(false),
+        });
       }
-    } catch (error) {
-      console.error('Error fetching appointment:', error);
-      toast.error('Something went wrong.');
+    } else {
+      setAppointmentDetails(null);
+      setUploadedDocuments([]);
+      setToastInProgress(true);
+      toast.warn('No appointments found for this patient.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
-  };
+  } catch (error) {
+    console.error('Error fetching appointment:', error);
+    setToastInProgress(true);
+    toast.error('Something went wrong.', {
+      onClose: () => setToastInProgress(false),
+    });
+  }
+};
+
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -179,29 +201,40 @@ const handleViewDocument = async (documentID: string, fileName: string) => {
     }
   };
 
- const handleUpload = async () => {
+const handleUpload = async () => {
+  if (toastInProgress) return;
+
   if (!selectedFile || !selectedType) {
-    toast.error('Please select all fields.');
+    setToastInProgress(true);
+    toast.error('Please select all fields.', {
+      onClose: () => setToastInProgress(false),
+    });
     return;
   }
+
   if (!appointmentDetails) {
-    toast.error('Please search and select an appointment first.');
+    setToastInProgress(true);
+    toast.error('Please search and select an appointment first.', {
+      onClose: () => setToastInProgress(false),
+    });
     return;
   }
 
   const userID = sessionStorage.getItem('userID');
   if (!userID) {
-    toast.error('User not logged in.');
+    setToastInProgress(true);
+    toast.error('User not logged in.', {
+      onClose: () => setToastInProgress(false),
+    });
     return;
   }
 
   const nowISO = new Date().toISOString();
   const filePath = `uploads/${selectedFile.name}`;
 
-  // Create FormData
-  const formData = new FormData();
-  formData.append('File', selectedFile); // Actual file blob
-
+ 
+ const formData = new FormData();
+  formData.append('File', selectedFile);
   formData.append('MrdDocument.ID', appointmentDetails?.patientID || '');
   formData.append('MrdDocument.Type', 'patient');
   formData.append('MrdDocument.DocumentType', selectedType);
@@ -209,7 +242,7 @@ const handleViewDocument = async (documentID: string, fileName: string) => {
   formData.append('MrdDocument.FileLocation', filePath);
   formData.append('MrdDocument.TenantID', appointmentDetails?.tenantID || '');
   formData.append('MrdDocument.AppointmentID', appointmentDetails?.appointmentID || '');
-formData.append('MrdDocument.TenantCode', 'null');
+  formData.append('MrdDocument.TenantCode', 'null');
   formData.append('MrdDocument.PatientMobile', appointmentDetails?.patientPhoneNumber || '');
   formData.append('MrdDocument.CreatedBy', userID);
   formData.append('MrdDocument.CreatedOn', nowISO);
@@ -222,6 +255,7 @@ formData.append('MrdDocument.TenantCode', 'null');
   formData.append('UpdatedOn', nowISO);
   formData.append('IsActive', 'true');
 
+
   try {
     const response = await api.post('/Document/MedicalRecordPDF', formData, {
       headers: {
@@ -230,19 +264,49 @@ formData.append('MrdDocument.TenantCode', 'null');
     });
 
     if (response.status === 200 || response.status === 201) {
-      toast.success('Document uploaded successfully!');
+      setToastInProgress(true);
+      toast.success('Document uploaded successfully!', {
+        onClose: () => setToastInProgress(false),
+      });
       setSelectedFile(null);
       setSelectedType('');
       setPreviewSrc(null);
-      //fetchUploadedDocuments(appointmentDetails.patientID);
+      fetchMRDDocuments();
     } else {
-      toast.error('Upload failed. Try again.');
+      setToastInProgress(true);
+      toast.error('Upload failed. Try again.', {
+        onClose: () => setToastInProgress(false),
+      });
     }
   } catch (error: any) {
-    toast.error('Upload failed: ' + (error.response?.data?.message || error.message));
+    setToastInProgress(true);
+    toast.error(
+      'Upload failed: ' + (error.response?.data?.message || error.message),
+      {
+        onClose: () => setToastInProgress(false),
+      },
+    );
   }
 };
 
+
+ const fetchMRDDocuments = async () => {
+  try {
+    const response = await api.get('/Document/GetMRDDocuments');
+    if (response.data.success && Array.isArray(response.data.data)) {
+      setUploadedDocuments(response.data.data);
+      console.log('Fetched MRD Documents:', response.data.data);
+    } else {
+      console.error('Failed to fetch documents:', response.data);
+    }
+  } catch (error) {
+    console.error('Error fetching MRD Documents:', error);
+  }
+};
+
+useEffect(() => {
+  fetchMRDDocuments();
+}, []);
 
 
   return (
@@ -335,58 +399,39 @@ formData.append('MrdDocument.TenantCode', 'null');
                         <th className="border px-4 py-2">Actions</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {uploadedDocuments.length > 0 ? (
-                        uploadedDocuments.map((doc, index) => (
-                          <tr key={index} className="text-center">
-                            <td className="border px-4 py-2">
-                              {doc.documentType}
-                            </td>
-                            <td className="border px-4 py-2">
-                              {getFormattedFileName(doc.fileName)}
-                            </td>
-                            <td className="border px-4 py-2">
-                              {doc.createdOn
-                                ? doc.createdOn.split('T')[0]
-                                : 'N/A'}
-                            </td>
-                            <td className="border px-4 py-2 justify-center gap-2">
-                              {/* View Button */}
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewDocument(
-                                    doc.documentID,
-                                    doc.fileName,
-                                  )
-                                }
-                                className="bg-gradient-to-b from-[#008000] to-[#00FF00] hover:from-[#00FF00] hover:to-[#008000] 
-                text-white px-3 py-1 rounded-lg"
-                              >
-                                View
-                              </button>
+                   <tbody>
+  {uploadedDocuments.length > 0 ? (
+    uploadedDocuments.map((doc, index) => (
+      <tr key={index} className="text-center">
+        <td className="border px-4 py-2">
+          {getFormattedFileName(doc.fileName)}
+        </td>
+        <td className="border px-4 py-2">{doc.documentType}</td>
+        <td className="border px-4 py-2">
+          {doc.createdOn ? doc.createdOn.split('T')[0] : 'N/A'}
+        </td>
+        <td className="border px-4 py-2 justify-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              handleViewDocument(doc.mrdDocumentID, doc.fileName)
+            }
+            className="bg-gradient-to-b from-[#008000] to-[#00FF00] hover:from-[#00FF00] hover:to-[#008000] text-white px-3 py-1 rounded-lg"
+          >
+            View
+          </button>
+        </td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan={4} className="border px-4 py-2 text-center">
+        No documents uploaded yet.
+      </td>
+    </tr>
+  )}
+</tbody>
 
-                              {/* Delete Button */}
-                              {/* <button
-                onClick={() => handleDeleteDocument(doc.documentID)}
-                className="text-red-600 hover:text-red-800"
-              >
-                <Trash2 className="w-5 h-5" />
-              </button> */}
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={4}
-                            className="border px-4 py-2 text-center"
-                          >
-                            No documents uploaded yet.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
                   </table>
                 </div>
         </div>

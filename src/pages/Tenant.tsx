@@ -1073,32 +1073,20 @@ const [toastInProgress, setToastInProgress] = useState(false);
         </button>
       </div>
 
-      <div
-        className="ag-theme-alpine mt-6"
-        style={{
-          height: '400px',
-          width: '100%',
-          overflowX: 'auto', // 👈 Enables horizontal scroll
-        }}
-      >
-        <div style={{ minWidth: '1200px' }}>
-          {' '}
-          {/* 👈 Minimum width to trigger scroll */}
-          <AgGridReact
-            rowData={
-              filteredData.length > 0 ? applyGlobalSearch(filteredData) : []
-            }
-            columnDefs={columnDefs}
-            pagination={true}
-            paginationPageSize={10}
-            paginationPageSizeSelector={[10, 20, 50, 100]}
-            domLayout="autoHeight"
-            headerHeight={40}
-            rowHeight={40}
-            onGridReady={onGridReady}
-          />
-        </div>
-      </div>
+      <div className="ag-theme-alpine mt-6" style={{ height: '400px', width: '100%' }}>
+  <AgGridReact
+    rowData={filteredData.length > 0 ? applyGlobalSearch(filteredData) : []}
+    columnDefs={columnDefs}
+    pagination={true}
+    paginationPageSize={10}
+    paginationPageSizeSelector={[10, 20, 50, 100]}
+    domLayout="autoHeight"
+    headerHeight={40}
+    rowHeight={40}
+    onGridReady={onGridReady}
+  />
+</div>
+
 
       {showConfirmation && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-50">
