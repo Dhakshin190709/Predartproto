@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 
 import { toast } from 'react-toastify';
 import api from '../api/request';
-
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 interface Pharmacy {
   pharmacyID: string;
   pharmacyName: string;
@@ -62,6 +63,8 @@ export default function PurchaseOrder() {
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [toastInProgress, setToastInProgress] = useState(false);
+const [suppliers, setSuppliers] = useState<{ supplierID: string; supplierName: string }[]>([]);
+
 
   // 📌 Fetch dropdown data
   useEffect(() => {
@@ -81,23 +84,22 @@ export default function PurchaseOrder() {
     }
   };
 
- const fetchStatuses = () => {
-  try {
-    const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
+  const fetchStatuses = () => {
+    try {
+      const masterLOV = JSON.parse(localStorage.getItem('masterLOV') || '{}');
 
-    if (masterLOV && Array.isArray(masterLOV.data)) {
-      const statuses = masterLOV.data.filter(
-        (item: any) => item.type === 'Status'
-      );
-      setStatuses(statuses);
-    } else {
-      console.warn('No masterLOV data found in localStorage.');
+      if (masterLOV && Array.isArray(masterLOV.data)) {
+        const statuses = masterLOV.data.filter(
+          (item: any) => item.type === 'Status',
+        );
+        setStatuses(statuses);
+      } else {
+        console.warn('No masterLOV data found in localStorage.');
+      }
+    } catch (err) {
+      console.error('Error reading masterLOV from localStorage:', err);
     }
-  } catch (err) {
-    console.error('Error reading masterLOV from localStorage:', err);
-  }
-};
-
+  };
 
   const fetchMedicines = async () => {
     try {
@@ -107,6 +109,30 @@ export default function PurchaseOrder() {
       console.error(error);
     }
   };
+
+ 
+  useEffect(() => {
+    const fetchSuppliers = async () => {
+      try {
+        const res = await api.get('/Supplier');
+        const data = res.data;
+
+        const activeSuppliers = data.filter((s: any) => s.isActive);
+        setSuppliers(
+          activeSuppliers.map((s: any) => ({
+            supplierID: s.supplierID,
+            supplierName: s.supplierName,
+          }))
+        );
+      } catch (error) {
+        console.error('Failed to fetch suppliers:', error);
+      }
+    };
+
+    fetchSuppliers();
+  }, []);
+
+
   const fetchTenants = async () => {
     try {
       const res = await api.get('/Tenant/TenantList');
@@ -188,76 +214,76 @@ export default function PurchaseOrder() {
       },
     ]);
   };
-const validate = () => {
-  const newErrors: { [key: string]: string } = {};
+  const validate = () => {
+    const newErrors: { [key: string]: string } = {};
 
-  if (!formData.tenantID) newErrors.tenantID = 'Tenant is required';
-  if (!formData.hospitalID) newErrors.hospitalID = 'Hospital is required';
-  if (!formData.supplierID) newErrors.supplierID = 'Supplier is required';
-  if (!formData.pharmacyID) newErrors.pharmacyID = 'Pharmacy is required';
+    if (!formData.tenantID) newErrors.tenantID = 'Tenant is required';
+    if (!formData.hospitalID) newErrors.hospitalID = 'Hospital is required';
+    if (!formData.supplierID) newErrors.supplierID = 'Supplier is required';
+    if (!formData.pharmacyID) newErrors.pharmacyID = 'Pharmacy is required';
 
-  if (!formData.poNumber.trim()) {
-    newErrors.poNumber = 'PO Number is required';
-  } else if (!/^PO-\d+$/.test(formData.poNumber.trim())) {
-    newErrors.poNumber = 'Format must be PO-001';
-  }
-
-  if (!formData.status) newErrors.status = 'Status is required';
-
-  lineItems.forEach((li, index) => {
-    const prefix = `LineItem[${index + 1}]`;
-
-    if (!li.medicineID)
-      newErrors[`${prefix}.medicineID`] = 'Medicine required';
-
-    if (!(Number(li.quantityOrdered) > 0))
-      newErrors[`${prefix}.quantityOrdered`] = 'Qty Ordered > 0';
-
-    if (li.quantityReceived === '')
-      newErrors[`${prefix}.quantityReceived`] = 'Qty Received required';
-
-    if (!(Number(li.unitPrice) > 0))
-      newErrors[`${prefix}.unitPrice`] = 'Unit Price > 0';
-
-    if (!li.expiryDate) {
-      newErrors[`${prefix}.expiryDate`] = 'Expiry date required';
-    } else {
-      const today = new Date();
-      const expiry = new Date(li.expiryDate);
-      today.setHours(0, 0, 0, 0);
-      expiry.setHours(0, 0, 0, 0);
-      if (expiry <= today) {
-        newErrors[`${prefix}.expiryDate`] = 'Expiry must be future';
-      }
+    if (!formData.poNumber.trim()) {
+      newErrors.poNumber = 'PO Number is required';
+    } else if (!/^PO-\d+$/.test(formData.poNumber.trim())) {
+      newErrors.poNumber = 'Format must be PO-001';
     }
 
-    if (!li.status) newErrors[`${prefix}.status`] = 'Status required';
+    if (!formData.status) newErrors.status = 'Status is required';
 
-    // ✅ New: Validate description
-    if (!li.description || li.description.trim() === '') {
-      newErrors[`${prefix}.description`] = 'Description is required';
-    } else {
-      if (li.description.length > 255) {
-        newErrors[`${prefix}.description`] = 'Max 255 characters allowed';
-      }
-      // Reject 6+ repeating same char (like "aaaaaa")
-      if (/(.)\1{5,}/.test(li.description)) {
-        newErrors[`${prefix}.description`] = 'No repeating characters allowed';
-      }
-      // Allow only basic letters, numbers, spaces & punctuation
-      const allowedRegex = /^[a-zA-Z0-9\s.,;:!?'"()\[\]{}\-_/\\]*$/;
-      if (!allowedRegex.test(li.description)) {
-        newErrors[`${prefix}.description`] =
-          'Only letters, numbers & punctuation allowed. Emojis or special symbols not allowed.';
-      }
-    }
-  });
+    lineItems.forEach((li, index) => {
+      const prefix = `LineItem[${index + 1}]`;
 
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
+      if (!li.medicineID)
+        newErrors[`${prefix}.medicineID`] = 'Medicine required';
 
- 
+      if (!(Number(li.quantityOrdered) > 0))
+        newErrors[`${prefix}.quantityOrdered`] = 'Qty Ordered > 0';
+
+      if (li.quantityReceived === '')
+        newErrors[`${prefix}.quantityReceived`] = 'Qty Received required';
+
+      if (!(Number(li.unitPrice) > 0))
+        newErrors[`${prefix}.unitPrice`] = 'Unit Price > 0';
+
+      if (!li.expiryDate) {
+        newErrors[`${prefix}.expiryDate`] = 'Expiry date required';
+      } else {
+        const today = new Date();
+        const expiry = new Date(li.expiryDate);
+        today.setHours(0, 0, 0, 0);
+        expiry.setHours(0, 0, 0, 0);
+        if (expiry <= today) {
+          newErrors[`${prefix}.expiryDate`] = 'Expiry must be future';
+        }
+      }
+
+      if (!li.status) newErrors[`${prefix}.status`] = 'Status required';
+
+      // ✅ New: Validate description
+      if (!li.description || li.description.trim() === '') {
+        newErrors[`${prefix}.description`] = 'Description is required';
+      } else {
+        if (li.description.length > 255) {
+          newErrors[`${prefix}.description`] = 'Max 255 characters allowed';
+        }
+        // Reject 6+ repeating same char (like "aaaaaa")
+        if (/(.)\1{5,}/.test(li.description)) {
+          newErrors[`${prefix}.description`] =
+            'No repeating characters allowed';
+        }
+        // Allow only basic letters, numbers, spaces & punctuation
+        const allowedRegex = /^[a-zA-Z0-9\s.,;:!?'"()\[\]{}\-_/\\]*$/;
+        if (!allowedRegex.test(li.description)) {
+          newErrors[`${prefix}.description`] =
+            'Only letters, numbers & punctuation allowed. Emojis or special symbols not allowed.';
+        }
+      }
+    });
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) {
@@ -341,295 +367,336 @@ const validate = () => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
-        Create Purchase Order
-      </h1>
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div>
-            <select
-              name="tenantID"
-              value={formData.tenantID}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary resize-y placeholder:text-base"
-            >
-              <option value="">Select Tenant</option>
-              {tenants.map((t) => (
-                <option key={t.tenantID} value={t.tenantID}>
-                  {t.tenantName}
-                </option>
-              ))}
-            </select>
-            {errors.tenantID && (
-              <p className="text-red-500 text-xs mt-1">{errors.tenantID}</p>
-            )}
-          </div>
-          <div>
-            <select
-              name="hospitalID"
-              value={formData.hospitalID}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary resize-y placeholder:text-base"
-            >
-              <option value="">Select Hospital</option>
-              {hospitals.map((h) => (
-                <option key={h.hospitalID} value={h.hospitalID}>
-                  {h.hospitalName}
-                </option>
-              ))}
-            </select>
-            {errors.hospitalID && (
-              <p className="text-red-500 text-xs mt-1">{errors.hospitalID}</p>
-            )}
-          </div>
-          <div>
-            <select
-              name="supplierID"
-              value={formData.supplierID}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-            >
-              <option value="">Select Supplier</option>
-              {pharmacies.map((p) => (
-                <option key={p.pharmacyID} value={p.pharmacyID}>
-                  {p.pharmacyName}
-                </option>
-              ))}
-            </select>
-            {errors.supplierID && (
-              <p className="text-red-500 text-xs mt-1">{errors.supplierID}</p>
-            )}
-          </div>
-          <div>
-            <select
-              name="pharmacyID"
-              value={formData.pharmacyID}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-            >
-              <option value="">Select Pharmacy</option>
-              {pharmacies.map((p) => (
-                <option key={p.pharmacyID} value={p.pharmacyID}>
-                  {p.pharmacyName}
-                </option>
-              ))}
-            </select>
-            {errors.pharmacyID && (
-              <p className="text-red-500 text-xs mt-1">{errors.pharmacyID}</p>
-            )}
-          </div>
-          <div>
-            <input
-              name="poNumber"
-              placeholder="PO Number"
-              value={formData.poNumber}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
+    <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
+      <div className="max-w-5xl mx-auto p-4">
+        <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
+          Create Purchase Order
+        </h1>
+        <form onSubmit={handleSubmit} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div>
+              <select
+                name="tenantID"
+                value={formData.tenantID}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary resize-y placeholder:text-base"
+              >
+                <option value="">Select Tenant</option>
+                {tenants.map((t) => (
+                  <option key={t.tenantID} value={t.tenantID}>
+                    {t.tenantName}
+                  </option>
+                ))}
+              </select>
+              {errors.tenantID && (
+                <p className="text-red-500 text-xs mt-1">{errors.tenantID}</p>
+              )}
+            </div>
+            <div>
+              <select
+                name="hospitalID"
+                value={formData.hospitalID}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary resize-y placeholder:text-base"
+              >
+                <option value="">Select Hospital</option>
+                {hospitals.map((h) => (
+                  <option key={h.hospitalID} value={h.hospitalID}>
+                    {h.hospitalName}
+                  </option>
+                ))}
+              </select>
+              {errors.hospitalID && (
+                <p className="text-red-500 text-xs mt-1">{errors.hospitalID}</p>
+              )}
+            </div>
+            <div>
+             <select
+  name="supplierID"
+  value={formData.supplierID}
+  onChange={handleChange}
+  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+>
+  <option value="">Select Supplier</option>
+  {suppliers.map((s) => (
+    <option key={s.supplierID} value={s.supplierID}>
+      {s.supplierName}
+    </option>
+  ))}
+</select>
+
+              {errors.supplierID && (
+                <p className="text-red-500 text-xs mt-1">{errors.supplierID}</p>
+              )}
+            </div>
+            <div>
+              <select
+                name="pharmacyID"
+                value={formData.pharmacyID}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+              >
+                <option value="">Select Pharmacy</option>
+                {pharmacies.map((p) => (
+                  <option key={p.pharmacyID} value={p.pharmacyID}>
+                    {p.pharmacyName}
+                  </option>
+                ))}
+              </select>
+              {errors.pharmacyID && (
+                <p className="text-red-500 text-xs mt-1">{errors.pharmacyID}</p>
+              )}
+            </div>
+            <div>
+              <input
+                name="poNumber"
+                placeholder="PO Number"
+                value={formData.poNumber}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 
           text-black outline-none placeholder:text-base"
-            />
-            {errors.poNumber && (
-              <p className="text-red-500 text-xs mt-1">{errors.poNumber}</p>
-            )}
-          </div>
-          <div>
-            <input
-              type="date"
-              name="poDate"
-              value={formData.poDate}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black
+              />
+              {errors.poNumber && (
+                <p className="text-red-500 text-xs mt-1">{errors.poNumber}</p>
+              )}
+            </div>
+            <div>
+              <input
+                type="date"
+                name="poDate"
+                value={formData.poDate}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black
            outline-none placeholder:text-base"
-            />
-            {errors.poDate && (
-              <p className="text-red-500 text-xs mt-1">{errors.poDate}</p>
-            )}
+              />
+              {errors.poDate && (
+                <p className="text-red-500 text-xs mt-1">{errors.poDate}</p>
+              )}
+            </div>
+
+            <div>
+              <input
+                placeholder="Total Amount"
+                value={formData.totalAmount}
+                readOnly
+                className="w-full rounded-lg border cursor-not-allowed border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+              />
+              {errors.totalAmount && (
+                <p className="text-red-500 text-xs mt-1">
+                  {errors.totalAmount}
+                </p>
+              )}
+            </div>
+            <div>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleChange}
+                className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+              >
+                <option value="">Select Status</option>
+                {statuses.map((s) => (
+                  <option key={s.appLOVID} value={s.name}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+              {errors.status && (
+                <p className="text-red-500 text-xs mt-1">{errors.status}</p>
+              )}
+            </div>
           </div>
 
-          <div>
-            <input
-              placeholder="Total Amount"
-              value={formData.totalAmount}
-              readOnly
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-            />
-            {errors.totalAmount && (
-              <p className="text-red-500 text-xs mt-1">{errors.totalAmount}</p>
-            )}
-          </div>
-          <div>
-            <select
-              name="status"
-              value={formData.status}
-              onChange={handleChange}
-              className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+          <h2 className="text-xl font-semibold text-black mt-4 mb-8">
+            Line Items
+          </h2>
+          {lineItems.map((li, idx) => {
+            const prefix = `LineItem[${idx + 1}]`;
+            return (
+              <div
+                key={idx}
+                className="border border-stroke rounded-lg p-4 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+              >
+                {/* Medicine Dropdown */}
+                <div>
+                  <select
+                    value={li.medicineID}
+                    onChange={(e) =>
+                      handleLineItemChange(idx, 'medicineID', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  >
+                    <option value="">Select Medicine</option>
+                    {medicines.map((m) => (
+                      <option key={m.medicineID} value={m.medicineID}>
+                        {m.medicineName}
+                      </option>
+                    ))}
+                  </select>
+                  {errors[`${prefix}.medicineID`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.medicineID`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Qty Ordered */}
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Qty Ordered"
+                    value={li.quantityOrdered}
+                    onChange={(e) =>
+                      handleLineItemChange(
+                        idx,
+                        'quantityOrdered',
+                        e.target.value,
+                      )
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                  {errors[`${prefix}.quantityOrdered`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.quantityOrdered`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Qty Received */}
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Qty Received"
+                    value={li.quantityReceived}
+                    onChange={(e) =>
+                      handleLineItemChange(
+                        idx,
+                        'quantityReceived',
+                        e.target.value,
+                      )
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                  {errors[`${prefix}.quantityReceived`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.quantityReceived`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Unit Price */}
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Unit Price"
+                    value={li.unitPrice}
+                    onChange={(e) =>
+                      handleLineItemChange(idx, 'unitPrice', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                  {errors[`${prefix}.unitPrice`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.unitPrice`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Line Total */}
+                <div>
+                  <input
+                    type="number"
+                    placeholder="Line Total"
+                    value={li.lineTotal}
+                    readOnly
+                    className="w-full rounded-lg border border-stroke cursor-not-allowed bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                </div>
+
+                {/* Expiry Date */}
+                <div>
+                  <input
+                    type="date"
+                    placeholder="Expiry Date"
+                    value={li.expiryDate}
+                    onChange={(e) =>
+                      handleLineItemChange(idx, 'expiryDate', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                  {errors[`${prefix}.expiryDate`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.expiryDate`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Status */}
+                <div>
+                  <select
+                    value={li.status}
+                    onChange={(e) =>
+                      handleLineItemChange(idx, 'status', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  >
+                    <option value="">Status</option>
+                    {statuses.map((s) => (
+                      <option key={s.appLOVID} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors[`${prefix}.status`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.status`]}
+                    </p>
+                  )}
+                </div>
+
+                {/* Description */}
+                <div>
+                  <textarea
+                    placeholder="Description"
+                    rows={1}
+                    value={li.description}
+                    onChange={(e) =>
+                      handleLineItemChange(idx, 'description', e.target.value)
+                    }
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
+                  />
+                  {errors[`${prefix}.description`] && (
+                    <p className="text-red-500 text-xs mt-1">
+                      {errors[`${prefix}.description`]}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          <div className="flex items-center justify-end gap-1">
+            <div
+              className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
+              onClick={addLineItem}
             >
-              <option value="">Select Status</option>
-              {statuses.map((s) => (
-                <option key={s.appLOVID} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            {errors.status && (
-              <p className="text-red-500 text-xs mt-1">{errors.status}</p>
-            )}
+              +
+            </div>
+            <span className="text-sm font-medium text-black-600">Add</span>
           </div>
-        </div>
 
-        <h2 className="text-xl font-semibold text-black mt-4 mb-8">
-          Line Items
-        </h2>
-       {lineItems.map((li, idx) => {
-  const prefix = `LineItem[${idx + 1}]`;
-  return (
-    <div
-      key={idx}
-      className="border border-stroke rounded-lg p-4 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-    >
-      {/* Medicine Dropdown */}
-      <div>
-        <select
-          value={li.medicineID}
-          onChange={(e) => handleLineItemChange(idx, 'medicineID', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        >
-          <option value="">Select Medicine</option>
-          {medicines.map((m) => (
-            <option key={m.medicineID} value={m.medicineID}>
-              {m.medicineName}
-            </option>
-          ))}
-        </select>
-        {errors[`${prefix}.medicineID`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.medicineID`]}</p>
-        )}
-      </div>
-
-      {/* Qty Ordered */}
-      <div>
-        <input
-          type="number"
-          placeholder="Qty Ordered"
-          value={li.quantityOrdered}
-          onChange={(e) => handleLineItemChange(idx, 'quantityOrdered', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-        {errors[`${prefix}.quantityOrdered`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.quantityOrdered`]}</p>
-        )}
-      </div>
-
-      {/* Qty Received */}
-      <div>
-        <input
-          type="number"
-          placeholder="Qty Received"
-          value={li.quantityReceived}
-          onChange={(e) => handleLineItemChange(idx, 'quantityReceived', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-        {errors[`${prefix}.quantityReceived`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.quantityReceived`]}</p>
-        )}
-      </div>
-
-      {/* Unit Price */}
-      <div>
-        <input
-          type="number"
-          placeholder="Unit Price"
-          value={li.unitPrice}
-          onChange={(e) => handleLineItemChange(idx, 'unitPrice', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-        {errors[`${prefix}.unitPrice`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.unitPrice`]}</p>
-        )}
-      </div>
-
-      {/* Line Total */}
-      <div>
-        <input
-          type="number"
-          placeholder="Line Total"
-          value={li.lineTotal}
-          readOnly
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-      </div>
-
-      {/* Expiry Date */}
-      <div>
-        <input
-          type="date"
-          placeholder="Expiry Date"
-          value={li.expiryDate}
-          onChange={(e) => handleLineItemChange(idx, 'expiryDate', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-        {errors[`${prefix}.expiryDate`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.expiryDate`]}</p>
-        )}
-      </div>
-
-      {/* Status */}
-      <div>
-        <select
-          value={li.status}
-          onChange={(e) => handleLineItemChange(idx, 'status', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        >
-          <option value="">Status</option>
-          {statuses.map((s) => (
-            <option key={s.appLOVID} value={s.name}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-        {errors[`${prefix}.status`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.status`]}</p>
-        )}
-      </div>
-
-      {/* Description */}
-      <div>
-        <textarea
-          placeholder="Description"
-          rows={1}
-          value={li.description}
-          onChange={(e) => handleLineItemChange(idx, 'description', e.target.value)}
-          className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none placeholder:text-base"
-        />
-        {errors[`${prefix}.description`] && (
-          <p className="text-red-500 text-xs mt-1">{errors[`${prefix}.description`]}</p>
-        )}
-      </div>
-    </div>
-  );
-})}
-
-
-        <div className="flex items-center justify-end gap-1">
-          <div
-            className="flex justify-center items-center h-10 w-10 text-white rounded-full cursor-pointer bg-gradient-to-b from-[#004A99] to-[#007BFF] hover:from-[#007BFF] hover:to-[#004A99]"
-            onClick={addLineItem}
-          >
-            +
-          </div>
-          <span className="text-sm font-medium text-black-600">Add</span>
-        </div>
-
-        <button
-          type="submit"
-          className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
+          <button
+            type="submit"
+            className="bg-gradient-to-b from-[#004A99] to-[#007BFF]
     hover:from-[#007BFF] hover:to-[#004A99]
     text-white transition duration-150 
     ease-out hover:ease-in py-2 px-5 rounded-lg"
-        >
-          Submit PO
-        </button>
-      </form>
+          >
+            Submit PO
+          </button>
+          <ToastContainer position="top-right" autoClose={3000} />
+        </form>
+      </div>
     </div>
   );
 }

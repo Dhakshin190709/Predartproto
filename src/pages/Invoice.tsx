@@ -382,7 +382,9 @@ const handleSubmit = async (e: React.FormEvent) => {
 
 
   return (
+       <div className="w-full p-4 sm:p-8 xl:p-12 bg-white">
     <div className="max-w-5xl mx-auto p-4">
+      
       <h1 className="text-2xl font-semibold text-black mt-4 mb-8">
         Create Invoice
       </h1>
@@ -652,6 +654,7 @@ const handleSubmit = async (e: React.FormEvent) => {
              <ToastContainer position="top-right" autoClose={3000} />
         </div>
       </form>
+    </div>
     </div>
   );
 };

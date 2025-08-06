@@ -136,6 +136,7 @@ import TenantSubscription from './pages/TenantSubscription';
 import TenantAddOn from './pages/TenantAddOn';
 import TenantPromoUsage from './pages/TenantPromoUsage';
 import ApplicationForm from './pages/ApplicationForm';
+import Supplier from './pages/Supplier';
 
 import Tenant from './pages/Tenant';
 import Diagnostics from './pages/Diagnostics';
@@ -358,6 +359,16 @@ function App() {
                 <PageTitle title="EmailTemplate | PreCare" />
 
                 <EmailTemplate />
+              </>
+            }
+          />
+          <Route
+            path="/Supplier"
+            element={
+              <>
+                <PageTitle title="Supplier | PreCare" />
+
+                <Supplier />
               </>
             }
           />
