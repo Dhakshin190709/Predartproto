@@ -1,272 +1,1469 @@
-import Breadcrumb from '../components/Breadcrumbs/Breadcrumb';
+import React, { useState, useEffect, useRef } from 'react';
+import { Calendar as BigCalendar, momentLocalizer } from 'react-big-calendar';
+import moment from 'moment';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import 'react-datepicker/dist/react-datepicker.css';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import axios from 'axios';
+import CustomButton from '../components/CustomButton';
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { toast } from 'react-toastify';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from 'lucide-react';
+import api from '../api/request';
+interface AppLOVOption {
+  appLOVID: string;
+  name: string;
+}
 
-const Calendar = () => {
-  return (
-    <>
-      <Breadcrumb pageName="Calendar" />
+const localizer = momentLocalizer(moment);
 
-      {/* <!-- ====== Calendar Section Start ====== --> */}
-      <div className="w-full max-w-full rounded-sm border border-stroke bg-white shadow-default dark:border-strokedark dark:bg-boxdark">
-        <table className="w-full">
-          <thead>
-            <tr className="grid grid-cols-7 rounded-t-sm bg-primary text-white">
-              <th className="flex h-15 items-center justify-center rounded-tl-sm p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Sunday </span>
-                <span className="block lg:hidden"> Sun </span>
-              </th>
-              <th className="flex h-15 items-center justify-center p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Monday </span>
-                <span className="block lg:hidden"> Mon </span>
-              </th>
-              <th className="flex h-15 items-center justify-center p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Tuesday </span>
-                <span className="block lg:hidden"> Tue </span>
-              </th>
-              <th className="flex h-15 items-center justify-center p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Wednesday </span>
-                <span className="block lg:hidden"> Wed </span>
-              </th>
-              <th className="flex h-15 items-center justify-center p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Thursday </span>
-                <span className="block lg:hidden"> Thur </span>
-              </th>
-              <th className="flex h-15 items-center justify-center p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Friday </span>
-                <span className="block lg:hidden"> Fri </span>
-              </th>
-              <th className="flex h-15 items-center justify-center rounded-tr-sm p-1 text-xs font-semibold sm:text-base xl:p-5">
-                <span className="hidden lg:block"> Saturday </span>
-                <span className="block lg:hidden"> Sat </span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* <!-- Line 1 --> */}
-            <tr className="grid grid-cols-7">
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  1
-                </span>
-                <div className="group h-16 w-full flex-grow cursor-pointer py-1 md:h-30">
-                  <span className="group-hover:text-primary md:hidden">
-                    More
-                  </span>
-                  <div className="event invisible absolute left-2 z-99 mb-1 flex w-[200%] flex-col rounded-sm border-l-[3px] border-primary bg-gray px-3 py-1 text-left opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-meta-4 md:visible md:w-[190%] md:opacity-100">
-                    <span className="event-name text-sm font-semibold text-black dark:text-white">
-                      Redesign Website
-                    </span>
-                    <span className="time text-sm font-medium text-black dark:text-white">
-                      1 Dec - 2 Dec
-                    </span>
-                  </div>
-                </div>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  2
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  3
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  4
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  5
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  6
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  7
-                </span>
-              </td>
-            </tr>
-            {/* <!-- Line 1 --> */}
-            {/* <!-- Line 2 --> */}
-            <tr className="grid grid-cols-7">
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  8
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  9
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  10
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  11
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  12
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  13
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  14
-                </span>
-              </td>
-            </tr>
-            {/* <!-- Line 2 --> */}
-            {/* <!-- Line 3 --> */}
-            <tr className="grid grid-cols-7">
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  15
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  16
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  17
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  18
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  19
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  20
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  21
-                </span>
-              </td>
-            </tr>
-            {/* <!-- Line 3 --> */}
-            {/* <!-- Line 4 --> */}
-            <tr className="grid grid-cols-7">
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  22
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  23
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  24
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  25
-                </span>
-                <div className="group h-16 w-full flex-grow cursor-pointer py-1 md:h-30">
-                  <span className="group-hover:text-primary md:hidden">
-                    More
-                  </span>
-                  <div className="event invisible absolute left-2 z-99 mb-1 flex w-[300%] flex-col rounded-sm border-l-[3px] border-primary bg-gray px-3 py-1 text-left opacity-0 group-hover:visible group-hover:opacity-100 dark:bg-meta-4 md:visible md:w-[290%] md:opacity-100">
-                    <span className="event-name text-sm font-semibold text-black dark:text-white">
-                      App Design
-                    </span>
-                    <span className="time text-sm font-medium text-black dark:text-white">
-                      25 Dec - 27 Dec
-                    </span>
-                  </div>
-                </div>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  26
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  27
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  28
-                </span>
-              </td>
-            </tr>
-            {/* <!-- Line 4 --> */}
-            {/* <!-- Line 5 --> */}
-            <tr className="grid grid-cols-7">
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  29
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  30
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  31
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  1
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  2
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  3
-                </span>
-              </td>
-              <td className="ease relative h-20 cursor-pointer border border-stroke p-2 transition duration-500 hover:bg-gray dark:border-strokedark dark:hover:bg-meta-4 md:h-25 md:p-6 xl:h-31">
-                <span className="font-medium text-black dark:text-white">
-                  4
-                </span>
-              </td>
-            </tr>
-            {/* <!-- Line 5 --> */}
-          </tbody>
-        </table>
+// Type definition for events
+type Event = {
+  title: string;
+  start: Date;
+  end: Date;
+  status: string;
+  doctor: string;
+  patient: string;
+  patientId: string;
+};
+
+const Calendar: React.FC = () => {
+  const [selectedDoctorID, setSelectedDoctorID] = useState(null);
+const roleName = sessionStorage.getItem('roleName');
+
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [generatedTimeSlots, setGeneratedTimeSlots] = useState<string[]>([]);
+  const [selectedHospitalID, setSelectedHospitalID] = useState(
+    sessionStorage.getItem('unitID') || '',
+  );
+  const [selectedDoctor, setSelectedDoctor] = useState(
+    sessionStorage.getItem('doctorID') || '',
+  );
+const hasFetched = useRef(false);
+  const [bookedAppointments, setBookedAppointments] = useState([]);
+
+  const [appointmentType, setAppointmentType] = useState('');
+  const [relationships, setRelationships] = useState([]);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [filteredRelationships, setFilteredRelationships] = useState<string[]>(
+    [],
+  );
+  const [appointments, setAppointments] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(new Date()); // default today
+
+  const [doctorName, setDoctorName] = useState('');
+
+  const [doctorSearchText, setDoctorSearchText] = useState('');
+  const [filteredHospitals, setFilteredHospitals] = useState<string[]>([]);
+  const [searchText, setSearchText] = useState('');
+  const [filteredDoctors, setFilteredDoctors] = useState<string[]>([]);
+  const [hospitals, setHospitals] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [timeInterval, setTimeInterval] = useState<number>(10); // Default 10 min
+  const [availableTimeRange, setAvailableTimeRange] = useState<{
+    fromTime: Date | null;
+    toTime: Date | null;
+  }>({ fromTime: null, toTime: null });
+  const [formData, setFormData] = useState({
+    name: '',
+    relationship: '',
+
+    phoneNumber: '',
+    hospital: '',
+    doctor: '',
+    reason: '',
+    date: null as Date | null,
+    time: null as Date | null,
+  });
+  const [errors, setErrors] = useState({
+    name: '',
+    relationship: '',
+
+    hospital: '',
+    phoneNumber: '',
+    doctor: '',
+    reason: '',
+    date: '',
+    time: '',
+  });
+  const [selectedEvent, setSelectedEvent] = useState({
+    title: '',
+    start: null,
+    end: null,
+    status: '',
+    doctor: '',
+    patient: '',
+    patientId: '',
+    timeSlotID: null, // <-- add this
+  });
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showHospitalDropdown, setShowHospitalDropdown] = useState(false);
+  const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
+
+  const [currentDate, setCurrentDate] = useState(moment()); // Manage the current date for custom toolbar
+  const [options, setOptions] = useState<AppLOVOption[]>([]);
+  const [patientName, setPatientName] = useState<string>('');
+  const [selectedPatientId, setSelectedPatientId] = useState<string>('');
+  const [showMessage, setShowMessage] = useState<string | null>(null); // State for custom alert message
+  // Default to 15 minutes interval
+
+  const [doctors, setDoctors] = useState([]);
+  const [showDoctorDropdown, setShowDoctorDropdown] = useState(false);
+  const [doctorAvailability, setDoctorAvailability] = useState([]);
+
+  // Handle change of time interval from dropdown
+  const handleTimeIntervalChange = (
+    e: React.ChangeEvent<HTMLSelectElement>,
+  ) => {
+    const interval = parseInt(e.target.value, 10);
+    setTimeInterval(interval);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentDate(moment()); // Update current time every minute
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const doctorID = selectedDoctorID || sessionStorage.getItem('doctorID');
+    if (!doctorID) return;
+
+    const fetchTimeSlots = async () => {
+      try {
+        const response = await api.get('/Doctor/GetDoctorTimeSlot');
+        const data = Array.isArray(response.data?.data)
+          ? response.data.data
+          : [];
+        console.log('Fetched Time Slots Data:', data);
+
+        const matchedTimeSlots = data.filter(
+          (slot) => String(slot.doctorID) === doctorID,
+        );
+
+        if (matchedTimeSlots.length) {
+          const formattedSlots = matchedTimeSlots.map((slot) => ({
+            timeSlotID: slot.timeSlotID,
+            fromTime: slot.fromTime,
+            toTime: slot.toTime,
+            slotDuration: slot.slotDuration,
+            day: slot.dayofWeek,
+          }));
+
+          setAvailableTimeSlots(formattedSlots);
+          console.log('Formatted Slots:', formattedSlots);
+
+          if (selectedDate) {
+            handleDateChange(selectedDate, formattedSlots);
+          }
+        } else {
+          console.warn('No matching time slots found for this doctor.');
+          setAvailableTimeSlots([]);
+          setGeneratedTimeSlots([]);
+        }
+      } catch (error) {
+        console.error('Error fetching time slots:', error);
+      }
+    };
+
+    fetchTimeSlots();
+  }, [selectedDoctorID]);
+
+  useEffect(() => {
+    const selectedOption = options.find(
+      (opt) => opt.appLOVID === appointmentType,
+    );
+
+    if (selectedOption?.name === 'Self') {
+      setFormData((prev) => ({
+        ...prev,
+        relationship: selectedOption.appLOVID, // ✅ Set relationship as Self's appLOVID
+      }));
+      setSelectedRelationship(selectedOption.appLOVID);
+    }
+  }, [appointmentType]);
+
+ const fetchAppointments = async (doctorID: string) => {
+  try {
+    const response = await api.get(`/Appointment/GetAppointment?DoctorID=${doctorID}`);
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      const parsedAppointments = data.map((appt: any) => {
+        const date = new Date(appt.appointmentDate);
+        const [hours, minutes] = appt.appointmentTime.split(':');
+        date.setHours(parseInt(hours, 10));
+        date.setMinutes(parseInt(minutes, 10));
+        date.setSeconds(0);
+
+        return {
+  start: new Date(date),
+  end: new Date(date.getTime() + timeInterval * 60000),
+  title: appt.patientName,
+  status: 'booked',
+
+  // Add more fields:
+  patientName: appt.patientName,
+  patientGender: appt.patientGender,
+  patientDateOfBirth: appt.patientDateOfBirth,
+  notes: appt.notes,
+  patientPhoneNumber: appt.patientPhoneNumber,
+};
+
+      });
+
+      setBookedAppointments(parsedAppointments);
+    }
+  } catch (err) {
+    console.error('Failed to fetch appointments', err);
+  }
+};
+
+
+ const fetchRelationships = () => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const relationships = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'Relationship'
+    ) || [];
+    console.log('Relationships:', relationships);
+    setRelationships(relationships);
+  } else {
+    console.warn('No masterLOV found in localStorage for relationships');
+  }
+};
+
+
+  // Fetch on component mount
+  useEffect(() => {
+    fetchRelationships();
+  }, []);
+
+  const validateField = (name: string, value: string | Date | null): string => {
+    let error = '';
+
+    // Conditional validation for 'Others' appointment type
+    if (appointmentType === 'Others' && name === 'relationship' && !value) {
+      return 'Relationship is required.'; // ✅ Shows error if not selected
+    }
+
+    if (name === 'name' && !value) error = 'Name is required.';
+    if (name === 'hospital' && !value) error = 'Hospital is required.';
+    if (name === 'doctor' && !value) error = 'Doctor is required.';
+    if (name === 'reason' && !value) error = 'Reason is required.';
+
+    if (name === 'phoneNumber') {
+      if (!value) {
+        error = 'Phone number is required.';
+      } else if (typeof value === 'string' && !/^\d{10}$/.test(value)) {
+        error = 'Phone number must be exactly 10 digits.';
+      }
+    }
+
+    // Date validation
+    if (name === 'date') {
+      const dateValue = formData.date; // Use formData.date for consistency
+      if (!dateValue) {
+        error = 'Date is required.';
+      } else if (dateValue instanceof Date && isNaN(dateValue.getTime())) {
+        error = 'Invalid date.';
+      } else {
+        error = ''; // Clear error when valid
+      }
+    }
+
+    // Time validation
+    if (name === 'time') {
+      if (!value) {
+        error = 'Time is required.';
+      } else if (value instanceof Date && isNaN(value.getTime())) {
+        error = 'Invalid time.';
+      }
+    }
+
+    return error;
+  };
+
+  // Handle selecting a time slot and matching it to available slots
+
+  // const handleSelectSlot = ({ start, end }: { start: Date; end: Date }) => {
+  //   const toMinutes = (timeStr: string) => {
+  //     const [hh, mm, ss] = timeStr.split(':').map(Number);
+  //     return hh * 60 + mm;
+  //   };
+
+  //   const formatDateToMinutes = (date: Date) => {
+  //     return date.getHours() * 60 + date.getMinutes();
+  //   };
+
+  //   const selectedStartMin = formatDateToMinutes(start);
+  //   const selectedEndMin = formatDateToMinutes(end);
+
+  //   console.log('Slot selected:');
+
+  //   const formatToHHMMSS = (date: Date) =>
+  //     date.toTimeString().split(' ')[0]; // returns 'HH:MM:SS'
+
+  //   console.log('Start Time:', formatToHHMMSS(start));
+  //   console.log('End Time:', formatToHHMMSS(end));
+
+  //   const selectedDay = start.toLocaleDateString('en-US', { weekday: 'long' });
+
+  //   // Check if the selected start time (both date and time) is in the past
+  //   const now = new Date();
+  //   now.setSeconds(0, 0); // Reset seconds and milliseconds to make sure we're comparing minutes accurately
+
+  //   if (start < now) {
+  //     toast.error('Please select a time that is in the future ');
+  //     return; // Prevent the selection of past times and dates
+  //   }
+
+  //   // Check if the selected slot is already booked in the future
+  //   const isSlotBooked = bookedAppointments.some((appointment) => {
+  //     return (
+  //       appointment.start.getTime() === start.getTime() && // Compare start times
+  //       appointment.status === 'booked' &&
+  //       appointment.start >= now // Ensure it's a future booking
+  //     );
+  //   });
+
+  //   if (isSlotBooked) {
+  //     toast.error('This appointment slot is already booked for the future. Please choose another time.');
+  //     return; // Prevent booking for already booked slots in the future
+  //   }
+
+  //   const matchingSlot = availableTimeSlots.find((slot) => {
+  //     const slotStart = toMinutes(slot.fromTime); // e.g., 540
+  //     const slotEnd = toMinutes(slot.toTime); // e.g., 720
+  //     return (
+  //       selectedStartMin >= slotStart &&
+  //       selectedEndMin <= slotEnd &&
+  //       slot.day === selectedDay
+  //     );
+  //   });
+
+  //   if (!matchingSlot) {
+  //     console.warn('No matching timeslot found for selected time.');
+  //     toast.error('No available time slots for the selected date and time.');
+  //   } else if (matchingSlot.status === 'booked') {
+  //     console.warn('Selected timeslot is already booked.');
+  //     toast.error('You cannot select a booked appointment. Please choose another time.');
+  //   } else {
+  //     console.log('✅ Matched Slot Details:');
+  //     console.log('TimeSlot ID:', matchingSlot.timeSlotID);
+
+  //     setSelectedEvent({
+  //       title: '',
+  //       start,
+  //       end,
+  //       status: 'Pending',
+  //       doctor: '',
+  //       patient: '',
+  //       patientId: '',
+  //       timeSlotID: matchingSlot.timeSlotID,
+  //     });
+
+  //     setSelectedDoctor('');
+  //     setPatientName('');
+  //     setShowAddModal(true);
+  //   }
+  // };
+
+  // Handle the click event of an existing event (Edit Event)
+  const handleEventClick = (event: Event) => {
+    // Set the selected event
+    setSelectedEvent(event);
+
+    // Optionally, if the event has a timeSlotID, you could do something with it
+    if (event.timeSlotID) {
+      console.log('TimeSlot ID from Event:', event.timeSlotID);
+    }
+
+    // Set the selected doctor (assuming the event contains a doctor)
+   // setSelectedDoctor(event.doctor);
+
+    // Show the edit modal
+    setShowEditModal(true);
+  };
+
+  // Function to validate and handle time change for the selected event
+
+  // const handleDoctorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+  //   const doctorID = e.target.value;
+  //   setSelectedDoctor(doctorID); // ✅ Update selectedDoctor state
+  //   setFormData((prev) => ({ ...prev, doctor: doctorID })); // ✅ Ensure doctorID is updated in formData
+
+  //   // Find the associated hospital for the selected doctor
+  //   const selectedDoctorDetails = doctors.find(
+  //     (doctor) => doctor.doctorID === doctorID,
+  //   );
+  //   if (selectedDoctorDetails) {
+  //     setSelectedHospitalID(selectedDoctorDetails.hospitalID || ''); // ✅ Auto-set hospital
+  //   }
+
+  //   console.log('Selected Doctor ID:', doctorID);
+  //   fetchDoctorTimeSlots(doctorID);
+  // };
+
+  useEffect(() => {
+    const fetchHospitals = async () => {
+      try {
+        const response = await api.get('/Hospital/HospitalsList');
+        const result = response.data;
+
+        let hospitals = [];
+
+        if (Array.isArray(result)) {
+          hospitals = result;
+        } else if (Array.isArray(result?.data)) {
+          hospitals = result.data;
+        } else {
+          console.error('Invalid hospital data format:', result);
+          setHospitals([]);
+          return;
+        }
+
+        const activeHospitals = hospitals.filter((h) => h.isActive === true);
+        setHospitals(activeHospitals);
+      } catch (error) {
+        console.error('Error fetching hospitals:', error);
+      }
+    };
+
+    fetchHospitals();
+  }, []);
+
+  useEffect(() => {
+    if (selectedHospitalID) {
+      const filtered = doctors.filter(
+        (doctor) => doctor.hospitalID === selectedHospitalID,
+      );
+      setFilteredDoctors(filtered);
+    } else {
+      setFilteredDoctors([]);
+    }
+  }, [selectedHospitalID, doctors]);
+
+  const filterHospitals = (text: string) => {
+    setSearchText(text);
+    setFilteredHospitals(
+      hospitalList.filter((hospital) =>
+        hospital.toLowerCase().includes(text.toLowerCase()),
+      ),
+    );
+    setShowHospitalDropdown(true);
+  };
+
+  // Function to filter doctors based on user input
+  const filterDoctors = (text: string) => {
+    setDoctorSearchText(text);
+    setFilteredDoctors(
+      doctorList.filter((doctor) =>
+        doctor.toLowerCase().includes(text.toLowerCase()),
+      ),
+    );
+    setShowDoctorDropdown(true);
+  };
+
+  // Fetch Doctors
+ const fetchDoctors = async () => {
+  try {
+    const roleName = sessionStorage.getItem('roleName');
+    const tenantID = sessionStorage.getItem('tenantID');
+
+    let url = '/Doctor/GetDoctorsList';
+    if (roleName !== 'SuperAdmin' && tenantID) {
+      url += `?tenantId=${tenantID}`;
+    }
+
+    const response = await api.get(url);
+    const result = response.data;
+
+    if (result.success && Array.isArray(result.data)) {
+      setDoctors(result.data);
+
+      const loggedInDoctorID = sessionStorage.getItem('doctorID');
+
+      const loggedInDoctor = result.data.find(
+        (doc) => String(doc.doctorID) === String(loggedInDoctorID),
+      );
+
+      if (loggedInDoctor) {
+        setSelectedDoctor(loggedInDoctor.doctorID);
+        setDoctorName(loggedInDoctor.doctorName);
+        // fetchDoctorTimeSlots(loggedInDoctor.doctorID);
+      }
+    } else {
+      console.error('Invalid doctor data format:', result.data);
+    }
+  } catch (error) {
+    console.error('Error fetching doctors:', error);
+  }
+};
+
+
+  
+  // Fetch Doctor Time Slots
+  const fetchDoctorTimeSlots = async (doctorID) => {
+    if (!doctorID) return;
+
+    try {
+      const response = await api.get(
+        `/Doctor/GetDoctorTimeSlot?doctorId=${doctorID}`,
+      );
+      const result = response.data;
+
+      if (
+        result.success &&
+        Array.isArray(result.data) &&
+        result.data.length > 0
+      ) {
+        let fromTime = null;
+        let toTime = null;
+        let slotDuration = result.data[0]?.slotDuration || 10;
+
+        result.data.forEach((slot) => {
+          const slotFromTime = new Date(`1970-01-01T${slot.fromTime}`);
+          const slotToTime = new Date(`1970-01-01T${slot.toTime}`);
+
+          console.log('TimeSlot ID:', slot.timeSlotID);
+
+          if (!fromTime || slotFromTime < fromTime) fromTime = slotFromTime;
+          if (!toTime || slotToTime > toTime) toTime = slotToTime;
+        });
+
+        setTimeInterval(slotDuration);
+        setAvailableTimeRange({ fromTime, toTime });
+      } else {
+        console.error('No valid slots found for this doctor.');
+        setTimeInterval(10);
+        setAvailableTimeRange({
+          fromTime: new Date('1970-01-01T00:00:00'),
+          toTime: new Date('1970-01-01T23:50:00'),
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching doctor time slots:', error);
+      setTimeInterval(10);
+      setAvailableTimeRange({
+        fromTime: new Date('1970-01-01T00:00:00'),
+        toTime: new Date('1970-01-01T23:50:00'),
+      });
+    }
+  };
+
+  // Use effect to fetch doctors when the component mounts
+  useEffect(() => {
+    fetchDoctors(); // Fetch the doctor data
+  }, []);
+
+  const getAvailableTimeRange = () => {
+    return {
+      fromTime: availableTimeRange.fromTime
+        ? availableTimeRange.fromTime
+        : new Date('1970-01-01T00:00:00'), // Default 12 AM
+      toTime: availableTimeRange.toTime
+        ? availableTimeRange.toTime
+        : new Date('1970-01-01T23:50:00'), // Default 11:50 PM
+    };
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    const userID = sessionStorage.getItem('userID');
+    const doctorID = sessionStorage.getItem('doctorID');
+
+    if (!userID || !doctorID) {
+      toast.error('User or Doctor not logged in. Please log in again.');
+      return;
+    }
+
+    // Ensure a slot is selected
+    if (!selectedEvent || !selectedEvent.start || !selectedEvent.timeSlotID) {
+      toast.error('No timeslot has been selected.');
+      return;
+    }
+
+    const appointmentDate = selectedEvent.start.toLocaleDateString('en-CA'); // Format: YYYY-MM-DD
+    const appointmentTime = selectedEvent.start.toTimeString().split(' ')[0]; // Format: HH:MM:SS
+
+    const appointmentDay = new Date(appointmentDate).toLocaleDateString(
+      'en-US',
+      {
+        weekday: 'long',
+      },
+    );
+
+    console.log('appointmentDay:', appointmentDay);
+    console.log(
+      'doctorAvailability days:',
+      doctorAvailability.map((s) => s.dayofWeek),
+    );
+
+    if (!formData.patientID) {
+      toast.warn('Please select a patient.');
+      return;
+    }
+
+    if (!formData.reason || formData.reason.trim() === '') {
+      toast.warn('Please enter notes before submitting.');
+      return;
+    }
+
+    const payload = {
+      createdBy: userID,
+      isActive: true,
+      doctorID,
+      patientID: formData.patientID,
+      timeSlotID: selectedEvent.timeSlotID,
+      appointmentDate,
+      appointmentTime,
+      statusID: 'f79e15f9-61ec-41ba-9b62-289025f6a2a8',
+      notes: formData.reason,
+      toWhom: 'ae34b43e-74cf-4328-7794-08dd561d6477',
+      relationship: 'ae34b43e-74cf-4328-7794-08dd561d6477',
+      phoneNumber: formData.phoneNumber || '',
+    };
+
+    console.log(payload);
+
+    try {
+      const response = await api.post('/Appointment', payload);
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success('Appointment booked successfully!');
+        setFormData({
+          doctor: '',
+          date: '',
+          time: '',
+          reason: '',
+          phoneNumber: '',
+          patientID: '',
+        });
+        setSelectedDoctor('');
+        setSelectedHospitalID('');
+        setAppointmentType('');
+        setShowAddModal(false);
+      } else {
+        toast.error('Submission failed. Please try again.');
+        console.error('Submission failed:', response.data);
+      }
+    } catch (error) {
+      console.error(
+        'Error during submission:',
+        error.response || error.message || error,
+      );
+      toast.error('An error occurred. Please try again later.');
+    }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+
+    if (name === 'relationship' && value.length > 0) {
+      setShowSuggestions(true);
+      setFilteredRelationships(
+        relationships.filter((relation) =>
+          relation.toLowerCase().includes(value.toLowerCase()),
+        ),
+      );
+    } else {
+      setShowSuggestions(false);
+    }
+
+    if (name === 'hospital') {
+      filterHospitals(value);
+    }
+    if (name === 'doctor') {
+      filterDoctors(value);
+    }
+
+    // Validate the field
+    setErrors({ ...errors, [name]: validateField(name, value) });
+  };
+
+ useEffect(() => {
+  const storedLOV = localStorage.getItem('masterLOV');
+  if (storedLOV) {
+    const parsedLOV = JSON.parse(storedLOV);
+    const toWhomOptions = parsedLOV?.data?.filter(
+      (item: any) => item.type === 'toWhom'
+    ) || [];
+    console.log('toWhom Options:', toWhomOptions);
+    setOptions(toWhomOptions);
+  } else {
+    console.warn('No masterLOV found in localStorage for toWhom options');
+  }
+}, []);
+
+
+  const generateTimeSlots = (fromTime, toTime, interval) => {
+    const slots = [];
+    let current = new Date(fromTime);
+
+    // Clear seconds and milliseconds
+    current.setSeconds(0, 0);
+    toTime.setSeconds(0, 0);
+
+    while (current < toTime) {
+      slots.push(new Date(current));
+      current.setMinutes(current.getMinutes() + interval);
+    }
+
+    return slots;
+  };
+
+  const eventStyleGetter = (event) => {
+    let backgroundColor = '#4CAF50'; // Default color
+    if (event.status === 'booked') {
+      backgroundColor = '#f44336'; // Red for booked events
+    }
+
+    return {
+      style: {
+        backgroundColor,
+        color: 'white',
+        border: 'none',
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        alignItems: 'center', // vertical centering
+        justifyContent: 'center', // horizontal centering
+        fontSize: '12px',
+        padding: 0,
+        margin: 0,
+        overflow: 'hidden',
+        whiteSpace: 'normal',
+        wordBreak: 'break-word',
+        textAlign: 'center',
+        boxSizing: 'border-box',
+      },
+    };
+  };
+
+ 
+
+  useEffect(() => {
+  if (hasFetched.current) return; // 🚫 If already called, do nothing
+
+  hasFetched.current = true; // ✅ Mark it as called once
+
+  const doctorID = sessionStorage.getItem('doctorID');
+
+  if (doctorID) {
+    setSelectedDoctor(doctorID);
+    fetchDoctorTimeSlots(doctorID);
+    fetchAppointments(doctorID);
+  }
+}, []);
+useEffect(() => {
+  if (!selectedDoctor) return;
+
+  fetchDoctorTimeSlots(selectedDoctor); // sets interval & available time
+  fetchAppointments(selectedDoctor);    // sets appointments for selected doctor
+}, [selectedDoctor]);
+
+
+  const [events, setEvents] = useState([]);
+
+  useEffect(() => {
+    setEvents(bookedAppointments); // You can later merge with custom user events
+  }, [bookedAppointments]);
+
+  const handleOptionChange = (selectedOption: AppLOVOption) => {
+    setAppointmentType(selectedOption.appLOVID); // ✅ Store the ID
+    console.log(
+      `Selected: ${selectedOption.name}, appLOVID: ${selectedOption.appLOVID}`,
+    );
+  };
+
+  // Custom toolbar component to display current week and navigation buttons
+  const CustomToolbar = ({ label, onNavigate }: any) => {
+    // Calculate the start and end of the current week
+    const startOfWeek = currentDate.clone().startOf('week');
+    const endOfWeek = currentDate.clone().endOf('week');
+    const startOfMonth = currentDate.clone().startOf('month');
+    const endOfMonth = currentDate.clone().endOf('month');
+
+    // Format the week date range
+    const dateRange = `${startOfWeek.format('DD/MM/YYYY')} to ${endOfWeek.format('DD/MM/YYYY')}`;
+
+    return (
+     <div className="rbc-toolbar w-full flex flex-col sm:flex-row items-start sm:items-center px-4 gap-4">
+
+        {/* Time Interval Dropdown (Left side) */}
+        
+          {/* Left Dropdown */}
+        <div className="flex items-center space-x-2">
+  <label className="text-black font-bold text-xl">Doctor:</label>
+
+  <select
+  name="doctor"
+  value={selectedDoctor || ''}
+  onChange={(e) => {
+    const selectedID = e.target.value;
+    const doctor = doctors.find((doc) => String(doc.doctorID) === String(selectedID));
+    
+    setSelectedDoctor(selectedID);
+    setDoctorName(doctor?.doctorName || '');
+
+    // ✅ Automatically fetch time slot (which sets the interval)
+    fetchDoctorTimeSlots(selectedID);
+  }}
+   className="w-40 rounded-lg border border-black bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+  disabled={roleName !== 'TenantAdmin' && roleName !== 'SuperAdmin'}
+>
+
+    <option value="">Select Doctor</option>
+    {doctors.map((doc) => (
+      <option key={doc.doctorID} value={doc.doctorID}>
+        {doc.doctorName}
+      </option>
+    ))}
+  </select>
+</div>
+
+
+          {/* center Dropdown */}
+        <div className="flex items-center">
+  <label className="mr-2 text-black font-bold text-xl">Interval:</label>
+  <select
+    value={timeInterval}
+    className="w-35 rounded-lg border border-black bg-transparent py-2 px-4 text-black outline-none focus:border-primary focus-visible:shadow-none dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+    disabled={roleName !== 'TenantAdmin' && roleName !== 'SuperAdmin'}
+  >
+    <option value={10}>10 minutes</option>
+    <option value={15}>15 minutes</option>
+    <option value={20}>20 minutes</option>
+    <option value={30}>30 minutes</option>
+    <option value={45}>45 minutes</option>
+    <option value={60}>1 hour</option>
+  </select>
+</div>
+
+          {/* right Week Navigation Buttons */}
+
+          <div className="flex items-center space-x-4">
+            {/* Previous Month Button (<<) */}
+            <span
+              className="text-black dark:text-white cursor-pointer"
+              onClick={() => {
+                setCurrentDate(currentDate.clone().subtract(1, 'month'));
+                onNavigate('PREV');
+              }}
+            >
+              <ChevronsLeft className="w-6 h-6 hover:text-primary transition" />
+            </span>
+
+            {/* Previous Week Button (<) */}
+            <span
+              className="text-black dark:text-white cursor-pointer"
+              onClick={() => {
+                setCurrentDate(currentDate.clone().subtract(1, 'week'));
+                onNavigate('PREV');
+              }}
+            >
+              <ChevronLeft className="w-6 h-6 hover:text-primary transition" />
+            </span>
+
+            {/* Current Week Display */}
+            <span className="text-xl font-bold text-black dark:text-white">
+              {dateRange}
+            </span>
+
+            {/* Next Week Button (>) */}
+            <span
+              className="text-black dark:text-white cursor-pointer"
+              onClick={() => {
+                setCurrentDate(currentDate.clone().add(1, 'week'));
+                onNavigate('NEXT');
+              }}
+            >
+              <ChevronRight className="w-6 h-6 hover:text-primary transition" />
+            </span>
+
+            {/* Next Month Button (>>) */}
+            <span
+              className="text-black dark:text-white cursor-pointer"
+              onClick={() => {
+                setCurrentDate(currentDate.clone().add(1, 'month'));
+                onNavigate('NEXT');
+              }}
+            >
+              <ChevronsRight className="w-6 h-6 hover:text-primary transition" />
+            </span>
+          </div>
+        
       </div>
-      {/* <!-- ====== Calendar Section End ====== --> */}
-    </>
+    );
+  };
+
+  const CustomWeekHeader = ({ label, date }) => {
+    const isToday = new Date().toDateString() === new Date(date).toDateString();
+
+    return (
+      <div className="flex flex-col items-center justify-center h-16 w-full">
+        <div className="text-sm text-gray-600 font-medium">
+          {date.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase()}
+        </div>
+        <div className="mt-1 flex items-center justify-center w-full">
+          <div
+            className={`w-6 h-6 flex items-center justify-center rounded-full 
+              ${isToday ? 'bg-blue-600 text-white' : 'text-black'}`}
+          >
+            <span className="text-sm font-medium">{date.getDate()}</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+
+
+  const { fromTime, toTime } = getAvailableTimeRange();
+  // Handle Date Selection Change
+  const handleDateChange = (date: Date | null) => {
+    if (!date) return;
+
+    console.log('Selected Date:', date);
+    console.log('Formatted Date:', date.toISOString().split('T')[0]);
+    console.log('Formatted Time:', date.toTimeString().split(' ')[0]); // HH:MM:SS format
+
+    setSelectedDate(date);
+
+    setFormData((prev) => ({
+      ...prev,
+      date: date.toISOString().split('T')[0], // YYYY-MM-DD
+      time: date.toTimeString().split(' ')[0], // HH:MM:SS
+    }));
+  };
+  const [patients, setPatients] = useState([]);
+
+  useEffect(() => {
+    const fetchPatients = async () => {
+      try {
+        const response = await api.get('/Patient');
+        const activePatients =
+          response.data?.data?.filter((p) => p.isActive) ?? [];
+        setPatients(activePatients);
+      } catch (error) {
+        console.error('Failed to fetch patients', error);
+      }
+    };
+
+    fetchPatients();
+  }, []);
+
+  return (
+   <div className="min-h-screen flex justify-center items-start bg-gray-100 px-2 sm:px-4">
+  <div className="w-full max-w-7xl h-full">
+
+        <BigCalendar
+          localizer={localizer}
+          events={events}
+          startAccessor="start"
+          endAccessor="end"
+          style={{ height: '100%' }}
+          views={['week', 'month']}
+          defaultView="week"
+          step={timeInterval} // ✅ Uses slot duration dynamically
+          timeslots={1}
+          eventPropGetter={eventStyleGetter}
+          // onSelectSlot={handleSelectSlot}
+          onSelectEvent={handleEventClick}
+          formats={{
+            eventTimeRangeFormat: () => '', // Hide event time range
+          }}
+          components={{
+            event: ({ event }) => <span>{event.title}</span>,
+            week: {
+              header: CustomWeekHeader,
+            },
+            toolbar: CustomToolbar,
+          }}
+          selectable={true}
+          scrollToTime={getAvailableTimeRange().fromTime} // ✅ Scrolls to 12 AM if no slots
+          min={getAvailableTimeRange().fromTime} // ✅ Ensures min is 12 AM
+          max={getAvailableTimeRange().toTime} // ✅ Ensures max is 11:50 PM
+        />
+      </div>
+  {/* ✅ Patient Details Modal */}
+   {showEditModal && selectedEvent && (
+  <div className="modal-overlay">
+    <div className="modal-card">
+      <h2 className="text-xl font-bold mb-4">Patient Details</h2>
+      <ul className="list-disc list-inside space-y-2 text-gray-800">
+        <li><strong>Name:</strong> {selectedEvent.patientName}</li>
+        <li><strong>Mobile:</strong> {selectedEvent.patientPhoneNumber}</li>
+        <li><strong>Gender:</strong> {selectedEvent.patientGender}</li>
+        <li>
+          <strong>Date of Birth:</strong>{' '}
+          {new Date(selectedEvent.patientDateOfBirth).toLocaleDateString()}
+        </li>
+        <li><strong>Notes:</strong> {selectedEvent.notes}</li>
+      </ul>
+
+    <div className="flex justify-end">
+  <button
+    onClick={() => setShowEditModal(false)}
+    className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+  >
+    Close
+  </button>
+</div>
+
+    </div>
+  </div>
+)}
+
+      {/* Add Appointment Modal */}
+      {/* {showAddModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg w-[500px]">
+            <h2 className="mb-2.5 text-2xl font-bold text-black dark:text-white">
+              Add New Appointment
+            </h2>
+
+            <form onSubmit={handleSubmit}>     
+
+            
+              <div className="mb-4 flex gap-4">
+                <div className="relative w-1/2">
+                  <select
+                    name="patientID"
+                    value={formData.patientID}
+                    onChange={(e) => {
+                      const selectedID = e.target.value;
+                      const selectedPatient = patients.find(
+                        (p) => p.patientID === selectedID,
+                      );
+
+                      setFormData((prev) => ({
+                        ...prev,
+                        patientID: selectedID,
+                        name: selectedPatient?.patientName || '',
+                        phoneNumber: selectedPatient?.patientPhoneNumber || '',
+                      }));
+                    }}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+        text-black outline-none focus:border-primary dark:border-form-strokedark
+        dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  >
+                    <option value="">Select Patient</option>
+                    {patients.map((patient) => (
+                      <option key={patient.patientID} value={patient.patientID}>
+                        {patient.patientName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="relative w-1/2">
+                  <input
+                    type="text"
+                    name="phoneNumber"
+                    maxLength={10}
+                    placeholder="Phone Number"
+                    value={formData.phoneNumber}
+                    readOnly
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                  />
+                  {errors.phoneNumber && (
+                    <p className="text-red-500 text-sm">{errors.phoneNumber}</p>
+                  )}
+                </div>
+              </div>
+
+             
+              <div className="mb-4 flex gap-4">
+             
+                <div className="relative w-1/2">
+                  <select
+                    name="hospital"
+                    value={selectedHospitalID}
+                    onChange={(e) => setSelectedHospitalID(e.target.value)}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    disabled
+                  >
+                    <option value="">Select Hospital</option>
+                    {hospitals.map((hospital) => (
+                      <option
+                        key={hospital.hospitalID}
+                        value={hospital.hospitalID}
+                      >
+                        {hospital.hospitalName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+              
+                <div className="relative w-1/2">
+                  <select
+                    name="doctor"
+                    value={selectedDoctor || ''}
+                    className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10 text-black outline-none focus:border-primary dark:border-form-strokedark dark:bg-form-input dark:text-white dark:focus:border-primary"
+                    disabled
+                  >
+                    <option value={selectedDoctor}>
+                      {doctorName || 'Doctor Name'}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
+             
+              <div className="mb-4">
+                <textarea
+                  name="reason"
+                  placeholder="Enter your text here..."
+                  value={formData.reason}
+                  onChange={handleInputChange}
+                  className="w-full rounded-lg border border-stroke bg-transparent py-4 pl-6 pr-10
+           text-black outline-none focus:border-primary dark:border-form-strokedark
+            dark:bg-form-input dark:text-white dark:focus:border-primary"
+                ></textarea>
+                {errors.reason && (
+                  <p className="text-red-500 text-sm">{errors.reason}</p>
+                )}
+              </div>
+            
+              <div className="mb-2.5 block font-medium text-black dark:text-white">
+                <DatePicker
+                  selected={selectedEvent ? selectedEvent.start : new Date()}
+                  onChange={handleDateChange}
+                  showTimeSelect
+                  minTime={fromTime} 
+                  maxTime={toTime} 
+                  dateFormat="Pp"
+                  className="w-full rounded-lg border border-stroke 
+  bg-transparent py-4 pl-6 pr-10 text-black outline-none
+   focus:border-primary focus-visible:shadow-none
+    dark:border-stroke-dark dark:bg-transparent
+     dark:text-white dark:focus:border-accent dark:focus-visible:shadow-none"
+                />
+              </div>
+           
+              <div className="mt-4 flex justify-between">
+                <button
+                  className="bg-gray-500 text-black py-1 px-3 rounded-md"
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Close
+                </button>
+
+                <CustomButton type="submit">save</CustomButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )} */}
+
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        style={{ zIndex: 9999 }}
+      />
+      {/* Inline styles */}
+      <style>{`
+        @import url("https://cdn.jsdelivr.net/gh/lykmapipo/themify-icons@0.1.2/css/themify-icons.css");
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 24px;
+  width: 400px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+
+        .rbc-event {
+  height: 4% !important;
+  width: 107% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border-radius:0 !important;
+}
+.rbc-timeslot-group {
+  position: relative;
+}
+.rbc-event-content {
+  width: 100%;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.Toastify__toast {
+  z-index: 9999; /* Ensure it's high enough */
+}
+
+.popup-modal {
+  z-index: 9998; /* Ensure it's below the toast */
+}
+
+
+/* --------- 1. REMOVE ALLDAY CELL --------- */
+.rbc-allday-cell,
+.rbc-allday-events {
+  display: none !important;
+}
+
+/* --------- 2. HEADER STYLING (Compact) --------- */
+.rbc-time-header-content .rbc-header,
+.rbc-header {
+  height: 100px !important; /* Reduced from 140px */
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px !important; /* Reduced from 10px */
+  gap: 4px !important; /* Reduced from 20px */
+  background-color: transparent !important;
+}
+
+
+/* --------- 3. TODAY COLUMN BG COLOR --------- */
+.rbc-header.rbc-today {
+  background-color: #e0f2fe !important; /* Blue-100 */
+}
+
+/* --------- 4. DAY TEXT (e.g. MON) --------- */
+.rbc-header span:first-child {
+  font-size: 16px !important;  /* Reduced from 22px */
+  font-weight: 600 !important;
+  color: #0f172a !important;
+  margin-bottom: 2px !important;
+}
+
+/* --------- 5. TODAY'S DATE CIRCLE --------- */
+.rbc-time-header-content .rbc-header.rbc-today span:last-child {
+  background-color: rgb(82, 153, 241) !important;
+  color: #1e3a8a !important;
+  font-size: 16px !important;  /* Reduced from 24px */
+  font-weight: 700 !important;
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: normal !important;
+  margin: 0 auto !important;
+}
+
+/* --------- 6. NORMAL DATE STYLING (non-today) --------- */
+.rbc-time-header-content .rbc-header span:last-child {
+  background-color: transparent !important;
+  color: #1e293b !important;
+  font-size: 16px !important;  /* Reduced from 22px */
+  font-weight: 600 !important;
+  width: auto !important;
+  height: auto !important;
+  line-height: normal !important;
+  border-radius: 0 !important;
+  display: inline-block !important;
+  margin: 0 auto;
+}
+
+/* --------- 7. REMOVE BUTTON STYLE IF INSIDE HEADER --------- */
+.rbc-header.rbc-today .rbc-button-link {
+  background: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* --------- 8. TODAY'S TIME SLOT BG --------- */
+.rbc-day-slot.rbc-today .rbc-time-slot {
+  background-color: #e0f2fe !important;
+}
+
+/* --------- 9. GRID LINES --------- */
+.rbc-day-slot:not(:last-child),
+.rbc-time-header-content .rbc-header {
+  border-right: 1px solid #e0e0e0 !important;
+}
+
+/* -------- Y-AXIS SPACING (Visible gap between time slots) -------- */
+.rbc-time-content .rbc-time-slot {
+  min-height: 50px !important;       /* Taller rows */
+  // border-bottom: 6px solid #f9fafb;  /* Adds visible space between rows */
+}
+
+/* -------- X-AXIS SPACING (Visible gap between day columns) -------- */
+.rbc-day-slot {
+  border-right: 6px solid #f9fafb !important;  /* Space between columns */
+}
+
+/* Optional: Remove last right border to avoid extra edge */
+.rbc-time-content > *:last-child .rbc-day-slot {
+  border-right: none !important;
+}
+
+
+.rbc-time-header.rbc-overflowing {
+  background-color: #e0f2fe !important; /* Light Blue (Tailwind's blue-100) */
+}
+
+/* Align time gutter and header row */
+.rbc-time-gutter,
+.rbc-header {
+  box-sizing: border-box;
+  border-bottom: 1px solid #cbd5e1; /* matching blue border */
+}
+
+/* Optional - remove unwanted margin/padding */
+.rbc-time-gutter.rbc-time-column {
+  padding: 6px 10px;
+  background-color: #e0f2fe;
+  border-right: 1px solid #cbd5e1;
+}
+
+/* Make sure time slots and header are same height */
+.rbc-time-slot,
+.rbc-header {
+  height: 40px; /* adjust if needed */
+  line-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.rbc-toolbar span.cursor-pointer {
+  background: radial-gradient(circle at top left, #8ECBF5, #3366AA); /* lighter blue */
+  color: white;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: 20px;
+  transition: all 0.3s ease;
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.6), 0 3px 8px rgba(0, 0, 0, 0.4);
+  border: 3px solid #ccc;
+  background-clip: padding-box;
+  cursor: pointer;
+}
+
+.rbc-toolbar span.cursor-pointer:hover {
+  background: radial-gradient(circle at bottom right, #66B2F4, #2C5E9E); /* slightly darker but still soft */
+  transform: scale(1.08);
+  box-shadow: inset 0 1px 4px rgba(255, 255, 255, 0.8), 0 6px 10px rgba(0, 0, 0, 0.5);
+  border-color: #aaa;
+}
+
+.rbc-day-slot.rbc-time-column {
+  background-color: white;
+}
+
+.rbc-toolbar {
+  // background-color: #DFF0AD; /* Light blue (Tailwind blue-100) */
+    background-color: #9CDBF5; /* Light blue (Tailwind blue-100) */
+  padding: 12px 16px; /* Optional padding for spacing */
+  border-radius: 8px; /* Optional for rounded edges */
+}
+
+.rbc-header .rbc-button-link .rbc-header-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%; /* Full height of header */
+  padding: 4px 0;
+}
+
+.rbc-header .rbc-button-link .day {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0078D7; /* Or any blue you want */
+  margin-bottom: 4px;
+}
+
+.rbc-header .rbc-button-link .date {
+  font-size: 16px;
+  font-weight: bold;
+  color: #000;
+}
+
+/* Style all headers */
+.rbc-header {
+  text-align: center;
+  padding: 4px 0;
+}
+
+/* Style the container of day + date */
+.custom-date-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-weight: 500;
+  font-size: 14px;
+  color: #4a4a4a;
+}
+
+/* Day (e.g., SUN) */
+.custom-date-header .day {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+/* Date (e.g., 8) */
+.custom-date-header .date {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+  line-height: 1.2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* Highlight Today */
+.rbc-header.rbc-today .custom-date-header .date {
+  background-color: #1976d2; /* Blue circle */
+  color: white;
+}
+
+      `}</style>
+    </div>
   );
 };
 

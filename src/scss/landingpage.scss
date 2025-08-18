@@ -1,0 +1,50 @@
+.cpp__heroAutocomplete {
+    & > div {
+        width: 100%;
+        .multiSelectContainer {
+            .searchWrapper {
+                padding: 0;
+                border: none;
+            }
+            input {
+                background-color: #fff;
+                border-radius: 8px;
+                width: 100%;
+                border: none;
+                margin: 0;
+                padding: 10px 15px;
+            }
+        }
+    }
+}
+
+@property --num-transactions {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: false;
+  }
+  
+  @property --num-assets {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: false;
+  }
+  
+  @property --num-users {
+    syntax: "<integer>";
+    initial-value: 0;
+    inherits: false;
+  }
+  
+  @keyframes counter {
+    from {
+      --num-transactions: 0;
+      --num-assets: 0;
+      --num-users: 0;
+    }
+    to {
+      --num-transactions: 400;
+      --num-assets: 50;
+      --num-users: 45;
+    }
+  }

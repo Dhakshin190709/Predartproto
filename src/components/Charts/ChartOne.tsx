@@ -21,7 +21,6 @@ const options: ApexOptions = {
       left: 0,
       opacity: 0.1,
     },
-
     toolbar: {
       show: false,
     },
@@ -46,12 +45,8 @@ const options: ApexOptions = {
   ],
   stroke: {
     width: [2, 2],
-    curve: 'straight',
+    curve: 'smooth',
   },
-  // labels: {
-  //   show: false,
-  //   position: "top",
-  // },
   grid: {
     xaxis: {
       lines: {
@@ -84,18 +79,7 @@ const options: ApexOptions = {
   xaxis: {
     type: 'category',
     categories: [
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ],
     axisBorder: {
       show: false,
@@ -122,17 +106,16 @@ interface ChartOneState {
   }[];
 }
 
-const ChartOne: React.FC = () => {
+const MedicalChart: React.FC = () => {
   const [state, setState] = useState<ChartOneState>({
     series: [
       {
-        name: 'Product One',
-        data: [23, 11, 22, 27, 13, 22, 37, 21, 44, 22, 30, 45],
+        name: 'Patients Registered',
+        data: [20, 35, 50, 40, 60, 75, 100, 120, 150, 180, 220, 250],
       },
-
       {
-        name: 'Product Two',
-        data: [30, 25, 36, 30, 45, 35, 64, 52, 59, 36, 39, 51],
+        name: 'Appointments Scheduled',
+        data: [25, 40, 45, 60, 85, 90, 130, 160, 190, 210, 230, 270],
       },
     ],
   });
@@ -153,8 +136,8 @@ const ChartOne: React.FC = () => {
               <span className="block h-2.5 w-full max-w-2.5 rounded-full bg-primary"></span>
             </span>
             <div className="w-full">
-              <p className="font-semibold text-primary">Total Revenue</p>
-              <p className="text-sm font-medium">12.04.2022 - 12.05.2022</p>
+              <p className="font-semibold text-primary">Patients Registered</p>
+              <p className="text-sm font-medium">Jan - Dec 2024</p>
             </div>
           </div>
           <div className="flex min-w-47.5">
@@ -162,8 +145,8 @@ const ChartOne: React.FC = () => {
               <span className="block h-2.5 w-full max-w-2.5 rounded-full bg-secondary"></span>
             </span>
             <div className="w-full">
-              <p className="font-semibold text-secondary">Total Sales</p>
-              <p className="text-sm font-medium">12.04.2022 - 12.05.2022</p>
+              <p className="font-semibold text-secondary">Appointments Scheduled</p>
+              <p className="text-sm font-medium">Jan - Dec 2024</p>
             </div>
           </div>
         </div>
@@ -196,4 +179,4 @@ const ChartOne: React.FC = () => {
   );
 };
 
-export default ChartOne;
+export default MedicalChart;
