@@ -1,50 +1,199 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import ClickOutside from '../ClickOutside';
-import UserOne from '../../images/user/user-01.png';
-
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import React from 'react';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../redux/actions/authActions';
-import { useNavigate } from 'react-router-dom'; 
-
-const DropdownUser = () => {
+import api from '../../api/request';
+interface DocumentEntry {
+  documentID: string;
+  documentType: string;
+}
+const DropdownUser = ({ patientID }: { patientID: string }) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [avatarLetters, setAvatarLetters] = useState<string>('UN');
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+
+  useEffect(() => {
+    const fetchCheckInStatus = async () => {
+      const currentRole = sessionStorage.getItem('roleName')?.toLowerCase();
+      if (currentRole !== 'doctor') return;
+
+      const doctorID = sessionStorage.getItem('doctorID');
+      if (!doctorID) return;
+
+      try {
+        const response = await api.get(
+          `/Doctor/DoctorCheckInOut?doctorId=${doctorID}`,
+        );
+        console.log('Doctor check-in GET response:', response.data);
+
+        // ✅ Access the first item from the data array
+        const doctorInfo = response.data?.data?.[0];
+
+        if (doctorInfo) {
+          setIsCheckedIn(doctorInfo.checkInOut ?? false); // ✅ Use checkInOut
+        }
+      } catch (error) {
+        console.error('Error fetching check-in status:', error);
+      }
+    };
+
+    fetchCheckInStatus();
+  }, []);
+
+  useEffect(() => {
+    const username = sessionStorage.getItem('username');
+    console.log('User Name from sessionStorage:', username); // Debugging line
+    if (username) {
+      const namePart = username.split('@')[0]; // "predart"
+      const initials = namePart
+        .split(/[._-]/) // Optional: split on special chars
+        .map((word) => word.charAt(0))
+        .join('')
+        .slice(0, 2)
+        .toUpperCase();
+      console.log('Calculated Initials:', initials); // Debugging line
+      setAvatarLetters(initials || 'UN'); // Set fallback to 'UN' if initials are empty
+    }
+  }, []);
+
+  const roleNameRaw = sessionStorage.getItem('roleName');
+  const roleName = roleNameRaw?.toLowerCase(); // convert to lowercase
+  console.log('Role Name:', roleNameRaw);
+
+  // Determine path based on roleName
+  const profilePath =
+    roleName === 'patient'
+      ? '/patientFormWizard'
+      : roleName === 'doctor'
+        ? '/DoctorFormWizard'
+        : roleName === 'tenantadmin'
+          ? '/TenantFormWizard'
+          : '/HospitalFormWizard';
 
   const handleLogout = () => {
     dispatch(logout());
-    localStorage.removeItem('authToken'); // Clear token from localStorage
-    navigate('/signin');
+    sessionStorage.clear();
+    localStorage.removeItem('authToken');
+    navigate('/LoginPage'); // Make sure your login route matches this path!
+  };
+
+  useEffect(() => {
+    const fetchPhoto = async () => {
+      const patientID = sessionStorage.getItem('patientID');
+      console.log('Fetched patientID:', patientID);
+
+      if (!patientID) {
+        // Show Avatar by default, don't show error
+        setLoading(false);
+        return;
+      }
+
+      try {
+        // const docListRes = await api.get(`/Doctor/GetDocuments?doctorId=${patientID}`);
+        // const documents = docListRes.data?.data ?? [];
+        // console.log('Documents fetched:', documents);
+        // const photoDoc = documents.find((doc) => doc.documentType === 'Photo');
+        // console.log('Photo Document:', photoDoc);
+        // if (!photoDoc?.documentID) {
+        //   // No photo found, show Avatar by default
+        //   setLoading(false);
+        //   return;
+        // }
+        // const imageRes = await api.get(`/Doctor/Documents/${photoDoc.documentID}`);
+        // const base64 = imageRes?.data?.data?.fileBase64;
+        // console.log('Image base64 response:', base64);
+        // if (base64) {
+        //   setImageBase64(base64);
+        // }
+      } catch (err) {
+        console.error('Error fetching photo:', err);
+        // Optional: omit error message to fallback to Avatar
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPhoto();
+  }, []);
+
+  if (loading) return <p>Loading image...</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+
+  const handleCheckInOutToggle = async (newStatus: boolean) => {
+    const doctorID = sessionStorage.getItem('doctorID');
+    const userID = sessionStorage.getItem('userID');
+
+    if (!doctorID || !userID) {
+      toast.warn('Missing doctor or user session.');
+      return;
+    }
+
+    const payload = {
+      guidID: doctorID,
+      updatedBy: userID,
+      updatedOn: new Date().toISOString(),
+      isActive: newStatus,
+    };
+
+    try {
+      const response = await api.post('/Doctor/DoctorCheckInOut', payload);
+      if (response.data?.success) {
+        toast.success(
+          `Doctor ${newStatus ? 'checked in' : 'checked out'} successfully.`,
+        );
+        setIsCheckedIn(newStatus); // update UI after successful save
+      } else {
+        toast.error('Failed to update doctor status.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Something went wrong.');
+    }
   };
 
   return (
     <ClickOutside onClick={() => setDropdownOpen(false)} className="relative">
-      <Link
-        onClick={() => setDropdownOpen(!dropdownOpen)}
-        className="flex items-center gap-4"
-        to="#"
-      >
-        <span className="h-12 w-12 rounded-full">
-          <img src={UserOne} alt="User" />
-        </span>
-
-        <svg
-          className="hidden fill-current sm:block"
-          width="12"
-          height="8"
-          viewBox="0 0 12 8"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
+      {sessionStorage.getItem('username') ? (
+        // 👉 If username exists → show avatar
+        <Link
+          to="#"
+          onClick={() => setDropdownOpen(!dropdownOpen)}
+          className="flex items-center gap-4"
         >
-          <path
-            fillRule="evenodd"
-            clipRule="evenodd"
-            d="M0.410765 0.910734C0.736202 0.585297 1.26384 0.585297 1.58928 0.910734L6.00002 5.32148L10.4108 0.910734C10.7362 0.585297 11.2638 0.585297 11.5893 0.910734C11.9147 1.23617 11.9147 1.76381 11.5893 2.08924L6.58928 7.08924C6.26384 7.41468 5.7362 7.41468 5.41077 7.08924L0.410765 2.08924C0.0853277 1.76381 0.0853277 1.23617 0.410765 0.910734Z"
-            fill=""
-          />
-        </svg>
-      </Link>
+          {roleName === 'Patient' && imageBase64 ? (
+            <img
+              src={imageBase64}
+              alt="User"
+              className="h-10 w-10 rounded-full object-cover"
+            />
+          ) : (
+            <div className="bg-blue-400 text-white rounded-full w-[60px] h-[60px] flex items-center justify-center font-bold text-lg border-2 border-gray-300">
+              {avatarLetters}
+            </div>
+          )}
+        </Link>
+      ) : (
+        // 👉 If username does NOT exist → show Login button
+        <Link
+          to="/LoginPage"
+          className="bg-gradient-to-b from-[#004A99] to-[#007BFF] 
+        hover:from-[#007BFF] hover:to-[#004A99] text-white 
+        transition duration-150 ease-out hover:ease-in 
+        py-2 px-5 rounded-lg"
+        >
+          Login
+        </Link>
+      )}
 
       {/* <!-- Dropdown Start --> */}
       {dropdownOpen && (
@@ -54,7 +203,8 @@ const DropdownUser = () => {
           <ul className="flex flex-col gap-5 border-b border-stroke px-6 py-7.5 dark:border-strokedark">
             <li>
               <Link
-                to="/profile"
+                to={profilePath}
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -79,7 +229,8 @@ const DropdownUser = () => {
             </li>
             <li>
               <Link
-                to="#"
+                to="/myContacts"
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -100,7 +251,8 @@ const DropdownUser = () => {
             </li>
             <li>
               <Link
-                to="/settings"
+                to="/AccountSettings"
+                onClick={() => setDropdownOpen(false)}
                 className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
               >
                 <svg
@@ -123,8 +275,72 @@ const DropdownUser = () => {
                 Account Settings
               </Link>
             </li>
+            <li>
+              <Link
+                to="/PrivacyPolicy"
+                onClick={() => setDropdownOpen(false)}
+                className="flex items-center gap-3.5 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="fill-current"
+                  width="22"
+                  height="22"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <path
+                    fill="currentColor"
+                    d="M12 2L4 5v6c0 5.25 3.5 10 8 11 4.5-1 8-5.75 8-11V5l-8-3Zm0 2.18 6 2.25v5.32c0 4.05-2.68 7.94-6 9-3.32-1.06-6-4.95-6-9V6.43l6-2.25Zm-1 7.32a2 2 0 1 1 2 0v2.5a1 1 0 1 1-2 0v-2.5Z"
+                  />
+                </svg>
+                Privacy Policy
+              </Link>
+            </li>
+
+            <li>
+              {roleName === 'doctor' && (
+                <li>
+                  <div className="flex items-center justify-between gap-3.5 text-sm font-medium pl-6 pr-6">
+                    <div className="flex items-center gap-3.5">
+                      <span className="text-[15px]">Check-In / Out</span>
+                    </div>
+
+                    <label className="inline-flex relative items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={isCheckedIn}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          handleCheckInOutToggle(e.target.checked);
+                          setDropdownOpen(false); // ✅ close the dropdown too
+                        }}
+                      />
+                      <div
+                        className={`w-9 h-5 rounded-full transition-colors duration-300 ${
+                          isCheckedIn ? 'bg-green-500' : 'bg-red-500'
+                        } peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500`}
+                      >
+                        <div
+                          className={`absolute top-[1px] left-[1px] h-4 w-4 rounded-full bg-white border border-gray-300 transition-transform duration-300 ${
+                            isCheckedIn ? 'translate-x-4' : 'translate-x-0'
+                          }`}
+                        ></div>
+                      </div>
+                    </label>
+                  </div>
+                </li>
+              )}
+            </li>
           </ul>
-          <button onClick={handleLogout} className="flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base">
+          <button
+            onClick={() => {
+              handleLogout();
+              setDropdownOpen(false);
+            }}
+            className="flex items-center gap-3.5 px-6 py-4 text-sm font-medium duration-300 ease-in-out hover:text-primary lg:text-base"
+          >
             <svg
               className="fill-current"
               width="22"
@@ -144,9 +360,24 @@ const DropdownUser = () => {
             </svg>
             Log Out
           </button>
+          <ToastContainer position="top-right" autoClose={3000} />
         </div>
       )}
+
       {/* <!-- Dropdown End --> */}
+      <style>{`
+        @import url("https://cdn.jsdelivr.net/gh/lykmapipo/themify-icons@0.1.2/css/themify-icons.css");
+
+     /* Example: place in your global CSS */
+.Toastify__toast-container {
+  z-index: 9999 !important;
+}
+
+
+    
+
+
+      `}</style>
     </ClickOutside>
   );
 };

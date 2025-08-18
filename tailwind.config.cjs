@@ -2,7 +2,7 @@ const defaultTheme = require('tailwindcss/defaultTheme')
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  content: ['./index.html', './public/**/*.html', './src/**/*.{js,ts,jsx,tsx}'],
   darkMode: 'class',
   theme: {
     container: {
@@ -31,7 +31,7 @@ module.exports = {
         bodydark2: '#8A99AF',
         primary: '#3C50E0',
         secondary: '#80CAEE',
-        stroke: '#E2E8F0',
+        stroke: '#d4d4d4',
         gray: '#EFF4FB',
         graydark: '#333A48',
         'gray-2': '#F7F9FC',

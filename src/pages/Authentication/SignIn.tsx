@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../js/axiosInstance';
 import { useDispatch } from 'react-redux';
@@ -9,9 +9,18 @@ const SignIn: React.FC = () => {
   const [Username, setUsername] = useState('');
   const [Password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const dispatch = useDispatch();
 
-  const handleLogin = async (event) => {
+  useEffect(() => {
+    const storedUsername = localStorage.getItem('username');
+    if (storedUsername) {
+      setUsername(storedUsername);
+      setRememberMe(true);
+    }
+  }, []);
+  
+  const handleLogin = async (event: { preventDefault: () => void; }) => {
     event.preventDefault();
     try {
       const response = await axiosInstance.post('/Login', {
@@ -212,7 +221,7 @@ const SignIn: React.FC = () => {
 
                     <div className="mb-6">
                       <label className="mb-2.5 block font-medium text-black dark:text-white">
-                        Re-type Password
+                        Password
                       </label>
                       <div className="relative">
                         <input
@@ -245,6 +254,24 @@ const SignIn: React.FC = () => {
                         </span>
                       </div>
                     </div>
+                    <div className="flex items-center">
+        <input
+          type="checkbox"
+          id="rememberme"
+          checked={rememberMe}
+          onChange={() => setRememberMe(!rememberMe)}
+          className="mr-2"
+        />
+         <label htmlFor="rememberMe" className="ml-2">
+          Remember Me
+        </label>
+        <Link
+          to="/ForgotPassword"
+          className="text-blue-600 hover:text-blue-800 text-sm ml-60">
+          Forgot Password?
+        </Link>
+      </div>
+
 
                     <div className="mb-5">
                       <input

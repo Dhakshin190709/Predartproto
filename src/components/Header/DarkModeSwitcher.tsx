@@ -1,4 +1,6 @@
 import useColorMode from '../../hooks/useColorMode';
+import React from "react";
+
 
 const DarkModeSwitcher = () => {
   const [colorMode, setColorMode] = useColorMode();

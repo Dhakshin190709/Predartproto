@@ -2,7 +2,7 @@ import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { loginSuccess, logout } from '../redux/actions/authActions';
 import { useNavigate } from 'react-router-dom'; 
-import DropdownUser from './../components/Header/DropdownUser';
+import DropdownUser from '../components/Header/DropdownUser';
 
 const Auth = () => {
   const dispatch = useDispatch();
@@ -10,7 +10,7 @@ const Auth = () => {
   const navigate = useNavigate();
 
   const handleLogin = () => {
-    navigate('/signin');
+    navigate('/LoginPage');
   };
 
   return (
